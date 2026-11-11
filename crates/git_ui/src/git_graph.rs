@@ -4,7 +4,6 @@ use std::mem;
 use std::ops::Range;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::sync::OnceLock;
 
 use ed_actions::buffer_search;
 pub use ed_actions::git_graph::Open;
@@ -92,8 +91,7 @@ use smallvec::smallvec;
 use theme::AccentColors;
 use time::OffsetDateTime;
 use time::UtcOffset;
-use time::format_description;
-use time::format_description::BorrowedFormatItem;
+use time::macros::format_description;
 use ui::Chip;
 use ui::ColumnWidthConfig;
 use ui::CommonAnimationExt as _;
@@ -366,13 +364,6 @@ pub struct OpenAtCommit {
     pub repo_id: Option<u64>,
 }
 
-fn timestamp_format() -> &'static [BorrowedFormatItem<'static>] {
-    static FORMAT: OnceLock<Vec<BorrowedFormatItem<'static>>> = OnceLock::new();
-    FORMAT.get_or_init(|| {
-        format_description::parse("[day] [month repr:short] [year] [hour]:[minute]").unwrap_or_default()
-    })
-}
-
 pub(crate) fn format_timestamp(timestamp: i64) -> String {
     let Ok(datetime) = OffsetDateTime::from_unix_timestamp(timestamp) else {
         return "Unknown".to_string();
@@ -381,7 +372,9 @@ pub(crate) fn format_timestamp(timestamp: i64) -> String {
     let local_offset = UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC);
     let local_datetime = datetime.to_offset(local_offset);
 
-    local_datetime.format(timestamp_format()).unwrap_or_default()
+    local_datetime
+        .format(&format_description!(version = 3, "[day] [month repr:short] [year] [hour]:[minute]"))
+        .unwrap_or_default()
 }
 
 const fn accent_colors_count(accents: &AccentColors) -> usize {
@@ -3583,6 +3576,7 @@ mod tests {
     use super::case_insensitive_prefix_len;
     use super::commit_graph_repo;
     use super::commit_hash_match_range;
+    use super::format_timestamp;
     use super::graph_data_source;
     use super::graph_repo_to_show;
     use super::history_reveal_path;
@@ -3592,6 +3586,19 @@ mod tests {
     use super::new_commits_label;
     use super::newest_commit_to_select;
     use super::search_match_ranges;
+
+    #[test]
+    fn test_format_timestamp() {
+        // Local offset varies, so check the shape: "DD Mon YYYY HH:MM".
+        let formatted = format_timestamp(1_700_000_000);
+        let parts: Vec<&str> = formatted.split(' ').collect();
+        assert_eq!(parts.len(), 4, "{formatted}");
+        assert_eq!(parts[0].len(), 2);
+        assert_eq!(parts[1].len(), 3);
+        assert!(parts[2] == "2023", "{formatted}");
+        assert_eq!(parts[3].len(), 5);
+        assert_eq!(format_timestamp(i64::MAX), "Unknown");
+    }
 
     #[test]
     fn test_history_reveal_path() {

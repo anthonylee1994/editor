@@ -1,6 +1,6 @@
 [package]
 name = "ed"
-version = "2.0.0"
+version.workspace = true
 edition.workspace = true
 description = "A focused single-user code editor."
 default-run = "ed"

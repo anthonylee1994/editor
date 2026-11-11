@@ -1,9 +1,10 @@
 [workspace]
 resolver = "3"
-members = ["crates/*"]
+members = ["crates/*", "xtask"]
 default-members = ["crates/ed"]
 
 [workspace.package]
+version = "2.0.1"
 edition = "2024"
 
 [workspace.dependencies]
@@ -322,6 +323,7 @@ unused_crate_dependencies = "warn"
 [profile.dev]
 opt-level = 3
 debug = "none"
+codegen-units = 16
 
 [profile.release]
 debug = "line-tables-only"
