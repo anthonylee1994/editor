@@ -291,6 +291,10 @@ impl WatchKey {
     }
 
     fn folded(path: &SanitizedPath) -> Self {
+        Self::Folded(Self::folded_path(path).into())
+    }
+
+    fn folded_path(path: &SanitizedPath) -> String {
         // Event ancestors omit trailing separators, even when registration paths include them.
         let normalized_path = path.as_path().components().collect::<PathBuf>();
         let lossy = normalized_path.to_string_lossy();
@@ -298,7 +302,7 @@ impl WatchKey {
         // FSEvents can report NFD while a config/LSP supplies NFC, so normalize
         // before folding case.
         use unicode_normalization::UnicodeNormalization as _;
-        Self::Folded(lossy.chars().nfc().collect::<String>().to_lowercase().into())
+        lossy.chars().nfc().collect::<String>().to_lowercase()
     }
 
     fn for_registration(path: &SanitizedPath, case_insensitive: bool) -> Self {
@@ -524,11 +528,15 @@ impl WatchPaths {
     /// so a real-cased event path matches a folded registration and vice versa.
     fn watcher_ids_covering(&self, path: &SanitizedPath, ids: &mut Vec<WatcherRegistrationId>) {
         for ancestor in path.as_path().ancestors() {
-            let ancestor = SanitizedPath::unchecked_new(ancestor);
-            if let Some(registration) = self.0.get(&WatchKey::exact(ancestor)) {
+            if let Some(registration) = self.0.get(&WatchKey::exact(SanitizedPath::unchecked_new(ancestor))) {
                 ids.extend_from_slice(&registration.watcher_ids);
             }
-            if let Some(registration) = self.0.get(&WatchKey::folded(ancestor)) {
+        }
+        // Fold once and walk the folded path's ancestors, rather than folding every ancestor.
+        let folded_path = WatchKey::folded_path(path);
+        for ancestor in Path::new(&folded_path).ancestors() {
+            let key = WatchKey::Folded(Arc::from(ancestor.to_string_lossy().as_ref()));
+            if let Some(registration) = self.0.get(&key) {
                 ids.extend_from_slice(&registration.watcher_ids);
             }
         }
@@ -819,6 +827,38 @@ mod tests {
             push(&event("/other", MUST_SCAN_SUBDIRS | ITEM_MODIFIED)),
             (vec![path_event("/root", PathEventKind::Rescan)], true)
         );
+    }
+
+    #[test]
+    fn watcher_ids_covering_matches_exact_and_folded_ancestors() {
+        let mut paths = WatchPaths::default();
+        let mut register = |id: u32, key: WatchKey, path: &str| {
+            paths.0.insert(
+                key,
+                PathRegistrationState {
+                    path: SanitizedPath::new_arc(path),
+                    watcher_ids: vec![WatcherRegistrationId(id)],
+                    coverage: Coverage::Watched { covered: BTreeSet::new() },
+                },
+            );
+        };
+        register(0, WatchKey::exact(SanitizedPath::new("/Root")), "/Root");
+        // NFC "é", registered case-insensitively.
+        register(1, WatchKey::folded(SanitizedPath::new("/Root/Caf\u{e9}/")), "/Root/Caf\u{e9}/");
+        register(2, WatchKey::folded(SanitizedPath::new("/Other")), "/Other");
+
+        let covering = |path: &str| {
+            let mut ids = Vec::new();
+            paths.watcher_ids_covering(SanitizedPath::new(path), &mut ids);
+            let mut ids = ids.into_iter().map(|id| id.0).collect::<Vec<_>>();
+            ids.sort_unstable();
+            ids
+        };
+        // FSEvents reports NFD and real casing.
+        assert_eq!(covering("/Root/CAFE\u{301}/file.txt"), [0, 1]);
+        assert_eq!(covering("/Root/file.txt"), [0]);
+        assert_eq!(covering("/root/file.txt"), [] as [u32; 0]);
+        assert_eq!(covering("/OTHER/x"), [2]);
     }
 
     #[test]
