@@ -1,5 +1,4 @@
 use std::backtrace::Backtrace;
-use std::ffi::OsString;
 use std::panic;
 use std::thread;
 
@@ -140,12 +139,9 @@ fn main() {
         return;
     }
 
-    let restart_arguments = if let Some(directory) = args.user_data_dir.as_deref() {
-        let directory = paths::set_custom_root_dir(directory);
-        vec![OsString::from("--user-data-dir"), directory.as_os_str().to_owned()]
-    } else {
-        Vec::new()
-    };
+    if let Some(directory) = args.user_data_dir.as_deref() {
+        paths::set_custom_root_dir(directory);
+    }
 
     let file_errors = init_paths();
     if !file_errors.is_empty() {
@@ -177,7 +173,7 @@ fn main() {
 
     log::info!("========== starting ed version {} ==========", env!("CARGO_PKG_VERSION"));
 
-    let app = build_application().with_assets(Assets).with_restart_arguments(restart_arguments);
+    let app = build_application().with_assets(Assets);
 
     let (open_listener, mut open_rx) = OpenListener::new();
 

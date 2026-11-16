@@ -9,7 +9,6 @@ use std::cell::RefMut;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
-use std::ffi::OsString;
 use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Formatter;
@@ -241,12 +240,6 @@ impl Application {
         context_lock.asset_source = asset_source.clone();
         context_lock.svg_renderer = SvgRenderer::new(asset_source);
         drop(context_lock);
-        self
-    }
-
-    /// Configures arguments to pass when restarting the application.
-    pub fn with_restart_arguments(self, arguments: Vec<OsString>) -> Self {
-        self.0.borrow_mut().restart_arguments = arguments;
         self
     }
 
@@ -497,7 +490,6 @@ pub struct App {
     pub(crate) release_listeners: SubscriberSet<EntityId, ReleaseListener>,
     pub(crate) global_observers: SubscriberSet<TypeId, Handler>,
     pub(crate) quit_observers: SingleSubscriberSet<QuitHandler>,
-    pub(crate) restart_observers: SingleSubscriberSet<Handler>,
     pub(crate) window_closed_observers: SingleSubscriberSet<WindowClosedHandler>,
 
     /// Per-App element arena. This isolates element allocations between different
@@ -523,7 +515,6 @@ pub struct App {
     // below is plain data, the drop order is insignificant here
     pub(crate) pending_notifications: FxHashSet<EntityId>,
     pub(crate) pending_global_notifications: HashSet<TypeId, TypeIdHashBuilder>,
-    pub(crate) restart_arguments: Vec<OsString>,
     pub(crate) layout_id_buffer: Vec<LayoutId>, // We recycle this memory across layout requests.
     pub(crate) propagate_event: bool,
     pub(crate) ui_snapshots: bool,
@@ -602,8 +593,6 @@ impl App {
                 system_wake_observers: SingleSubscriberSet::new(),
                 global_observers: SubscriberSet::new(),
                 quit_observers: SingleSubscriberSet::new(),
-                restart_observers: SingleSubscriberSet::new(),
-                restart_arguments: Vec::new(),
                 window_closed_observers: SingleSubscriberSet::new(),
                 layout_id_buffer: Vec::default(),
                 propagate_event: true,
@@ -1232,12 +1221,6 @@ impl App {
         self.platform.should_auto_hide_scrollbars()
     }
 
-    /// Restarts the application.
-    pub fn restart(&mut self) {
-        self.restart_observers.clone().retain(|observer| observer(self));
-        self.platform.restart(mem::take(&mut self.restart_arguments))
-    }
-
     /// Configures when the application should automatically quit.
     /// By default, [`QuitMode::Explicit`] is used.
     pub const fn set_quit_mode(&mut self, mode: QuitMode) {
@@ -1840,16 +1823,6 @@ impl App {
             }),
             std::panic::Location::caller(),
         ))
-    }
-
-    /// Register a callback to be invoked when the application is about to restart.
-    ///
-    /// These callbacks are called before any `on_app_quit` callbacks.
-    pub fn on_app_restart(&self, mut on_restart: impl 'static + FnMut(&mut App)) -> Subscription {
-        self.restart_observers.insert(Box::new(move |cx| {
-            on_restart(cx);
-            true
-        }))
     }
 
     /// Register a callback to be invoked when a window is closed

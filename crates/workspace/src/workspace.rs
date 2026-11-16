@@ -312,8 +312,6 @@ actions!(
         ResetOpenDocksSize,
         /// Resets all panes in the center group to equal sizes, preserving the split layout.
         ResetPaneSizes,
-        /// Reloads the application
-        Reload,
         /// Formats and saves the current file, regardless of the format_on_save setting.
         FormatAndSave,
         /// Saves the current file with a new name.
@@ -651,7 +649,6 @@ pub fn init(app_state: Arc<AppState>, cx: &mut App) {
     cx.on_app_quit(flush_windows_serialization_on_quit).detach();
 
     cx.on_action(|_: &CloseWindow, cx| Workspace::close_global(cx))
-        .on_action(|_: &Reload, cx| reload(cx))
         .on_action(|action: &Open, cx: &mut App| {
             let app_state = AppState::global(cx);
             prompt_and_open_paths(
@@ -5806,24 +5803,6 @@ pub fn open_new(
             .ok();
         Ok(())
     })
-}
-
-pub fn reload(cx: &mut App) {
-    let mut workspace_windows =
-        cx.windows().into_iter().filter_map(|window| window.downcast::<Workspace>()).collect::<Vec<_>>();
-
-    // If multiple windows have unsaved changes, and need a save prompt,
-    // prompt in the active window before switching to a different window.
-    workspace_windows.sort_by_key(|window| window.is_active(cx) == Some(false));
-
-    cx.spawn(async move |cx| {
-        if !prepare_windows_to_quit(&workspace_windows, cx).await {
-            return anyhow::Ok(());
-        }
-        cx.update(|cx| cx.restart());
-        anyhow::Ok(())
-    })
-    .detach_and_log_err(cx);
 }
 
 pub async fn prepare_windows_to_quit(workspace_windows: &[WindowHandle<Workspace>], cx: &mut AsyncApp) -> bool {

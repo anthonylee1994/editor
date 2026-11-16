@@ -9,7 +9,6 @@ pub mod popup;
 
 use std::borrow::Cow;
 use std::collections::hash_map::Entry;
-use std::ffi::OsString;
 use std::fmt::Debug;
 use std::fmt::{self};
 use std::hash::Hash;
@@ -192,7 +191,6 @@ pub trait Platform: 'static {
 
     fn run(&self, on_finish_launching: Box<dyn 'static + FnOnce()>);
     fn quit(&self);
-    fn restart(&self, arguments: Vec<OsString>);
     fn activate(&self, ignoring_other_apps: bool);
     /// Sets the initial or current activation policy. Has no effect outside macOS.
     fn set_activation_policy(&self, _policy: ActivationPolicy) {}

@@ -182,17 +182,6 @@ impl<'a, T: 'static> Context<'a, T> {
         subscription
     }
 
-    /// Register a callback to be invoked when the application is about to restart.
-    pub fn on_app_restart(&self, mut on_restart: impl FnMut(&mut T, &mut App) + 'static) -> Subscription
-    where
-        T: 'static,
-    {
-        let handle = self.weak_entity();
-        self.app.on_app_restart(move |cx| {
-            handle.update(cx, |entity, cx| on_restart(entity, cx)).ok();
-        })
-    }
-
     /// Arrange for the given function to be invoked whenever the application is quit.
     /// The future returned from this callback will be polled for up to [crate::SHUTDOWN_TIMEOUT] until the app fully quits.
     #[track_caller]

@@ -1,12 +1,9 @@
 use std::cell::Cell;
-use std::env;
 use std::ffi::CStr;
-use std::ffi::OsString;
 use std::ffi::c_void;
 use std::os::raw::c_char;
 use std::path::Path;
 use std::path::PathBuf;
-use std::process;
 use std::ptr;
 use std::rc::Rc;
 use std::slice;
@@ -615,49 +612,6 @@ impl Platform for MacPlatform {
                 let app = shared_application();
                 let _: () = msg_send![app, terminate: nil];
             }
-        }
-    }
-
-    fn restart(&self, arguments: Vec<OsString>) {
-        use std::os::unix::process::CommandExt as _;
-
-        let app_pid = process::id().to_string();
-        let app_path = self
-            .app_path()
-            .ok()
-            // When the app is not bundled, `app_path` returns the
-            // directory containing the executable. Disregard this
-            // and get the path to the executable itself.
-            .and_then(|path| (path.extension()?.to_str()? == "app").then_some(path))
-            .unwrap_or_else(|| env::current_exe().unwrap());
-
-        // Wait until this process has exited and then re-open this path.
-        let script = r#"
-            while kill -0 $0 2> /dev/null; do
-                sleep 0.1
-            done
-            app_path="$1"
-            shift
-            if (($# > 0)); then
-                open "$app_path" --args "$@"
-            else
-                open "$app_path"
-            fi
-        "#;
-
-        #[allow(clippy::disallowed_methods, reason = "We are restarting ourselves, using std command thus is fine")]
-        let restart_process = new_std_command("/bin/bash")
-            .arg("-c")
-            .arg(script)
-            .arg(app_pid)
-            .arg(app_path)
-            .args(arguments)
-            .process_group(0)
-            .spawn();
-
-        match restart_process {
-            Ok(_) => self.quit(),
-            Err(e) => log::error!("failed to spawn restart script: {:?}", e),
         }
     }
 
