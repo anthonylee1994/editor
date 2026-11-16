@@ -56,8 +56,10 @@ migrator, or Vim/Helix mode.
   ones included, is created filling the visible area of its display so all
   windows match; not zoomed, since macOS zooms a not-yet-shown window against
   the wrong screen. The display is ed's frontmost window's, which works even
-  when ed isn't the active app, else the screen the user is on (macOS
-  `NSScreen.mainScreen`, gpui `App::main_display`)), dock layout for new
+  when ed isn't the active app, else the screen the user is on (gpui
+  `App::main_display`: on macOS the screen under the mouse cursor, since at
+  launch `NSScreen.mainScreen` is the menu bar's screen, i.e. the primary
+  display unless displays have separate Spaces)), dock layout for new
   windows, native (macOS) window state, the Text Finder's last query and
   filters, git panel commit drafts/signoff/commit-editor collapse, outline panel
   state, and the registry of git worktrees ed created.

@@ -201,7 +201,7 @@ pub trait Platform: 'static {
     fn displays(&self) -> Vec<Rc<dyn PlatformDisplay>>;
     fn primary_display(&self) -> Option<Rc<dyn PlatformDisplay>>;
     /// The display the user is working on, where new windows open: on macOS
-    /// the key window's screen, else the one whose menu bar is active.
+    /// the screen under the mouse cursor, else `NSScreen.mainScreen`.
     fn main_display(&self) -> Option<Rc<dyn PlatformDisplay>> {
         self.primary_display()
     }

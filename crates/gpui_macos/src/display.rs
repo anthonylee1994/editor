@@ -22,6 +22,7 @@ use objc2_core_graphics::CGError;
 use objc2_core_graphics::CGGetActiveDisplayList;
 use uuid::Uuid;
 
+use crate::ns::NSPoint;
 use crate::ns::NSRect;
 use crate::ns::NSUInteger;
 use crate::ns::array_iter;
@@ -57,12 +58,21 @@ impl MacDisplay {
         }
     }
 
-    /// The screen the user is working on (`NSScreen.mainScreen`): the key
-    /// window's screen, else the one whose menu bar is active. `None` without
-    /// a window server connection.
+    /// The screen the user is working on: the one under the mouse cursor,
+    /// else `NSScreen.mainScreen`. Not `mainScreen` first: without a key
+    /// window (e.g. at launch) it is the menu bar's screen, which stays on the
+    /// primary display unless displays have separate Spaces. `None` without a
+    /// window server connection.
     pub fn main() -> Option<Self> {
         unsafe {
-            let screen: id = msg_send![class!(NSScreen), mainScreen];
+            let mouse: NSPoint = msg_send![class!(NSEvent), mouseLocation];
+            let screens: id = msg_send![class!(NSScreen), screens];
+            let screen = array_iter(screens)
+                .find(|&screen| {
+                    let frame: NSRect = msg_send![screen, frame];
+                    contains_point(frame, mouse)
+                })
+                .unwrap_or_else(|| msg_send![class!(NSScreen), mainScreen]);
             (screen != nil).then(|| Self::for_screen(screen))
         }
     }
@@ -207,9 +217,41 @@ impl MacDisplay {
     }
 }
 
+/// Whether AppKit's bottom-left-origin `frame` contains `point`, matching
+/// `NSMouseInRect` (unflipped): the top edge is in, the bottom edge is not, so
+/// a cursor on the boundary between two stacked screens belongs to one.
+fn contains_point(frame: NSRect, point: NSPoint) -> bool {
+    point.x >= frame.origin.x
+        && point.x < frame.origin.x + frame.size.width
+        && point.y > frame.origin.y
+        && point.y <= frame.origin.y + frame.size.height
+}
+
 #[cfg(test)]
 mod tests {
+    use objc2_foundation::NSSize;
+
     use super::MacDisplay;
+    use super::contains_point;
+    use crate::ns::NSPoint;
+    use crate::ns::NSRect;
+
+    #[test]
+    fn test_contains_point() {
+        // A second display to the right of and above the primary one.
+        let primary = NSRect::new(NSPoint::new(0., 0.), NSSize::new(1728., 1117.));
+        let second = NSRect::new(NSPoint::new(1728., -323.), NSSize::new(2560., 1440.));
+        let on_second = NSPoint::new(2946., -267.);
+        assert!(contains_point(second, on_second));
+        assert!(!contains_point(primary, on_second));
+        // Shared vertical edge: belongs to the right screen only.
+        let edge = NSPoint::new(1728., 500.);
+        assert!(contains_point(second, edge));
+        assert!(!contains_point(primary, edge));
+        // Top edge in, bottom edge out.
+        assert!(contains_point(primary, NSPoint::new(10., 1117.)));
+        assert!(!contains_point(primary, NSPoint::new(10., 0.)));
+    }
 
     #[test]
     fn test_main_display_is_an_active_display() {
