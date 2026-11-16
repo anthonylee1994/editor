@@ -120,7 +120,8 @@ impl FileStatus {
                 UnmergedStatus { first_head: UnmergedStatusCode::Added, second_head: UnmergedStatusCode::Added }.into()
             }
             [b'D', b'D'] => {
-                UnmergedStatus { first_head: UnmergedStatusCode::Added, second_head: UnmergedStatusCode::Added }.into()
+                UnmergedStatus { first_head: UnmergedStatusCode::Deleted, second_head: UnmergedStatusCode::Deleted }
+                    .into()
             }
             [x, b'U'] => UnmergedStatus {
                 first_head: UnmergedStatusCode::from_byte(x)?,
@@ -527,4 +528,18 @@ pub fn parse_numstat(output: &str) -> GitDiffStat {
     entries.dedup_by(|(a, _), (b, _)| a == b);
 
     GitDiffStat { entries: entries.into() }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::FileStatus;
+    use super::UnmergedStatus;
+    use super::UnmergedStatusCode;
+
+    #[test]
+    fn unmerged_both_added_and_both_deleted() {
+        let unmerged = |code| FileStatus::from(UnmergedStatus { first_head: code, second_head: code });
+        assert_eq!(FileStatus::from_bytes(*b"AA").unwrap(), unmerged(UnmergedStatusCode::Added));
+        assert_eq!(FileStatus::from_bytes(*b"DD").unwrap(), unmerged(UnmergedStatusCode::Deleted));
+    }
 }
