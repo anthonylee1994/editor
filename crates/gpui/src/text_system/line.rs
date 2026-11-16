@@ -661,6 +661,10 @@ fn paint_line(
     })
 }
 
+fn has_background(decoration_runs: &[DecorationRun]) -> bool {
+    decoration_runs.iter().any(|run| run.background_color.is_some())
+}
+
 fn paint_line_background(
     origin: Point<Pixels>,
     layout: &LineLayout,
@@ -672,6 +676,10 @@ fn paint_line_background(
     window: &mut Window,
     cx: &App,
 ) -> Result<()> {
+    // Painting backgrounds walks every glyph and opens a layer, so skip it when there's nothing to paint.
+    if !has_background(decoration_runs) {
+        return Ok(());
+    }
     let line_bounds = line_paint_bounds(origin, layout, line_height, align, align_width, wrap_boundaries);
     window.paint_layer(line_bounds, |window| {
         let mut decoration_runs = decoration_runs.iter();
@@ -862,6 +870,15 @@ mod tests {
     use crate::red;
     use crate::text_system::monospace_glyphs;
     use crate::white;
+
+    #[test]
+    fn has_background_only_when_a_run_has_one() {
+        assert!(!super::has_background(&[]));
+        assert!(!super::has_background(&[run(1, white()), run(2, red())]));
+        let mut highlighted = run(2, red());
+        highlighted.background_color = Some(white());
+        assert!(super::has_background(&[run(1, white()), highlighted]));
+    }
 
     fn run(len: u32, color: Hsla) -> DecorationRun {
         DecorationRun { len, color, background_color: None, underline: None, strikethrough: None }

@@ -519,11 +519,13 @@ impl Window {
     }
 
     fn should_use_subpixel_rendering(&self, font_id: FontId, font_size: Pixels) -> bool {
-        if self.platform_window.background_appearance() != WindowBackgroundAppearance::Opaque {
+        // Checked first because it's cheap, while reading the background appearance locks the
+        // window, and this runs for every glyph.
+        if !self.platform_window.is_subpixel_rendering_supported() {
             return false;
         }
 
-        if !self.platform_window.is_subpixel_rendering_supported() {
+        if self.platform_window.background_appearance() != WindowBackgroundAppearance::Opaque {
             return false;
         }
 
