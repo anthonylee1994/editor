@@ -32,11 +32,11 @@ pub struct Pasteboard {
 }
 
 impl Pasteboard {
-    pub fn general() -> Self {
+    pub fn general() -> Option<Self> {
         unsafe { Self::new(msg_send![class!(NSPasteboard), generalPasteboard]) }
     }
 
-    pub fn find() -> Self {
+    pub fn find() -> Option<Self> {
         unsafe {
             Self::new(msg_send![
                 class!(NSPasteboard),
@@ -45,14 +45,16 @@ impl Pasteboard {
         }
     }
 
-    unsafe fn new(inner: id) -> Self {
+    // The pasteboard server can be unavailable (sandboxed or headless launches),
+    // in which case the constructors return nil.
+    unsafe fn new(inner: id) -> Option<Self> {
         // These constructors return autoreleased objects, but a Pasteboard can
         // outlive the autorelease pool in which it was created.
-        Self {
-            inner: unsafe { Retained::retain(inner).unwrap() },
+        Some(Self {
+            inner: unsafe { Retained::retain(inner)? },
             text_hash_type: unsafe { Retained::retain(ns_string("ed-text-hash")).unwrap() },
             metadata_type: unsafe { Retained::retain(ns_string("ed-metadata")).unwrap() },
-        }
+        })
     }
 
     pub fn read(&self) -> Option<ClipboardItem> {
@@ -336,7 +338,7 @@ mod tests {
 
     #[test]
     fn writes_file_urls_readable_as_external_paths() {
-        let pasteboard = unsafe { Pasteboard::new(msg_send![class!(NSPasteboard), pasteboardWithUniqueName]) };
+        let pasteboard = unsafe { Pasteboard::new(msg_send![class!(NSPasteboard), pasteboardWithUniqueName]) }.unwrap();
         let dir = env::temp_dir().canonicalize().unwrap();
         let paths: SmallVec<[PathBuf; 2]> = smallvec::smallvec![dir.join("a.txt"), dir.join("b.txt")];
         let text = "a\nb".to_string();
@@ -350,5 +352,10 @@ mod tests {
         let item = pasteboard.read().unwrap();
         assert_eq!(item.entries[0], ClipboardEntry::ExternalPaths(ExternalPaths(paths)));
         assert_eq!(item.text(), Some(text));
+    }
+
+    #[test]
+    fn nil_pasteboard_is_unavailable() {
+        assert!(unsafe { Pasteboard::new(super::nil) }.is_none());
     }
 }
