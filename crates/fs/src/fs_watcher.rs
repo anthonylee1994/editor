@@ -543,6 +543,22 @@ impl WatchPaths {
     }
 }
 
+const MAX_DISPATCH_BATCH_SIZE: usize = 256;
+
+/// Returns `Pending` once, after waking itself, so the executor runs other tasks first.
+async fn yield_now() {
+    let mut yielded = false;
+    futures::future::poll_fn(|cx| {
+        if yielded {
+            return std::task::Poll::Ready(());
+        }
+        yielded = true;
+        cx.waker().wake_by_ref();
+        std::task::Poll::Pending
+    })
+    .await
+}
+
 struct WatcherState {
     watchers: HashMap<WatcherRegistrationId, WatcherRegistrationState>,
     paths: WatchPaths,
@@ -576,11 +592,18 @@ impl OsWatcher {
             let state = state.clone();
             async move {
                 let mut rescan_history = RescanHistory::default();
+                let mut dispatched = 0usize;
                 while let Ok(event) = event_rx.recv().await {
                     if let Some(report) = rescan_history.record(&event) {
                         log::error!("filesystem watcher requested rescan: {report}");
                     }
                     dispatch(&state, &event);
+                    // `recv` doesn't yield while events are queued, and FSEvents can produce
+                    // them faster than we dispatch, so give other tasks a turn now and then.
+                    dispatched += 1;
+                    if dispatched.is_multiple_of(MAX_DISPATCH_BATCH_SIZE) {
+                        yield_now().await;
+                    }
                 }
             }
         });
@@ -827,6 +850,14 @@ mod tests {
             push(&event("/other", MUST_SCAN_SUBDIRS | ITEM_MODIFIED)),
             (vec![path_event("/root", PathEventKind::Rescan)], true)
         );
+    }
+
+    #[test]
+    fn yield_now_is_pending_once() {
+        let mut future = std::pin::pin!(yield_now());
+        let mut cx = std::task::Context::from_waker(std::task::Waker::noop());
+        assert!(future.as_mut().poll(&mut cx).is_pending());
+        assert!(future.as_mut().poll(&mut cx).is_ready());
     }
 
     #[test]
