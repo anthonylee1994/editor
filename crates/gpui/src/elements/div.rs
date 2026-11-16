@@ -1009,20 +1009,14 @@ pub trait InteractiveElement: Sized {
 
     /// Set the given styles to be applied when this element, specifically, is focused.
     /// Requires that the element is focusable. Elements can be made focusable using [`InteractiveElement::track_focus`].
-    fn focus(mut self, f: impl FnOnce(StyleRefinement) -> StyleRefinement) -> Self
-    where
-        Self: Sized,
-    {
+    fn focus(mut self, f: impl FnOnce(StyleRefinement) -> StyleRefinement) -> Self {
         self.interactivity().focus_style = Some(Box::new(f(StyleRefinement::default())));
         self
     }
 
     /// Set the given styles to be applied when this element is inside another element that is focused.
     /// Requires that the element is focusable. Elements can be made focusable using [`InteractiveElement::track_focus`].
-    fn in_focus(mut self, f: impl FnOnce(StyleRefinement) -> StyleRefinement) -> Self
-    where
-        Self: Sized,
-    {
+    fn in_focus(mut self, f: impl FnOnce(StyleRefinement) -> StyleRefinement) -> Self {
         self.interactivity().in_focus_style = Some(Box::new(f(StyleRefinement::default())));
         self
     }
@@ -1031,10 +1025,7 @@ pub trait InteractiveElement: Sized {
     /// This is similar to CSS's `:focus-visible` pseudo-class - it only applies when the element
     /// is focused AND the user is navigating via keyboard (not mouse clicks).
     /// Requires that the element is focusable. Elements can be made focusable using [`InteractiveElement::track_focus`].
-    fn focus_visible(mut self, f: impl FnOnce(StyleRefinement) -> StyleRefinement) -> Self
-    where
-        Self: Sized,
-    {
+    fn focus_visible(mut self, f: impl FnOnce(StyleRefinement) -> StyleRefinement) -> Self {
         self.interactivity().focus_visible_style = Some(Box::new(f(StyleRefinement::default())));
         self
     }
@@ -1818,10 +1809,7 @@ impl Interactivity {
                 );
             }
 
-            let mut tab_group = None;
-            if self.tab_group {
-                tab_group = self.tab_index;
-            }
+            let tab_group = if self.tab_group { self.tab_index } else { None };
 
             window.with_element_opacity(style.opacity, |window| {
                 style.paint(bounds, window, cx, |window: &mut Window, cx: &mut App| {
@@ -2016,10 +2004,9 @@ impl Interactivity {
                             if *drop_state_type == drag_state_type {
                                 let drag = cx.active_drag.take().expect("checked for type drag state type above");
 
-                                let mut can_drop = true;
-                                if let Some(predicate) = &can_drop_predicate {
-                                    can_drop = predicate(drag.value.as_ref(), window, cx);
-                                }
+                                let can_drop = can_drop_predicate
+                                    .as_ref()
+                                    .is_none_or(|predicate| predicate(drag.value.as_ref(), window, cx));
 
                                 if can_drop {
                                     listener(drag.value.as_ref(), window, cx);
@@ -2492,10 +2479,10 @@ impl Interactivity {
         if let Some(hitbox) = hitbox
             && let Some(drag) = cx.active_drag.take()
         {
-            let mut can_drop = true;
-            if let Some(can_drop_predicate) = &self.can_drop_predicate {
-                can_drop = can_drop_predicate(drag.value.as_ref(), window, cx);
-            }
+            let can_drop = self
+                .can_drop_predicate
+                .as_ref()
+                .is_none_or(|can_drop_predicate| can_drop_predicate(drag.value.as_ref(), window, cx));
 
             if can_drop {
                 for (state_type, group_drag_style) in &self.group_drag_over_styles {

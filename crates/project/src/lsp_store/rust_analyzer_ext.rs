@@ -27,7 +27,7 @@ pub const CARGO_DIAGNOSTICS_SOURCE_NAME: &str = "rustc";
 ///
 /// [Rust Analyzer Specification](https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#server-status)
 #[derive(Debug)]
-enum ServerStatus {}
+struct ServerStatus(!);
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]

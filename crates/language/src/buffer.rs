@@ -119,7 +119,7 @@ use crate::syntax_map::flattened_highlight_regions;
 use crate::text_diff::text_diff;
 
 /// Indicate whether a [`Buffer`] has permissions to edit.
-#[derive(PartialEq, Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum Capability {
     /// The buffer is a mutable replica.
     ReadWrite,
@@ -269,7 +269,7 @@ pub enum CursorShape {
 }
 
 /// An event that occurs in a buffer.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum BufferEvent {
     /// The buffer was edited.
     Edited,
@@ -344,7 +344,7 @@ pub trait File: Send + Sync + Any {
 /// modified. In the case where the file is not stored, it can be either `New` or `Deleted`. In the
 /// UI these two states are distinguished. For example, the buffer tab does not display a deletion
 /// indicator for new files.
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum DiskState {
     /// File created in ed that has not been saved.
     New,
@@ -1275,12 +1275,15 @@ impl Buffer {
         self.parse_status.0.send(ParseStatus::Parsing).unwrap();
         if may_block
             && let Some(sync_parse_timeout) = self.sync_parse_timeout
-            && let Ok(()) = syntax_snapshot.reparse_with_timeout(
-                &text,
-                file.as_deref(),
-                language_registry.clone(),
-                language.clone(),
-                sync_parse_timeout,
+            && matches!(
+                syntax_snapshot.reparse_with_timeout(
+                    &text,
+                    file.as_deref(),
+                    language_registry.clone(),
+                    language.clone(),
+                    sync_parse_timeout,
+                ),
+                Ok(())
             )
         {
             self.did_finish_parsing(syntax_snapshot, Some(Duration::from_millis(300)), false, cx);
@@ -1900,13 +1903,12 @@ impl Buffer {
 
     /// Resolves with the id of the edit that applied the pending autoindent, if it changed anything.
     pub fn wait_for_autoindent_applied(&mut self) -> Option<oneshot::Receiver<Option<clock::Lamport>>> {
-        let mut rx = None;
-        if !self.autoindent_requests.is_empty() {
-            let channel = oneshot::channel();
-            self.wait_for_autoindent_txs.push(channel.0);
-            rx = Some(channel.1);
+        if self.autoindent_requests.is_empty() {
+            return None;
         }
-        rx
+        let (tx, rx) = oneshot::channel();
+        self.wait_for_autoindent_txs.push(tx);
+        Some(rx)
     }
 
     /// Replaces the buffer's entire text.
@@ -2575,8 +2577,8 @@ impl BufferSnapshot {
             let config = indent_configs[mat.grammar_index];
             for capture in mat.captures {
                 if capture.index == config.indent_capture_ix {
-                    start.get_or_insert(Point::from_ts_point(capture.node.start_position()));
-                    end.get_or_insert(Point::from_ts_point(capture.node.end_position()));
+                    start.get_or_insert_with(|| Point::from_ts_point(capture.node.start_position()));
+                    end.get_or_insert_with(|| Point::from_ts_point(capture.node.end_position()));
                 } else if Some(capture.index) == config.start_capture_ix {
                     start = Some(Point::from_ts_point(capture.node.end_position()));
                 } else if Some(capture.index) == config.end_capture_ix {
@@ -4308,20 +4310,22 @@ impl<'a> Iterator for BufferChunks<'a> {
             let chunk_start = self.range.start;
             let mut chunk_end =
                 (self.chunks.offset() + chunk.len()).min(next_capture_start).min(next_diagnostic_endpoint);
-            let mut highlight_id = None;
-            if let Some(highlights) = self.highlights.as_ref()
-                && let Some((parent_capture_end, parent_highlight_id)) = highlights.stack.last()
-            {
+            let parent_capture = self.highlights.as_ref().and_then(|highlights| highlights.stack.last());
+            if let Some((parent_capture_end, _)) = parent_capture {
                 chunk_end = chunk_end.min(*parent_capture_end);
-                highlight_id = Some(*parent_highlight_id);
             }
-            if let Some(cached) = self.cached_highlights.as_ref()
-                && let Some((run_range, run_highlight_id)) = cached.runs.get(cached.ix)
-                && run_range.start <= chunk_start
-            {
+            let cached_run = self
+                .cached_highlights
+                .as_ref()
+                .and_then(|cached| cached.runs.get(cached.ix))
+                .filter(|(run_range, _)| run_range.start <= chunk_start);
+            if let Some((run_range, _)) = cached_run {
                 chunk_end = chunk_end.min(run_range.end);
-                highlight_id = Some(*run_highlight_id);
             }
+            // A cached run takes precedence over the enclosing capture.
+            let highlight_id = cached_run
+                .map(|(_, run_highlight_id)| *run_highlight_id)
+                .or_else(|| parent_capture.map(|(_, parent_highlight_id)| *parent_highlight_id));
             let bit_start = chunk_start - self.chunks.offset();
             let bit_end = chunk_end - self.chunks.offset();
 

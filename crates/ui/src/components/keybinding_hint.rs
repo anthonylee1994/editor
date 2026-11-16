@@ -77,7 +77,7 @@ impl RenderOnce for KeybindingHint {
 
         let shadow_color = colors.text.alpha(if is_light { 0.04 } else { 0.08 });
 
-        let size = self.size.unwrap_or(TextSize::Small.rems(cx).to_pixels(window.rem_size()));
+        let size = self.size.unwrap_or_else(|| TextSize::Small.rems(cx).to_pixels(window.rem_size()));
 
         let kb_size = size - px(2.0);
 

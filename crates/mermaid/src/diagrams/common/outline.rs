@@ -403,11 +403,12 @@ pub(crate) fn parse_outline(src: &str, db: &mut impl OutlineDb, kanban: bool) ->
         return Err(fail(i, &expected(&["'SPACELINE', ", &keyword])));
     }
     i += 1;
-    let mut first = "'SPACELINE', 'NL', 'SPACELIST', 'ICON', 'CLASS', 'NODE_DSTART', 'NODE_ID'";
-    if kind(i) == T::Nl {
+    let first = if kind(i) == T::Nl {
         i += 1;
-        first = "'SPACELINE', 'SPACELIST', 'ICON', 'CLASS', 'NODE_DSTART', 'NODE_ID'";
-    }
+        "'SPACELINE', 'SPACELIST', 'ICON', 'CLASS', 'NODE_DSTART', 'NODE_ID'"
+    } else {
+        "'SPACELINE', 'NL', 'SPACELIST', 'ICON', 'CLASS', 'NODE_DSTART', 'NODE_ID'"
+    };
 
     loop {
         let mut t = kind(i);

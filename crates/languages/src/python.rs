@@ -369,7 +369,7 @@ pub(crate) fn settings() -> LanguageSettings {
         formatter: FormatterList::Single(Formatter::LanguageServer(LanguageServerFormatterSpecifier::Specific {
             name: "ruff".into(),
         })),
-        code_actions_on_format: [("source.organizeImports.ruff".into(), true)].into_iter().collect(),
+        code_actions_on_format: std::iter::once(("source.organizeImports.ruff".into(), true)).collect(),
         remove_trailing_whitespace_on_save: true,
         ensure_final_newline_on_save: true,
         document_symbols: DocumentSymbols::On,

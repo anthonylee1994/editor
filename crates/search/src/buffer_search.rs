@@ -1426,7 +1426,6 @@ impl BufferSearchBar {
     }
 
     fn replace_next(&mut self, _: &ReplaceNext, window: &mut Window, cx: &mut Context<Self>) {
-        let mut should_propagate = true;
         if !self.dismissed
             && self.active_search.is_some()
             && let Some(searchable_item) = self.active_searchable_item.as_ref()
@@ -1438,9 +1437,6 @@ impl BufferSearchBar {
                 searchable_item.replace(matches.at(active_index), &query, *token, window, cx);
                 self.select_next_match(&SelectNextMatch, window, cx);
             }
-            should_propagate = false;
-        }
-        if !should_propagate {
             cx.stop_propagation();
         }
     }

@@ -593,7 +593,7 @@ impl DiagnosticTag {
 /// their execution on the server side if the client and server provides the corresponding capabilities.
 /// Alternatively the tool extension code could handle the command.
 /// The protocol currently doesn’t specify a set of well-known commands.
-#[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, Deserialize, Serialize)]
 pub struct Command {
     /// Title of the command, like `save`.
     pub title: String,
@@ -1190,7 +1190,7 @@ pub type DocumentSelector = Vec<DocumentFilter>;
 
 // ========================= Actual Protocol =========================
 
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize, Default)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct InitializeParams {
     /// The process Id of the parent process that started
@@ -1245,7 +1245,7 @@ pub struct InitializeParams {
     pub work_done_progress_params: WorkDoneProgressParams,
 }
 
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 pub struct ClientInfo {
     /// The name of the client as defined by the client.
     pub name: String,
@@ -1254,7 +1254,7 @@ pub struct ClientInfo {
     pub version: Option<String>,
 }
 
-#[derive(Debug, PartialEq, Clone, Copy, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Deserialize, Serialize)]
 pub struct InitializedParams {}
 
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
@@ -1705,7 +1705,7 @@ pub struct TextDocumentClientCapabilities {
 }
 
 /// Where ClientCapabilities are currently empty:
-#[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientCapabilities {
     /// Workspace specific client capabilities.
@@ -1729,7 +1729,7 @@ pub struct ClientCapabilities {
     pub experimental: Option<Value>,
 }
 
-#[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GeneralClientCapabilities {
     /// Client capabilities specific to regular expressions.
@@ -1779,7 +1779,7 @@ pub struct GeneralClientCapabilities {
 /// anymore since the information is outdated).
 ///
 /// @since 3.17.0
-#[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StaleRequestSupportClientCapabilities {
     /// The client will actively cancel the request.
@@ -1791,7 +1791,7 @@ pub struct StaleRequestSupportClientCapabilities {
     pub retry_on_content_modified: Vec<String>,
 }
 
-#[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RegularExpressionsClientCapabilities {
     /// The engine's name.
@@ -1802,7 +1802,7 @@ pub struct RegularExpressionsClientCapabilities {
     pub version: Option<String>,
 }
 
-#[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MarkdownClientCapabilities {
     /// The name of the parser.
@@ -1820,7 +1820,7 @@ pub struct MarkdownClientCapabilities {
     pub allowed_tags: Option<Vec<String>>,
 }
 
-#[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InitializeResult {
     /// The capabilities the language server provides.
@@ -1999,7 +1999,7 @@ impl From<bool> for TypeDefinitionProviderCapability {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ServerCapabilities {
     /// The position encoding the server picked from the encodings offered
@@ -2159,7 +2159,7 @@ pub struct WorkspaceServerCapabilities {
 }
 
 /// General parameters to to register for a capability.
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Registration {
     /// The id used to register the request. The id can be used to deregister
@@ -2174,7 +2174,7 @@ pub struct Registration {
     pub register_options: Option<Value>,
 }
 
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 pub struct RegistrationParams {
     pub registrations: Vec<Registration>,
 }
@@ -2321,7 +2321,7 @@ pub struct UnregistrationParams {
     pub unregisterations: Vec<Unregistration>,
 }
 
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 pub struct DidChangeConfigurationParams {
     /// The actual changed settings
     pub settings: Value,
@@ -2680,7 +2680,7 @@ pub struct GotoDefinitionParams {
 }
 
 /// GotoDefinition response can be single location, or multiple Locations or a link.
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum GotoDefinitionResponse {
     Scalar(Location),
@@ -2706,7 +2706,7 @@ impl From<Vec<LocationLink>> for GotoDefinitionResponse {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, Deserialize, Serialize)]
 pub struct ExecuteCommandParams {
     /// The identifier of the actual command handler.
     pub command: String,

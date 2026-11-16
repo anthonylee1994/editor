@@ -149,7 +149,7 @@ pub struct MarkdownPreviewView {
     nav_history: Option<ItemNavHistory>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum MarkdownPreviewMode {
     /// The preview will always show the contents of the provided editor.
@@ -1582,9 +1582,10 @@ impl SearchableItem for MarkdownPreviewView {
 
         match direction {
             Direction::Next => matches.iter().position(|m| m.start >= current_source_index).or(Some(0)),
-            Direction::Prev => {
-                matches.iter().rposition(|m| m.start <= current_source_index).or(Some(matches.len().saturating_sub(1)))
-            }
+            Direction::Prev => matches
+                .iter()
+                .rposition(|m| m.start <= current_source_index)
+                .or_else(|| Some(matches.len().saturating_sub(1))),
         }
     }
 }

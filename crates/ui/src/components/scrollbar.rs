@@ -381,7 +381,7 @@ enum Handle<T: ScrollableHandle> {
     Untracked(fn() -> T),
 }
 
-#[derive(Clone, Copy, Default, PartialEq)]
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub enum ScrollbarStyle {
     #[default]
     Regular,

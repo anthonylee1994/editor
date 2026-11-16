@@ -89,7 +89,7 @@ impl log::Log for Logger {
         if !self.enabled(record.metadata()) {
             return;
         }
-        let module_path = record.module_path().or(record.file());
+        let module_path = record.module_path().or_else(|| record.file());
         // Only `log_err` and friends pass a file path as the module path; show line numbers for those.
         let line = record.line().filter(|_| module_path.is_some_and(|path| path.ends_with(".rs")));
         let (color, label) = match record.level() {

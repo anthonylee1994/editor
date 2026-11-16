@@ -76,7 +76,7 @@ impl TaskTemplate {
             Some(cwd) => Some(PathBuf::from(substitute_all_template_variables_in_str(cwd, &task_variables)?)),
             None => None,
         }
-        .or(cx.cwd.clone());
+        .or_else(|| cx.cwd.clone());
         let full_label = substitute_all_template_variables_in_str(&self.label, &task_variables)?;
 
         // Arbitrarily picked threshold below which we don't truncate any variables.

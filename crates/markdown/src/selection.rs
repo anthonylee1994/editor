@@ -71,7 +71,7 @@ fn collect_inline_spans(source: &str, events: &[(Range<usize>, MarkdownEvent)]) 
             }
             MarkdownEvent::End(tag) if is_inline_span_tag_end(tag) => {
                 if let Some((range, content)) = stack.pop() {
-                    let content = content.unwrap_or(range.clone());
+                    let content = content.unwrap_or_else(|| range.clone());
                     spans.push(InlineSpan { range, content, is_code: false });
                 }
                 note_child(&mut stack, event_range);

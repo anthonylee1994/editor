@@ -160,7 +160,7 @@ impl DraggedSelection {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Debug, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SaveIntent {
     /// write all files (even if unchanged)
@@ -184,12 +184,12 @@ pub enum SaveIntent {
 }
 
 /// Activates a specific item in the pane by its index.
-#[derive(Clone, PartialEq, Debug, Deserialize, Default, Action)]
+#[derive(Clone, PartialEq, Eq, Debug, Deserialize, Default, Action)]
 #[action(namespace = pane)]
 pub struct ActivateItem(pub usize);
 
 /// Closes the currently active item in the pane.
-#[derive(Clone, PartialEq, Debug, Deserialize, Default, Action)]
+#[derive(Clone, PartialEq, Eq, Debug, Deserialize, Default, Action)]
 #[action(namespace = pane)]
 #[serde(deny_unknown_fields)]
 pub struct CloseActiveItem {
@@ -200,7 +200,7 @@ pub struct CloseActiveItem {
 }
 
 /// Closes all inactive items in the pane.
-#[derive(Clone, PartialEq, Debug, Deserialize, Default, Action)]
+#[derive(Clone, PartialEq, Eq, Debug, Deserialize, Default, Action)]
 #[action(namespace = pane)]
 #[serde(deny_unknown_fields)]
 pub struct CloseOtherItems {
@@ -211,7 +211,7 @@ pub struct CloseOtherItems {
 }
 
 /// Closes all multibuffers in the pane.
-#[derive(Clone, PartialEq, Debug, Deserialize, Default, Action)]
+#[derive(Clone, PartialEq, Eq, Debug, Deserialize, Default, Action)]
 #[action(namespace = pane)]
 #[serde(deny_unknown_fields)]
 pub struct CloseMultibufferItems {
@@ -222,7 +222,7 @@ pub struct CloseMultibufferItems {
 }
 
 /// Closes all items in the pane.
-#[derive(Clone, PartialEq, Debug, Deserialize, Default, Action)]
+#[derive(Clone, PartialEq, Eq, Debug, Deserialize, Default, Action)]
 #[action(namespace = pane)]
 #[serde(deny_unknown_fields)]
 pub struct CloseAllItems {
@@ -233,7 +233,7 @@ pub struct CloseAllItems {
 }
 
 /// Closes all items to the right of the current item.
-#[derive(Clone, PartialEq, Debug, Deserialize, Default, Action)]
+#[derive(Clone, PartialEq, Eq, Debug, Deserialize, Default, Action)]
 #[action(namespace = pane)]
 #[serde(deny_unknown_fields)]
 pub struct CloseItemsToTheRight {
@@ -242,7 +242,7 @@ pub struct CloseItemsToTheRight {
 }
 
 /// Closes all items to the left of the current item.
-#[derive(Clone, PartialEq, Debug, Deserialize, Default, Action)]
+#[derive(Clone, PartialEq, Eq, Debug, Deserialize, Default, Action)]
 #[action(namespace = pane)]
 #[serde(deny_unknown_fields)]
 pub struct CloseItemsToTheLeft {
@@ -251,16 +251,15 @@ pub struct CloseItemsToTheLeft {
 }
 
 /// Reveals the current item in the project panel.
-#[derive(Clone, PartialEq, Debug, Deserialize, Default, Action)]
+#[derive(Clone, PartialEq, Eq, Debug, Deserialize, Default, Action)]
 #[action(namespace = pane)]
-#[serde(deny_unknown_fields)]
 pub struct RevealInProjectPanel {
     #[serde(skip)]
     pub entry_id: Option<u64>,
 }
 
 /// Opens the search interface with the specified configuration.
-#[derive(Clone, PartialEq, Debug, Deserialize, Default, Action)]
+#[derive(Clone, PartialEq, Eq, Debug, Deserialize, Default, Action)]
 #[action(namespace = pane)]
 #[serde(deny_unknown_fields)]
 pub struct DeploySearch {
@@ -282,7 +281,7 @@ pub struct DeploySearch {
     pub include_ignored: Option<bool>,
 }
 
-#[derive(Clone, Copy, PartialEq, Debug, Deserialize, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 pub enum SplitMode {
     /// Move the active tab into a new pane. A lone tab stays and an empty pane
@@ -297,7 +296,7 @@ macro_rules! split_structs {
     ($($name:ident => $doc:literal),* $(,)?) => {
         $(
             #[doc = $doc]
-            #[derive(Clone, PartialEq, Debug, Deserialize, Default, Action)]
+            #[derive(Clone, PartialEq, Eq, Debug, Deserialize, Default, Action)]
             #[action(namespace = pane)]
             #[serde(deny_unknown_fields, default)]
             pub struct $name {
@@ -317,7 +316,7 @@ split_structs!(
 );
 
 /// Activates the previous item in the pane.
-#[derive(Clone, PartialEq, Debug, Deserialize, Action)]
+#[derive(Clone, PartialEq, Eq, Debug, Deserialize, Action)]
 #[action(namespace = pane)]
 #[serde(deny_unknown_fields, default)]
 pub struct ActivatePreviousItem {
@@ -332,7 +331,7 @@ impl Default for ActivatePreviousItem {
 }
 
 /// Activates the next item in the pane.
-#[derive(Clone, PartialEq, Debug, Deserialize, Action)]
+#[derive(Clone, PartialEq, Eq, Debug, Deserialize, Action)]
 #[action(namespace = pane)]
 #[serde(deny_unknown_fields, default)]
 pub struct ActivateNextItem {
@@ -1595,7 +1594,7 @@ impl Pane {
                 }
                 let filename =
                     project_item.project_path(cx).and_then(|path| path.path.file_name().map(ToOwned::to_owned));
-                file_names.insert(filename.unwrap_or("untitled".to_string()));
+                file_names.insert(filename.unwrap_or_else(|| "untitled".to_string()));
             });
         }
         if file_names.len() > 6 {
@@ -1687,7 +1686,7 @@ impl Pane {
                         }
                         Err(err) => {
                             let answer = pane.update_in(cx, |_, window, cx| {
-                                let detail = Self::file_names_for_prompt(&mut [&item_to_close].into_iter(), cx);
+                                let detail = Self::file_names_for_prompt(&mut std::iter::once(&item_to_close), cx);
                                 window.prompt(
                                     PromptLevel::Warning,
                                     &format!("Unable to save file: {err}"),

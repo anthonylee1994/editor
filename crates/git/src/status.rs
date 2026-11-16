@@ -442,12 +442,12 @@ pub enum DiffTreeType {
     Since { base: SharedString, head: SharedString },
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct TreeDiff {
     pub entries: FxHashMap<RepoPath, TreeDiffStatus>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TreeDiffStatus {
     Added,
     Modified { old: Oid },

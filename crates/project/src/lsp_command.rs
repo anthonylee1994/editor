@@ -1897,10 +1897,7 @@ impl LinkedEditingRange {
         let Some(linked_editing_options) = capabilities.linked_editing_range_provider.as_ref() else {
             return false;
         };
-        if let LinkedEditingRangeServerCapabilities::Simple(false) = linked_editing_options {
-            return false;
-        }
-        true
+        !matches!(linked_editing_options, LinkedEditingRangeServerCapabilities::Simple(false))
     }
 }
 

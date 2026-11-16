@@ -2426,8 +2426,7 @@ fn count_crossings(g: &Graph, c: &mut Counter) -> u64 {
     let ls = &g.layer_start;
     let mut total = 0u64;
     for r in 0..g.max_rank {
-        let mut south_len = ls[r + 2] - ls[r + 1];
-        if let Some(place) = place.as_mut() {
+        let south_len = if let Some(place) = place.as_mut() {
             let mut next = 0;
             for &v in &g.order[ls[r + 1]..ls[r + 2]] {
                 for &e in &g.pred_e[g.pred_start[v]..g.pred_start[v + 1]] {
@@ -2435,8 +2434,10 @@ fn count_crossings(g: &Graph, c: &mut Counter) -> u64 {
                 }
                 next += places[v];
             }
-            south_len = next;
-        }
+            next
+        } else {
+            ls[r + 2] - ls[r + 1]
+        };
         if south_len < 2 {
             continue;
         }

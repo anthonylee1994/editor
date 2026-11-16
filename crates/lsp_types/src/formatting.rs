@@ -26,7 +26,7 @@ pub struct DocumentOnTypeFormattingOptions {
     pub more_trigger_character: Option<Vec<String>>,
 }
 
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentFormattingParams {
     /// The document to format.
@@ -40,7 +40,7 @@ pub struct DocumentFormattingParams {
 }
 
 /// Value-object describing what options formatting should use.
-#[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FormattingOptions {
     /// Size of a tab in spaces.
@@ -66,7 +66,7 @@ pub struct FormattingOptions {
     pub trim_final_newlines: Option<bool>,
 }
 
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum FormattingProperty {
     Bool(bool),
@@ -74,7 +74,7 @@ pub enum FormattingProperty {
     String(String),
 }
 
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentRangeFormattingParams {
     /// The document to format.
@@ -90,7 +90,7 @@ pub struct DocumentRangeFormattingParams {
     pub work_done_progress_params: WorkDoneProgressParams,
 }
 
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentOnTypeFormattingParams {
     /// Text Document and Position fields.

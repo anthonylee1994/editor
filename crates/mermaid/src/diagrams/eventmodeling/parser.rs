@@ -406,12 +406,11 @@ pub(crate) fn parse_event_model(src: &str) -> Result<EventModelAst<'_>, Error> {
                     data_reference = Some(r.expect(t::ID)?);
                     r.expect(t::CLOSE)?;
                 }
-                let mut frame_data_type = None;
-                let mut data_inline_value = None;
-                if r.kind() == t::TICK || r.kind() == t::INLINE {
-                    frame_data_type = data_type(&mut r)?;
-                    data_inline_value = Some(r.expect(t::INLINE)?);
-                }
+                let (frame_data_type, data_inline_value) = if r.kind() == t::TICK || r.kind() == t::INLINE {
+                    (data_type(&mut r)?, Some(r.expect(t::INLINE)?))
+                } else {
+                    (None, None)
+                };
                 ast.frames.push(EmFrame {
                     data_reference,
                     data_type: frame_data_type,

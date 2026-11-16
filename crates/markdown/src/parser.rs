@@ -396,9 +396,9 @@ pub(crate) fn parse_markdown_with_options(text: &str, options: MarkdownOptions) 
                 state.push_event(range, MarkdownEvent::Start(tag))
             }
             pulldown_cmark::Event::End(tag) => {
-                if let pulldown_cmark::TagEnd::Link = tag {
+                if tag == pulldown_cmark::TagEnd::Link {
                     within_link = false;
-                } else if let pulldown_cmark::TagEnd::CodeBlock = tag {
+                } else if tag == pulldown_cmark::TagEnd::CodeBlock {
                     within_code_block = false;
                 } else if let pulldown_cmark::TagEnd::MetadataBlock(_) = tag {
                     within_metadata = false;
@@ -418,7 +418,7 @@ pub(crate) fn parse_markdown_with_options(text: &str, options: MarkdownOptions) 
                     if !parse_metadata_blocks {
                         continue;
                     }
-                } else if let pulldown_cmark::TagEnd::Table = tag {
+                } else if tag == pulldown_cmark::TagEnd::Table {
                     within_table = false;
                 }
                 state.push_event(range, MarkdownEvent::End(tag));
@@ -458,7 +458,7 @@ pub(crate) fn parse_markdown_with_options(text: &str, options: MarkdownOptions) 
                 }
 
                 let mut last_len = parsed.len();
-                let mut ranges = vec![TextRange { source_range: range.clone(), merged_range: 0..last_len, parsed }];
+                let mut ranges = vec![TextRange { source_range: range, merged_range: 0..last_len, parsed }];
 
                 while let Some((pulldown_cmark::Event::Text(_), _)) = parser.peek() {
                     let Some((pulldown_cmark::Event::Text(next_text), next_range)) = parser.next() else {
@@ -466,7 +466,7 @@ pub(crate) fn parse_markdown_with_options(text: &str, options: MarkdownOptions) 
                     };
                     let next_len = last_len + next_text.len();
                     ranges.push(TextRange {
-                        source_range: next_range.clone(),
+                        source_range: next_range,
                         merged_range: last_len..next_len,
                         parsed: next_text,
                     });
@@ -548,7 +548,7 @@ pub(crate) fn parse_markdown_with_options(text: &str, options: MarkdownOptions) 
                         for (range, event) in link_events {
                             state.push_event(range, event);
                         }
-                        state.push_event(link_range.clone(), MarkdownEvent::End(MarkdownTagEnd::Link));
+                        state.push_event(link_range, MarkdownEvent::End(MarkdownTagEnd::Link));
                     }
                 }
 
@@ -750,7 +750,7 @@ pub enum MarkdownTag {
     DefinitionListDefinition,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CodeBlockKind {
     Indented,
     /// "Fenced" means "surrounded by triple backticks."
@@ -761,7 +761,7 @@ pub enum CodeBlockKind {
     FencedSrc(PathWithRange),
 }
 
-#[derive(Default, Clone, Debug, PartialEq)]
+#[derive(Default, Clone, Debug, PartialEq, Eq)]
 pub struct CodeBlockMetadata {
     pub content_range: Range<usize>,
     pub line_count: usize,

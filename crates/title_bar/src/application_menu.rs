@@ -45,7 +45,7 @@ actions!(
 /// Opens the named menu in the client-side application menu.
 ///
 /// Does not apply to platform menu bars (e.g. on macOS).
-#[derive(Clone, Deserialize, PartialEq, Default, Action)]
+#[derive(Clone, Deserialize, PartialEq, Eq, Default, Action)]
 #[action(namespace = app_menu)]
 pub struct OpenApplicationMenu(String);
 
@@ -97,7 +97,7 @@ impl ApplicationMenu {
         }
 
         // Remove trailing separator
-        if let Some(OwnedMenuItem::Separator) = cleaned.last() {
+        if matches!(cleaned.last(), Some(OwnedMenuItem::Separator)) {
             cleaned.pop();
         }
 

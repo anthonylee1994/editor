@@ -25,7 +25,7 @@ use crate::commit::get_tag_names;
 use crate::repository::GitBinary;
 use crate::repository::RepoPath;
 
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Blame {
     pub entries: Vec<BlameEntry>,
     pub messages: FxHashMap<Oid, String>,

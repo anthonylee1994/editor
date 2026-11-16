@@ -571,7 +571,7 @@ impl BufferStore {
     }
 
     fn on_buffer_event(&mut self, buffer: Entity<Buffer>, event: &BufferEvent, cx: &mut Context<Self>) {
-        if let BufferEvent::FileHandleChanged = event {
+        if matches!(event, BufferEvent::FileHandleChanged) {
             self.buffer_changed_file(buffer, cx);
         }
     }

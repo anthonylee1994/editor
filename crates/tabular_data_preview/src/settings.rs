@@ -16,7 +16,7 @@ pub enum RowIdentifiers {
     RowNum,
 }
 
-#[derive(Default, Clone, Copy, PartialEq)]
+#[derive(Default, Clone, Copy, PartialEq, Eq)]
 pub enum FilterSortOrder {
     /// Sort alphabetically (A→Z), then by number of occurrences descending within ties
     #[default]

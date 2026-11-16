@@ -211,7 +211,7 @@ pub struct Project {
 }
 
 /// A link to display in a toast notification, useful to point to documentation.
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub struct ToastLink {
     pub label: &'static str,
     pub url: &'static str,
@@ -342,7 +342,7 @@ impl InlayId {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InlayHint {
     pub position: language::Anchor,
     pub label: InlayHintLabel,
@@ -354,7 +354,7 @@ pub struct InlayHint {
     pub resolve_state: ResolveState,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InlayHintTextEdits {
     pub edits: Vec<(Range<Anchor>, String)>,
     pub buffer_version: clock::Global,
@@ -564,7 +564,7 @@ pub(crate) struct CoreCompletion {
 }
 
 /// A code action provided by a language server.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CodeAction {
     /// The id of the language server that produced this code action.
     pub server_id: LanguageServerId,
@@ -578,7 +578,7 @@ pub struct CodeAction {
 }
 
 /// An action sent back by a language server.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum LspAction {
     /// An action with the full data, may have a command or may not.
     /// May require resolving.
@@ -644,13 +644,13 @@ impl InlayHint {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InlayHintLabel {
     String(String),
     LabelParts(Vec<InlayHintLabelPart>),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InlayHintLabelPart {
     pub value: String,
     pub tooltip: Option<InlayHintLabelPartTooltip>,
@@ -676,7 +676,7 @@ pub struct MarkupContent {
     pub value: String,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LocationLink {
     pub origin: Option<Location>,
     pub target: Location,
@@ -710,7 +710,7 @@ pub struct DocumentSymbol {
     pub children: Vec<DocumentSymbol>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HoverBlock {
     pub text: String,
     pub kind: HoverBlockKind,
@@ -1601,16 +1601,16 @@ impl Project {
             self.request_buffer_diff_recalculation(&buffer, cx);
         }
 
-        if let BufferEvent::ReloadNeeded = event {
-            self.reload_buffers([buffer].into_iter().collect(), true, cx).detach_and_log_err(cx);
+        if matches!(event, BufferEvent::ReloadNeeded) {
+            self.reload_buffers(std::iter::once(buffer).collect(), true, cx).detach_and_log_err(cx);
         }
 
         None
     }
 
     fn on_image_event(&self, image: Entity<ImageItem>, event: &ImageItemEvent, cx: &mut Context<Self>) -> Option<()> {
-        if let ImageItemEvent::ReloadNeeded = event {
-            self.reload_images([image].into_iter().collect(), cx).detach_and_log_err(cx);
+        if matches!(event, ImageItemEvent::ReloadNeeded) {
+            self.reload_images(std::iter::once(image).collect(), cx).detach_and_log_err(cx);
         }
 
         None

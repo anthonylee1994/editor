@@ -516,7 +516,7 @@ impl Worktree {
                     abs_path
                         .file_name()
                         .and_then(|f| f.to_str())
-                        .map_or(RelPath::empty_arc(), |f| RelPath::from_unix_str(f).unwrap().into()),
+                        .map_or_else(RelPath::empty_arc, |f| RelPath::from_unix_str(f).unwrap().into()),
                     abs_path.clone(),
                 ),
                 root_file_handle,
@@ -840,7 +840,7 @@ impl Worktree {
                                 new_work_directory_abs_path: Some(new_repo.work_directory_abs_path.clone()),
                                 dot_git_abs_path: Some(new_repo.dot_git_abs_path.clone()),
                                 repository_dir_abs_path: Some(new_repo.repository_dir_abs_path.clone()),
-                                common_dir_abs_path: Some(new_repo.common_dir_abs_path.clone()),
+                                common_dir_abs_path: Some(new_repo.common_dir_abs_path),
                             });
                             new_repos.next();
                         }
@@ -850,11 +850,11 @@ impl Worktree {
                             {
                                 changes.push(UpdatedGitRepository {
                                     work_directory_id: new_entry_id,
-                                    old_work_directory_abs_path: Some(old_repo.work_directory_abs_path.clone()),
+                                    old_work_directory_abs_path: Some(old_repo.work_directory_abs_path),
                                     new_work_directory_abs_path: Some(new_repo.work_directory_abs_path.clone()),
                                     dot_git_abs_path: Some(new_repo.dot_git_abs_path.clone()),
                                     repository_dir_abs_path: Some(new_repo.repository_dir_abs_path.clone()),
-                                    common_dir_abs_path: Some(new_repo.common_dir_abs_path.clone()),
+                                    common_dir_abs_path: Some(new_repo.common_dir_abs_path),
                                 });
                             }
                             new_repos.next();
@@ -863,7 +863,7 @@ impl Worktree {
                         Ordering::Greater => {
                             changes.push(UpdatedGitRepository {
                                 work_directory_id: old_entry_id,
-                                old_work_directory_abs_path: Some(old_repo.work_directory_abs_path.clone()),
+                                old_work_directory_abs_path: Some(old_repo.work_directory_abs_path),
                                 new_work_directory_abs_path: None,
                                 dot_git_abs_path: None,
                                 repository_dir_abs_path: None,
@@ -880,7 +880,7 @@ impl Worktree {
                         new_work_directory_abs_path: Some(repo.work_directory_abs_path.clone()),
                         dot_git_abs_path: Some(repo.dot_git_abs_path.clone()),
                         repository_dir_abs_path: Some(repo.repository_dir_abs_path.clone()),
-                        common_dir_abs_path: Some(repo.common_dir_abs_path.clone()),
+                        common_dir_abs_path: Some(repo.common_dir_abs_path),
                     });
                     new_repos.next();
                 }
@@ -891,7 +891,7 @@ impl Worktree {
                         new_work_directory_abs_path: None,
                         dot_git_abs_path: Some(repo.dot_git_abs_path.clone()),
                         repository_dir_abs_path: Some(repo.repository_dir_abs_path.clone()),
-                        common_dir_abs_path: Some(repo.common_dir_abs_path.clone()),
+                        common_dir_abs_path: Some(repo.common_dir_abs_path),
                     });
                     old_repos.next();
                 }
@@ -1332,7 +1332,7 @@ impl Worktree {
             .as_path()
             .file_name()
             .and_then(|f| f.to_str())
-            .map_or(RelPath::empty_arc(), |f| RelPath::from_unix_str(f).unwrap().into());
+            .map_or_else(RelPath::empty_arc, |f| RelPath::from_unix_str(f).unwrap().into());
         self.snapshot.update_abs_path(new_path, root_name);
         self.restart_background_scanners(cx);
     }
@@ -2147,7 +2147,7 @@ impl fmt::Debug for Snapshot {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct File {
     pub worktree: Entity<Worktree>,
     pub path: Arc<RelPath>,
@@ -2294,7 +2294,7 @@ pub enum EntryKind {
     File,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PathChange {
     /// A filesystem entry was was created.
     Added,
@@ -3692,35 +3692,30 @@ impl BackgroundScanner {
         scan_queue_tx: Option<Sender<ScanJob>>,
     ) {
         // grab metadata for all requested paths
-        let metadata = future::join_all(
-            abs_paths
-                .iter()
-                .map(|abs_path| async move {
-                    let metadata = self.fs.metadata(abs_path).await?;
-                    if let Some(metadata) = metadata {
-                        let canonical_path = self.fs.canonicalize(abs_path).await?;
+        let metadata = future::join_all(abs_paths.iter().map(|abs_path| async move {
+            let metadata = self.fs.metadata(abs_path).await?;
+            if let Some(metadata) = metadata {
+                let canonical_path = self.fs.canonicalize(abs_path).await?;
 
-                        // If we're on a case-insensitive filesystem (default on macOS), we want
-                        // to only ignore metadata for non-symlink files if their absolute-path matches
-                        // the canonical-path.
-                        // Because if not, this might be a case-only-renaming (`mv test.txt TEST.TXT`)
-                        // and we want to ignore the metadata for the old path (`test.txt`) so it's
-                        // treated as removed.
-                        if !self.fs_case_sensitive && !metadata.is_symlink {
-                            let canonical_file_name = canonical_path.file_name();
-                            let file_name = abs_path.file_name();
-                            if canonical_file_name != file_name {
-                                return Ok(None);
-                            }
-                        }
-
-                        anyhow::Ok(Some((metadata, SanitizedPath::new_arc(&canonical_path))))
-                    } else {
-                        Ok(None)
+                // If we're on a case-insensitive filesystem (default on macOS), we want
+                // to only ignore metadata for non-symlink files if their absolute-path matches
+                // the canonical-path.
+                // Because if not, this might be a case-only-renaming (`mv test.txt TEST.TXT`)
+                // and we want to ignore the metadata for the old path (`test.txt`) so it's
+                // treated as removed.
+                if !self.fs_case_sensitive && !metadata.is_symlink {
+                    let canonical_file_name = canonical_path.file_name();
+                    let file_name = abs_path.file_name();
+                    if canonical_file_name != file_name {
+                        return Ok(None);
                     }
-                })
-                .collect::<Vec<_>>(),
-        )
+                }
+
+                anyhow::Ok(Some((metadata, SanitizedPath::new_arc(&canonical_path))))
+            } else {
+                Ok(None)
+            }
+        }))
         .await;
 
         let mut new_ancestor_repo = if self.track_git_repositories && relative_paths.iter().any(|path| path.is_empty())
@@ -4808,7 +4803,7 @@ pub async fn decode_file_text_to_rope(
     }
 
     file.rewind()?;
-    let encoding = match bom_encoding.or(byte_content.encoding()) {
+    let encoding = match bom_encoding.or_else(|| byte_content.encoding()) {
         Some(encoding) => encoding,
         None => {
             let encoding = detect_encoding(&mut *file).await?;

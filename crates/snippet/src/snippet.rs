@@ -9,13 +9,13 @@ pub use built_in::SnippetDefinition;
 pub use built_in::snippets_for;
 use smallvec::SmallVec;
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Snippet {
     pub text: String,
     pub tabstops: Vec<TabStop>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct TabStop {
     pub ranges: SmallVec<[Range<isize>; 2]>,
     pub choices: Option<Vec<String>>,
@@ -34,7 +34,7 @@ impl Snippet {
         if let Some(final_tabstop) = final_tabstop {
             tabstops.push(final_tabstop);
         } else {
-            let end_tabstop = TabStop { ranges: [len..len].into_iter().collect(), choices: None };
+            let end_tabstop = TabStop { ranges: std::iter::once(len..len).collect(), choices: None };
 
             if !tabstops.last().is_some_and(|t| *t == end_tabstop) {
                 tabstops.push(end_tabstop);

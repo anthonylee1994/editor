@@ -32,7 +32,7 @@ pub enum SearchResult {
     Searching,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum SearchInputKind {
     Query,
     Include,

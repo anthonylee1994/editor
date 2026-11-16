@@ -718,7 +718,7 @@ async fn do_create_worktree(
                     if let Some(name) = worktree.path.parent().and_then(|p| p.file_name()).and_then(|n| n.to_str()) {
                         existing_worktree_names.push(name.to_string());
                     }
-                    existing_worktree_paths.insert(worktree.path.clone());
+                    existing_worktree_paths.insert(worktree.path);
                 }
             }
             Ok(Err(err)) => {

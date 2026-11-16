@@ -170,7 +170,7 @@ impl ActivityIndicator {
             .detach();
 
             cx.subscribe(&project.read(cx).git_store().clone(), |_, _, event: &GitStoreEvent, cx| {
-                if let GitStoreEvent::JobsUpdated = event {
+                if matches!(event, GitStoreEvent::JobsUpdated) {
                     cx.notify()
                 }
             })
@@ -333,7 +333,7 @@ impl ActivityIndicator {
         {
             let mut pending_work = self.pending_language_server_work(cx);
             if let Some(PendingWork { progress_token, progress, .. }) = pending_work.next() {
-                let mut message = progress.title.clone().unwrap_or(progress_token.to_string());
+                let mut message = progress.title.clone().unwrap_or_else(|| progress_token.to_string());
 
                 if let Some(percentage) = progress.percentage {
                     write!(&mut message, " ({}%)", percentage).unwrap();
@@ -578,7 +578,8 @@ impl Render for ActivityIndicator {
                         let menu = ContextMenu::build(window, cx, |mut menu, _, cx| {
                             for work in strong_this.read(cx).pending_language_server_work(cx) {
                                 let activity_indicator = activity_indicator.clone();
-                                let mut title = work.progress.title.clone().unwrap_or(work.progress_token.to_string());
+                                let mut title =
+                                    work.progress.title.clone().unwrap_or_else(|| work.progress_token.to_string());
 
                                 if work.progress.is_cancellable {
                                     has_cancellable_work = true;

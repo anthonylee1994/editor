@@ -435,7 +435,7 @@ impl Item for Editor {
         self.workspace = Some(workspace.weak_handle());
         if let Some(workspace_entity) = &workspace.weak_handle().upgrade() {
             cx.subscribe(workspace_entity, |editor, _, event: &workspace::Event, _| {
-                if let workspace::Event::ModalOpened = event {
+                if matches!(event, workspace::Event::ModalOpened) {
                     editor.mouse_context_menu.take();
                 }
             })
@@ -1009,7 +1009,7 @@ impl SearchableItem for Editor {
                                 results.push(rx);
                                 scope.spawn(async move {
                                     let chunk_result = query
-                                        .search(search_buffer, Some(search_range.start..search_range.end))
+                                        .search(search_buffer, Some(search_range.clone()))
                                         .await
                                         .into_iter()
                                         .filter_map(|match_range| {

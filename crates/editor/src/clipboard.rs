@@ -109,7 +109,7 @@ impl Editor {
                 let all_selections_were_entire_line = clipboard_selections.iter().all(|s| s.is_entire_line);
                 let first_selection_indent_column = clipboard_selections.first().map(|s| s.first_line_indent);
                 if clipboard_selections.len() != old_selections.len() {
-                    clipboard_selections.drain(..);
+                    clipboard_selections.clear();
                 }
                 let mut auto_indent_on_paste = true;
 

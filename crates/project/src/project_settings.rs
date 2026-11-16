@@ -59,7 +59,7 @@ impl GoToDiagnosticSeverity {
 }
 
 /// Allows filtering diagnostics that should be moved to.
-#[derive(PartialEq, Clone, Copy, Debug, Deserialize)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Deserialize)]
 #[serde(untagged)]
 pub enum GoToDiagnosticSeverityFilter {
     /// Move to diagnostics of a specific severity.

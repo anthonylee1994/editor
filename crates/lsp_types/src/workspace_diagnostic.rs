@@ -60,7 +60,7 @@ pub struct WorkspaceDiagnosticParams {
 /// A full document diagnostic report for a workspace diagnostic result.
 ///
 /// @since 3.17.0
-#[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceFullDocumentDiagnosticReport {
     /// The URI for which diagnostic information is reported.
@@ -78,7 +78,7 @@ pub struct WorkspaceFullDocumentDiagnosticReport {
 /// An unchanged document diagnostic report for a workspace diagnostic result.
 ///
 /// @since 3.17.0
-#[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceUnchangedDocumentDiagnosticReport {
     /// The URI for which diagnostic information is reported.
@@ -96,7 +96,7 @@ pub struct WorkspaceUnchangedDocumentDiagnosticReport {
 /// A workspace diagnostic document report.
 ///
 /// @since 3.17.0
-#[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize, Clone)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum WorkspaceDocumentDiagnosticReport {
     Full(WorkspaceFullDocumentDiagnosticReport),
@@ -118,7 +118,7 @@ impl From<WorkspaceUnchangedDocumentDiagnosticReport> for WorkspaceDocumentDiagn
 /// A workspace diagnostic report.
 ///
 /// @since 3.17.0
-#[derive(Debug, PartialEq, Default, Deserialize, Serialize, Clone)]
+#[derive(Debug, PartialEq, Eq, Default, Deserialize, Serialize, Clone)]
 pub struct WorkspaceDiagnosticReport {
     pub items: Vec<WorkspaceDocumentDiagnosticReport>,
 }
@@ -126,12 +126,12 @@ pub struct WorkspaceDiagnosticReport {
 /// A partial result for a workspace diagnostic report.
 ///
 /// @since 3.17.0
-#[derive(Debug, PartialEq, Default, Deserialize, Serialize, Clone)]
+#[derive(Debug, PartialEq, Eq, Default, Deserialize, Serialize, Clone)]
 pub struct WorkspaceDiagnosticReportPartialResult {
     pub items: Vec<WorkspaceDocumentDiagnosticReport>,
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize, Clone)]
 #[serde(untagged)]
 pub enum WorkspaceDiagnosticReportResult {
     Report(WorkspaceDiagnosticReport),

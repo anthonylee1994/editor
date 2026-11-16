@@ -796,7 +796,10 @@ impl Language {
                 _ => runs.push((region.range, highlight_id)),
             }
         }
-        ResolvedHighlights { sources: [(Arc::clone(grammar), highlight_map)].into_iter().collect(), runs: runs.into() }
+        ResolvedHighlights {
+            sources: std::iter::once((Arc::clone(grammar), highlight_map)).collect(),
+            runs: runs.into(),
+        }
     }
 
     pub fn path_suffixes(&self) -> &[SharedString] {
@@ -944,12 +947,9 @@ impl LanguageScope {
     pub fn brackets(&self) -> impl Iterator<Item = (&BracketPair, bool)> {
         let mut disabled_ids = self.config_override().map_or(&[] as &[u16], |o| o.disabled_bracket_ixs.as_slice());
         self.language.config.brackets.pairs.iter().enumerate().map(move |(ix, bracket)| {
-            let mut is_enabled = true;
-            if let Some(next_disabled_ix) = disabled_ids.first()
-                && ix == *next_disabled_ix as usize
-            {
+            let is_enabled = disabled_ids.first().is_none_or(|next_disabled_ix| ix != *next_disabled_ix as usize);
+            if !is_enabled {
                 disabled_ids = &disabled_ids[1..];
-                is_enabled = false;
             }
             (bracket, is_enabled)
         })

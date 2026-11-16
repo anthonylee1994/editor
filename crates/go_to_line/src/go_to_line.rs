@@ -71,7 +71,7 @@ impl Focusable for GoToLine {
 
 impl EventEmitter<DismissEvent> for GoToLine {}
 
-enum GoToLineRowHighlights {}
+struct GoToLineRowHighlights(!);
 
 impl GoToLine {
     fn register(editor: &mut Editor, _window: Option<&mut Window>, cx: &mut Context<Editor>) {

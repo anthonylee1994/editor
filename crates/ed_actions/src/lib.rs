@@ -16,7 +16,7 @@ use serde::Serialize;
 pub const fn init() {}
 
 /// Opens a URL in the system's default web browser.
-#[derive(Clone, PartialEq, Deserialize, Action)]
+#[derive(Clone, PartialEq, Eq, Deserialize, Action)]
 #[action(namespace = ed)]
 #[serde(deny_unknown_fields)]
 pub struct OpenBrowser {
@@ -258,7 +258,7 @@ pub mod search {
     /// An internal forwarding action: the user-facing, keybindable entry
     /// point is `project_panel::NewSearchInDirectory`, which resolves the
     /// selected directory and dispatches this action with it.
-    #[derive(Clone, Debug, Default, PartialEq, Action)]
+    #[derive(Clone, Debug, Default, PartialEq, Eq, Action)]
     #[action(namespace = search, no_json, no_register)]
     pub struct NewSearchInDirectory {
         pub directory: String,
@@ -286,7 +286,7 @@ pub mod buffer_search {
     use serde::Deserialize;
 
     /// Opens the buffer search interface with the specified configuration.
-    #[derive(PartialEq, Clone, Deserialize, Action)]
+    #[derive(PartialEq, Eq, Clone, Deserialize, Action)]
     #[action(namespace = buffer_search)]
     #[serde(deny_unknown_fields, default)]
     pub struct Deploy {
@@ -326,7 +326,7 @@ pub mod buffer_search {
     );
 }
 /// Opens the recent projects interface.
-#[derive(PartialEq, Clone, Deserialize, Default, Action)]
+#[derive(PartialEq, Eq, Clone, Deserialize, Default, Action)]
 #[action(namespace = projects)]
 #[serde(deny_unknown_fields)]
 pub struct OpenRecent {

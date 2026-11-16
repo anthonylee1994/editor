@@ -296,7 +296,7 @@ impl DiagnosticBlock {
         let snapshot = &editor.buffer().read(cx).snapshot(cx);
         let range = range.start.to_offset(snapshot)..range.end.to_offset(snapshot);
 
-        editor.unfold_ranges(&[range.start..range.end], true, false, cx);
+        editor.unfold_ranges(std::slice::from_ref(&range), true, false, cx);
         editor.change_selections(editor::SelectionEffects::default(), window, cx, |s| {
             s.select_ranges([range.start..range.start]);
         });

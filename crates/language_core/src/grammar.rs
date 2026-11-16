@@ -104,7 +104,7 @@ pub struct OutlineConfig {
     pub annotation_capture_ix: Option<u32>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TextObject {
     InsideFunction,
     AroundFunction,
@@ -127,7 +127,7 @@ impl TextObject {
         }
     }
 
-    pub fn around(&self) -> Option<Self> {
+    pub const fn around(&self) -> Option<Self> {
         match self {
             TextObject::InsideFunction => Some(TextObject::AroundFunction),
             TextObject::InsideClass => Some(TextObject::AroundClass),
@@ -159,7 +159,7 @@ pub struct SpellCheckConfig {
     pub nospell_capture_ix: Option<u32>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RunnableCapture {
     /// `@run` — marks the node that identifies the runnable (e.g. the test
     /// function name, the subtest string literal).
@@ -289,7 +289,7 @@ impl Grammar {
             runnable_config: None,
             error_query,
             ts_language: parseable_language.resolve().expect("resolving a native parseable language cannot fail"),
-            highlight_map: Default::default(),
+            highlight_map: Mutex::default(),
         }
     }
 
@@ -298,7 +298,7 @@ impl Grammar {
         Ok(self.ts_language.clone())
     }
 
-    pub fn id(&self) -> GrammarId {
+    pub const fn id(&self) -> GrammarId {
         self.id
     }
 

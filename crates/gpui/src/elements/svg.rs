@@ -215,7 +215,7 @@ impl Transformation {
     }
 }
 
-enum SvgAsset {}
+struct SvgAsset(!);
 
 impl Asset for SvgAsset {
     type Source = SharedString;

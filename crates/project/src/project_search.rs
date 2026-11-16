@@ -304,8 +304,7 @@ impl Search {
                 };
 
                 future::join_all(
-                    [worker_pool.boxed_local()]
-                        .into_iter()
+                    std::iter::once(worker_pool.boxed_local())
                         .chain(buffer_snapshots)
                         .chain(ensure_matches_are_reported_in_order)
                         .chain(tasks),
@@ -426,17 +425,15 @@ impl Search {
         let mut rx = pin!(rx.ready_chunks(64));
         _ = async move {
             while let Some(requested_paths) = rx.next().await {
-                let line_hints: Vec<MatchPositionHint> = requested_paths.iter().map(|(_, line)| *line).collect();
-                let sort_keys: Vec<(usize, Arc<RelPath>)> =
-                    requested_paths.iter().map(|(path, _)| (path.worktree_id.to_usize(), path.path.clone())).collect();
                 let mut buffers = buffer_store.update(&mut cx, |this, cx| {
                     requested_paths
-                        .into_iter()
-                        .map(|(path, _)| this.open_buffer(path, cx))
+                        .iter()
+                        .map(|(path, _)| this.open_buffer(path.clone(), cx))
                         .collect::<FuturesOrdered<_>>()
                 });
-                let mut line_hints = line_hints.into_iter();
-                let mut sort_keys = sort_keys.into_iter();
+                let mut line_hints = requested_paths.iter().map(|(_, line)| *line);
+                let mut sort_keys =
+                    requested_paths.iter().map(|(path, _)| (path.worktree_id.to_usize(), path.path.clone()));
                 while let Some(buffer) = buffers.next().await {
                     let line_hint = line_hints.next().unwrap_or_default();
                     if let Some(sort_key) = sort_keys.next() {
@@ -668,7 +665,7 @@ impl RequestHandler<'_> {
 
             let is_plain_utf8 =
                 bom_encoding.is_none() && byte_content == ByteContent::Unknown && is_utf8_prefix(&file_start);
-            let encoding = bom_encoding.or(byte_content.encoding());
+            let encoding = bom_encoding.or_else(|| byte_content.encoding());
 
             let first_match = if is_plain_utf8 {
                 match self.query.detect(&mut Cursor::new(file_start).chain(&mut *file)).await {
@@ -880,10 +877,7 @@ impl PathInclusionMatcher {
 
 /// The leading path components of `glob` that contain no glob syntax, e.g. `src` for `src/**/*.rs`.
 fn glob_literal_prefix(glob: &str) -> PathBuf {
-    let mut prefix = PathBuf::new();
-    if glob.starts_with('/') {
-        prefix.push("/");
-    }
+    let mut prefix = if glob.starts_with('/') { PathBuf::from("/") } else { PathBuf::new() };
     for component in glob.split('/').filter(|component| !component.is_empty()) {
         let mut literal = String::new();
         let mut chars = component.chars();

@@ -149,7 +149,7 @@ actions!(
 );
 
 /// Renames a git branch.
-#[derive(Clone, Debug, Default, PartialEq, Deserialize, Action)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Action)]
 #[action(namespace = git)]
 #[serde(deny_unknown_fields)]
 pub struct RenameBranch {
@@ -161,7 +161,7 @@ pub struct RenameBranch {
 }
 
 /// Restores a file to its last committed state, discarding local changes.
-#[derive(Clone, Debug, Default, PartialEq, Deserialize, Action)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Action)]
 #[action(namespace = git)]
 #[serde(deny_unknown_fields)]
 pub struct RestoreFile {

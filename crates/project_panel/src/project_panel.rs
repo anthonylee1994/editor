@@ -808,7 +808,7 @@ impl ProjectPanel {
                         }
                     }
                     project::Event::RevealInProjectPanel(entry_id) => {
-                        if let Some(()) = this.reveal_entry(project.clone(), *entry_id, false, window, cx).log_err() {
+                        if this.reveal_entry(project.clone(), *entry_id, false, window, cx).log_err() == Some(()) {
                             cx.emit(PanelEvent::Activate);
                         }
                     }
@@ -3545,8 +3545,7 @@ impl ProjectPanel {
             text
         } else {
             ClipboardItem {
-                entries: [GpuiClipboardEntry::ExternalPaths(ExternalPaths(files.into_iter().collect()))]
-                    .into_iter()
+                entries: std::iter::once(GpuiClipboardEntry::ExternalPaths(ExternalPaths(files.into_iter().collect())))
                     .chain(text.entries)
                     .collect(),
             }
@@ -3666,11 +3665,10 @@ impl ProjectPanel {
             .map(|entry| entry.id);
         let mut max_width_item = None;
 
-        let visible_worktrees: Vec<_> =
-            project.visible_worktrees(cx).map(|worktree| (worktree.read(cx).snapshot(), false)).collect();
         // External libraries follow the project roots, each under its own root row.
-        let worktrees = visible_worktrees
-            .into_iter()
+        let worktrees = project
+            .visible_worktrees(cx)
+            .map(|worktree| (worktree.read(cx).snapshot(), false))
             .chain(project.library_worktrees(cx).into_iter().map(|worktree| (worktree.read(cx).snapshot(), true)))
             .collect::<Vec<_>>();
         let libraries_expanded = self.libraries_expanded;
@@ -3694,15 +3692,17 @@ impl ProjectPanel {
                         }
                         let worktree_id = worktree_snapshot.id();
 
-                        let mut new_entry_parent_id = None;
-                        let mut new_entry_kind = EntryKind::Dir;
-                        if let Some(edit_state) = &new_state.edit_state
+                        let (new_entry_parent_id, new_entry_kind) = if let Some(edit_state) = &new_state.edit_state
                             && edit_state.worktree_id == worktree_id
                             && edit_state.is_new_entry()
                         {
-                            new_entry_parent_id = Some(edit_state.entry_id);
-                            new_entry_kind = if edit_state.is_dir { EntryKind::Dir } else { EntryKind::File };
-                        }
+                            (
+                                Some(edit_state.entry_id),
+                                if edit_state.is_dir { EntryKind::Dir } else { EntryKind::File },
+                            )
+                        } else {
+                            (None, EntryKind::Dir)
+                        };
 
                         let mut visible_worktree_entries = Vec::new();
                         let mut entry_iter = GitTraversal::new(&repo_snapshots, worktree_snapshot.entries(true, 0));

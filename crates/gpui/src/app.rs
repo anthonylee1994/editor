@@ -1844,13 +1844,10 @@ impl App {
     /// Checks if the given action is bound in the current context, as defined by the app's current focus,
     /// the bindings in the element tree, and any global action listeners.
     pub fn is_action_available(&mut self, action: &dyn Action) -> bool {
-        let mut action_available = false;
-        if let Some(window) = self.active_window()
-            && let Ok(window_action_available) =
-                window.update(self, |_, window, cx| window.is_action_available(action, cx))
-        {
-            action_available = window_action_available;
-        }
+        let action_available = self
+            .active_window()
+            .and_then(|window| window.update(self, |_, window, cx| window.is_action_available(action, cx)).ok())
+            .unwrap_or(false);
 
         action_available || self.global_action_listeners.contains_key(&action.as_any().type_id())
     }

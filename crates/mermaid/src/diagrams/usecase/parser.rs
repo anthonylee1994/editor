@@ -524,13 +524,14 @@ impl Parser<'_> {
         let (named, shape) = self.name(!actor)?;
         let shape = if actor { None } else { shape };
         let metadata = if self.kind(self.p) == T::MetadataStart { Some(self.metadata()?) } else { None };
-        let mut stereotype = None;
-        if self.kind(self.p) == T::StereotypeStart {
+        let stereotype = if self.kind(self.p) == T::StereotypeStart {
             self.p += 1;
             let text = self.expect(T::StereotypeText)?;
             self.expect(T::StereotypeEnd)?;
-            stereotype = Some(trim(self.image(text)).to_owned());
-        }
+            Some(trim(self.image(text)).to_owned())
+        } else {
+            None
+        };
         let mut classes = Vec::new();
         if self.kind(self.p) == T::ClassSeparator {
             self.class_suffix(&mut classes)?;

@@ -1477,7 +1477,7 @@ impl Editor {
 
         self.transact(window, cx, |this, window, cx| {
             this.buffer.update(cx, |buffer, cx| {
-                buffer.edit(full_edits.iter().map(|(_, p, t)| (p.clone(), t.clone())).collect::<Vec<_>>(), None, cx);
+                buffer.edit(full_edits.iter().map(|(_, p, t)| (p.clone(), t.clone())), None, cx);
             });
             this.change_selections(SelectionEffects::default(), window, cx, |s| {
                 let mut offset = 0;
@@ -1499,16 +1499,16 @@ impl Editor {
     }
 
     pub(super) fn observe_pending_input(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let mut pending: String = window
-            .pending_input_keystrokes()
-            .into_iter()
-            .flatten()
-            .filter_map(|keystroke| keystroke.key_char.clone())
-            .collect();
-
-        if !self.input_enabled || !self.focus_handle.is_focused(window) {
-            pending = "".to_string();
-        }
+        let pending: String = if self.input_enabled && self.focus_handle.is_focused(window) {
+            window
+                .pending_input_keystrokes()
+                .into_iter()
+                .flatten()
+                .filter_map(|keystroke| keystroke.key_char.clone())
+                .collect()
+        } else {
+            String::new()
+        };
 
         let existing_pending = self.text_highlights(HighlightKey::PendingInput, cx).map(|(_, ranges)| ranges.to_vec());
         if existing_pending.is_none() && pending.is_empty() {
@@ -1882,13 +1882,12 @@ pub(super) fn is_list_prefix_row(row: MultiBufferRow, buffer: &MultiBufferSnapsh
 
     let num_of_whitespaces = snapshot.chars_for_range(range.clone()).take_while(|c| c.is_whitespace()).count();
 
-    let task_list_prefixes: Vec<_> = language
+    let all_prefixes: Vec<&str> = language
         .task_list()
         .into_iter()
-        .flat_map(|config| config.prefixes.iter().map(|p| p.as_ref()).collect::<Vec<_>>())
+        .flat_map(|config| config.prefixes.iter().map(|p| p.as_ref()))
+        .chain(language.unordered_list().iter().map(|marker| marker.as_ref()))
         .collect();
-    let unordered_list_markers: Vec<_> = language.unordered_list().iter().map(|marker| marker.as_ref()).collect();
-    let all_prefixes: Vec<_> = task_list_prefixes.into_iter().chain(unordered_list_markers).collect();
     if let Some(max_prefix_len) = all_prefixes.iter().map(|p| p.len()).max() {
         let candidate: String =
             snapshot.chars_for_range(range.clone()).skip(num_of_whitespaces).take(max_prefix_len).collect();
@@ -1960,7 +1959,7 @@ impl NewlineConfig {
     }
 
     fn insert_extra_newline_tree_sitter(buffer: &MultiBufferSnapshot, range: Range<MultiBufferOffset>) -> bool {
-        let (buffer, range) = match buffer.range_to_buffer_ranges(range.start..range.end).as_slice() {
+        let (buffer, range) = match buffer.range_to_buffer_ranges(range).as_slice() {
             [(buffer_snapshot, range, _)] => (*buffer_snapshot, range.clone()),
             _ => return false,
         };
@@ -2180,15 +2179,12 @@ fn list_delimiter_for_newline(
 
     let num_of_whitespaces = snapshot.chars_for_range(range.clone()).take_while(|c| c.is_whitespace()).count();
 
-    let task_list_entries: Vec<_> = language
+    let all_entries: Vec<(&str, &str)> = language
         .task_list()
         .into_iter()
         .flat_map(|config| config.prefixes.iter().map(|prefix| (prefix.as_ref(), config.continuation.as_ref())))
+        .chain(language.unordered_list().iter().map(|marker| (marker.as_ref(), marker.as_ref())))
         .collect();
-    let unordered_list_entries: Vec<_> =
-        language.unordered_list().iter().map(|marker| (marker.as_ref(), marker.as_ref())).collect();
-
-    let all_entries: Vec<_> = task_list_entries.into_iter().chain(unordered_list_entries).collect();
 
     if let Some(max_prefix_len) = all_entries.iter().map(|(p, _)| p.len()).max() {
         let candidate: String =

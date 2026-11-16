@@ -195,10 +195,8 @@ impl Editor {
         ranges.iter().flat_map(move |range| {
             let end_excerpt = buffer.excerpt_containing(range.end..range.end);
             let range = range.to_point(buffer);
-            let mut peek_end = range.end;
-            if range.end.row < buffer.max_row().0 {
-                peek_end = Point::new(range.end.row + 1, 0);
-            }
+            let peek_end =
+                if range.end.row < buffer.max_row().0 { Point::new(range.end.row + 1, 0) } else { range.end };
             buffer.diff_hunks_in_range(range.start..peek_end).filter(move |hunk| {
                 if let Some((_, excerpt_range)) = &end_excerpt
                     && let Some(end_anchor) = buffer.anchor_in_excerpt(excerpt_range.context.end)

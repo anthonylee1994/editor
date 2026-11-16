@@ -1268,7 +1268,7 @@ impl Element for TerminalElement {
                 Bounds { origin: cursor_position, size: size(cursor_width.ceil(), dimensions.line_height) }
             });
 
-            let cursor = if let CursorShape::Hidden = cursor.shape {
+            let cursor = if cursor.shape == CursorShape::Hidden {
                 None
             } else {
                 let focused = self.focused;

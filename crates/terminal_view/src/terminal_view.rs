@@ -143,16 +143,16 @@ fn viewport_line_for_point(point: Point, display_offset: usize) -> Option<usize>
 const CURSOR_BLINK_INTERVAL: Duration = Duration::from_millis(500);
 
 /// Event to transmit the scroll from the element to the view
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ScrollTerminal(pub i32);
 
 /// Sends the specified text directly to the terminal.
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Action)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Action)]
 #[action(namespace = terminal)]
 pub struct SendText(String);
 
 /// Sends a keystroke sequence to the terminal.
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Action)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Action)]
 #[action(namespace = terminal)]
 pub struct SendKeystroke(String);
 
@@ -165,7 +165,7 @@ actions!(
 );
 
 /// Renames the terminal tab.
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Action)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Action)]
 #[action(namespace = terminal)]
 pub struct RenameTerminal;
 
@@ -373,7 +373,7 @@ impl TerminalView {
         let rename_editor_subscription = cx.subscribe_in(&rename_editor, window, {
             let rename_editor = rename_editor.clone();
             move |_this, _, event, window, cx| {
-                if let editor::EditorEvent::Blurred = event {
+                if matches!(event, editor::EditorEvent::Blurred) {
                     // Defer to let focus settle (avoids canceling during double-click).
                     let rename_editor = rename_editor.clone();
                     cx.defer_in(window, move |this, window, cx| {
@@ -1497,7 +1497,7 @@ impl SearchableItem for TerminalView {
                                     search_match.contains(selection_head) || search_match.start() > selection_head
                                 })
                                 .map(|(ix, _)| ix)
-                                .unwrap_or(matches.len().saturating_sub(1)),
+                                .unwrap_or_else(|| matches.len().saturating_sub(1)),
                         )
                     }
                 }

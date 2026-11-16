@@ -38,7 +38,7 @@ pub enum LabelSize {
 }
 
 /// Sets the line height of a label
-#[derive(Default, PartialEq, Copy, Clone)]
+#[derive(Default, PartialEq, Eq, Copy, Clone)]
 pub enum LineHeightStyle {
     /// The default line height style of a label,
     /// set by either the UI's default line height,
@@ -284,7 +284,7 @@ impl RenderOnce for LabelLike {
                 this.min_w_0().overflow_x_hidden().whitespace_nowrap().text_ellipsis_middle()
             })
             .text_color(color)
-            .font_weight(self.weight.unwrap_or(font::ui_font().weight))
+            .font_weight(self.weight.unwrap_or_else(|| font::ui_font().weight))
             .children(self.children)
     }
 }

@@ -523,11 +523,9 @@ impl<'a, T: Item> Iterator for Iter<'a, T> {
     type Item = &'a T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut descend = false;
-
-        if self.stack.is_empty() {
+        let mut descend = self.stack.is_empty();
+        if descend {
             self.stack.push(StackEntry { tree: self.tree, index: 0, position: () }).unwrap_oob();
-            descend = true;
         }
 
         while let Some(entry) = self.stack.last_mut() {
@@ -605,7 +603,7 @@ pub struct FilterCursor<'a, 'b, F, T: Item, D> {
     filter_node: F,
 }
 
-impl<'a, 'b, F, T: Item, D> FilterCursor<'a, 'b, F, T, D>
+impl<'a, 'b, F, T, D> FilterCursor<'a, 'b, F, T, D>
 where
     F: FnMut(&T::Summary) -> bool,
     T: Item,

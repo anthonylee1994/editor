@@ -1,7 +1,7 @@
 use gpui::Hsla;
 
 /// A collection of colors that are used to color indent aware lines in the editor.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct AccentColors(pub [Hsla; 7]);
 
 impl AccentColors {

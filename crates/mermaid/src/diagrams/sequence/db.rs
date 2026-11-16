@@ -298,14 +298,15 @@ impl SeqDb {
             Some((color, _)) if !color.is_empty() => trim(color).to_owned(),
             _ => "transparent".to_owned(),
         };
-        let mut title = match split {
-            Some((_, rest)) if !rest.is_empty() => Some(trim(rest)),
-            _ => None,
-        };
-        if !is_css_color(&color) {
+        let title = if is_css_color(&color) {
+            match split {
+                Some((_, rest)) if !rest.is_empty() => Some(trim(rest)),
+                _ => None,
+            }
+        } else {
             "transparent".clone_into(&mut color);
-            title = Some(trim(text));
-        }
+            Some(trim(text))
+        };
         let Some(title) = title else {
             return SeqBoxData { color, text: None, wrap: None };
         };
@@ -319,7 +320,7 @@ impl SeqDb {
             actor_keys: Vec::new(),
             fill: data.color,
             name: data.text,
-            wrap: data.wrap.unwrap_or(self.auto_wrap()),
+            wrap: data.wrap.unwrap_or_else(|| self.auto_wrap()),
         });
     }
 
@@ -412,7 +413,7 @@ impl SeqDb {
             prev_actor: self.prev_actor.clone(),
             properties: Vec::new(),
             r#type: r#type.unwrap_or_else(|| "participant".to_owned()),
-            wrap: description.wrap.unwrap_or(self.auto_wrap()),
+            wrap: description.wrap.unwrap_or_else(|| self.auto_wrap()),
         };
         // A redeclared participant keeps its place, as `Map.prototype.set` keeps a key's.
         if let Some(slot) = self.actor_at.get(id).copied().and_then(|at| self.actors.get_mut(at)) {
@@ -473,7 +474,7 @@ impl SeqDb {
             placement: None,
             to: to.map(str::to_owned),
             r#type: Some(r#type),
-            wrap: wrap.unwrap_or(self.auto_wrap()),
+            wrap: wrap.unwrap_or_else(|| self.auto_wrap()),
         });
         Ok(())
     }
@@ -485,7 +486,7 @@ impl SeqDb {
     }
 
     fn add_note(&mut self, actor: NoteActor, placement: u8, message: SeqText) {
-        let wrap = message.wrap.unwrap_or(self.auto_wrap());
+        let wrap = message.wrap.unwrap_or_else(|| self.auto_wrap());
         let (from, to) = match &actor {
             NoteActor::Single(id) => (id.clone(), id.clone()),
             NoteActor::Over(a, b) => (a.clone(), b.clone()),

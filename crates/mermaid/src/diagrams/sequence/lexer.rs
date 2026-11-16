@@ -100,7 +100,7 @@ impl<'a> Lexer<'a> {
         match self.bytes.get(q) {
             None => NONE,
             Some(&b) if b < 0x80 => u32::from(b),
-            Some(&b) => self.src.get(q..).and_then(|rest| rest.chars().next()).map_or(u32::from(b), u32::from),
+            Some(&b) => self.src.get(q..).and_then(|rest| rest.chars().next()).map_or_else(|| u32::from(b), u32::from),
         }
     }
 

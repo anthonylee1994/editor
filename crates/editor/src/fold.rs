@@ -329,13 +329,9 @@ impl Editor {
     ) {
         let snapshot = self.buffer.read(cx).snapshot(cx);
 
-        let ranges = snapshot
+        let creases = snapshot
             .text_object_ranges(MultiBufferOffset(0)..snapshot.len(), TreeSitterOptions::default())
             .filter_map(|(range, obj)| (obj == TextObject::InsideFunction).then_some(range))
-            .collect::<Vec<_>>();
-
-        let creases = ranges
-            .into_iter()
             .map(|range| Crease::simple(range, self.display_map.read(cx).fold_placeholder.clone()))
             .collect();
 

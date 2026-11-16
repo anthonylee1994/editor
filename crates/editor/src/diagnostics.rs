@@ -226,12 +226,14 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let mut active_group_id = None;
-        if let ActiveDiagnostic::Group(active_group) = &self.active_diagnostics
-            && active_group.active_range.start.to_offset(buffer) == selection.start
-        {
-            active_group_id = Some(active_group.group_id);
-        }
+        let active_group_id = match &self.active_diagnostics {
+            ActiveDiagnostic::Group(active_group)
+                if active_group.active_range.start.to_offset(buffer) == selection.start =>
+            {
+                Some(active_group.group_id)
+            }
+            _ => None,
+        };
 
         let before = Self::diagnostics_before_cursor(buffer, selection.start, severity);
         let after = Self::diagnostics_after_cursor(buffer, selection.start, severity);

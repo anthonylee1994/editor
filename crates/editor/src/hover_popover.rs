@@ -127,10 +127,8 @@ pub fn hover_at(
     } else if !editor.hover_state.visible() {
         editor.hover_state.info_task = None;
     } else {
-        let mut getting_closer = false;
-        if let Some(mouse_position) = mouse_position {
-            getting_closer = editor.hover_state.is_mouse_getting_closer(mouse_position);
-        }
+        let getting_closer =
+            mouse_position.is_some_and(|mouse_position| editor.hover_state.is_mouse_getting_closer(mouse_position));
 
         // If we are moving away and a timer is already running, just let it count down.
         if !getting_closer && editor.hover_state.hiding_delay_task.is_some() {
@@ -1054,7 +1052,7 @@ impl HoverState {
         let center_y = bounds.origin.y + bounds.size.height / 2.;
         let dx: f32 = ((point.x - center_x).abs() - bounds.size.width / 2.).max(px(0.0)).into();
         let dy: f32 = ((point.y - center_y).abs() - bounds.size.height / 2.).max(px(0.0)).into();
-        px((dx.powi(2) + dy.powi(2)).sqrt())
+        px(dx.hypot(dy))
     }
 
     pub(crate) fn render(

@@ -72,7 +72,7 @@ impl Scheduler for PlatformScheduler {
             unparker.unpark();
         });
         let mut cx = Context::from_waker(&waker);
-        if let Poll::Ready(()) = future.as_mut().poll(&mut cx) {
+        if future.as_mut().poll(&mut cx) == Poll::Ready(()) {
             return true;
         }
 
@@ -91,7 +91,7 @@ impl Scheduler for PlatformScheduler {
                 Some(_) => (),
                 None => parker.park(),
             }
-            if let Poll::Ready(()) = future.as_mut().poll(&mut cx) {
+            if future.as_mut().poll(&mut cx) == Poll::Ready(()) {
                 break true;
             }
         }

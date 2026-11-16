@@ -381,11 +381,10 @@ fn patch_for_excerpt(
             }
         });
 
-    let edits = [text::Edit {
+    let edits = std::iter::once(text::Edit {
         old: source_multibuffer_range.start..source_multibuffer_range.start,
         new: target_multibuffer_range.start..target_multibuffer_range.start,
-    }]
-    .into_iter()
+    })
     .chain(edits);
 
     let mut merged_edits: Vec<text::Edit<Point>> = Vec::new();

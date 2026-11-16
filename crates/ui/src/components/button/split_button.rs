@@ -19,7 +19,7 @@ use crate::prelude::Button;
 use crate::prelude::IconButton;
 use crate::prelude::h_flex;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum SplitButtonStyle {
     Filled,
     Outlined,

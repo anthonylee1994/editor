@@ -56,7 +56,7 @@ impl LspAdapter for HtmlLspAdapter {
     }
 
     fn language_ids(&self) -> FxHashMap<LanguageName, String> {
-        [(LanguageName::new_static("HTML"), "html".into())].into_iter().collect()
+        std::iter::once((LanguageName::new_static("HTML"), "html".into())).collect()
     }
 }
 

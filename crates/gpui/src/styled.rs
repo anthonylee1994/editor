@@ -509,7 +509,6 @@ pub trait Styled: Sized {
     fn bg<F>(mut self, fill: F) -> Self
     where
         F: Into<Fill>,
-        Self: Sized,
     {
         self.style().background = Some(fill.into());
         self

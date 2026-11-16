@@ -182,7 +182,7 @@ pub(crate) fn unescape(text: &str) -> String {
     let mut chars = text.chars();
     chars.next();
     chars.next_back();
-    let mut inner = chars.as_str().chars().peekable();
+    let mut inner = chars.as_str().chars();
     let mut out = String::with_capacity(text.len());
     while let Some(c) = inner.next() {
         if c == '\\'

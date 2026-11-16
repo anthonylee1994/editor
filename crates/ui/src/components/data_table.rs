@@ -673,7 +673,7 @@ pub fn render_table_header(
 ) -> AnyElement {
     let cols = headers.cols();
     let column_widths =
-        table_context.column_widths.map_or(vec![None; cols].into_table_row(cols), |widths| widths.map(Some));
+        table_context.column_widths.map_or_else(|| vec![None; cols].into_table_row(cols), |widths| widths.map(Some));
 
     let element_id = entity_id.map(|entity| entity.to_string()).unwrap_or_default();
 
@@ -700,7 +700,7 @@ pub fn render_table_header(
             .filter(|(idx, _)| column_is_visible(column_filter, *idx))
             .map(|(idx, (h, width))| (idx, h, width))
             .collect();
-        let scrollable: Vec<(usize, AnyElement, Option<Length>)> = kept.drain(pinned_visible..).collect();
+        let scrollable = kept.split_off(pinned_visible);
 
         let pinned_section =
             div().flex().flex_row().flex_shrink_0().children(kept.into_iter().map(|(header_idx, h, width)| {

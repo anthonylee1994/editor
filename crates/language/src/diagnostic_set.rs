@@ -147,8 +147,7 @@ impl DiagnosticEntry<PointUtf16> {
     pub fn to_lsp_diagnostic_stub(&self, uri: &lsp::Uri) -> Result<lsp::Diagnostic> {
         let range = range_to_lsp(self.range.clone())?;
 
-        let mut related_information = None;
-        if let Some(information) = &self.related_information {
+        let related_information = if let Some(information) = &self.related_information {
             let mut locations = Vec::with_capacity(information.len());
             for information in information.iter() {
                 locations.push(lsp::DiagnosticRelatedInformation {
@@ -161,8 +160,10 @@ impl DiagnosticEntry<PointUtf16> {
                     message: information.message.clone(),
                 });
             }
-            related_information = Some(locations);
-        }
+            Some(locations)
+        } else {
+            None
+        };
 
         Ok(lsp::Diagnostic {
             range,

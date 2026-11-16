@@ -309,12 +309,11 @@ pub(crate) fn build_event_model(
             _ => None,
         };
         let kind = kind_of(frame.model_entity_type);
-        let mut text = frame.data_inline_value.map(block_text);
-        if let Some(reference) = frame.data_reference
-            && let Some(block) = ast.data_entities.iter().find(|entity| entity.name == reference)
-        {
-            text = Some(block_text(block.data_block_value));
-        }
+        let text = frame
+            .data_reference
+            .and_then(|reference| ast.data_entities.iter().find(|entity| entity.name == reference))
+            .map(|block| block_text(block.data_block_value))
+            .or_else(|| frame.data_inline_value.map(block_text));
         let lane = lane(kind, pair.map(|(namespace, _)| namespace));
         let target = boxes.len();
         boxes.push(EmBox {

@@ -456,7 +456,7 @@ impl ButtonStyle {
 /// The height of a button.
 ///
 /// Can also be used to size non-button elements to align with [`Button`]s.
-#[derive(Default, PartialEq, Clone, Copy)]
+#[derive(Default, PartialEq, Eq, Clone, Copy)]
 pub enum ButtonSize {
     Large,
     Medium,
@@ -690,7 +690,7 @@ impl RenderOnce for ButtonLike {
             .font_ui()
             .group("")
             .flex_none()
-            .h(self.height.unwrap_or(self.size.rems().into()))
+            .h(self.height.unwrap_or_else(|| self.size.rems().into()))
             .when_some(self.width, |this, width| this.w(width).justify_center().text_center())
             .when(is_outlined, |this| this.border_1())
             .when_some(self.rounding, |this, rounding| {

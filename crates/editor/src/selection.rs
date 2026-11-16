@@ -243,7 +243,7 @@ impl Editor {
                             let line_start = Point::new(selection.end.row, 0);
                             new_selection_ranges.push(line_start..selection.end);
                         } else {
-                            new_selection_ranges.push(selection.start..selection.end);
+                            new_selection_ranges.push(selection);
                         }
                     } else {
                         new_selection_ranges.push(selection.end..selection.end);

@@ -196,7 +196,7 @@ where
 
         for decoration in &self.decorations {
             if let Some(drifting_indent) = drifting_indent {
-                let drifting_indent_vec: SmallVec<[usize; 8]> = [drifting_indent].into_iter().collect();
+                let drifting_indent_vec: SmallVec<[usize; 8]> = std::iter::once(drifting_indent).collect();
 
                 let sticky_origin = base_origin + point(px(0.), item_height * rest_indents.len() + drifting_y_offset);
                 let decoration_bounds = Bounds::new(sticky_origin, bounds.size);

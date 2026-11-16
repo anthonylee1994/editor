@@ -265,7 +265,7 @@ impl PackageJsonData {
                 command: TYPESCRIPT_RUNNER_VARIABLE.template_value(),
                 args: vec!["run".to_owned(), script.to_owned()],
                 tags: vec!["package-script".into()],
-                cwd: Some(path.parent().unwrap_or(Path::new("/")).to_string_lossy().to_string()),
+                cwd: Some(path.parent().unwrap_or_else(|| Path::new("/")).to_string_lossy().to_string()),
                 ..TaskTemplate::default()
             });
         }
@@ -429,42 +429,42 @@ impl ContextProvider for TypeScriptContextProvider {
                     if let Some(path) = package_json_data.jest_package_path {
                         vars.insert(
                             TYPESCRIPT_JEST_PACKAGE_PATH_VARIABLE,
-                            path.parent().unwrap_or(Path::new("")).to_string_lossy().to_string(),
+                            path.parent().unwrap_or_else(|| Path::new("")).to_string_lossy().to_string(),
                         );
                     }
 
                     if let Some(path) = package_json_data.mocha_package_path {
                         vars.insert(
                             TYPESCRIPT_MOCHA_PACKAGE_PATH_VARIABLE,
-                            path.parent().unwrap_or(Path::new("")).to_string_lossy().to_string(),
+                            path.parent().unwrap_or_else(|| Path::new("")).to_string_lossy().to_string(),
                         );
                     }
 
                     if let Some(path) = package_json_data.vitest_package_path {
                         vars.insert(
                             TYPESCRIPT_VITEST_PACKAGE_PATH_VARIABLE,
-                            path.parent().unwrap_or(Path::new("")).to_string_lossy().to_string(),
+                            path.parent().unwrap_or_else(|| Path::new("")).to_string_lossy().to_string(),
                         );
                     }
 
                     if let Some(path) = package_json_data.jasmine_package_path {
                         vars.insert(
                             TYPESCRIPT_JASMINE_PACKAGE_PATH_VARIABLE,
-                            path.parent().unwrap_or(Path::new("")).to_string_lossy().to_string(),
+                            path.parent().unwrap_or_else(|| Path::new("")).to_string_lossy().to_string(),
                         );
                     }
 
                     if let Some(path) = package_json_data.bun_package_path {
                         vars.insert(
                             TYPESCRIPT_BUN_PACKAGE_PATH_VARIABLE,
-                            path.parent().unwrap_or(Path::new("")).to_string_lossy().to_string(),
+                            path.parent().unwrap_or_else(|| Path::new("")).to_string_lossy().to_string(),
                         );
                     }
 
                     if let Some(path) = package_json_data.node_package_path {
                         vars.insert(
                             TYPESCRIPT_NODE_PACKAGE_PATH_VARIABLE,
-                            path.parent().unwrap_or(Path::new("")).to_string_lossy().to_string(),
+                            path.parent().unwrap_or_else(|| Path::new("")).to_string_lossy().to_string(),
                         );
                     }
                 }

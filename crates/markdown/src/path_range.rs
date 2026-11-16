@@ -4,7 +4,7 @@ use std::fmt::Formatter;
 use std::ops::Range;
 use std::sync::Arc;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PathWithRange {
     pub path: Arc<str>,
     pub range: Option<Range<LineCol>>,

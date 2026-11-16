@@ -112,7 +112,7 @@ macro_rules! lsp_notification {
 /// It can not be left open / hanging. This is in line with the JSON RPC protocol that requires
 /// that every request sends a response back. In addition it allows for returning partial results on cancel.
 #[derive(Debug)]
-pub enum Cancel {}
+pub struct Cancel(!);
 
 impl Notification for Cancel {
     type Params = CancelParams;
@@ -122,7 +122,7 @@ impl Notification for Cancel {
 /// A notification that should be used by the client to modify the trace
 /// setting of the server.
 #[derive(Debug)]
-pub enum SetTrace {}
+pub struct SetTrace(!);
 
 impl Notification for SetTrace {
     type Params = SetTraceParams;
@@ -135,7 +135,7 @@ impl Notification for SetTrace {
 /// `LogTrace` should be used for systematic trace reporting. For single debugging messages,
 /// the server should send `LogMessage` notifications.
 #[derive(Debug)]
-pub enum LogTrace {}
+pub struct LogTrace(!);
 
 impl Notification for LogTrace {
     type Params = LogTraceParams;
@@ -147,7 +147,7 @@ impl Notification for LogTrace {
 /// notification to the server. The server can use the initialized notification for example to
 /// dynamically register capabilities.
 #[derive(Debug)]
-pub enum Initialized {}
+pub struct Initialized(!);
 
 impl Notification for Initialized {
     type Params = InitializedParams;
@@ -158,7 +158,7 @@ impl Notification for Initialized {
 /// The server should exit with success code 0 if the shutdown request has been received before;
 /// otherwise with error code 1.
 #[derive(Debug)]
-pub enum Exit {}
+pub struct Exit(!);
 
 impl Notification for Exit {
     type Params = ();
@@ -168,7 +168,7 @@ impl Notification for Exit {
 /// The show message notification is sent from a server to a client to ask the client to display a particular message
 /// in the user interface.
 #[derive(Debug)]
-pub enum ShowMessage {}
+pub struct ShowMessage(!);
 
 impl Notification for ShowMessage {
     type Params = ShowMessageParams;
@@ -177,7 +177,7 @@ impl Notification for ShowMessage {
 
 /// The log message notification is sent from the server to the client to ask the client to log a particular message.
 #[derive(Debug)]
-pub enum LogMessage {}
+pub struct LogMessage(!);
 
 impl Notification for LogMessage {
     type Params = LogMessageParams;
@@ -188,7 +188,7 @@ impl Notification for LogMessage {
 /// The protocol doesn't specify the payload since no interpretation of the data happens in the protocol. Most clients even don't handle
 /// the event directly but forward them to the extensions owning the corresponding server issuing the event.
 #[derive(Debug)]
-pub enum TelemetryEvent {}
+pub struct TelemetryEvent(!);
 
 impl Notification for TelemetryEvent {
     type Params = OneOf<LSPObject, LSPArray>;
@@ -197,7 +197,7 @@ impl Notification for TelemetryEvent {
 
 /// A notification sent from the client to the server to signal the change of configuration settings.
 #[derive(Debug)]
-pub enum DidChangeConfiguration {}
+pub struct DidChangeConfiguration(!);
 
 impl Notification for DidChangeConfiguration {
     type Params = DidChangeConfigurationParams;
@@ -208,7 +208,7 @@ impl Notification for DidChangeConfiguration {
 /// The document's truth is now managed by the client and the server must not try to read the document's truth
 /// using the document's uri.
 #[derive(Debug)]
-pub enum DidOpenTextDocument {}
+pub struct DidOpenTextDocument(!);
 
 impl Notification for DidOpenTextDocument {
     type Params = DidOpenTextDocumentParams;
@@ -218,7 +218,7 @@ impl Notification for DidOpenTextDocument {
 /// The document change notification is sent from the client to the server to signal changes to a text document.
 /// In 2.0 the shape of the params has changed to include proper version numbers and language ids.
 #[derive(Debug)]
-pub enum DidChangeTextDocument {}
+pub struct DidChangeTextDocument(!);
 
 impl Notification for DidChangeTextDocument {
     type Params = DidChangeTextDocumentParams;
@@ -228,7 +228,7 @@ impl Notification for DidChangeTextDocument {
 /// The document will save notification is sent from the client to the server before the document
 /// is actually saved.
 #[derive(Debug)]
-pub enum WillSaveTextDocument {}
+pub struct WillSaveTextDocument(!);
 
 impl Notification for WillSaveTextDocument {
     type Params = WillSaveTextDocumentParams;
@@ -239,7 +239,7 @@ impl Notification for WillSaveTextDocument {
 /// The document's truth now exists where the document's uri points to (e.g. if the document's uri is a file uri
 /// the truth now exists on disk).
 #[derive(Debug)]
-pub enum DidCloseTextDocument {}
+pub struct DidCloseTextDocument(!);
 
 impl Notification for DidCloseTextDocument {
     type Params = DidCloseTextDocumentParams;
@@ -248,7 +248,7 @@ impl Notification for DidCloseTextDocument {
 
 /// The document save notification is sent from the client to the server when the document was saved in the client.
 #[derive(Debug)]
-pub enum DidSaveTextDocument {}
+pub struct DidSaveTextDocument(!);
 
 impl Notification for DidSaveTextDocument {
     type Params = DidSaveTextDocumentParams;
@@ -260,7 +260,7 @@ impl Notification for DidSaveTextDocument {
 /// It is recommended that servers register for these file system events using the registration mechanism.
 /// In former implementations clients pushed file events without the server actively asking for it.
 #[derive(Debug)]
-pub enum DidChangeWatchedFiles {}
+pub struct DidChangeWatchedFiles(!);
 
 impl Notification for DidChangeWatchedFiles {
     type Params = DidChangeWatchedFilesParams;
@@ -270,7 +270,7 @@ impl Notification for DidChangeWatchedFiles {
 /// The workspace/didChangeWorkspaceFolders notification is sent from the client to the server to inform the server
 /// about workspace folder configuration changes
 #[derive(Debug)]
-pub enum DidChangeWorkspaceFolders {}
+pub struct DidChangeWorkspaceFolders(!);
 
 impl Notification for DidChangeWorkspaceFolders {
     type Params = DidChangeWorkspaceFoldersParams;
@@ -279,7 +279,7 @@ impl Notification for DidChangeWorkspaceFolders {
 
 /// Diagnostics notification are sent from the server to the client to signal results of validation runs.
 #[derive(Debug)]
-pub enum PublishDiagnostics {}
+pub struct PublishDiagnostics(!);
 
 impl Notification for PublishDiagnostics {
     type Params = PublishDiagnosticsParams;
@@ -289,7 +289,7 @@ impl Notification for PublishDiagnostics {
 /// The progress notification is sent from the server to the client to ask
 /// the client to indicate progress.
 #[derive(Debug)]
-pub enum Progress {}
+pub struct Progress(!);
 
 impl Notification for Progress {
     type Params = ProgressParams;
@@ -299,7 +299,7 @@ impl Notification for Progress {
 /// The `window/workDoneProgress/cancel` notification is sent from the client
 /// to the server to cancel a progress initiated on the server side using the `window/workDoneProgress/create`.
 #[derive(Debug)]
-pub enum WorkDoneProgressCancel {}
+pub struct WorkDoneProgressCancel(!);
 
 impl Notification for WorkDoneProgressCancel {
     type Params = WorkDoneProgressCancelParams;
@@ -308,7 +308,7 @@ impl Notification for WorkDoneProgressCancel {
 
 /// The did create files notification is sent from the client to the server when files were created from within the client.
 #[derive(Debug)]
-pub enum DidCreateFiles {}
+pub struct DidCreateFiles(!);
 
 impl Notification for DidCreateFiles {
     type Params = CreateFilesParams;
@@ -317,7 +317,7 @@ impl Notification for DidCreateFiles {
 
 /// The did rename files notification is sent from the client to the server when files were renamed from within the client.
 #[derive(Debug)]
-pub enum DidRenameFiles {}
+pub struct DidRenameFiles(!);
 
 impl Notification for DidRenameFiles {
     type Params = RenameFilesParams;
@@ -326,7 +326,7 @@ impl Notification for DidRenameFiles {
 
 /// The did delete files notification is sent from the client to the server when files were deleted from within the client.
 #[derive(Debug)]
-pub enum DidDeleteFiles {}
+pub struct DidDeleteFiles(!);
 
 impl Notification for DidDeleteFiles {
     type Params = DeleteFilesParams;

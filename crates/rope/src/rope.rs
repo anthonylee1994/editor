@@ -327,7 +327,7 @@ impl Rope {
         }
         let (start, _, item) = self.chunks.find::<Dimensions<usize, OffsetUtf16>, _>((), &offset, Bias::Left);
         let overshoot = offset - start.0;
-        start.1 + item.map_or(OffsetUtf16::default(), |chunk| chunk.as_slice().offset_to_offset_utf16(overshoot))
+        start.1 + item.map_or_else(OffsetUtf16::default, |chunk| chunk.as_slice().offset_to_offset_utf16(overshoot))
     }
 
     pub fn offset_utf16_to_offset(&self, offset: OffsetUtf16) -> usize {
@@ -336,7 +336,7 @@ impl Rope {
         }
         let (start, _, item) = self.chunks.find::<Dimensions<OffsetUtf16, usize>, _>((), &offset, Bias::Left);
         let overshoot = offset - start.0;
-        start.1 + item.map_or(Default::default(), |chunk| chunk.as_slice().offset_utf16_to_offset(overshoot))
+        start.1 + item.map_or_else(Default::default, |chunk| chunk.as_slice().offset_utf16_to_offset(overshoot))
     }
 
     pub fn offset_to_point(&self, offset: usize) -> Point {

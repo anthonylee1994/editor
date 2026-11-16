@@ -80,7 +80,7 @@ impl SearchOptions {
 // Whether to always select the current selection (even if empty)
 // or to use the default (restoring the previous search ranges if some,
 // otherwise using the whole file).
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum FilteredSearchRange {
     Selection,
     #[default]

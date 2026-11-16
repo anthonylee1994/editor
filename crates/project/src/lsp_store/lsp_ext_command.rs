@@ -32,7 +32,7 @@ use crate::lsp_store::LspStore;
 use crate::make_lsp_text_document_position;
 use crate::make_text_document_identifier;
 
-pub enum LspExtExpandMacro {}
+pub struct LspExtExpandMacro(!);
 
 impl Request for LspExtExpandMacro {
     type Params = ExpandMacroParams;
@@ -96,13 +96,11 @@ impl LspCommand for ExpandMacro {
         _: LanguageServerId,
         _: AsyncApp,
     ) -> anyhow::Result<ExpandedMacro> {
-        Ok(message
-            .map(|message| ExpandedMacro { name: message.name, expansion: message.expansion })
-            .unwrap_or_default())
+        Ok(message.unwrap_or_default())
     }
 }
 
-pub enum LspOpenDocs {}
+pub struct LspOpenDocs(!);
 
 impl Request for LspOpenDocs {
     type Params = OpenDocsParams;
@@ -165,7 +163,7 @@ impl LspCommand for OpenDocs {
         _: LanguageServerId,
         _: AsyncApp,
     ) -> anyhow::Result<DocsUrls> {
-        Ok(message.map(|message| DocsUrls { web: message.web, local: message.local }).unwrap_or_default())
+        Ok(message.unwrap_or_default())
     }
 }
 
@@ -257,7 +255,7 @@ impl LspCommand for GoToParentModule {
 // that, the Shell and Cargo variants are similar enough that serde(untagged)
 // deserialization has been observed to confuse one for the other. So we rely on
 // RunnableKind to determine which variant to deserialize.
-pub enum Runnables {}
+pub struct Runnables(!);
 
 impl Request for Runnables {
     type Params = RunnablesParams;

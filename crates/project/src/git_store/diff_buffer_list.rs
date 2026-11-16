@@ -292,7 +292,7 @@ impl DiffBufferList {
                     cx,
                 );
 
-                output.push(DiffBuffer { repo_path: item.repo_path.clone(), load: task, file_status: status });
+                output.push(DiffBuffer { repo_path: item.repo_path, load: task, file_status: status });
             }
             let Some(tree_diff) = self.tree_diff.as_ref() else {
                 output.sort_by(|left, right| left.repo_path.cmp(&right.repo_path));

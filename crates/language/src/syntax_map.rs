@@ -1037,12 +1037,12 @@ impl SyntaxSnapshot {
         cursor.next();
         iter::from_fn(move || {
             while let Some(layer) = cursor.item() {
-                let mut info = None;
-                if let SyntaxLayerContent::Parsed { language, .. } = &layer.content
-                    && (include_hidden || !language.config.hidden)
-                {
-                    info = Some(language);
-                }
+                let info = match &layer.content {
+                    SyntaxLayerContent::Parsed { language, .. } if include_hidden || !language.config.hidden => {
+                        Some(language)
+                    }
+                    _ => None,
+                };
                 cursor.next();
                 if info.is_some() {
                     return info;
@@ -1949,11 +1949,10 @@ impl ChangedRegion {
 
 impl ChangeRegionSet {
     fn start_position(&self, buffer_id: BufferId) -> ChangeStartPosition {
-        self.0
-            .first()
-            .map_or(ChangeStartPosition { depth: usize::MAX, position: Anchor::max_for_buffer(buffer_id) }, |region| {
-                ChangeStartPosition { depth: region.depth, position: region.range.start }
-            })
+        self.0.first().map_or_else(
+            || ChangeStartPosition { depth: usize::MAX, position: Anchor::max_for_buffer(buffer_id) },
+            |region| ChangeStartPosition { depth: region.depth, position: region.range.start },
+        )
     }
 
     fn intersects(&self, layer: &SyntaxLayerEntry, text: &BufferSnapshot) -> bool {

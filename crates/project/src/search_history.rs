@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 
 /// Determines the behavior to use when inserting a new query into the search history.
-#[derive(Default, Debug, Clone, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub enum QueryInsertionBehavior {
     #[default]
     /// Always insert the query to the search history.

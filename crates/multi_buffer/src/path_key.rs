@@ -716,12 +716,7 @@ impl MultiBuffer {
         let mut new_excerpts = SumTree::new(());
         new_excerpts.append(cursor.slice(&path, Bias::Left), ());
         let mut edit_start = cursor.position.1;
-        let mut buffer_id = None;
-        if let Some(excerpt) = cursor.item()
-            && excerpt.path_key == path
-        {
-            buffer_id = Some(excerpt.buffer_id);
-        }
+        let buffer_id = cursor.item().filter(|excerpt| excerpt.path_key == path).map(|excerpt| excerpt.buffer_id);
         cursor.seek(&path, Bias::Right);
         let edit_end = cursor.position.1;
         let suffix = cursor.suffix();

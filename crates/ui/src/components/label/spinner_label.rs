@@ -15,7 +15,7 @@ use crate::prelude::RenderOnce;
 use crate::prelude::Window;
 
 /// Different types of spinner animations
-#[derive(Debug, Default, Clone, Copy, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum SpinnerVariant {
     #[default]
     Dots,

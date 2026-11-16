@@ -289,7 +289,7 @@ macro_rules! lsp_request {
 /// * for a request the respond should be errored with `code: -32001`. The message can be picked by the server.
 /// * notifications should be dropped.
 #[derive(Debug)]
-pub enum Initialize {}
+pub struct Initialize(!);
 
 impl Request for Initialize {
     type Params = InitializeParams;
@@ -301,7 +301,7 @@ impl Request for Initialize {
 /// but to not exit (otherwise the response might not be delivered correctly to the client).
 /// There is a separate exit notification that asks the server to exit.
 #[derive(Debug)]
-pub enum Shutdown {}
+pub struct Shutdown(!);
 
 impl Request for Shutdown {
     type Params = ();
@@ -313,7 +313,7 @@ impl Request for Shutdown {
 /// in the user interface. In addition to the show message notification the request allows to pass actions and to
 /// wait for an answer from the client.
 #[derive(Debug)]
-pub enum ShowMessageRequest {}
+pub struct ShowMessageRequest(!);
 
 impl Request for ShowMessageRequest {
     type Params = ShowMessageRequestParams;
@@ -325,7 +325,7 @@ impl Request for ShowMessageRequest {
 /// on the client side. Not all clients need to support dynamic capability registration. A client opts in via the
 /// ClientCapabilities.GenericCapability property.
 #[derive(Debug)]
-pub enum RegisterCapability {}
+pub struct RegisterCapability(!);
 
 impl Request for RegisterCapability {
     type Params = RegistrationParams;
@@ -336,7 +336,7 @@ impl Request for RegisterCapability {
 /// The client/unregisterCapability request is sent from the server to the client to unregister a
 /// previously register capability.
 #[derive(Debug)]
-pub enum UnregisterCapability {}
+pub struct UnregisterCapability(!);
 
 impl Request for UnregisterCapability {
     type Params = UnregistrationParams;
@@ -355,7 +355,7 @@ impl Request for UnregisterCapability {
 /// However, properties that are needed for the initial sorting and filtering, like sortText, filterText, insertText,
 /// and textEdit must be provided in the textDocument/completion request and must not be changed during resolve.
 #[derive(Debug)]
-pub enum Completion {}
+pub struct Completion(!);
 
 impl Request for Completion {
     type Params = CompletionParams;
@@ -365,7 +365,7 @@ impl Request for Completion {
 
 /// The request is sent from the client to the server to resolve additional information for a given completion item.
 #[derive(Debug)]
-pub enum ResolveCompletionItem {}
+pub struct ResolveCompletionItem(!);
 
 impl Request for ResolveCompletionItem {
     type Params = CompletionItem;
@@ -376,7 +376,7 @@ impl Request for ResolveCompletionItem {
 /// The hover request is sent from the client to the server to request hover information at a given text
 /// document position.
 #[derive(Debug)]
-pub enum HoverRequest {}
+pub struct HoverRequest(!);
 
 impl Request for HoverRequest {
     type Params = HoverParams;
@@ -387,7 +387,7 @@ impl Request for HoverRequest {
 /// The signature help request is sent from the client to the server to request signature information at
 /// a given cursor position.
 #[derive(Debug)]
-pub enum SignatureHelpRequest {}
+pub struct SignatureHelpRequest(!);
 
 impl Request for SignatureHelpRequest {
     type Params = SignatureHelpParams;
@@ -396,7 +396,7 @@ impl Request for SignatureHelpRequest {
 }
 
 #[derive(Debug)]
-pub enum GotoDeclaration {}
+pub struct GotoDeclaration(!);
 pub type GotoDeclarationParams = GotoDefinitionParams;
 pub type GotoDeclarationResponse = GotoDefinitionResponse;
 
@@ -411,7 +411,7 @@ impl Request for GotoDeclaration {
 /// The goto definition request is sent from the client to the server to resolve the definition location of
 /// a symbol at a given text document position.
 #[derive(Debug)]
-pub enum GotoDefinition {}
+pub struct GotoDefinition(!);
 
 impl Request for GotoDefinition {
     type Params = GotoDefinitionParams;
@@ -422,7 +422,7 @@ impl Request for GotoDefinition {
 /// The references request is sent from the client to the server to resolve project-wide references for the
 /// symbol denoted by the given text document position.
 #[derive(Debug)]
-pub enum References {}
+pub struct References(!);
 
 impl Request for References {
     type Params = ReferenceParams;
@@ -434,7 +434,7 @@ impl Request for References {
 /// server to resolve the type definition location of a symbol at a
 /// given text document position.
 #[derive(Debug)]
-pub enum GotoTypeDefinition {}
+pub struct GotoTypeDefinition(!);
 
 pub type GotoTypeDefinitionParams = GotoDefinitionParams;
 pub type GotoTypeDefinitionResponse = GotoDefinitionResponse;
@@ -449,7 +449,7 @@ impl Request for GotoTypeDefinition {
 /// server to resolve the implementation location of a symbol at a
 /// given text document position.
 #[derive(Debug)]
-pub enum GotoImplementation {}
+pub struct GotoImplementation(!);
 
 pub type GotoImplementationParams = GotoTypeDefinitionParams;
 pub type GotoImplementationResponse = GotoDefinitionResponse;
@@ -468,7 +468,7 @@ impl Request for GotoImplementation {
 /// Symbol matches usually have a DocumentHighlightKind of Read or Write whereas fuzzy or textual matches
 /// use Text as the kind.
 #[derive(Debug)]
-pub enum DocumentHighlightRequest {}
+pub struct DocumentHighlightRequest(!);
 
 impl Request for DocumentHighlightRequest {
     type Params = DocumentHighlightParams;
@@ -479,7 +479,7 @@ impl Request for DocumentHighlightRequest {
 /// The document symbol request is sent from the client to the server to list all symbols found in a given
 /// text document.
 #[derive(Debug)]
-pub enum DocumentSymbolRequest {}
+pub struct DocumentSymbolRequest(!);
 
 impl Request for DocumentSymbolRequest {
     type Params = DocumentSymbolParams;
@@ -490,7 +490,7 @@ impl Request for DocumentSymbolRequest {
 /// The workspace symbol request is sent from the client to the server to list project-wide symbols
 /// matching the query string.
 #[derive(Debug)]
-pub enum WorkspaceSymbolRequest {}
+pub struct WorkspaceSymbolRequest(!);
 
 impl Request for WorkspaceSymbolRequest {
     type Params = WorkspaceSymbolParams;
@@ -501,7 +501,7 @@ impl Request for WorkspaceSymbolRequest {
 /// The `workspaceSymbol/resolve` request is sent from the client to the server to resolve
 /// additional information for a given workspace symbol.
 #[derive(Debug)]
-pub enum WorkspaceSymbolResolve {}
+pub struct WorkspaceSymbolResolve(!);
 
 impl Request for WorkspaceSymbolResolve {
     type Params = WorkspaceSymbol;
@@ -513,7 +513,7 @@ impl Request for WorkspaceSymbolResolve {
 /// In most cases the server creates a WorkspaceEdit structure and applies the changes to the workspace using the request
 /// workspace/applyEdit which is sent from the server to the client.
 #[derive(Debug)]
-pub enum ExecuteCommand {}
+pub struct ExecuteCommand(!);
 
 impl Request for ExecuteCommand {
     type Params = ExecuteCommandParams;
@@ -527,7 +527,7 @@ impl Request for ExecuteCommand {
 /// edits took too long or if a server constantly fails on this request. This is done to keep the
 /// save fast and reliable.
 #[derive(Debug)]
-pub enum WillSaveWaitUntil {}
+pub struct WillSaveWaitUntil(!);
 
 impl Request for WillSaveWaitUntil {
     type Params = WillSaveTextDocumentParams;
@@ -538,7 +538,7 @@ impl Request for WillSaveWaitUntil {
 /// The workspace/applyEdit request is sent from the server to the client to modify resource on the
 /// client side.
 #[derive(Debug)]
-pub enum ApplyWorkspaceEdit {}
+pub struct ApplyWorkspaceEdit(!);
 
 impl Request for ApplyWorkspaceEdit {
     type Params = ApplyWorkspaceEditParams;
@@ -560,7 +560,7 @@ impl Request for ApplyWorkspaceEdit {
 /// settings the configuration should be returned for the passed resource URI. If the client can’t provide a
 /// configuration setting for a given scope then null need to be present in the returned array.
 #[derive(Debug)]
-pub enum WorkspaceConfiguration {}
+pub struct WorkspaceConfiguration(!);
 
 impl Request for WorkspaceConfiguration {
     type Params = ConfigurationParams;
@@ -572,7 +572,7 @@ impl Request for WorkspaceConfiguration {
 /// and range. The request is triggered when the user moves the cursor into a problem marker in the editor or
 /// presses the lightbulb associated with a marker.
 #[derive(Debug)]
-pub enum CodeActionRequest {}
+pub struct CodeActionRequest(!);
 
 impl Request for CodeActionRequest {
     type Params = CodeActionParams;
@@ -586,7 +586,7 @@ impl Request for CodeActionRequest {
 ///
 /// @since 3.16.0
 #[derive(Debug)]
-pub enum CodeActionResolveRequest {}
+pub struct CodeActionResolveRequest(!);
 
 impl Request for CodeActionResolveRequest {
     type Params = CodeAction;
@@ -596,7 +596,7 @@ impl Request for CodeActionResolveRequest {
 
 /// The code lens request is sent from the client to the server to compute code lenses for a given text document.
 #[derive(Debug)]
-pub enum CodeLensRequest {}
+pub struct CodeLensRequest(!);
 
 impl Request for CodeLensRequest {
     type Params = CodeLensParams;
@@ -607,7 +607,7 @@ impl Request for CodeLensRequest {
 /// The code lens resolve request is sent from the client to the server to resolve the command for a
 /// given code lens item.
 #[derive(Debug)]
-pub enum CodeLensResolve {}
+pub struct CodeLensResolve(!);
 
 impl Request for CodeLensResolve {
     type Params = CodeLens;
@@ -617,7 +617,7 @@ impl Request for CodeLensResolve {
 
 /// The document links request is sent from the client to the server to request the location of links in a document.
 #[derive(Debug)]
-pub enum DocumentLinkRequest {}
+pub struct DocumentLinkRequest(!);
 
 impl Request for DocumentLinkRequest {
     type Params = DocumentLinkParams;
@@ -628,7 +628,7 @@ impl Request for DocumentLinkRequest {
 /// The document link resolve request is sent from the client to the server to resolve the target of
 /// a given document link.
 #[derive(Debug)]
-pub enum DocumentLinkResolve {}
+pub struct DocumentLinkResolve(!);
 
 impl Request for DocumentLinkResolve {
     type Params = DocumentLink;
@@ -638,7 +638,7 @@ impl Request for DocumentLinkResolve {
 
 /// The document formatting request is sent from the server to the client to format a whole document.
 #[derive(Debug)]
-pub enum Formatting {}
+pub struct Formatting(!);
 
 impl Request for Formatting {
     type Params = DocumentFormattingParams;
@@ -648,7 +648,7 @@ impl Request for Formatting {
 
 /// The document range formatting request is sent from the client to the server to format a given range in a document.
 #[derive(Debug)]
-pub enum RangeFormatting {}
+pub struct RangeFormatting(!);
 
 impl Request for RangeFormatting {
     type Params = DocumentRangeFormattingParams;
@@ -659,7 +659,7 @@ impl Request for RangeFormatting {
 /// The document on type formatting request is sent from the client to the server to format parts of
 /// the document during typing.
 #[derive(Debug)]
-pub enum OnTypeFormatting {}
+pub struct OnTypeFormatting(!);
 
 impl Request for OnTypeFormatting {
     type Params = DocumentOnTypeFormattingParams;
@@ -673,7 +673,7 @@ impl Request for OnTypeFormatting {
 /// to all other ranges if the new content is valid. If no result-specific word pattern is provided, the word pattern from
 /// the client’s language configuration is used.
 #[derive(Debug)]
-pub enum LinkedEditingRange {}
+pub struct LinkedEditingRange(!);
 
 impl Request for LinkedEditingRange {
     type Params = LinkedEditingRangeParams;
@@ -683,7 +683,7 @@ impl Request for LinkedEditingRange {
 
 /// The rename request is sent from the client to the server to perform a workspace-wide rename of a symbol.
 #[derive(Debug)]
-pub enum Rename {}
+pub struct Rename(!);
 
 impl Request for Rename {
     type Params = RenameParams;
@@ -694,7 +694,7 @@ impl Request for Rename {
 /// The document color request is sent from the client to the server to list all color references found in a given text document.
 /// Along with the range, a color value in RGB is returned.
 #[derive(Debug)]
-pub enum DocumentColor {}
+pub struct DocumentColor(!);
 
 impl Request for DocumentColor {
     type Params = DocumentColorParams;
@@ -705,7 +705,7 @@ impl Request for DocumentColor {
 /// The color presentation request is sent from the client to the server to obtain a list of presentations for a color value
 /// at a given location.
 #[derive(Debug)]
-pub enum ColorPresentationRequest {}
+pub struct ColorPresentationRequest(!);
 
 impl Request for ColorPresentationRequest {
     type Params = ColorPresentationParams;
@@ -715,7 +715,7 @@ impl Request for ColorPresentationRequest {
 
 /// The folding range request is sent from the client to the server to return all folding ranges found in a given text document.
 #[derive(Debug)]
-pub enum FoldingRangeRequest {}
+pub struct FoldingRangeRequest(!);
 
 impl Request for FoldingRangeRequest {
     type Params = FoldingRangeParams;
@@ -726,7 +726,7 @@ impl Request for FoldingRangeRequest {
 /// The prepare rename request is sent from the client to the server to setup and test the validity of a rename operation
 /// at a given location.
 #[derive(Debug)]
-pub enum PrepareRenameRequest {}
+pub struct PrepareRenameRequest(!);
 
 impl Request for PrepareRenameRequest {
     type Params = TextDocumentPositionParams;
@@ -738,7 +738,7 @@ impl Request for PrepareRenameRequest {
 /// workspace folders. Returns null in the response if only a single file is open in the tool.
 /// Returns an empty array if a workspace is open but no folders are configured.
 #[derive(Debug)]
-pub enum WorkspaceFoldersRequest {}
+pub struct WorkspaceFoldersRequest(!);
 
 impl Request for WorkspaceFoldersRequest {
     type Params = ();
@@ -749,7 +749,7 @@ impl Request for WorkspaceFoldersRequest {
 /// The `window/workDoneProgress/create` request is sent from the server
 /// to the client to ask the client to create a work done progress.
 #[derive(Debug)]
-pub enum WorkDoneProgressCreate {}
+pub struct WorkDoneProgressCreate(!);
 
 impl Request for WorkDoneProgressCreate {
     type Params = WorkDoneProgressCreateParams;
@@ -766,7 +766,7 @@ impl Request for WorkDoneProgressCreate {
 ///
 /// Typically, but not necessary, selection ranges correspond to the nodes of the
 /// syntax tree.
-pub enum SelectionRangeRequest {}
+pub struct SelectionRangeRequest(!);
 
 impl Request for SelectionRangeRequest {
     type Params = SelectionRangeParams;
@@ -774,7 +774,7 @@ impl Request for SelectionRangeRequest {
     const METHOD: &'static str = "textDocument/selectionRange";
 }
 
-pub enum SemanticTokensFullRequest {}
+pub struct SemanticTokensFullRequest(!);
 
 impl Request for SemanticTokensFullRequest {
     type Params = SemanticTokensParams;
@@ -782,7 +782,7 @@ impl Request for SemanticTokensFullRequest {
     const METHOD: &'static str = "textDocument/semanticTokens/full";
 }
 
-pub enum SemanticTokensFullDeltaRequest {}
+pub struct SemanticTokensFullDeltaRequest(!);
 
 impl Request for SemanticTokensFullDeltaRequest {
     type Params = SemanticTokensDeltaParams;
@@ -790,7 +790,7 @@ impl Request for SemanticTokensFullDeltaRequest {
     const METHOD: &'static str = "textDocument/semanticTokens/full/delta";
 }
 
-pub enum SemanticTokensRangeRequest {}
+pub struct SemanticTokensRangeRequest(!);
 
 impl Request for SemanticTokensRangeRequest {
     type Params = SemanticTokensRangeParams;
@@ -803,7 +803,7 @@ impl Request for SemanticTokensRangeRequest {
 /// As a result the client should ask the server to recompute the semantic tokens for these editors.
 /// This is useful if a server detects a project wide configuration change which requires a re-calculation of all semantic tokens.
 /// Note that the client still has the freedom to delay the re-calculation of the semantic tokens if for example an editor is currently not visible.
-pub enum SemanticTokensRefresh {}
+pub struct SemanticTokensRefresh(!);
 
 impl Request for SemanticTokensRefresh {
     type Params = ();
@@ -816,7 +816,7 @@ impl Request for SemanticTokensRefresh {
 /// As a result the client should ask the server to recompute the code lenses for these editors.
 /// This is useful if a server detects a configuration change which requires a re-calculation of all code lenses.
 /// Note that the client still has the freedom to delay the re-calculation of the code lenses if for example an editor is currently not visible.
-pub enum CodeLensRefresh {}
+pub struct CodeLensRefresh(!);
 
 impl Request for CodeLensRefresh {
     type Params = ();
@@ -825,7 +825,7 @@ impl Request for CodeLensRefresh {
 }
 
 /// The will create files request is sent from the client to the server before files are actually created as long as the creation is triggered from within the client. The request can return a WorkspaceEdit which will be applied to workspace before the files are created. Please note that clients might drop results if computing the edit took too long or if a server constantly fails on this request. This is done to keep creates fast and reliable.
-pub enum WillCreateFiles {}
+pub struct WillCreateFiles(!);
 
 impl Request for WillCreateFiles {
     type Params = CreateFilesParams;
@@ -834,7 +834,7 @@ impl Request for WillCreateFiles {
 }
 
 /// The will rename files request is sent from the client to the server before files are actually renamed as long as the rename is triggered from within the client. The request can return a WorkspaceEdit which will be applied to workspace before the files are renamed. Please note that clients might drop results if computing the edit took too long or if a server constantly fails on this request. This is done to keep renames fast and reliable.
-pub enum WillRenameFiles {}
+pub struct WillRenameFiles(!);
 
 impl Request for WillRenameFiles {
     type Params = RenameFilesParams;
@@ -843,7 +843,7 @@ impl Request for WillRenameFiles {
 }
 
 /// The will delete files request is sent from the client to the server before files are actually deleted as long as the deletion is triggered from within the client. The request can return a WorkspaceEdit which will be applied to workspace before the files are deleted. Please note that clients might drop results if computing the edit took too long or if a server constantly fails on this request. This is done to keep deletes fast and reliable.
-pub enum WillDeleteFiles {}
+pub struct WillDeleteFiles(!);
 
 impl Request for WillDeleteFiles {
     type Params = DeleteFilesParams;
@@ -852,7 +852,7 @@ impl Request for WillDeleteFiles {
 }
 
 /// The show document request is sent from a server to a client to ask the client to display a particular document in the user interface.
-pub enum ShowDocument {}
+pub struct ShowDocument(!);
 
 impl Request for ShowDocument {
     type Params = ShowDocumentParams;
@@ -860,7 +860,7 @@ impl Request for ShowDocument {
     const METHOD: &'static str = "window/showDocument";
 }
 
-pub enum MonikerRequest {}
+pub struct MonikerRequest(!);
 
 impl Request for MonikerRequest {
     type Params = MonikerParams;
@@ -870,7 +870,7 @@ impl Request for MonikerRequest {
 
 /// The inlay hints request is sent from the client to the server to compute inlay hints for a given
 /// [text document, range] tuple that may be rendered in the editor in place with other text.
-pub enum InlayHintRequest {}
+pub struct InlayHintRequest(!);
 
 impl Request for InlayHintRequest {
     type Params = InlayHintParams;
@@ -882,7 +882,7 @@ impl Request for InlayHintRequest {
 /// information for a given inlay hint. This is usually used to compute the tooltip, location or
 /// command properties of a inlay hint’s label part to avoid its unnecessary computation during the
 /// `textDocument/inlayHint` request.
-pub enum InlayHintResolveRequest {}
+pub struct InlayHintResolveRequest(!);
 
 impl Request for InlayHintResolveRequest {
     type Params = InlayHint;
@@ -896,7 +896,7 @@ impl Request for InlayHintResolveRequest {
 /// detects a configuration change which requires a re-calculation of all inlay hints. Note that the
 /// client still has the freedom to delay the re-calculation of the inlay hints if for example an
 /// editor is currently not visible.
-pub enum InlayHintRefreshRequest {}
+pub struct InlayHintRefreshRequest(!);
 
 impl Request for InlayHintRefreshRequest {
     type Params = ();
@@ -906,7 +906,7 @@ impl Request for InlayHintRefreshRequest {
 
 /// The inline value request is sent from the client to the server to compute inline values for a
 /// given text document that may be rendered in the editor at the end of lines.
-pub enum InlineValueRequest {}
+pub struct InlineValueRequest(!);
 
 impl Request for InlineValueRequest {
     type Params = InlineValueParams;
@@ -920,7 +920,7 @@ impl Request for InlineValueRequest {
 /// a server detects a configuration change which requires a re-calculation of all inline values.
 /// Note that the client still has the freedom to delay the re-calculation of the inline values if
 /// for example an editor is currently not visible.
-pub enum InlineValueRefreshRequest {}
+pub struct InlineValueRefreshRequest(!);
 
 impl Request for InlineValueRefreshRequest {
     type Params = ();
@@ -932,7 +932,7 @@ impl Request for InlineValueRefreshRequest {
 /// compute the diagnostics for a given document. As with other pull requests the server is asked
 /// to compute the diagnostics for the currently synced version of the document.
 #[derive(Debug)]
-pub enum DocumentDiagnosticRequest {}
+pub struct DocumentDiagnosticRequest(!);
 
 impl Request for DocumentDiagnosticRequest {
     type Params = DocumentDiagnosticParams;
@@ -947,7 +947,7 @@ impl Request for DocumentDiagnosticRequest {
 /// workspace diagnostic pull it is legal to provide a document diagnostic report multiple times
 /// for the same document URI. The last one reported will win over previous reports.
 #[derive(Debug)]
-pub enum WorkspaceDiagnosticRequest {}
+pub struct WorkspaceDiagnosticRequest(!);
 
 impl Request for WorkspaceDiagnosticRequest {
     type Params = WorkspaceDiagnosticParams;
@@ -960,7 +960,7 @@ impl Request for WorkspaceDiagnosticRequest {
 /// if a server detects a project wide configuration change which requires a re-calculation of all
 /// diagnostics.
 #[derive(Debug)]
-pub enum WorkspaceDiagnosticRefresh {}
+pub struct WorkspaceDiagnosticRefresh(!);
 
 impl Request for WorkspaceDiagnosticRefresh {
     type Params = ();
@@ -974,7 +974,7 @@ impl Request for WorkspaceDiagnosticRefresh {
 ///
 /// 1. first a type hierarchy item is prepared for the given text document position.
 /// 2. for a type hierarchy item the supertype or subtype type hierarchy items are resolved.
-pub enum TypeHierarchyPrepare {}
+pub struct TypeHierarchyPrepare(!);
 
 impl Request for TypeHierarchyPrepare {
     type Params = TypeHierarchyPrepareParams;
@@ -987,7 +987,7 @@ impl Request for TypeHierarchyPrepare {
 /// valid type from item in the params. The request doesn’t define its own client and server
 /// capabilities. It is only issued if a server registers for the
 /// `textDocument/prepareTypeHierarchy` request.
-pub enum TypeHierarchySupertypes {}
+pub struct TypeHierarchySupertypes(!);
 
 impl Request for TypeHierarchySupertypes {
     type Params = TypeHierarchySupertypesParams;
@@ -999,7 +999,7 @@ impl Request for TypeHierarchySupertypes {
 /// subtypes for a given type hierarchy item. Will return null if the server couldn’t infer a valid
 /// type from item in the params. The request doesn’t define its own client and server capabilities.
 /// It is only issued if a server registers for the textDocument/prepareTypeHierarchy request.
-pub enum TypeHierarchySubtypes {}
+pub struct TypeHierarchySubtypes(!);
 
 impl Request for TypeHierarchySubtypes {
     type Params = TypeHierarchySubtypesParams;

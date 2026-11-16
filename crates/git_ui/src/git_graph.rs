@@ -355,7 +355,7 @@ actions!(
 );
 
 /// Opens the Git Graph Tab at a specific commit.
-#[derive(Clone, PartialEq, serde::Deserialize, gpui::Action)]
+#[derive(Clone, PartialEq, Eq, serde::Deserialize, gpui::Action)]
 #[action(namespace = git_graph)]
 pub struct OpenAtCommit {
     pub sha: String,
@@ -1316,7 +1316,7 @@ impl GitGraph {
             .0
             .borrow()
             .last_item_size
-            .map_or(window.viewport_size().height, |size| size.item.height);
+            .map_or_else(|| window.viewport_size().height, |size| size.item.height);
 
         ((viewport_height / row_height).ceil() as usize).min(self.graph_data.commits.len())
     }
@@ -2650,7 +2650,7 @@ impl GitGraph {
             .borrow()
             .last_item_size
             .map(|size| size.item.height)
-            .unwrap_or(window.viewport_size().height);
+            .unwrap_or_else(|| window.viewport_size().height);
         let loaded_commit_count = self.graph_data.commits.len();
 
         let content_height = row_height * loaded_commit_count;
@@ -2912,7 +2912,7 @@ impl GitGraph {
             .borrow()
             .last_item_size
             .map(|size| size.item.height)
-            .unwrap_or(window.viewport_size().height);
+            .unwrap_or_else(|| window.viewport_size().height);
         let loaded_commit_count = self.graph_data.commits.len();
 
         let content_height = row_height * loaded_commit_count;

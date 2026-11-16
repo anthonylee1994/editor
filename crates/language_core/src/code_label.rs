@@ -88,7 +88,7 @@ impl CodeLabel {
         Self { runs, filter_range, text }
     }
 
-    pub fn text(&self) -> &str {
+    pub const fn text(&self) -> &str {
         self.text.as_str()
     }
 

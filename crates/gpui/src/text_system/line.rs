@@ -536,15 +536,17 @@ fn paint_line(
                             }
                         }
                         if let Some(run_underline) = style_run.underline.as_ref() {
-                            current_underline.get_or_insert((
-                                point(glyph_origin.x, glyph_origin.y + underline_y_offset),
-                                UnderlineStyle {
-                                    color: Some(run_underline.color.unwrap_or(style_run.color)),
-                                    thickness: run_underline.thickness,
-                                    wavy: run_underline.wavy,
-                                },
-                                style_run_start..style_run_start + style_run.len as usize,
-                            ));
+                            current_underline.get_or_insert_with(|| {
+                                (
+                                    point(glyph_origin.x, glyph_origin.y + underline_y_offset),
+                                    UnderlineStyle {
+                                        color: Some(run_underline.color.unwrap_or(style_run.color)),
+                                        thickness: run_underline.thickness,
+                                        wavy: run_underline.wavy,
+                                    },
+                                    style_run_start..style_run_start + style_run.len as usize,
+                                )
+                            });
                         }
                         if let Some((_, strikethrough_style)) = &mut current_strikethrough
                             && style_run.strikethrough.as_ref() != Some(strikethrough_style)
@@ -552,16 +554,18 @@ fn paint_line(
                             finished_strikethrough = current_strikethrough.take();
                         }
                         if let Some(run_strikethrough) = style_run.strikethrough.as_ref() {
-                            current_strikethrough.get_or_insert((
-                                point(
-                                    glyph_origin.x,
-                                    glyph_origin.y + (((layout.ascent * 0.5) + baseline_offset.y) * 0.5),
-                                ),
-                                StrikethroughStyle {
-                                    color: Some(run_strikethrough.color.unwrap_or(style_run.color)),
-                                    thickness: run_strikethrough.thickness,
-                                },
-                            ));
+                            current_strikethrough.get_or_insert_with(|| {
+                                (
+                                    point(
+                                        glyph_origin.x,
+                                        glyph_origin.y + (((layout.ascent * 0.5) + baseline_offset.y) * 0.5),
+                                    ),
+                                    StrikethroughStyle {
+                                        color: Some(run_strikethrough.color.unwrap_or(style_run.color)),
+                                        thickness: run_strikethrough.thickness,
+                                    },
+                                )
+                            });
                         }
 
                         run_end += style_run.len as usize;
@@ -740,7 +744,8 @@ fn paint_line_background(
                             finished_background = current_background.take();
                         }
                         if let Some(run_background) = style_run.background_color {
-                            current_background.get_or_insert((point(glyph_origin.x, glyph_origin.y), run_background));
+                            current_background
+                                .get_or_insert_with(|| (point(glyph_origin.x, glyph_origin.y), run_background));
                         }
                         run_end += style_run.len as usize;
                     } else {

@@ -100,13 +100,13 @@ fn destruct_start_link(raw: &str) -> (&'static str, &'static str) {
         s = s.get(1..).unwrap_or("");
     }
 
-    let mut stroke = "normal";
-    if s.contains('=') {
-        stroke = "thick";
-    }
-    if s.contains('.') {
-        stroke = "dotted";
-    }
+    let stroke = if s.contains('.') {
+        "dotted"
+    } else if s.contains('=') {
+        "thick"
+    } else {
+        "normal"
+    };
     (r#type, stroke)
 }
 
@@ -593,10 +593,9 @@ impl FlowDb {
         same: bool,
     ) -> String {
         let mut title = title_text.map_or("", |title| title.text.as_str());
-        let mut id = id_text.map(|id| js_trim(&id.text).to_owned());
-        if id_text.is_some() && same && title.chars().any(|c| is_space(u32::from(c))) {
-            id = None;
-        }
+        let id = id_text
+            .filter(|_| !(same && title.chars().any(|c| is_space(u32::from(c)))))
+            .map(|id| js_trim(&id.text).to_owned());
 
         let mut seen = BTreeSet::new();
         let mut node_list: Vec<String> = Vec::new();

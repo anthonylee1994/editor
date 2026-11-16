@@ -128,7 +128,7 @@ pub struct InlayHighlight {
     pub range: Range<usize>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TriggerPoint {
     Text(Anchor),
     InlayHint(InlayHighlight, lsp::Location, LanguageServerId),

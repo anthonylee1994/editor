@@ -2758,18 +2758,18 @@ impl BufferGitState {
                 None
             };
 
-            let mut new_unstaged_diff = None;
-
-            if let (Some(unstaged_diff), Some(index_text_snapshot)) =
+            let new_unstaged_diff = if let (Some(unstaged_diff), Some(index_text_snapshot)) =
                 (unstaged_diff.as_ref(), index_text_snapshot.as_ref())
             {
-                new_unstaged_diff = Some(
+                Some(
                     cx.update(|cx| {
                         unstaged_diff.read(cx).update_diff(buffer.clone(), index_text_snapshot, index.clone(), cx)
                     })
                     .await,
-                );
-            }
+                )
+            } else {
+                None
+            };
 
             // Dropping BufferDiff can be expensive, so yield back to the event loop
             // for a bit
@@ -3782,9 +3782,7 @@ impl Repository {
         if self.commit_data.contains_key(&sha) {
             let data = &self.commit_data[&sha];
 
-            if let CommitDataState::Loading(None) = data
-                && await_result
-            {
+            if matches!(data, CommitDataState::Loading(None)) && await_result {
                 let (tx, rx) = oneshot::channel();
                 self.commit_data.insert(sha, CommitDataState::Loading(Some(rx.shared())));
 

@@ -244,7 +244,7 @@ impl Branch {
             .as_ref()
             .strip_prefix("refs/heads/")
             .or_else(|| self.ref_name.as_ref().strip_prefix("refs/remotes/"))
-            .unwrap_or(self.ref_name.as_ref())
+            .unwrap_or_else(|| self.ref_name.as_ref())
     }
 
     pub fn is_remote(&self) -> bool {
@@ -310,7 +310,7 @@ impl Worktree {
     /// If the worktree is attached to a branch, returns the branch name.
     /// Otherwise, returns the short SHA of the worktree's HEAD commit.
     pub fn display_name(&self) -> &str {
-        self.branch_name().unwrap_or(&self.sha[..self.sha.len().min(SHORT_SHA_LENGTH)])
+        self.branch_name().unwrap_or_else(|| &self.sha[..self.sha.len().min(SHORT_SHA_LENGTH)])
     }
 
     pub fn directory_name(&self, name_anchor_path: Option<&Path>) -> String {
@@ -318,7 +318,7 @@ impl Worktree {
             return "main worktree".to_string();
         }
 
-        let dir_name = self.path.file_name().and_then(|name| name.to_str()).unwrap_or(self.display_name());
+        let dir_name = self.path.file_name().and_then(|name| name.to_str()).unwrap_or_else(|| self.display_name());
 
         if let Some(name_anchor_path) = name_anchor_path {
             let name_anchor_dir = name_anchor_path.file_name().and_then(|name| name.to_str());

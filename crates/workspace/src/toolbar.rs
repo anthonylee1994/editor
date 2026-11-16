@@ -28,7 +28,7 @@ pub struct PaneSearchBarCallbacks {
 
 impl Global for PaneSearchBarCallbacks {}
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ToolbarItemEvent {
     ChangeLocation(ToolbarItemLocation),
 }
@@ -53,7 +53,7 @@ trait ToolbarItemViewHandle: Send {
     ) -> ToolbarItemLocation;
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ToolbarItemLocation {
     Hidden,
     PrimaryLeft,

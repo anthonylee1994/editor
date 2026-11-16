@@ -21,7 +21,7 @@ use crate::item::ItemHandle;
 use crate::path_list::PathList;
 
 /// A project that was open when ed last quit.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SessionWorkspace {
     pub paths: PathList,
 }
@@ -107,7 +107,7 @@ impl SerializedTerminalGroup {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, Serialize, Deserialize)]
 pub struct DockStructure {
     #[serde(default)]
     pub left: DockData,
@@ -117,7 +117,7 @@ pub struct DockStructure {
     pub bottom: DockData,
 }
 
-#[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, Serialize, Deserialize)]
 pub struct DockData {
     #[serde(default)]
     pub visible: bool,
@@ -206,7 +206,7 @@ impl SerializedPaneGroup {
     }
 }
 
-#[derive(Debug, PartialEq, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Default, Clone, Serialize, Deserialize)]
 pub struct SerializedPane {
     #[serde(default)]
     pub(crate) active: bool,
@@ -292,7 +292,7 @@ impl SerializedPane {
 
 /// A tab: its kind, which picks the item type that restores it, and the state
 /// that item type saved.
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct SerializedItem {
     pub kind: String,
     #[serde(default)]

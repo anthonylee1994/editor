@@ -44,7 +44,7 @@ pub trait PopoverTrigger: IntoElement + Clickable + Toggleable + 'static {}
 
 impl<T: IntoElement + Clickable + Toggleable + 'static> PopoverTrigger for T {}
 
-impl<T: Clickable> Clickable for gpui::AnimationElement<T>
+impl<T> Clickable for gpui::AnimationElement<T>
 where
     T: Clickable + 'static,
 {
@@ -57,7 +57,7 @@ where
     }
 }
 
-impl<T: Toggleable> Toggleable for gpui::AnimationElement<T>
+impl<T> Toggleable for gpui::AnimationElement<T>
 where
     T: Toggleable + 'static,
 {
@@ -256,16 +256,18 @@ impl<M: ManagedView> PopoverMenu<M> {
     }
 
     fn resolved_attach(&self) -> Anchor {
-        self.attach.unwrap_or(self.attach.unwrap_or(match self.anchor {
-            Anchor::TopLeft => Anchor::BottomLeft,
-            Anchor::TopCenter => Anchor::BottomCenter,
-            Anchor::TopRight => Anchor::BottomRight,
-            Anchor::BottomLeft => Anchor::TopLeft,
-            Anchor::BottomCenter => Anchor::TopCenter,
-            Anchor::BottomRight => Anchor::TopRight,
-            Anchor::LeftCenter => Anchor::LeftCenter,
-            Anchor::RightCenter => Anchor::RightCenter,
-        }))
+        self.attach.unwrap_or_else(|| {
+            self.attach.unwrap_or(match self.anchor {
+                Anchor::TopLeft => Anchor::BottomLeft,
+                Anchor::TopCenter => Anchor::BottomCenter,
+                Anchor::TopRight => Anchor::BottomRight,
+                Anchor::BottomLeft => Anchor::TopLeft,
+                Anchor::BottomCenter => Anchor::TopCenter,
+                Anchor::BottomRight => Anchor::TopRight,
+                Anchor::LeftCenter => Anchor::LeftCenter,
+                Anchor::RightCenter => Anchor::RightCenter,
+            })
+        })
     }
 
     fn resolved_offset(&self, window: &Window) -> Point<Pixels> {

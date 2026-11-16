@@ -455,7 +455,7 @@ impl EditorElement {
         {
             let resolved = editor.is_inlay_hint_resolved(buffer_id, hint.id, cx);
             let accepting = editor.apply_inlay_hint_text_edits(
-                [HintTarget { buffer_id, hint_id: hint.id, position: hint.position }].into_iter(),
+                std::iter::once(HintTarget { buffer_id, hint_id: hint.id, position: hint.position }),
                 Some(offset_in_hint),
                 window,
                 cx,

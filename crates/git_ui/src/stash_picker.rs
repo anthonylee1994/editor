@@ -282,7 +282,7 @@ impl StashListDelegate {
     }
 
     fn format_timestamp(timestamp: i64, timezone: UtcOffset) -> String {
-        let timestamp = OffsetDateTime::from_unix_timestamp(timestamp).unwrap_or(OffsetDateTime::now_utc());
+        let timestamp = OffsetDateTime::from_unix_timestamp(timestamp).unwrap_or_else(|_| OffsetDateTime::now_utc());
         time_format::format_localized_timestamp(
             timestamp,
             OffsetDateTime::now_utc(),
@@ -292,7 +292,7 @@ impl StashListDelegate {
     }
 
     fn format_absolute_timestamp(timestamp: i64, timezone: UtcOffset) -> String {
-        let timestamp = OffsetDateTime::from_unix_timestamp(timestamp).unwrap_or(OffsetDateTime::now_utc());
+        let timestamp = OffsetDateTime::from_unix_timestamp(timestamp).unwrap_or_else(|_| OffsetDateTime::now_utc());
         time_format::format_localized_timestamp(
             timestamp,
             OffsetDateTime::now_utc(),

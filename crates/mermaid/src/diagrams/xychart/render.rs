@@ -608,21 +608,19 @@ pub(crate) fn render(model: &XyChartDb, config: &Value, options: &Options) -> Re
                 // Towards the end of the bar: 1 when it runs up or right from the baseline, -1
                 // the other way.
                 let out = if v >= base { 1.0 } else { -1.0 };
-                let mut tx = bx + bw / 2.0;
-                let mut ty = by + bh / 2.0;
-                let mut anchor = "middle";
-                if horizontal {
+                let (tx, ty, anchor) = if horizontal {
                     if bh < tiny {
                         continue;
                     }
-                    tx = (if out > 0.0 { bx + bw } else { bx }) + out * 6.0;
-                    anchor = if out > 0.0 { "start" } else { "end" };
+                    let tx = (if out > 0.0 { bx + bw } else { bx }) + out * 6.0;
+                    (tx, by + bh / 2.0, if out > 0.0 { "start" } else { "end" })
                 } else {
                     if w + 2.0 > span / bars_f {
                         continue;
                     }
-                    ty = (if out > 0.0 { by } else { by + bh }) - out * (tiny_height / 2.0 + 2.0);
-                }
+                    let ty = (if out > 0.0 { by } else { by + bh }) - out * (tiny_height / 2.0 + 2.0);
+                    (bx + bw / 2.0, ty, "middle")
+                };
                 outside.push_str("<text x=\"");
                 push_num(&mut outside, tx);
                 outside.push_str("\" y=\"");

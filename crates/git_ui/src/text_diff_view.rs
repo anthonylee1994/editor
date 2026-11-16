@@ -224,7 +224,7 @@ impl TextDiffView {
             .read(cx)
             .as_singleton()
             .and_then(|b| b.read(cx).file().map(|f| f.full_path(cx).compact().to_string_lossy().into_owned()))
-            .unwrap_or(MultiBuffer::DEFAULT_TITLE.into());
+            .unwrap_or_else(|| MultiBuffer::DEFAULT_TITLE.into());
 
         let selection_location_path =
             selection_location_text.map(|text| format!("{} @ {}", path, text)).unwrap_or(path);

@@ -411,7 +411,7 @@ pub struct CompletionOptionsCompletionItem {
     pub label_details_support: Option<bool>,
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct CompletionRegistrationOptions {
     #[serde(flatten)]
     pub text_document_registration_options: TextDocumentRegistrationOptions,
@@ -420,7 +420,7 @@ pub struct CompletionRegistrationOptions {
     pub completion_options: CompletionOptions,
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize)]
 #[serde(untagged)]
 pub enum CompletionResponse {
     Array(Vec<CompletionItem>),
@@ -474,7 +474,7 @@ impl From<CompletionList> for CompletionResponse {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompletionParams {
     // This field was "mixed-in" from TextDocumentPositionParams
@@ -492,7 +492,7 @@ pub struct CompletionParams {
     pub context: Option<CompletionContext>,
 }
 
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompletionContext {
     /// How the completion was triggered.
@@ -518,7 +518,7 @@ impl CompletionTriggerKind {
 
 /// Represents a collection of [completion items](#CompletionItem) to be presented
 /// in the editor.
-#[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompletionList {
     /// This list it not complete. Further typing should result in recomputing
@@ -544,7 +544,7 @@ pub struct CompletionList {
     pub items: Vec<CompletionItem>,
 }
 
-#[derive(Debug, PartialEq, Default, Deserialize, Serialize, Clone)]
+#[derive(Debug, PartialEq, Eq, Default, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CompletionItem {
     /// The label of this completion item. By default
@@ -682,7 +682,7 @@ pub struct CompletionItem {
     pub tags: Option<Vec<CompletionItemTag>>,
 }
 
-#[derive(Debug, PartialEq, Default, Deserialize, Serialize, Clone)]
+#[derive(Debug, PartialEq, Eq, Default, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CompletionListItemDefaults {
     /// A default commit character set
@@ -719,7 +719,7 @@ pub struct CompletionListItemDefaults {
 /// Additional details for a completion item label.
 ///
 /// @since 3.17.0
-#[derive(Debug, PartialEq, Default, Deserialize, Serialize, Clone)]
+#[derive(Debug, PartialEq, Eq, Default, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CompletionItemLabelDetails {
     /// An optional string which is rendered less prominently directly after

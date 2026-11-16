@@ -26,6 +26,7 @@ pub fn snippets_for(language: SnippetKind) -> Vec<Arc<SnippetDefinition>> {
     snippets
 }
 
+#[allow(clippy::literal_string_with_formatting_args, reason = "`${1:name}` is snippet tabstop syntax")]
 fn snippets() -> HashMap<SnippetKind, Vec<Arc<SnippetDefinition>>> {
     let mut snippets = HashMap::default();
     snippets.insert(

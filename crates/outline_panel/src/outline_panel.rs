@@ -298,7 +298,7 @@ impl SearchState {
                     let mut context_text = String::new();
                     let mut highlight_ranges = Vec::new();
                     for mut chunk in highlight_arguments.multi_buffer_snapshot.chunks(
-                        context_offset_range.start..context_offset_range.end,
+                        context_offset_range.clone(),
                         LanguageAwareStyling { tree_sitter: true, diagnostics: true },
                     ) {
                         if !non_whitespace_symbol_occurred {
@@ -346,7 +346,7 @@ impl SearchState {
                         Ok(()) => {}
                         Err(_) => break,
                     };
-                    while let Ok(()) = notify_rx.try_recv() {
+                    while notify_rx.try_recv() == Ok(()) {
                         //
                     }
                     let update_result = outline_panel.update(cx, |_, cx| {
@@ -1008,7 +1008,7 @@ impl OutlinePanel {
             });
             let filter_update_subscription =
                 cx.subscribe_in(&filter_editor, window, |outline_panel: &mut Self, _, event, window, cx| {
-                    if let editor::EditorEvent::BufferEdited = event {
+                    if matches!(event, editor::EditorEvent::BufferEdited) {
                         outline_panel.update_cached_entries(Some(UPDATE_DEBOUNCE), window, cx);
                     }
                 });
@@ -1019,7 +1019,7 @@ impl OutlinePanel {
                 &workspace.weak_handle().upgrade().expect("have a &mut Workspace"),
                 window,
                 move |outline_panel, workspace, event, window, cx| {
-                    if let workspace::Event::ActiveItemChanged = event {
+                    if matches!(event, workspace::Event::ActiveItemChanged) {
                         if let Some((new_active_item, new_active_editor)) =
                             workspace_active_editor(workspace.read(cx), cx)
                         {
@@ -3234,8 +3234,7 @@ impl OutlinePanel {
 
                 let search_precomputed = if let ItemsDisplayMode::Search(search_state) = &outline_panel.mode {
                     let multi_buffer_snapshot = active_editor.read(cx).buffer().read(cx).snapshot(cx);
-                    let mut folded_buffers = FxHashSet::default();
-                    let mut not_folded_buffers = FxHashSet::default();
+                    let mut folded_by_buffer = FxHashMap::default();
                     let mut matches_by_buffer = FxHashMap::default();
 
                     for (match_range, search_data) in &search_state.matches {
@@ -3250,16 +3249,9 @@ impl OutlinePanel {
 
                         let mut any_folded = false;
                         for buffer_id in [Some(start_buffer_id), end_buffer_id].into_iter().flatten() {
-                            if folded_buffers.contains(&buffer_id) {
-                                any_folded = true;
-                            } else if !not_folded_buffers.contains(&buffer_id) {
-                                if active_editor.read(cx).is_buffer_folded(buffer_id, cx) {
-                                    folded_buffers.insert(buffer_id);
-                                    any_folded = true;
-                                } else {
-                                    not_folded_buffers.insert(buffer_id);
-                                }
-                            }
+                            any_folded |= *folded_by_buffer
+                                .entry(buffer_id)
+                                .or_insert_with(|| active_editor.read(cx).is_buffer_folded(buffer_id, cx));
                         }
                         if any_folded {
                             continue;
@@ -3271,6 +3263,10 @@ impl OutlinePanel {
                             .push((match_range.clone(), Arc::clone(search_data)));
                     }
 
+                    let folded_buffers = folded_by_buffer
+                        .into_iter()
+                        .filter_map(|(buffer_id, folded)| folded.then_some(buffer_id))
+                        .collect();
                     Some(SearchPrecomputed { multi_buffer_snapshot, matches_by_buffer, folded_buffers })
                 } else {
                     None
@@ -3521,13 +3517,7 @@ impl OutlinePanel {
                             .iter()
                             .any(|item| matches!(item.entry, PanelEntry::Outline(..) | PanelEntry::Search(_)))
                     {
-                        outline_panel.push_entry(
-                            &mut generation_state,
-                            track_matches,
-                            PanelEntry::Fs(entry.clone()),
-                            0,
-                            cx,
-                        );
+                        outline_panel.push_entry(&mut generation_state, track_matches, PanelEntry::Fs(entry), 0, cx);
                     }
                 }
 

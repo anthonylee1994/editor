@@ -24,7 +24,7 @@ impl MessageType {
 }
 
 /// Window specific client capabilities.
-#[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WindowClientCapabilities {
     /// Whether client supports handling progress notifications. If set
@@ -49,7 +49,7 @@ pub struct WindowClientCapabilities {
 }
 
 /// Show message request client capabilities
-#[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ShowMessageRequestClientCapabilities {
     /// Capabilities specific to the `MessageActionItem` type.
@@ -57,7 +57,7 @@ pub struct ShowMessageRequestClientCapabilities {
     pub message_action_item: Option<MessageActionItemCapabilities>,
 }
 
-#[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageActionItemCapabilities {
     /// Whether the client supports additional attributes which
@@ -124,7 +124,7 @@ pub struct ShowMessageRequestParams {
 }
 
 /// Client capabilities for the show document request.
-#[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ShowDocumentClientCapabilities {
     /// The client has support for the show document request.
@@ -134,7 +134,7 @@ pub struct ShowDocumentClientCapabilities {
 /// Params to show a document.
 ///
 /// @since 3.16.0
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ShowDocumentParams {
     /// The document uri to show.
@@ -164,7 +164,7 @@ pub struct ShowDocumentParams {
 /// The result of an show document request.
 ///
 /// @since 3.16.0
-#[derive(Debug, PartialEq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ShowDocumentResult {
     /// A boolean indicating if the show was successful.

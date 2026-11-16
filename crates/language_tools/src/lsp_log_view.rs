@@ -385,7 +385,7 @@ impl LspLogView {
 
                 LogMenuItem {
                     server_id: key.server_id,
-                    server_name: state.name.clone().unwrap_or(unknown_server.clone()),
+                    server_name: state.name.clone().unwrap_or_else(|| unknown_server.clone()),
                     project: key.project.clone(),
                     worktree_root_name,
                     rpc_trace_enabled: self.enabled_streams.get(key).is_some_and(|streams| {

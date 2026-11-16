@@ -1279,9 +1279,8 @@ fn draw(db: &SeqDb, config: &Value, options: &Options, tight: bool) -> Rendered 
             end_activation(col, y, &mut bounds, &mut activations_out);
         }
     }
-    let mut bottom = y;
+    let mut foot_h: f64 = 0.0;
     if mirror {
-        let mut foot_h: f64 = 0.0;
         for col in &cols {
             if col.life_end.is_some() {
                 continue;
@@ -1289,8 +1288,8 @@ fn draw(db: &SeqDb, config: &Value, options: &Options, tight: bool) -> Rendered 
             foot_h = foot_h.max(col.size.h);
             actors_out.push_str(&actor_svg(col, y, true));
         }
-        bottom = y + foot_h;
     }
+    let mut bottom = y + foot_h;
     let mut lifelines = String::new();
     for col in &cols {
         actors_out.push_str(&actor_svg(col, col.top, false));

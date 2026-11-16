@@ -135,7 +135,7 @@ impl Callout {
 
 impl RenderOnce for Callout {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let line_height = self.line_height.unwrap_or(window.line_height());
+        let line_height = self.line_height.unwrap_or_else(|| window.line_height());
 
         let has_actions = self.actions_slot.is_some() || self.dismiss_action.is_some();
 

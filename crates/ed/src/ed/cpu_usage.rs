@@ -3,7 +3,7 @@
 use std::time::Instant;
 
 /// Cumulative CPU counters at one moment.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct CpuSample {
     pub wall: Option<Instant>,
     pub process_user_ns: u64,

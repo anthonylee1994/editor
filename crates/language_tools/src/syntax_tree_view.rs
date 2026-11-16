@@ -229,10 +229,7 @@ impl SyntaxTreeView {
         let buffer_state = editor_state
             .active_buffer
             .get_or_insert_with(|| BufferState { buffer: buffer.clone(), active_layer: None });
-        let mut prev_layer = None;
-        if did_reparse {
-            prev_layer = buffer_state.active_layer.take();
-        }
+        let prev_layer = if did_reparse { buffer_state.active_layer.take() } else { None };
         if buffer_state.buffer != buffer {
             buffer_state.buffer = buffer.clone();
             buffer_state.active_layer = None;

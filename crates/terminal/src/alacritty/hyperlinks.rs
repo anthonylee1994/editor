@@ -284,11 +284,7 @@ fn path_match<T>(
     let first_cell = &term.grid()[line_start];
     let mut prev_len = 0;
     line.push(first_cell.c);
-    let mut hovered_point_byte_offset = None;
-
-    if line_start == hovered {
-        hovered_point_byte_offset = Some(0);
-    }
+    let mut hovered_point_byte_offset = (line_start == hovered).then_some(0);
 
     for cell in term.grid().iter_from(line_start) {
         if cell.point > line_end {

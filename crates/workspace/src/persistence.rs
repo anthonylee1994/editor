@@ -317,7 +317,7 @@ pub(crate) fn write_workspace_state(
     })
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RecentWorkspace {
     pub paths: PathList,
     pub identity_paths: PathList,

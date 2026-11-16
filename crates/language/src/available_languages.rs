@@ -236,7 +236,7 @@ impl AvailableLanguages {
             .rev()
             .fold(None, |best_language_match, language| {
                 let current_match_type =
-                    best_language_match.as_ref().map_or(LanguageMatchPrecedence::default(), |(_, score)| *score);
+                    best_language_match.as_ref().map_or_else(LanguageMatchPrecedence::default, |(_, score)| *score);
                 let language_score = callback(&language.name, &language.matcher, current_match_type);
 
                 match (language_score, current_match_type) {

@@ -187,7 +187,7 @@ impl PaneGroup {
     /// - Err(_) if it did not find the pane
     pub fn remove(&mut self, pane: &Entity<Pane>, cx: &mut App) -> Result<bool> {
         let result = self.remove_internal(pane);
-        if let Ok(true) = result {
+        if matches!(result, Ok(true)) {
             self.mark_positions(cx);
         }
         result
@@ -804,7 +804,7 @@ impl PaneAxis {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SplitDirection {
     Up,

@@ -105,7 +105,7 @@ static FALLBACK: LazyLock<AllLanguageSettings> = LazyLock::new(AllLanguageSettin
 
 /// The settings for a particular language. Settings that never vary by language are
 /// the constants in this module.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LanguageSettings {
     /// How many columns a tab should occupy.
     pub tab_size: NonZeroU32,
@@ -134,7 +134,7 @@ pub struct LanguageSettings {
     pub word_completions: WordsCompletionMode,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CompletionSettings {
     /// How many characters the query needs before word completions show automatically.
     pub words_min_length: usize,
@@ -145,7 +145,7 @@ pub struct CompletionSettings {
     pub lsp_insert_mode: LspInsertMode,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IndentGuideSettings {
     pub enabled: bool,
     /// Width of the indent guides in pixels, between 1 and 10.

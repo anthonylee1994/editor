@@ -803,7 +803,7 @@ impl Fs for RealFs {
     async fn git_config(&self, abs_work_directory: &Path, args: Vec<String>) -> Result<String> {
         let output = new_command("git")
             .current_dir(abs_work_directory)
-            .args([String::from("config")].into_iter().chain(args))
+            .args(std::iter::once(String::from("config")).chain(args))
             .output()
             .await?;
 

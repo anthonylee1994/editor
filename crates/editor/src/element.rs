@@ -1004,9 +1004,7 @@ impl EditorElement {
                     }
 
                     let mut block_width = cell_width;
-                    let mut block_text = None;
-
-                    if selection.cursor_shape == CursorShape::Block
+                    let block_text = if selection.cursor_shape == CursorShape::Block
                         && let Some(text) = snapshot.grapheme_at(cursor_position).or_else(|| {
                             if snapshot.is_empty() {
                                 snapshot
@@ -1015,15 +1013,14 @@ impl EditorElement {
                             } else {
                                 None
                             }
-                        })
-                    {
+                        }) {
                         let is_ascii_whitespace_only = text.as_ref().chars().all(|c| c.is_ascii_whitespace());
                         let len = text.len();
 
                         let mut font = cursor_row_layout
                             .font_id_for_index(cursor_column)
                             .and_then(|cursor_font_id| window.text_system().get_font_for_id(cursor_font_id))
-                            .unwrap_or(self.style.text.font());
+                            .unwrap_or_else(|| self.style.text.font());
                         font.features = self.style.text.font_features.clone();
 
                         // Invert the text color for the block cursor. Ensure that the text
@@ -1051,8 +1048,10 @@ impl EditorElement {
                         if !is_ascii_whitespace_only {
                             block_width = block_width.max(shaped.width);
                         }
-                        block_text = Some(shaped);
-                    }
+                        Some(shaped)
+                    } else {
+                        None
+                    };
 
                     let x = cursor_character_x - scroll_pixel_position.x.into();
                     let y = ((cursor_position.row().as_f64() - scroll_position.y)
@@ -2779,7 +2778,7 @@ impl EditorElement {
         {
             let editor = self.editor.read(cx);
             if editor.context_menu_visible()
-                && let Some(crate::ContextMenuOrigin::Cursor) = editor.context_menu_origin()
+                && matches!(editor.context_menu_origin(), Some(crate::ContextMenuOrigin::Cursor))
             {
                 let (min_height_in_lines, max_height_in_lines) = editor
                     .context_menu_options
@@ -3703,8 +3702,8 @@ impl EditorElement {
                 }
             };
 
-            let mut line_indicator_width = 0.;
-            if let Some(requested_line_width) = settings.visible_line_width(indent_guide.active)
+            let line_indicator_width = if let Some(requested_line_width) =
+                settings.visible_line_width(indent_guide.active)
                 && let Some(color) = line_color
             {
                 window.paint_quad(fill(
@@ -3714,8 +3713,10 @@ impl EditorElement {
                     }),
                     color,
                 ));
-                line_indicator_width = requested_line_width as f32;
-            }
+                requested_line_width as f32
+            } else {
+                0.
+            };
 
             if let Some(color) = background_color {
                 let width = indent_guide.single_indent_width - px(line_indicator_width);
@@ -4321,7 +4322,7 @@ impl EditorElement {
                     if let Some((scrollbar_layout, axis)) = event
                         .pressed_button
                         .filter(|button| *button == MouseButton::Left)
-                        .and(editor.scroll_manager.dragging_scrollbar_axis())
+                        .and_then(|_| editor.scroll_manager.dragging_scrollbar_axis())
                         .and_then(|axis| scrollbars_layout.iter_scrollbars().find(|(_, a)| *a == axis))
                     {
                         let ScrollbarLayout { hitbox, text_unit_size, .. } = scrollbar_layout;

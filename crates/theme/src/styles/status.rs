@@ -1,6 +1,6 @@
 use gpui::Hsla;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StatusColors {
     /// Indicates some kind of conflict, like a file changed on disk while it was open, or
     /// merge conflicts in a Git repository.

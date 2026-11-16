@@ -1792,6 +1792,11 @@ impl BufferSnapshot {
         self.anchored_edits_since_in_range(since, range).map(|item| item.0)
     }
 
+    #[allow(
+        clippy::iter_on_empty_collections,
+        clippy::iter_on_single_items,
+        reason = "both branches must return the same iterator type"
+    )]
     pub fn anchored_edits_since_in_range<'a, D>(
         &'a self,
         since: &'a clock::Global,
@@ -2416,7 +2421,7 @@ impl FromAnchor for usize {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum LineEnding {
     #[default]
     Unix,

@@ -1672,7 +1672,7 @@ impl LocalLspStore {
                     let describe_code_action = |action: &CodeAction| {
                         format!(
                             "code action '{}' with title \"{}\" on server {}",
-                            action.lsp_action.action_kind().unwrap_or("unknown".into()).as_str(),
+                            action.lsp_action.action_kind().unwrap_or_else(|| "unknown".into()).as_str(),
                             action.lsp_action.title(),
                             server.name(),
                         )
@@ -4620,7 +4620,7 @@ impl LspStore {
                     let worktree_path = ProjectPath { worktree_id, path };
                     let abs_path = file.abs_path(cx);
                     let nodes = rebase
-                        .walk(worktree_path, language.name(), language.manifest(), delegate.clone(), cx)
+                        .walk(worktree_path, language.name(), language.manifest(), delegate, cx)
                         .collect::<Vec<_>>();
                     for node in nodes {
                         let server_id = node.server_id_or_init(|disposition| {
@@ -6117,7 +6117,7 @@ impl LspStore {
         let line_ending = next_snapshot.line_ending();
 
         for language_server in language_servers {
-            let language_server = language_server.clone();
+            let language_server = language_server;
 
             let buffer_snapshots = self
                 .local
@@ -7799,7 +7799,7 @@ impl LspStore {
                 language_server_id: server_id,
                 name: Some(adapter.name()),
                 buffer_id,
-                buffer_abs_path: abs_path.to_path_buf(),
+                buffer_abs_path: abs_path,
             });
         }
 
@@ -9181,7 +9181,7 @@ impl PartialEq for LanguageServerShowDocumentRequest {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum LanguageServerLogType {
     Log(MessageType),
     Trace { verbose_info: Option<String> },
@@ -9251,7 +9251,7 @@ pub struct LanguageServerProgress {
     pub last_update_at: Instant,
 }
 
-#[derive(Copy, Clone, Debug, Default, PartialEq, Serialize)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize)]
 pub struct DiagnosticSummary {
     pub error_count: usize,
     pub warning_count: usize,

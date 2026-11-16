@@ -81,7 +81,7 @@ impl RenderOnce for Navigable {
                 move |_: &menu::SelectPrevious, window, cx| {
                     let target = Self::find_focused(&children, window, cx)
                         .and_then(|index| index.checked_sub(1))
-                        .or(children.len().checked_sub(1));
+                        .or_else(|| children.len().checked_sub(1));
                     if let Some(entry) = target.and_then(|target| children.get(target)) {
                         entry.focus_handle.focus(window, cx);
                         if let Some(anchor) = &entry.scroll_anchor {

@@ -95,7 +95,7 @@ pub struct QueryFileContents {
 }
 
 impl QueryFileContents {
-    pub fn new(query_file: QueryFile, contents: Cow<'static, str>) -> Self {
+    pub const fn new(query_file: QueryFile, contents: Cow<'static, str>) -> Self {
         Self { query_file, contents }
     }
 }

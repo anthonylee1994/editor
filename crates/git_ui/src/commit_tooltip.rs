@@ -137,14 +137,14 @@ impl CommitTooltip {
         let commit_time = blame
             .committer_time
             .and_then(|t| OffsetDateTime::from_unix_timestamp(t).ok())
-            .unwrap_or(OffsetDateTime::now_utc());
+            .unwrap_or_else(OffsetDateTime::now_utc);
 
         let mut tooltip = Self::new(
             CommitDetails {
                 sha: blame.sha.to_string().into(),
                 commit_time,
-                author_name: blame.author.clone().unwrap_or("<no name>".to_string()).into(),
-                author_email: blame.author_mail.clone().unwrap_or("".to_string()).into(),
+                author_name: blame.author.clone().unwrap_or_else(|| "<no name>".to_string()).into(),
+                author_email: blame.author_mail.clone().unwrap_or_default().into(),
                 message: details,
                 tag_names,
                 boundary: blame.boundary,
@@ -206,7 +206,7 @@ impl Render for CommitTooltip {
                     .scroll_handle(self.scroll_handle.clone())
                     .into_any()
             })
-            .unwrap_or("<no commit message>".into_any());
+            .unwrap_or_else(|| "<no commit message>".into_any());
 
         let tag_names = self.commit.tag_names.clone();
 
@@ -217,7 +217,7 @@ impl Render for CommitTooltip {
         let reveal_file = self.reveal_file.clone();
         let commit_summary = CommitSummary {
             sha: self.commit.sha.clone(),
-            subject: self.commit.message.as_ref().map_or(SharedString::default(), |message| {
+            subject: self.commit.message.as_ref().map_or_else(SharedString::default, |message| {
                 message.message.split('\n').next().unwrap().trim_end().to_string().into()
             }),
             commit_timestamp: self.commit.commit_time.unix_timestamp(),

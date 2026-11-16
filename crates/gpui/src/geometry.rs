@@ -96,7 +96,7 @@ pub trait Along {
     Hash,
     Neg,
 )]
-#[refineable(Debug, PartialEq, Serialize, Deserialize)]
+#[refineable(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Point<T: Clone + Debug + Default + PartialEq> {
     /// The x coordinate of the point.
@@ -280,7 +280,7 @@ impl<T: Clone + Debug + Default + PartialEq + Display> Display for Point<T> {
 /// This struct is generic over the type `T`, which can be any type that implements `Clone`, `Default`, and `Debug`.
 /// It is commonly used to specify dimensions for elements in a UI, such as a window or element.
 #[derive(Add, Clone, Copy, Default, Deserialize, Div, Hash, Neg, PartialEq, Refineable, Serialize, Sub)]
-#[refineable(Debug, PartialEq, Serialize, Deserialize)]
+#[refineable(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Size<T: Clone + Debug + Default + PartialEq> {
     /// The width component of the size.
@@ -1120,7 +1120,7 @@ impl Bounds<DevicePixels> {
 ///
 /// Each field represents the size of the edge on one side of the box: `top`, `right`, `bottom`, and `left`.
 #[derive(Refineable, Clone, Default, Debug, Eq, PartialEq)]
-#[refineable(Debug, PartialEq, Serialize, Deserialize)]
+#[refineable(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Edges<T: Clone + Debug + Default + PartialEq> {
     /// The size of the top edge.
@@ -1439,7 +1439,7 @@ impl Anchor {
 ///
 /// Each field represents the size of the corner on one side of the box: `top_left`, `top_right`, `bottom_right`, and `bottom_left`.
 #[derive(Refineable, Clone, Default, Debug, Eq, PartialEq)]
-#[refineable(Debug, PartialEq, Serialize, Deserialize)]
+#[refineable(Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(C)]
 pub struct Corners<T: Clone + Debug + Default + PartialEq> {
     /// The value associated with the top left corner.
@@ -2713,7 +2713,7 @@ impl From<()> for Length {
 }
 
 /// A location in a grid layout.
-#[derive(Clone, PartialEq, Debug, Serialize, Deserialize, Default)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, Default)]
 pub struct GridLocation {
     /// The rows this item uses within the grid.
     pub row: Range<GridPlacement>,
@@ -2722,7 +2722,7 @@ pub struct GridLocation {
 }
 
 /// The placement of an item within a grid layout's column or row.
-#[derive(Clone, Copy, PartialEq, Debug, Serialize, Deserialize, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize, Default)]
 pub enum GridPlacement {
     /// The grid line index to place this item.
     Line(i16),

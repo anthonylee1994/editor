@@ -1,7 +1,7 @@
 use gpui::Hsla;
 
 /// The colors of the local cursor and selections.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CursorColors {
     pub cursor: Hsla,
     pub selection: Hsla,

@@ -399,7 +399,7 @@ impl BlockRenderer {
         markdown_end: usize,
         text_align_override: Option<TextAlign>,
     ) {
-        let align = text_align_override.unwrap_or(builder.text_style().text_align);
+        let align = text_align_override.unwrap_or_else(|| builder.text_style().text_align);
         let mut paragraph = div().when(!self.style.height_is_multiple_of_line_height, |el| {
             el.mb(self.style.paragraph_spacing).line_height(self.style.paragraph_line_height)
         });
@@ -427,7 +427,7 @@ impl BlockRenderer {
         markdown_end: usize,
         text_align_override: Option<TextAlign>,
     ) {
-        let align = text_align_override.unwrap_or(builder.text_style().text_align);
+        let align = text_align_override.unwrap_or_else(|| builder.text_style().text_align);
         let mut heading = div().mt_4().mb_2();
         heading = apply_heading_style(
             heading,

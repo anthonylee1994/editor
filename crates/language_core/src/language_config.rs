@@ -121,27 +121,27 @@ impl Default for LanguageConfig {
             name: LanguageName::new_static(""),
             code_fence_block_name: None,
             matcher: Arc::default(),
-            brackets: Default::default(),
+            brackets: BracketPairConfig::default(),
             auto_indent_using_last_non_empty_line: true,
-            increase_indent_pattern: Default::default(),
-            decrease_indent_pattern: Default::default(),
-            decrease_indent_patterns: Default::default(),
-            autoclose_before: Default::default(),
-            line_comments: Default::default(),
-            block_comment: Default::default(),
-            documentation_comment: Default::default(),
-            unordered_list: Default::default(),
-            ordered_list: Default::default(),
-            task_list: Default::default(),
-            rewrap_prefixes: Default::default(),
-            overrides: Default::default(),
-            word_characters: Default::default(),
-            collapsed_placeholder: Default::default(),
+            increase_indent_pattern: None,
+            decrease_indent_pattern: None,
+            decrease_indent_patterns: Vec::new(),
+            autoclose_before: String::new(),
+            line_comments: Vec::new(),
+            block_comment: None,
+            documentation_comment: None,
+            unordered_list: Vec::new(),
+            ordered_list: Vec::new(),
+            task_list: None,
+            rewrap_prefixes: Vec::new(),
+            overrides: FxHashMap::default(),
+            word_characters: FxHashSet::default(),
+            collapsed_placeholder: String::new(),
             wrap_characters: None,
             hidden: false,
             jsx_tag_auto_close: None,
-            completion_query_characters: Default::default(),
-            linked_edit_characters: Default::default(),
+            completion_query_characters: FxHashSet::default(),
+            linked_edit_characters: FxHashSet::default(),
         }
     }
 }
@@ -243,7 +243,7 @@ pub struct JsxTagAutoCloseConfig {
 }
 
 /// The configuration for block comments for this language.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BlockCommentConfig {
     /// A start tag of block comment.
     pub start: Arc<str>,
@@ -310,7 +310,7 @@ impl<T> Default for Override<T> {
 }
 
 impl<T> Override<T> {
-    pub fn as_option<'a>(this: Option<&'a Self>, original: Option<&'a T>) -> Option<&'a T> {
+    pub const fn as_option<'a>(this: Option<&'a Self>, original: Option<&'a T>) -> Option<&'a T> {
         match this {
             Some(Self::Set(value)) => Some(value),
             Some(Self::Remove { remove: true }) => None,
@@ -355,7 +355,7 @@ impl<'de> Deserialize<'de> for BracketPairConfig {
 
 /// Describes a single bracket pair and how an editor should react to e.g. inserting
 /// an opening bracket or to a newline character insertion in between `start` and `end` characters.
-#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
 pub struct BracketPair {
     /// Starting substring for a bracket.
     pub start: String,

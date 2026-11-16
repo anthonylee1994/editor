@@ -400,7 +400,7 @@ impl ImageStore {
     }
 
     fn on_image_event(&mut self, image: Entity<ImageItem>, event: &ImageItemEvent, cx: &mut Context<Self>) {
-        if let ImageItemEvent::FileHandleChanged = event {
+        if matches!(event, ImageItemEvent::FileHandleChanged) {
             self.state.update(cx, |local, cx| {
                 local.image_changed_file(image, cx);
             })

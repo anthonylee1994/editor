@@ -1198,7 +1198,7 @@ pub enum ExpandExcerptDirection {
     UpAndDown,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct IndentGuide {
     pub buffer_id: BufferId,
     pub start_row: MultiBufferRow,
@@ -1477,10 +1477,8 @@ impl MultiBuffer {
 
                         if is_insertion {
                             original_indent_columns.push(original_indent_column);
-                            insertions.push((
-                                buffer.anchor_before(range.start)..buffer.anchor_before(range.end),
-                                new_text.clone(),
-                            ));
+                            insertions
+                                .push((buffer.anchor_before(range.start)..buffer.anchor_before(range.end), new_text));
                         } else if !range.is_empty() {
                             deletions.push((
                                 buffer.anchor_before(range.start)..buffer.anchor_before(range.end),
@@ -2633,15 +2631,14 @@ impl MultiBuffer {
                                 let mut base_text_summary =
                                     text_cursor.summary::<TextSummary>(hunk.diff_base_byte_range.end);
 
-                                let mut has_trailing_newline = false;
-                                if base_text_summary.last_line_chars > 0 {
+                                let has_trailing_newline = base_text_summary.last_line_chars > 0;
+                                if has_trailing_newline {
                                     base_text_summary += TextSummary::newline();
-                                    has_trailing_newline = true;
                                 }
 
                                 new_diff_transforms.push(
                                     DiffTransform::DeletedHunk {
-                                        base_text_byte_range: hunk.diff_base_byte_range.clone(),
+                                        base_text_byte_range: hunk.diff_base_byte_range,
                                         summary: base_text_summary,
                                         buffer_id: buffer_snapshot.buffer_id(),
                                         hunk_info,
@@ -5281,11 +5278,7 @@ impl MultiBufferSnapshot {
             + 'a,
     {
         self.lift_buffer_metadata::<MBD, _, _>(range, move |buffer, buffer_range| {
-            Some(
-                buffer
-                    .diagnostics_in_range(buffer_range.start..buffer_range.end, false)
-                    .map(|entry| (entry.range, entry.diagnostic)),
-            )
+            Some(buffer.diagnostics_in_range(buffer_range, false).map(|entry| (entry.range, entry.diagnostic)))
         })
         .map(|(range, diagnostic, _)| DiagnosticEntryRef { diagnostic, range })
     }
@@ -5308,11 +5301,7 @@ impl MultiBufferSnapshot {
             + Ord,
     {
         self.lift_buffer_metadata::<MBD, _, _>(range, move |buffer, buffer_range| {
-            Some(
-                buffer
-                    .diagnostics_in_range(buffer_range.start..buffer_range.end, false)
-                    .map(|entry| (entry.range, entry.diagnostic)),
-            )
+            Some(buffer.diagnostics_in_range(buffer_range, false).map(|entry| (entry.range, entry.diagnostic)))
         })
         .map(|(range, diagnostic, excerpt)| {
             (excerpt.buffer_snapshot(self).buffer_id(), DiagnosticEntryRef { diagnostic, range })
@@ -5382,7 +5371,7 @@ impl MultiBufferSnapshot {
                     anchor
                         .excerpt_anchor()
                         .map(|anchor| anchor.text_anchor())
-                        .unwrap_or(text::Anchor::min_for_buffer(buffer_snapshot.buffer_id())),
+                        .unwrap_or_else(|| text::Anchor::min_for_buffer(buffer_snapshot.buffer_id())),
                     theme,
                 )
                 .into_iter()
@@ -6393,7 +6382,7 @@ impl Iterator for MultiBufferRows<'_> {
                 region = next_region.clone();
             } else if self.point == self.cursor.diff_transforms.end().output_dimension.0 {
                 let multibuffer_row = MultiBufferRow(self.point.row);
-                let last_excerpt = self.cursor.excerpts.item().or(self.cursor.excerpts.prev_item())?;
+                let last_excerpt = self.cursor.excerpts.item().or_else(|| self.cursor.excerpts.prev_item())?;
                 let buffer_snapshot = last_excerpt.buffer_snapshot(self.cursor.snapshot);
                 let last_row = last_excerpt.range.context.end.to_point(buffer_snapshot).row;
 

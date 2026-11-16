@@ -194,7 +194,7 @@ impl Read for DecodingReader<'_> {
 }
 
 /// Verdict of [`analyze_byte_content`] on a file prefix.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ByteContent {
     /// UTF-16 little-endian text without a BOM.
     Utf16Le,

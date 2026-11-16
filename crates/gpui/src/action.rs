@@ -26,7 +26,7 @@ use serde_json::json;
 macro_rules! actions {
     ($namespace:path, [ $( $(#[$attr:meta])* $name:ident),* $(,)? ]) => {
         $(
-            #[derive(::std::clone::Clone, ::std::cmp::PartialEq, ::std::default::Default, ::std::fmt::Debug, gpui::Action)]
+            #[derive(::std::clone::Clone, PartialEq, Eq, ::std::default::Default, ::std::fmt::Debug, gpui::Action)]
             #[action(namespace = $namespace)]
             $(#[$attr])*
             pub struct $name;
@@ -281,7 +281,7 @@ mod no_action {
     /// In keymap JSON this is written as:
     ///
     /// `["ed::Unbind", "editor::NewLine"]`
-    #[derive(Clone, Debug, PartialEq, Deserialize, gpui::Action)]
+    #[derive(Clone, Debug, PartialEq, Eq, Deserialize, gpui::Action)]
     #[action(namespace = ed)]
     pub struct Unbind(pub gpui::SharedString);
 

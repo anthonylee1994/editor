@@ -933,9 +933,9 @@ impl FileFinderDelegate {
     fn spawn_search(&mut self, query: FileSearchQuery, window: &Window, cx: &Context<Picker<Self>>) -> Task<()> {
         let relative_to = self.currently_opened_path.as_ref().map(|found_path| Arc::clone(&found_path.project.path));
         let worktree_store = self.project.read(cx).worktree_store();
-        let worktrees = worktree_store.read(cx).visible_worktrees_and_single_files(cx).collect::<Vec<_>>();
-        let candidate_sets = worktrees
-            .into_iter()
+        let candidate_sets = worktree_store
+            .read(cx)
+            .visible_worktrees_and_single_files(cx)
             .map(|worktree| {
                 let worktree = worktree.read(cx);
                 PathMatchCandidateSet {
@@ -1482,7 +1482,7 @@ impl PickerDelegate for FileFinderDelegate {
                     self.history_items.iter(),
                     self.currently_opened_path.as_ref(),
                     None,
-                    None.into_iter(),
+                    std::iter::empty(),
                     false,
                 );
 

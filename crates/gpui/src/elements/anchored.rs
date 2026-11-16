@@ -225,7 +225,7 @@ impl IntoElement for Anchored {
 }
 
 /// Which algorithm to use when fitting the anchored element to be inside the window.
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum AnchoredFitMode {
     /// Snap the anchored element to the window edge.
     SnapToWindow,
@@ -236,7 +236,7 @@ pub enum AnchoredFitMode {
 }
 
 /// Which algorithm to use when positioning the anchored element.
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum AnchoredPositionMode {
     /// Position the anchored element relative to the window.
     Window,

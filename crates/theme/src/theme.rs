@@ -11,7 +11,7 @@ pub use syntax_theme::SyntaxTheme;
 pub use crate::styles::*;
 
 /// The appearance of the theme.
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Appearance {
     /// A light appearance.
     Light,
@@ -43,7 +43,7 @@ impl ActiveTheme for App {
 }
 
 /// A theme is the primary mechanism for defining the appearance of the UI.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Theme {
     /// The unique identifier for the theme.
     pub id: String,

@@ -96,16 +96,19 @@ impl HistoryManager {
                 return;
             }
             let mut removed_locations = Vec::new();
-            if let Ok(()) = this.update(cx, |this, _| {
-                this.history.retain(|entry| {
-                    let removed = user_removed.contains(&entry.path);
-                    if removed {
-                        removed_locations
-                            .push(ProjectLocation { paths: entry.paths.ordered_paths().cloned().collect() });
-                    }
-                    !removed
-                });
-            }) {
+            if matches!(
+                this.update(cx, |this, _| {
+                    this.history.retain(|entry| {
+                        let removed = user_removed.contains(&entry.path);
+                        if removed {
+                            removed_locations
+                                .push(ProjectLocation { paths: entry.paths.ordered_paths().cloned().collect() });
+                        }
+                        !removed
+                    });
+                }),
+                Ok(())
+            ) {
                 cx.update(|cx| {
                     ProjectsStore::global(cx).remove_recent(|location| removed_locations.contains(location), cx)
                 })

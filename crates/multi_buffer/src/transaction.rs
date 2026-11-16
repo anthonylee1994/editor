@@ -364,10 +364,10 @@ impl MultiBuffer {
         }
     }
     pub fn undo(&mut self, cx: &mut Context<Self>) -> Option<TransactionId> {
-        let mut transaction_id = None;
-        if let Some(buffer) = self.as_singleton() {
-            transaction_id = buffer.update(cx, |buffer, cx| buffer.undo(cx));
+        let transaction_id = if let Some(buffer) = self.as_singleton() {
+            buffer.update(cx, |buffer, cx| buffer.undo(cx))
         } else {
+            let mut undone_id = None;
             while let Some(transaction) = self.history.pop_undo() {
                 let mut undone = false;
                 for (buffer_id, buffer_transaction_id) in &mut transaction.buffer_transactions {
@@ -383,11 +383,12 @@ impl MultiBuffer {
                 }
 
                 if undone {
-                    transaction_id = Some(transaction.id);
+                    undone_id = Some(transaction.id);
                     break;
                 }
             }
-        }
+            undone_id
+        };
 
         if let Some(transaction_id) = transaction_id {
             cx.emit(Event::TransactionUndone { transaction_id });

@@ -31,7 +31,7 @@ impl LanguageName {
         Self(SharedString::new(s))
     }
 
-    pub fn new_static(s: &'static str) -> Self {
+    pub const fn new_static(s: &'static str) -> Self {
         Self(SharedString::new_static(s))
     }
 

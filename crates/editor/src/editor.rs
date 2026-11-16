@@ -687,11 +687,11 @@ pub const LSP_REQUEST_DEBOUNCE_TIMEOUT: Duration = Duration::from_millis(50);
 
 pub(crate) const MINIMAP_FONT_SIZE: AbsoluteLength = AbsoluteLength::Pixels(px(2.));
 
-pub enum ConflictsOuter {}
-pub enum ConflictsOurs {}
-pub enum ConflictsTheirs {}
-pub enum ConflictsOursMarker {}
-pub enum ConflictsTheirsMarker {}
+pub struct ConflictsOuter(!);
+pub struct ConflictsOurs(!);
+pub struct ConflictsTheirs(!);
+pub struct ConflictsOursMarker(!);
+pub struct ConflictsTheirsMarker(!);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Navigated {
@@ -763,7 +763,7 @@ pub enum SelectPhase {
     End,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ColumnarMode {
     FromMouse,
     FromSelection,
@@ -1844,7 +1844,7 @@ impl Editor {
                     .on_click(move |_, _window, cx| {
                         editor
                             .update(cx, |editor, cx| {
-                                editor.unfold_ranges(&[fold_range.start..fold_range.end], true, false, cx);
+                                editor.unfold_ranges(std::slice::from_ref(&fold_range), true, false, cx);
                                 cx.stop_propagation();
                             })
                             .ok();
@@ -3198,7 +3198,7 @@ impl Editor {
             }
             let match_task = cx.background_spawn(async move {
                 let buffer_ranges = multi_buffer_snapshot
-                    .range_to_buffer_ranges(multi_buffer_range_to_query.start..multi_buffer_range_to_query.end)
+                    .range_to_buffer_ranges(multi_buffer_range_to_query.clone())
                     .into_iter()
                     .filter(|(_, excerpt_visible_range, _)| !excerpt_visible_range.is_empty());
                 let mut match_ranges = Vec::new();
@@ -3542,7 +3542,7 @@ impl Editor {
         // Fill in the environmental variables from the tree-sitter captures
         let mut captured_task_variables = TaskVariables::default();
         for (capture_name, value) in tasks.extra_variables.clone() {
-            captured_task_variables.insert(task::VariableName::Custom(capture_name.into()), value.clone());
+            captured_task_variables.insert(task::VariableName::Custom(capture_name.into()), value);
         }
         project.update(cx, |project, cx| {
             project.task_store().update(cx, |task_store, cx| {
@@ -5920,7 +5920,7 @@ impl Editor {
             window.focus(&self.focus_handle, cx);
         }
 
-        self.remove_blocks([rename.block_id].into_iter().collect(), Some(Autoscroll::fit()), cx);
+        self.remove_blocks(std::iter::once(rename.block_id).collect(), Some(Autoscroll::fit()), cx);
         self.clear_highlights(HighlightKey::Rename, cx);
         self.show_local_selections = true;
 
@@ -6030,9 +6030,7 @@ impl Editor {
                 let mut buffers = FxHashSet::default();
                 let mut buffer_id_to_ranges: BTreeMap<BufferId, Vec<Range<text::Anchor>>> = BTreeMap::new();
                 for selection_range in selection_ranges {
-                    for (buffer_snapshot, buffer_range, _) in
-                        snapshot.range_to_buffer_ranges(selection_range.start..selection_range.end)
-                    {
+                    for (buffer_snapshot, buffer_range, _) in snapshot.range_to_buffer_ranges(selection_range) {
                         let buffer_id = buffer_snapshot.buffer_id();
                         let start = buffer_snapshot.anchor_before(buffer_range.start);
                         let end = buffer_snapshot.anchor_after(buffer_range.end);
@@ -6185,7 +6183,7 @@ impl Editor {
         let buffers = workspace
             .active_item(cx)
             .and_then(|item| item.act_as::<Editor>(cx))
-            .map_or(FxHashSet::default(), |editor| editor.read(cx).buffer.read(cx).all_buffers());
+            .map_or_else(FxHashSet::default, |editor| editor.read(cx).buffer.read(cx).all_buffers());
         project.update(cx, |project, cx| {
             project.cancel_language_server_work_for_buffers(buffers, cx);
         });
@@ -7417,13 +7415,14 @@ impl Editor {
 
             let mut chunk_lines = chunk.text.split('\n').peekable();
             while let Some(text) = chunk_lines.next() {
-                let mut merged_with_last_token = false;
-                if let Some(last_token) = line.back_mut()
+                let merged_with_last_token = if let Some(last_token) = line.back_mut()
                     && last_token.highlight == highlight
                 {
                     last_token.text.push_str(text);
-                    merged_with_last_token = true;
-                }
+                    true
+                } else {
+                    false
+                };
 
                 if !merged_with_last_token {
                     line.push_back(Chunk { text: text.into(), highlight });
@@ -8908,7 +8907,7 @@ const GUTTER_COPIED_STATE_DURATION: Duration = Duration::from_secs(2);
 
 const UPDATE_DEBOUNCE: Duration = Duration::from_millis(50);
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LineHighlight {
     pub background: Background,
     pub border: Option<gpui::Hsla>,

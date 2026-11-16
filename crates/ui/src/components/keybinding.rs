@@ -272,11 +272,10 @@ fn render_modifiers_with_style(
         ]
     };
 
-    let filtered = table.into_iter().filter(|modifier| modifier.enabled).collect::<Vec<_>>();
-
-    let platform_keys = filtered.into_iter().map(move |modifier| match platform_style {
-        PlatformStyle::Mac => Some(modifier.mac),
-    });
+    let platform_keys =
+        table.into_iter().filter(|modifier| modifier.enabled).map(move |modifier| match platform_style {
+            PlatformStyle::Mac => Some(modifier.mac),
+        });
 
     let separator = match platform_style {
         PlatformStyle::Mac => None,
@@ -364,7 +363,7 @@ pub struct KeyIcon {
 
 impl RenderOnce for KeyIcon {
     fn render(self, window: &mut Window, _cx: &mut App) -> impl IntoElement {
-        let size = self.size.unwrap_or(IconSize::Small.rems().into());
+        let size = self.size.unwrap_or_else(|| IconSize::Small.rems().into());
 
         Icon::new(self.icon)
             .size(IconSize::Custom(size.to_rems(window.rem_size())))

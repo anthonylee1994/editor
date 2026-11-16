@@ -65,7 +65,7 @@ use workspace::pane::tab_details;
 const PANEL_WIDTH_REMS: f32 = 28.;
 
 /// Toggles the tab switcher interface.
-#[derive(PartialEq, Clone, Deserialize, Default, Action)]
+#[derive(PartialEq, Eq, Clone, Deserialize, Default, Action)]
 #[action(namespace = tab_switcher)]
 #[serde(deny_unknown_fields)]
 pub struct Toggle {

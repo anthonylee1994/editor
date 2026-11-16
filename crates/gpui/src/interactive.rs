@@ -169,7 +169,7 @@ pub struct MouseClickEvent {
 }
 
 /// The stage of a pressure click event.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum PressureStage {
     /// No pressure.
     #[default]

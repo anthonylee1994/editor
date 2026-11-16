@@ -1115,7 +1115,7 @@ pub(crate) fn commit_message_editor(
     commit_editor.set_use_modal_editing(true);
     commit_editor.set_show_wrap_guides(false, cx);
     commit_editor.set_show_indent_guides(false, cx);
-    let placeholder = placeholder.unwrap_or("Enter commit message".into());
+    let placeholder = placeholder.unwrap_or_else(|| "Enter commit message".into());
     commit_editor.set_placeholder_text(&placeholder, window, cx);
     commit_editor.set_custom_context_menu(|editor, _point, window, cx| {
         let has_selection = editor.has_non_empty_selection(&editor.display_snapshot(cx));
@@ -2340,7 +2340,7 @@ impl GitPanel {
                     &format!(
                         "{}{}?",
                         message,
-                        MarkdownInlineCode(entry.repo_path.file_name().unwrap_or(entry.repo_path.display().as_ref()))
+                        MarkdownInlineCode(entry.repo_path.file_name().unwrap_or_else(|| entry.repo_path.display()))
                     ),
                     None,
                     &[confirm_text, "Cancel"],
@@ -2485,7 +2485,7 @@ impl GitPanel {
         }
         let prompt = prompt("Discard changes to these files?", Some(&details), window, cx);
         cx.spawn_in(window, async move |this, cx| {
-            if let Ok(RestoreCancel::RestoreTrackedFiles) = prompt.await {
+            if matches!(prompt.await, Ok(RestoreCancel::RestoreTrackedFiles)) {
                 this.update_in(cx, |this, window, cx| {
                     this.perform_checkout(entries, window, cx);
                 })
@@ -3180,7 +3180,7 @@ impl GitPanel {
 
         let task = cx.spawn_in(window, async move |this, cx| {
             let result = async {
-                if let Ok(true) = confirmation.await {
+                if matches!(confirmation.await, Ok(true)) {
                     let prior_head = prior_head.await?;
 
                     repo.update(cx, |repo, cx| repo.reset("HEAD^".to_string(), ResetMode::Soft, cx)).await??;
@@ -4211,7 +4211,7 @@ impl GitPanel {
         self.select_last_entry_if_out_of_bounds(window, cx);
 
         let suggested_commit_message = self.suggest_commit_message(cx);
-        let placeholder_text = suggested_commit_message.unwrap_or("Enter commit message".into());
+        let placeholder_text = suggested_commit_message.unwrap_or_else(|| "Enter commit message".into());
 
         self.commit_editor.update(cx, |editor, cx| editor.set_placeholder_text(&placeholder_text, window, cx));
 

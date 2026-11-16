@@ -574,11 +574,12 @@ impl Parser<'_, '_> {
                 if self.kind() == T::CallbackArgs {
                     self.i += 1;
                 }
-                let mut tooltip = None;
-                if self.kind() == T::Space {
+                let tooltip = if self.kind() == T::Space {
                     self.i += 1;
-                    tooltip = Some(self.expect(T::Str, "")?);
-                }
+                    Some(self.expect(T::Str, "")?)
+                } else {
+                    None
+                };
                 self.db.set_click_event(&id);
                 if let Some(tooltip) = tooltip {
                     self.db.set_tooltip(&id, &tooltip);

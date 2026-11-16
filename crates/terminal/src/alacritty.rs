@@ -228,7 +228,7 @@ pub(super) fn new_term(
 ) -> Arc<AlacrittyTermLock> {
     let mut term = Term::new(config.clone(), &bounds, ZedListener { sender: events_tx, generation });
 
-    if let AlternateScroll::Off = alternate_scroll {
+    if alternate_scroll == AlternateScroll::Off {
         term.unset_private_mode(PrivateMode::Named(NamedPrivateMode::AlternateScroll));
     }
 

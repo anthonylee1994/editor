@@ -60,7 +60,7 @@ pub enum ShellKind {
 }
 
 pub fn get_system_shell() -> String {
-    env::var("SHELL").unwrap_or("/bin/sh".to_string())
+    env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string())
 }
 
 pub fn get_default_system_shell() -> String {

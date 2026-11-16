@@ -104,7 +104,7 @@ actions!(
 
 /// ConfirmInput is an alternative editor action which - instead of selecting active picker entry - treats pickers editor input literally,
 /// performing some kind of action on it.
-#[derive(Clone, PartialEq, Deserialize, Default, Action)]
+#[derive(Clone, PartialEq, Eq, Deserialize, Default, Action)]
 #[action(namespace = picker)]
 #[serde(deny_unknown_fields)]
 pub struct ConfirmInput {
@@ -149,7 +149,7 @@ pub struct Picker<D: PickerDelegate> {
     reopenable: bool,
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum PickerEditorPosition {
     #[default]
     /// Render the editor at the start of the picker. Usually the top

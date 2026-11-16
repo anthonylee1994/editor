@@ -150,13 +150,14 @@ impl<'a> Parser<'a> {
             return Ok(());
         }
         let actor = self.actor()?;
-        let mut config = None;
-        if self.kind() == T::ConfigStart && self.token(self.i - 1).kind == T::Actor {
+        let config = if self.kind() == T::ConfigStart && self.token(self.i - 1).kind == T::Actor {
             self.i += 1;
             let content = self.expect(T::ConfigContent)?;
             self.expect(T::ConfigEnd)?;
-            config = Some(trim(content).to_owned());
-        }
+            Some(trim(content).to_owned())
+        } else {
+            None
+        };
         let draw = if t == T::Participant { "participant" } else { "actor" };
         let mut description = None;
         if self.kind() == T::As {

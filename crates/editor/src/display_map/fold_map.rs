@@ -263,7 +263,7 @@ impl FoldMapWriter<'_> {
         let buffer = &snapshot.buffer;
         for range in ranges {
             let range = range.start.to_offset(buffer)..range.end.to_offset(buffer);
-            let mut folds_cursor = intersecting_folds(&snapshot, &self.0.snapshot.folds, range.clone(), inclusive);
+            let mut folds_cursor = intersecting_folds(&snapshot, &self.0.snapshot.folds, range, inclusive);
             while let Some(fold) = folds_cursor.item() {
                 let offset_range = fold.range.start.to_offset(buffer)..fold.range.end.to_offset(buffer);
                 if should_unfold(fold) {
@@ -317,7 +317,7 @@ impl FoldMapWriter<'_> {
                 let buffer_end = metadata.range.end.to_offset(buffer);
                 let inlay_range =
                     inlay_snapshot.to_inlay_offset(buffer_start)..inlay_snapshot.to_inlay_offset(buffer_end);
-                edits.push(InlayEdit { old: inlay_range.clone(), new: inlay_range.clone() });
+                edits.push(InlayEdit { old: inlay_range.clone(), new: inlay_range });
 
                 self.0
                     .snapshot
@@ -502,7 +502,7 @@ impl FoldMap {
                             Transform {
                                 summary: TransformSummary {
                                     output: MBTextSummary::from(placeholder_text.as_ref()),
-                                    input: inlay_snapshot.text_summary_for_range(fold_range.start..fold_range.end),
+                                    input: inlay_snapshot.text_summary_for_range(fold_range),
                                 },
                                 placeholder: Some(TransformPlaceholder {
                                     text: placeholder_text,

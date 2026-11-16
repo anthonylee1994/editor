@@ -252,11 +252,11 @@ pub(crate) fn shape_size(shape: &str, tw: f64, th: f64) -> ShapeSize {
             ShapeSize { dy: ry / 2.0, h: th + 2.0 * PAD_Y + 2.0 * ry, w }
         }
         "circle" => {
-            let d = ((tw * tw + th * th).sqrt() + 16.0).max(44.0);
+            let d = (tw.hypot(th) + 16.0).max(44.0);
             size(d, d)
         }
         "dbl-circ" => {
-            let d = ((tw * tw + th * th).sqrt() + 26.0).max(54.0);
+            let d = (tw.hypot(th) + 26.0).max(54.0);
             size(d, d)
         }
         "ellipse" => size(tw * 1.3 + 2.0 * PAD_X, th * 1.2 + 2.0 * PAD_Y),

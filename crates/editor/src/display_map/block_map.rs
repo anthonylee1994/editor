@@ -1553,7 +1553,7 @@ impl BlockMapReader<'_> {
         let end_wrap_row = self
             .wrap_snapshot
             .next_row_boundary(WrapPoint::new(wrap_row, 0))
-            .unwrap_or(self.wrap_snapshot.max_point().row() + WrapRow(1));
+            .unwrap_or_else(|| self.wrap_snapshot.max_point().row() + WrapRow(1));
 
         let mut cursor = self.transforms.cursor::<Dimensions<WrapRow, BlockRow>>(());
         cursor.seek(&start_wrap_row, Bias::Left);
@@ -1653,7 +1653,7 @@ impl BlockMapWriter<'_> {
                     let start_row = wrap_snapshot.prev_row_boundary(WrapPoint::new(start_wrap_row, 0));
                     let end_row = wrap_snapshot
                         .next_row_boundary(WrapPoint::new(end_wrap_row, 0))
-                        .unwrap_or(wrap_snapshot.max_point().row() + WrapRow(1));
+                        .unwrap_or_else(|| wrap_snapshot.max_point().row() + WrapRow(1));
                     start_row..end_row
                 });
                 (range.start, range.end)
@@ -1739,7 +1739,7 @@ impl BlockMapWriter<'_> {
                     let start = wrap_snapshot.prev_row_boundary(WrapPoint::new(start_wrap_row, 0));
                     let end = wrap_snapshot
                         .next_row_boundary(WrapPoint::new(end_wrap_row, 0))
-                        .unwrap_or(wrap_snapshot.max_point().row() + WrapRow(1));
+                        .unwrap_or_else(|| wrap_snapshot.max_point().row() + WrapRow(1));
                     edits.push(Edit { old: start..end, new: start..end })
                 }
             }
@@ -1779,7 +1779,7 @@ impl BlockMapWriter<'_> {
                             let start_row = wrap_snapshot.prev_row_boundary(WrapPoint::new(start_wrap_row, 0));
                             let end_row = wrap_snapshot
                                 .next_row_boundary(WrapPoint::new(end_wrap_row, 0))
-                                .unwrap_or(wrap_snapshot.max_point().row() + WrapRow(1));
+                                .unwrap_or_else(|| wrap_snapshot.max_point().row() + WrapRow(1));
                             start_row..end_row
                         });
                         (range.start, range.end)
@@ -2336,20 +2336,15 @@ impl<'a> Iterator for BlockChunks<'a> {
         self.input_chunk.chars >>= prefix_bytes.saturating_sub(1);
         self.input_chunk.newlines >>= prefix_bytes.saturating_sub(1);
 
-        let mut tabs = self.input_chunk.tabs;
-        let mut chars = self.input_chunk.chars;
-        let mut newlines = self.input_chunk.newlines;
-
-        if self.masked {
+        let (tabs, chars, newlines) = if self.masked {
             // Not great for multibyte text because to keep cursor math correct we
             // need to have the same number of chars in the input as output.
-            let chars_count = prefix.chars().count();
-            let bullet_len = chars_count;
+            let bullet_len = prefix.chars().count();
             prefix = unsafe { str::from_utf8_unchecked(&BULLETS[..bullet_len]) };
-            chars = 1u128.unbounded_shl(bullet_len as u32).wrapping_sub(1);
-            tabs = 0;
-            newlines = 0;
-        }
+            (0, 1u128.unbounded_shl(bullet_len as u32).wrapping_sub(1), 0)
+        } else {
+            (self.input_chunk.tabs, self.input_chunk.chars, self.input_chunk.newlines)
+        };
 
         let chunk = Chunk { text: prefix, tabs, chars, newlines, ..self.input_chunk.clone() };
 

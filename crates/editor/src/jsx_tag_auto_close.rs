@@ -56,13 +56,15 @@ pub(crate) fn should_auto_close(
         let Some(node) = layer.node().named_descendant_for_byte_range(edited_range.start, edited_range.end) else {
             continue;
         };
-        let mut jsx_open_tag_node = node;
-        if node.grammar_name() != config.open_tag_node_name
-            && let Some(parent) = node.parent()
-            && parent.grammar_name() == config.open_tag_node_name
-        {
-            jsx_open_tag_node = parent;
-        }
+        let jsx_open_tag_node = match node.parent() {
+            Some(parent)
+                if node.grammar_name() != config.open_tag_node_name
+                    && parent.grammar_name() == config.open_tag_node_name =>
+            {
+                parent
+            }
+            _ => node,
+        };
         if jsx_open_tag_node.grammar_name() != config.open_tag_node_name {
             continue;
         }
@@ -110,7 +112,7 @@ pub(crate) fn generate_auto_close_edits(
                 node.kind() == config.tag_name_node_name
                     || config.tag_name_node_name_alternates.iter().any(|alternate| alternate == node.kind())
             })
-            .map_or("".to_string(), |node| buffer.text_for_range(node.byte_range()).collect::<String>());
+            .map_or_else(|| "".to_string(), |node| buffer.text_for_range(node.byte_range()).collect::<String>());
 
         /*
          * Naive check to see if the tag is already closed
@@ -239,12 +241,7 @@ pub(crate) fn generate_auto_close_edits(
             let mut stack = Vec::with_capacity(tree_root_node.descendant_count());
             stack.extend(tree_root_node.children(&mut cursor));
 
-            let mut has_erroneous_close_tag = false;
-            let mut erroneous_close_tag_node_name = "";
-            if let Some(name) = config.erroneous_close_tag_node_name.as_deref() {
-                has_erroneous_close_tag = true;
-                erroneous_close_tag_node_name = name;
-            }
+            let erroneous_close_tag_node_name = config.erroneous_close_tag_node_name.as_deref();
 
             let is_after_open_tag =
                 |node: &Node| node.start_byte() < open_tag.start_byte() && node.end_byte() < open_tag.start_byte();
@@ -264,7 +261,7 @@ pub(crate) fn generate_auto_close_edits(
                     if tag_node_name_equals(&node, &tag_name) {
                         unclosed_open_tag_count -= 1;
                     }
-                } else if has_erroneous_close_tag && kind == erroneous_close_tag_node_name {
+                } else if erroneous_close_tag_node_name == Some(kind) {
                     if tag_node_name_equals(&node, &tag_name) && !is_after_open_tag(&node) {
                         unclosed_open_tag_count -= 1;
                     }

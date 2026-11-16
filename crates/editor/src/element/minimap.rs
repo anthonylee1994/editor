@@ -270,7 +270,7 @@ impl EditorElement {
     }
 
     fn get_minimap_line_height(&self, font_size: AbsoluteLength, window: &Window, cx: &App) -> Pixels {
-        let rem_size = self.rem_size(cx).unwrap_or(window.rem_size());
+        let rem_size = self.rem_size(cx).unwrap_or_else(|| window.rem_size());
         let mut text_style = self.style.text.clone();
         text_style.font_size = font_size;
         text_style.line_height_in_pixels(rem_size)

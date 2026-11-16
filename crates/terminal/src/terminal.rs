@@ -1425,7 +1425,7 @@ impl Terminal {
         let target = if is_url {
             if let Some(path) = maybe_url_or_path.strip_prefix("file://") {
                 let decoded_path =
-                    urlencoding::decode(path).map(|decoded| decoded.into_owned()).unwrap_or(path.to_owned());
+                    urlencoding::decode(path).map(|decoded| decoded.into_owned()).unwrap_or_else(|_| path.to_owned());
 
                 MaybeNavigationTarget::PathLike(PathLikeTarget { maybe_path: decoded_path, working_directory })
             } else {
@@ -1965,13 +1965,13 @@ impl Terminal {
 
     pub fn focus_in(&self) {
         if self.last_content.mode.contains(Modes::FOCUS_IN_OUT) {
-            self.write_to_pty("\x1b[I".as_bytes());
+            self.write_to_pty(b"\x1b[I");
         }
     }
 
     pub fn focus_out(&mut self) {
         if self.last_content.mode.contains(Modes::FOCUS_IN_OUT) {
-            self.write_to_pty("\x1b[O".as_bytes());
+            self.write_to_pty(b"\x1b[O");
         }
     }
 

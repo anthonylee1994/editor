@@ -322,7 +322,7 @@ pub enum Visibility {
 }
 
 /// The possible values of the box-shadow property
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BoxShadow {
     /// What color should the shadow have?
     pub color: Hsla,
@@ -754,7 +754,7 @@ pub struct StrikethroughStyle {
 }
 
 /// The kinds of fill that can be applied to a shape.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Fill {
     /// A solid color fill.
     Color(Background),

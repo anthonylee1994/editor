@@ -765,7 +765,7 @@ impl BufferDiffSnapshot {
                 Arc::from(buffer.text_for_range(buffer_offset_range).collect::<String>())
             } else {
                 log::debug!("unstaging hunk {:?}", buffer_offset_range);
-                Arc::from(head_text.chunks_in_range(diff_base_byte_range.clone()).collect::<String>())
+                Arc::from(head_text.chunks_in_range(diff_base_byte_range).collect::<String>())
             };
 
             // Distinct worktree hunks can project to touching index ranges
@@ -807,12 +807,11 @@ impl BufferDiffSnapshot {
         let mut pending_hunks_cursor = self.pending_hunks.cursor::<DiffHunkSummary>(buffer);
         pending_hunks_cursor.next();
 
-        let mut secondary_cursor = None;
-        if let Some(secondary) = secondary.as_ref() {
+        let mut secondary_cursor = secondary.as_ref().map(|secondary| {
             let mut cursor = secondary.hunks.cursor::<DiffHunkSummary>(buffer);
             cursor.next();
-            secondary_cursor = Some(cursor);
-        }
+            cursor
+        });
 
         let max_point = buffer.max_point();
         let mut summaries = buffer.summaries_for_anchors_with_payload::<Point, _, _>(anchor_iter);
@@ -1105,7 +1104,8 @@ fn compare_hunks(
                         has_changes = true;
                         extended_end_candidate = None;
                         start.get_or_insert(new_hunk.buffer_range.start);
-                        base_text_start.get_or_insert(new_base_text.anchor_before(new_hunk.diff_base_byte_range.start));
+                        base_text_start
+                            .get_or_insert_with(|| new_base_text.anchor_before(new_hunk.diff_base_byte_range.start));
                         end.replace(new_hunk.buffer_range.end);
                         let new_diff_range_end = new_base_text.anchor_after(new_hunk.diff_base_byte_range.end);
                         if base_text_end
@@ -1124,8 +1124,9 @@ fn compare_hunks(
                             has_changes = true;
                             extended_end_candidate = None;
                             start.get_or_insert(new_hunk.buffer_range.start);
-                            base_text_start
-                                .get_or_insert(new_base_text.anchor_before(new_hunk.diff_base_byte_range.start));
+                            base_text_start.get_or_insert_with(|| {
+                                new_base_text.anchor_before(new_hunk.diff_base_byte_range.start)
+                            });
                             if old_hunk.buffer_range.end.cmp(&new_hunk.buffer_range.end, new_snapshot).is_ge() {
                                 end.replace(old_hunk.buffer_range.end);
                             } else {
@@ -1153,7 +1154,8 @@ fn compare_hunks(
                         has_changes = true;
                         extended_end_candidate = None;
                         start.get_or_insert(old_hunk.buffer_range.start);
-                        base_text_start.get_or_insert(old_base_text.anchor_after(old_hunk.diff_base_byte_range.start));
+                        base_text_start
+                            .get_or_insert_with(|| old_base_text.anchor_after(old_hunk.diff_base_byte_range.start));
                         end.replace(old_hunk.buffer_range.end);
                         let old_diff_range_end = old_base_text.anchor_after(old_hunk.diff_base_byte_range.end);
                         if base_text_end
@@ -1169,7 +1171,7 @@ fn compare_hunks(
                 has_changes = true;
                 extended_end_candidate = None;
                 start.get_or_insert(new_hunk.buffer_range.start);
-                base_text_start.get_or_insert(new_base_text.anchor_after(new_hunk.diff_base_byte_range.start));
+                base_text_start.get_or_insert_with(|| new_base_text.anchor_after(new_hunk.diff_base_byte_range.start));
                 if end.is_none_or(|end| end.cmp(&new_hunk.buffer_range.end, new_snapshot).is_le()) {
                     end.replace(new_hunk.buffer_range.end);
                 }
@@ -1185,7 +1187,7 @@ fn compare_hunks(
                 has_changes = true;
                 extended_end_candidate = None;
                 start.get_or_insert(old_hunk.buffer_range.start);
-                base_text_start.get_or_insert(old_base_text.anchor_after(old_hunk.diff_base_byte_range.start));
+                base_text_start.get_or_insert_with(|| old_base_text.anchor_after(old_hunk.diff_base_byte_range.start));
                 if end.is_none_or(|end| end.cmp(&old_hunk.buffer_range.end, new_snapshot).is_le()) {
                     end.replace(old_hunk.buffer_range.end);
                 }
@@ -1207,7 +1209,7 @@ fn compare_hunks(
 
     let extended_range = if has_changes && let Some(changed_range) = changed_range.clone() {
         let extended_start = *last_unchanged_new_hunk_end
-            .unwrap_or(text::Anchor::min_for_buffer(new_snapshot.buffer_id()))
+            .unwrap_or_else(|| text::Anchor::min_for_buffer(new_snapshot.buffer_id()))
             .min(&changed_range.start, new_snapshot);
         let extended_start = new_snapshot
             .anchored_edits_since_in_range::<usize>(old_snapshot.version(), extended_start..changed_range.start)
@@ -1216,7 +1218,7 @@ fn compare_hunks(
             .unwrap_or(changed_range.start);
 
         let extended_end = *extended_end_candidate
-            .unwrap_or(text::Anchor::max_for_buffer(new_snapshot.buffer_id()))
+            .unwrap_or_else(|| text::Anchor::max_for_buffer(new_snapshot.buffer_id()))
             .max(&changed_range.end, new_snapshot);
         let extended_end = new_snapshot
             .anchored_edits_since_in_range::<usize>(old_snapshot.version(), changed_range.end..extended_end)

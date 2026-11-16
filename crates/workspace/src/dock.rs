@@ -316,7 +316,7 @@ impl DockPosition {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PanelSizeState {
     pub size: Option<Pixels>,
 }

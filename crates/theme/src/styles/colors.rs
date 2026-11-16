@@ -13,7 +13,7 @@ use crate::CursorColors;
 use crate::StatusColors;
 use crate::SystemColors;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ThemeColors {
     /// Border color. Used for most borders, is usually a high contrast color.
     pub border: Hsla,
@@ -564,7 +564,7 @@ pub fn all_theme_colors(cx: &mut App) -> Vec<(Hsla, SharedString)> {
         .collect()
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct ThemeStyles {
     /// The background appearance of the window.
     pub window_background_appearance: WindowBackgroundAppearance,

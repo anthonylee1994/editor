@@ -985,8 +985,9 @@ impl MacWindowState {
     }
 
     fn content_size(&self) -> Size<Pixels> {
-        let NSSize { width, height } =
-            unsafe { ns_window(self.native_window) }.contentView().map_or(NSSize::default(), |view| view.frame().size);
+        let NSSize { width, height } = unsafe { ns_window(self.native_window) }
+            .contentView()
+            .map_or_else(NSSize::default, |view| view.frame().size);
         size(px(width as f32), px(height as f32))
     }
 
@@ -1760,7 +1761,7 @@ impl PlatformWindow for MacWindow {
     fn set_document_path(&self, path: Option<&Path>) {
         unsafe {
             let window = self.0.lock().native_window;
-            let filename = path.map_or(ns_string(""), |p| ns_string(&p.to_string_lossy()));
+            let filename = path.map_or_else(|| ns_string(""), |p| ns_string(&p.to_string_lossy()));
             let _: () = msg_send![window, setRepresentedFilename: filename];
         }
 
@@ -2303,7 +2304,8 @@ fn handle_key_event(this: &AnyObject, native_event: id, key_equivalent: bool) ->
 
                 let handled = unsafe { input_context_handle_event(this, native_event) };
                 window_state.as_ref().lock().keystroke_for_do_command.take();
-                if let Some(handled) = window_state.as_ref().lock().do_command_handled.take() {
+                let do_command_handled = window_state.as_ref().lock().do_command_handled.take();
+                if let Some(handled) = do_command_handled {
                     return handled;
                 } else if handled {
                     return true;

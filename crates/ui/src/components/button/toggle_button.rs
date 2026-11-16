@@ -164,7 +164,7 @@ impl ButtonBuilder for ToggleButtonWithIcon {
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ToggleButtonGroupStyle {
     Transparent,
     Filled,

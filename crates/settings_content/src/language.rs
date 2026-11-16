@@ -81,7 +81,9 @@ pub enum ShowWhitespaceSetting {
 }
 
 /// The behavior of `editor::Rewrap`.
-#[derive(Debug, PartialEq, Clone, Copy, Default, Serialize, Deserialize, strum::VariantArray, strum::VariantNames)]
+#[derive(
+    Debug, PartialEq, Eq, Clone, Copy, Default, Serialize, Deserialize, strum::VariantArray, strum::VariantNames,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum RewrapBehavior {
     /// Only rewrap within comments.

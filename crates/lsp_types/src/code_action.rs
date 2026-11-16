@@ -134,7 +134,7 @@ pub struct CodeActionParams {
 /// response for CodeActionRequest
 pub type CodeActionResponse = Vec<CodeActionOrCommand>;
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum CodeActionOrCommand {
     Command(Command),
@@ -237,7 +237,7 @@ impl From<&'static str> for CodeActionKind {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CodeAction {
     /// A short, human-readable, title for this code action.

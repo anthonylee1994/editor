@@ -593,7 +593,7 @@ pub(crate) fn settings() -> LanguageSettings {
         wrap_guides: vec![120],
         format_on_save: FormatOnSave::On,
         formatter: FormatterList::Single(Formatter::Auto),
-        code_actions_on_format: [("source.organizeImports".into(), true)].into_iter().collect(),
+        code_actions_on_format: std::iter::once(("source.organizeImports".into(), true)).collect(),
         remove_trailing_whitespace_on_save: true,
         ensure_final_newline_on_save: true,
         document_symbols: DocumentSymbols::On,

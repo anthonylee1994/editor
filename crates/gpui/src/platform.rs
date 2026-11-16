@@ -1330,7 +1330,7 @@ pub struct WindowParams {
 }
 
 /// Represents the status of how a window should be opened.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum WindowBounds {
     /// Indicates that the window should open in a windowed state with the given bounds.
     Windowed(Bounds<Pixels>),
@@ -1457,7 +1457,7 @@ pub enum WindowAppearance {
 
 /// The appearance of the background of the window itself, when there is
 /// no content or the content is transparent.
-#[derive(Copy, Clone, Debug, Default, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub enum WindowBackgroundAppearance {
     /// Opaque.
     ///
@@ -1506,7 +1506,7 @@ pub struct PathPromptOptions {
 }
 
 /// What kind of prompt styling to show
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum PromptLevel {
     /// A prompt that is shown when the user should be notified of something
     Info,
@@ -1519,7 +1519,7 @@ pub enum PromptLevel {
 }
 
 /// Prompt Button
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PromptButton {
     /// Ok button
     Ok(SharedString),

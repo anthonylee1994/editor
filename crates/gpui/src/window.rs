@@ -1672,7 +1672,7 @@ impl Window {
                 handle
                     .update(&mut cx, |_, window, cx| window.dispatch_event(event, cx))
                     .log_err()
-                    .unwrap_or(DispatchEventResult::default())
+                    .unwrap_or_else(DispatchEventResult::default)
             })
         });
         platform_window.on_hit_test_window_control({
@@ -2673,10 +2673,7 @@ impl Window {
         }
         let draw_start = self.frame_stats.is_some().then(Instant::now);
         let shaped_before = self.frame_stats.is_some().then(|| self.text_system().shaped_line_count());
-        let mut phase_times: Option<(Duration, Duration)> = None;
-        if !cx.mode.skip_drawing() {
-            phase_times = self.draw_roots(cx);
-        }
+        let phase_times = if cx.mode.skip_drawing() { None } else { self.draw_roots(cx) };
         self.dirty_views.clear();
         self.next_frame.window_active = self.active.get();
 
@@ -3978,7 +3975,7 @@ impl Window {
         for frame_index in 0..data.frame_count() {
             let params = RenderImageParams { image_id: data.id, frame_index };
 
-            self.sprite_atlas.remove(&params.clone().into());
+            self.sprite_atlas.remove(&params.into());
         }
 
         Ok(())

@@ -348,9 +348,8 @@ fn main() {
 }
 
 fn handle_open_request(request: OpenRequest, app_state: Arc<AppState>, cx: &App) {
-    let mut task = None;
-    if !request.open_paths.is_empty() || !request.diff_paths.is_empty() {
-        task = Some(cx.spawn(async move |cx| {
+    let task = if !request.open_paths.is_empty() || !request.diff_paths.is_empty() {
+        Some(cx.spawn(async move |cx| {
             let paths_with_position = derive_paths_with_position(app_state.fs.as_ref(), request.open_paths).await;
             let (_window, results) = open_paths_with_positions(
                 &paths_with_position,
@@ -367,8 +366,10 @@ fn handle_open_request(request: OpenRequest, app_state: Arc<AppState>, cx: &App)
                 }
             }
             anyhow::Ok(())
-        }));
-    }
+        }))
+    } else {
+        None
+    };
 
     if let Some(task) = task {
         cx.spawn(async move |cx| {
