@@ -7,6 +7,7 @@ edition.workspace = true
 path = "src/language.rs"
 
 [dependencies]
+async_macos.workspace = true
 anyhow.workspace = true
 async-trait.workspace = true
 clock.workspace = true
@@ -14,7 +15,6 @@ encoding_rs.workspace = true
 file_content.workspace = true
 fs.workspace = true
 futures.workspace = true
-futures-lite.workspace = true
 fuzzy_nucleo.workspace = true
 globset.workspace = true
 gpui.workspace = true

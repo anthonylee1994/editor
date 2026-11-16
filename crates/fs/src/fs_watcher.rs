@@ -9,6 +9,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
+use async_channel::Sender;
 use futures::Stream;
 use futures::StreamExt as _;
 use gpui::BackgroundExecutor;
@@ -16,7 +17,6 @@ use gpui::Task;
 use notify::Event;
 use notify::EventKind;
 use parking_lot::Mutex;
-use smol::channel::Sender;
 use util::ResultExt;
 use util::paths::SanitizedPath;
 
@@ -334,7 +334,7 @@ async fn poll_path_until_created(
         let case_insensitive = if fs.is_fake() {
             !fs.is_path_case_sensitive(&path)
         } else {
-            smol::unblock({
+            async_macos::unblock({
                 let path = path.clone();
                 let fs = fs.clone();
                 move || !fs.is_path_case_sensitive(&path)
@@ -355,7 +355,7 @@ async fn poll_path_until_created(
             let native_watcher = native_watcher.clone();
             move || register_existing_path(&native_watcher, path, case_insensitive, tx, pending_path_events)
         };
-        let registration = if fs.is_fake() { register() } else { smol::unblock(register).await };
+        let registration = if fs.is_fake() { register() } else { async_macos::unblock(register).await };
 
         match registration {
             Ok(registration) => {

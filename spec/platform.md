@@ -49,7 +49,18 @@ or UNC prefixes. There is no path-style abstraction; code uses
   git rev), not Zed's fork. PTYs are spawned off the main thread; the spawning
   thread temporarily takes the main thread's signal mask so the shell doesn't
   inherit blocked signals (Ctrl-C).
-- Subprocesses (`util::command::Command`) wrap `smol::process` with std
+- Async IO lives in the `async_macos` crate and runs on GCD dispatch sources, with no reactor,
+  reaper, or blocking-pool threads and no smol / async-io / tokio:
+  - Pipes and Unix sockets are non-blocking fds; a read/write source is
+    created on the first `WouldBlock` and stays suspended except while a task
+    waits on it.
+  - Each child gets a process source that reaps it on exit, so dropping a
+    `Child` never leaves a zombie and signals are never sent to a reaped pid.
+  - Blocking work (`async_macos::unblock`, `async_macos::fs`) runs on GCD's
+    default global queue, shared with background tasks. Trade-off: no
+    dedicated blocking pool, and queued work is not cancelled when its future
+    is dropped.
+- Subprocesses (`async_macos::command::Command`) wrap `std::process::Command` with std
   semantics (unset stdio is inherited). There is no custom `posix_spawn` path:
   it existed upstream only to reset Mach exception ports inherited from Zed's
   crash handler, and there is no crash handler.
@@ -67,7 +78,7 @@ or UNC prefixes. There is no path-style abstraction; code uses
 - Audio input and speech recognition are unsupported; the app requests no
   microphone or speech-recognition access. Background tasks use high, medium,
   or low priority, with no realtime audio scheduling.
-- No HTTP client and no Tokio: the app runs on gpui's executors and smol only.
+- No HTTP client and no Tokio: the app runs on gpui's executors and GCD only.
   Images load only from disk or embedded assets; gpui has no URI image source,
   and markdown preview skips `http`/`https` images like `data:` ones.
 - Image formats are PNG, JPEG, GIF, WebP and SVG only, for the image viewer,

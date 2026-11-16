@@ -1,5 +1,3 @@
-use futures_lite::future;
-
 use crate::diagnostic_renderer::DiagnosticRenderer;
 pub mod items;
 
@@ -834,7 +832,7 @@ async fn heuristic_syntactic_expand(
             return None;
         };
         node = parent;
-        future::yield_now().await;
+        async_macos::yield_now().await;
     }
 }
 

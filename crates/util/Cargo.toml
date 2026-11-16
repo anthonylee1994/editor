@@ -8,6 +8,7 @@ description = "A collection of utility structs and functions used by ed and GPUI
 path = "src/util.rs"
 
 [dependencies]
+async_macos.workspace = true
 anyhow.workspace = true
 globset.workspace = true
 gpui_util.workspace = true
@@ -23,7 +24,6 @@ dirs.workspace = true
 libc.workspace = true
 log.workspace = true
 shlex.workspace = true
-smol.workspace = true
 
 [lints]
 workspace = true

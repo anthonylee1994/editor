@@ -22,12 +22,19 @@ use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use async_channel::Sender;
+use async_macos::command::Command;
+use async_macos::command::Stdio;
+use async_macos::command::new_command;
 use file_content::ByteContent;
 use file_content::decode_byte_header;
 use futures::AsyncWriteExt;
 use futures::FutureExt as _;
 use futures::channel::oneshot;
 use futures::future::BoxFuture;
+use futures::io::AsyncBufRead;
+use futures::io::AsyncBufReadExt;
+use futures::io::AsyncReadExt;
+use futures::io::BufReader;
 use futures::io::BufWriter;
 use gpui::AppContext as _;
 use gpui::AsyncApp;
@@ -38,16 +45,9 @@ use rope::Rope;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use smallvec::SmallVec;
-use smol::io::AsyncBufRead;
-use smol::io::AsyncBufReadExt;
-use smol::io::AsyncReadExt;
-use smol::io::BufReader;
 use text::LineEnding;
 use thiserror::Error;
 use util::ResultExt;
-use util::command::Command;
-use util::command::Stdio;
-use util::command::new_command;
 use util::paths;
 use util::rel_path::RelPath;
 use util::shell::ShellKind;
@@ -550,7 +550,7 @@ async fn load_commit_object<R: AsyncBufRead + Unpin>(
 }
 
 async fn read_shallow_file(shallow_file_path: &Path) -> Result<Option<String>> {
-    match smol::fs::read_to_string(shallow_file_path).await {
+    match async_macos::fs::read_to_string(shallow_file_path).await {
         Ok(contents) => Ok(Some(contents)),
         Err(error) if error.kind() == ErrorKind::NotFound => Ok(None),
         Err(error) => Err(error).context("reading shallow file"),
@@ -1647,7 +1647,7 @@ impl GitRepository for RealGitRepository {
 
                 for (path, old) in recreated {
                     let full_path = working_directory.join(path.as_std_path());
-                    let metadata = match smol::fs::symlink_metadata(&full_path).await {
+                    let metadata = match async_macos::fs::symlink_metadata(&full_path).await {
                         Ok(metadata) => metadata,
                         Err(_) => continue,
                     };
@@ -1676,7 +1676,7 @@ impl GitRepository for RealGitRepository {
                     }
 
                     let hash_output = if metadata.file_type().is_symlink() {
-                        let target = smol::fs::read_link(&full_path).await?;
+                        let target = async_macos::fs::read_link(&full_path).await?;
                         let mut child = git
                             .build_command(&["hash-object", "--stdin"])
                             .stdin(Stdio::piped())
@@ -2998,7 +2998,8 @@ async fn run_git_command(
         };
         let program = ShellKind::Posix.try_quote(&program).context("Failed to quote signing program")?;
         let wrapper = signing_dir.path().join(default_program);
-        smol::fs::write(&wrapper, format!("#!/bin/sh\nexec {program} --batch --pinentry-mode error \"$@\"\n")).await?;
+        async_macos::fs::write(&wrapper, format!("#!/bin/sh\nexec {program} --batch --pinentry-mode error \"$@\"\n"))
+            .await?;
         util::fs::make_file_executable(&wrapper).await?;
         let index = config_count + offset;
         command.env(format!("GIT_CONFIG_KEY_{index}"), key).env(format!("GIT_CONFIG_VALUE_{index}"), &wrapper);

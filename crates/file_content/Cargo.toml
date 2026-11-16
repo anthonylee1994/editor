@@ -7,10 +7,10 @@ edition.workspace = true
 path = "src/file_content.rs"
 
 [dependencies]
+async_macos.workspace = true
 anyhow.workspace = true
 chardetng = "0.1"
 encoding_rs.workspace = true
-futures-lite.workspace = true
 
 [lints]
 workspace = true

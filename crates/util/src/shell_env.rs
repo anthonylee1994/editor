@@ -6,9 +6,9 @@ use std::process;
 
 use anyhow::Context as _;
 use anyhow::Result;
+use async_macos::command::Command;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
-use smol::process::Command;
 
 use crate::shell::ShellKind;
 
@@ -77,7 +77,7 @@ async fn capture_unix(
     args: &[String],
     directory: &Path,
 ) -> Result<rustc_hash::FxHashMap<String, String>> {
-    use crate::command::new_std_command;
+    use gpui_util::new_std_command;
 
     let shell_kind = ShellKind::new(shell_path);
     let quoted_ed_path = super::get_shell_safe_ed_path(shell_kind)?;

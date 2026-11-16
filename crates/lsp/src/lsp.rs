@@ -4,11 +4,10 @@ use std::mem;
 use std::process;
 use std::task::Context;
 
-use futures_lite::future as futures_lite_future;
+use async_macos::command;
 use lsp_types::error_codes::CONTENT_MODIFIED;
 use lsp_types::error_codes::REQUEST_FAILED;
 use lsp_types::error_codes::SERVER_CANCELLED;
-use util::command;
 mod input_handler;
 
 use std::any::TypeId;
@@ -32,6 +31,8 @@ use std::time::Instant;
 use anyhow::Context as _;
 use anyhow::Result;
 use anyhow::anyhow;
+use async_macos::command::Child;
+use async_macos::command::Stdio;
 use futures::AsyncBufReadExt;
 use futures::AsyncRead;
 use futures::AsyncWrite;
@@ -69,8 +70,6 @@ use serde_json::Value;
 use serde_json::json;
 use serde_json::value::RawValue;
 use util::ConnectionResult;
-use util::command::Child;
-use util::command::Stdio;
 
 const JSON_RPC_VERSION: &str = "2.0";
 const CONTENT_LEN_HEADER: &str = "Content-Length: ";
@@ -741,7 +740,7 @@ impl LanguageServer {
             }
 
             // Don't starve the main thread when receiving lots of notifications at once.
-            futures_lite_future::yield_now().await;
+            async_macos::yield_now().await;
         }
         input_handler.loop_handle.await
     }
@@ -777,7 +776,7 @@ impl LanguageServer {
             }
 
             // Don't starve the main thread when receiving lots of messages at once.
-            futures_lite_future::yield_now().await;
+            async_macos::yield_now().await;
         }
     }
 

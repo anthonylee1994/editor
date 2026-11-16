@@ -9,6 +9,7 @@ use std::fmt;
 use std::fmt::Display;
 use std::slice;
 
+use async_macos::command;
 use lsp::notification::DidChangeConfiguration;
 use lsp::notification::DidChangeTextDocument;
 use lsp::notification::DidChangeWatchedFiles;
@@ -39,7 +40,6 @@ use lsp::request::WorkspaceConfiguration;
 use lsp::request::WorkspaceDiagnosticRefresh;
 use lsp::request::WorkspaceFoldersRequest;
 use lsp::request::WorkspaceSymbolRequest;
-use util::command;
 pub mod code_lens;
 mod document_colors;
 mod document_links;
@@ -2209,7 +2209,7 @@ impl LocalLspStore {
         name: &str,
         cx: &mut AsyncApp,
     ) -> Result<Option<Diff>> {
-        use util::command::Stdio;
+        use async_macos::command::Stdio;
         let mut child = child.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn()?;
 
         let stdin = child.stdin.as_mut().context("failed to acquire stdin")?;

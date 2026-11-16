@@ -5,6 +5,7 @@ use std::io::Read;
 use std::io::{self};
 
 use anyhow::Result;
+use async_macos::yield_now;
 use chardetng::EncodingDetector;
 use encoding_rs::CoderResult;
 use encoding_rs::Decoder;
@@ -12,7 +13,6 @@ use encoding_rs::Encoding;
 use encoding_rs::UTF_8;
 use encoding_rs::UTF_16BE;
 use encoding_rs::UTF_16LE;
-use futures_lite::future::yield_now;
 
 /// Number of leading bytes that [`analyze_byte_content`] inspects.
 pub const FILE_ANALYSIS_BYTES: usize = 1024;

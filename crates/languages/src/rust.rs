@@ -13,6 +13,9 @@ use std::sync::Arc;
 use std::sync::LazyLock;
 
 use anyhow::Result;
+use async_macos::command::Stdio;
+use async_macos::command::new_command;
+use async_macos::fs;
 use async_trait::async_trait;
 use gpui::App;
 use gpui::AppContext;
@@ -37,14 +40,11 @@ use rustc_hash::FxHashMap;
 use serde_json::json;
 use settings::SemanticTokenRules;
 use smallvec::SmallVec;
-use smol::fs::{self};
 use task::TaskTemplate;
 use task::TaskTemplates;
 use task::TaskVariables;
 use task::VariableName;
 use util::ResultExt;
-use util::command::Stdio;
-use util::command::new_command;
 use util::merge_json_value_into;
 use util::rel_path::RelPath;
 
@@ -1146,14 +1146,14 @@ mod tests {
     fn existing_clippy_configs_finds_files_at_root() {
         let dir = test_dir("clippy_finds_files");
         let root = dir.as_path();
-        assert_eq!(smol::block_on(existing_clippy_configs(root)), Vec::<PathBuf>::new());
+        assert_eq!(futures::executor::block_on(existing_clippy_configs(root)), Vec::<PathBuf>::new());
 
         fs::write(root.join("clippy.toml"), "").unwrap();
-        assert_eq!(smol::block_on(existing_clippy_configs(root)), vec![root.join("clippy.toml")]);
+        assert_eq!(futures::executor::block_on(existing_clippy_configs(root)), vec![root.join("clippy.toml")]);
 
         fs::write(root.join(".clippy.toml"), "").unwrap();
         assert_eq!(
-            smol::block_on(existing_clippy_configs(root)),
+            futures::executor::block_on(existing_clippy_configs(root)),
             vec![root.join("clippy.toml"), root.join(".clippy.toml")]
         );
         fs::remove_dir_all(dir).unwrap();
@@ -1163,7 +1163,7 @@ mod tests {
     fn existing_clippy_configs_ignores_directories() {
         let dir = test_dir("clippy_ignores_dirs");
         fs::create_dir(dir.join("clippy.toml")).unwrap();
-        assert_eq!(smol::block_on(existing_clippy_configs(&dir)), Vec::<PathBuf>::new());
+        assert_eq!(futures::executor::block_on(existing_clippy_configs(&dir)), Vec::<PathBuf>::new());
         fs::remove_dir_all(dir).unwrap();
     }
 

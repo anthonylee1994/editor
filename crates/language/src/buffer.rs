@@ -25,13 +25,13 @@ use std::time::Instant;
 use std::vec;
 
 use anyhow::Result;
+use async_macos::yield_now;
 pub use bracket_ranges::BracketMatch;
 use encoding_rs::Encoding;
 use file_content::ByteContent;
 use file_content::decode_byte_header;
 use fs::MTime;
 use futures::channel::oneshot;
-use futures_lite::future::yield_now;
 use gpui::App;
 use gpui::AppContext as _;
 use gpui::Context;

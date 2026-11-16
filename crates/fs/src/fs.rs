@@ -10,9 +10,6 @@ use futures::channel::mpsc;
 use futures::channel::mpsc::UnboundedReceiver;
 use futures::channel::mpsc::UnboundedSender;
 use futures::channel::oneshot;
-use smol::fs::OpenOptions;
-use smol::fs::unix;
-use smol::io::BufWriter;
 pub mod fs_watcher;
 mod git_clone_progress;
 
@@ -39,7 +36,11 @@ use std::time::SystemTime;
 
 use anyhow::Context as _;
 use anyhow::Result;
+use async_macos::command::Stdio;
+use async_macos::command::new_command;
+use async_macos::unblock;
 use futures::AsyncRead;
+use futures::AsyncReadExt as _;
 use futures::Stream;
 use futures::StreamExt;
 use futures::future::BoxFuture;
@@ -56,11 +57,8 @@ use rope::Rope;
 use serde::Deserialize;
 use serde::Serialize;
 use slotmap::SlotMap;
-use smol::io::AsyncWriteExt;
 use tempfile::TempDir;
 use text::LineEnding;
-use util::command::Stdio;
-use util::command::new_command;
 
 pub trait Watcher: Send + Sync {
     fn add(&self, path: &Path) -> Result<()>;
@@ -430,36 +428,38 @@ fn read_dir_entries(path: PathBuf) -> Result<impl Send + Iterator<Item = Result<
 #[async_trait::async_trait]
 impl Fs for RealFs {
     async fn create_dir(&self, path: &Path) -> Result<()> {
-        Ok(smol::fs::create_dir_all(path).await?)
+        Ok(async_macos::fs::create_dir_all(path).await?)
     }
 
     async fn create_symlink(&self, path: &Path, target: PathBuf) -> Result<()> {
-        unix::symlink(target, path).await?;
+        async_macos::fs::symlink(target, path).await?;
 
         Ok(())
     }
 
     async fn create_file(&self, path: &Path, options: CreateOptions) -> Result<()> {
-        let mut open_options = OpenOptions::new();
+        let mut open_options = fs::OpenOptions::new();
         open_options.write(true).create(true);
         if options.overwrite {
             open_options.truncate(true);
         } else if !options.ignore_if_exists {
             open_options.create_new(true);
         }
-        open_options.open(path).await.with_context(|| format!("Failed to create file at {:?}", path))?;
+        let path = path.to_owned();
+        unblock(move || open_options.open(&path).with_context(|| format!("Failed to create file at {:?}", path)))
+            .await?;
         Ok(())
     }
 
-    async fn create_file_with(&self, path: &Path, content: Pin<&mut (dyn AsyncRead + Send)>) -> Result<()> {
-        let mut file =
-            smol::fs::File::create(&path).await.with_context(|| format!("Failed to create file at {:?}", path))?;
-        futures::io::copy(content, &mut file).await?;
+    async fn create_file_with(&self, path: &Path, mut content: Pin<&mut (dyn AsyncRead + Send)>) -> Result<()> {
+        let mut bytes = Vec::new();
+        content.read_to_end(&mut bytes).await?;
+        async_macos::fs::write(path, bytes).await.with_context(|| format!("Failed to create file at {:?}", path))?;
         Ok(())
     }
 
     async fn copy_file(&self, source: &Path, target: &Path, options: CopyOptions) -> Result<()> {
-        if !options.overwrite && smol::fs::metadata(target).await.is_ok() {
+        if !options.overwrite && async_macos::fs::metadata(target).await.is_ok() {
             if options.ignore_if_exists {
                 return Ok(());
             } else {
@@ -467,7 +467,7 @@ impl Fs for RealFs {
             }
         }
 
-        smol::fs::copy(source, target).await?;
+        async_macos::fs::copy(source, target).await?;
         Ok(())
     }
 
@@ -479,7 +479,7 @@ impl Fs for RealFs {
         }
 
         if options.overwrite {
-            smol::fs::rename(source, target).await?;
+            async_macos::fs::rename(source, target).await?;
             return Ok(());
         }
 
@@ -513,7 +513,7 @@ impl Fs for RealFs {
             }
         };
 
-        if use_metadata_fallback && smol::fs::metadata(target).await.is_ok() {
+        if use_metadata_fallback && async_macos::fs::metadata(target).await.is_ok() {
             if options.ignore_if_exists {
                 return Ok(());
             } else {
@@ -521,13 +521,16 @@ impl Fs for RealFs {
             }
         }
 
-        smol::fs::rename(source, target).await?;
+        async_macos::fs::rename(source, target).await?;
         Ok(())
     }
 
     async fn remove_dir(&self, path: &Path, options: RemoveOptions) -> Result<()> {
-        let result =
-            if options.recursive { smol::fs::remove_dir_all(path).await } else { smol::fs::remove_dir(path).await };
+        let result = if options.recursive {
+            async_macos::fs::remove_dir_all(path).await
+        } else {
+            async_macos::fs::remove_dir(path).await
+        };
         match result {
             Ok(()) => Ok(()),
             Err(err) if err.kind() == io::ErrorKind::NotFound && options.ignore_if_not_exists => Ok(()),
@@ -536,7 +539,7 @@ impl Fs for RealFs {
     }
 
     async fn remove_file(&self, path: &Path, options: RemoveOptions) -> Result<()> {
-        match smol::fs::remove_file(path).await {
+        match async_macos::fs::remove_file(path).await {
             Ok(()) => Ok(()),
             Err(err) if err.kind() == io::ErrorKind::NotFound && options.ignore_if_not_exists => Ok(()),
             Err(err) => Err(err)?,
@@ -552,7 +555,7 @@ impl Fs for RealFs {
         // its target and leave the link behind.
         let path = path::absolute(path).context("Could not make the path absolute")?;
 
-        let item = smol::unblock(move || trash::delete_with_info(path)).await.context("Could not trash file or dir")?;
+        let item = unblock(move || trash::delete_with_info(path)).await.context("Could not trash file or dir")?;
 
         Ok(self.trash.lock().insert(item))
     }
@@ -584,7 +587,7 @@ impl Fs for RealFs {
     }
 
     async fn atomic_write(&self, path: PathBuf, data: String) -> Result<()> {
-        smol::unblock(move || {
+        unblock(move || {
             // Use the directory of the destination as temp dir to avoid
             // invalid cross-device link error, and XDG_CACHE_DIR for fallback.
             // See https://github.com/zed-industries/zed/pull/8437 for more details.
@@ -603,13 +606,18 @@ impl Fs for RealFs {
         if let Some(path) = path.parent() {
             self.create_dir(path).await.with_context(|| format!("Failed to create directory at {:?}", path))?;
         }
-        let file =
-            smol::fs::File::create(path).await.with_context(|| format!("Failed to create file at {:?}", path))?;
-        let mut writer = BufWriter::with_capacity(buffer_size, file);
-        for chunk in text::chunks_with_line_ending(text, line_ending) {
-            writer.write_all(chunk.as_bytes()).await?;
-        }
-        writer.flush().await?;
+        let path = path.to_owned();
+        let text = text.clone();
+        unblock(move || {
+            let file = File::create(&path).with_context(|| format!("Failed to create file at {:?}", path))?;
+            let mut writer = io::BufWriter::with_capacity(buffer_size, file);
+            for chunk in text::chunks_with_line_ending(&text, line_ending) {
+                writer.write_all(chunk.as_bytes())?;
+            }
+            writer.flush()?;
+            anyhow::Ok(())
+        })
+        .await?;
         Ok(())
     }
 

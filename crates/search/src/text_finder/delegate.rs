@@ -31,6 +31,7 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::time::Instant;
 
+use async_macos::yield_now;
 use editor::EXCERPT_CONTEXT_LINES;
 use editor::Editor;
 use editor::MultiBufferSnapshot;
@@ -70,7 +71,6 @@ use project::search::SearchQuery;
 use project::search::SearchResult;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
-use smol::future::yield_now;
 use text::Anchor;
 use ui::Disclosure;
 use ui::Divider;

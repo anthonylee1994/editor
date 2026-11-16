@@ -6,8 +6,6 @@ use std::mem::MaybeUninit;
 use std::path::Path;
 use std::ptr;
 
-pub mod command;
-
 pub mod fs;
 
 pub mod process;

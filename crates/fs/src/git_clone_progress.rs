@@ -1,7 +1,7 @@
 use std::io;
 
 use futures::AsyncRead;
-use smol::io::AsyncReadExt;
+use futures::io::AsyncReadExt;
 
 pub(crate) async fn read(
     mut stderr: impl AsyncRead + Unpin,

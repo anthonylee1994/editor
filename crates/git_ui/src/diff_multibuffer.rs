@@ -4,6 +4,7 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use anyhow::Result;
+use async_macos::yield_now;
 use buffer_diff::BufferDiff;
 use editor::DiffViewStyle;
 use editor::EXCERPT_CONTEXT_LINES;
@@ -15,7 +16,6 @@ use editor::scroll::Autoscroll;
 use futures::FutureExt as _;
 use futures::StreamExt as _;
 use futures::stream;
-use futures_lite::future::yield_now;
 use git::repository::RepoPath;
 use git::status::FileStatus;
 use gpui::App;

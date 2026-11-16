@@ -2,23 +2,22 @@ use std::ops::Range;
 
 use anyhow::Context as _;
 use anyhow::Result;
+use async_macos::command::Stdio;
 use futures::AsyncWriteExt;
 use futures::TryFutureExt;
+use futures::io::AsyncBufReadExt;
+use futures::io::AsyncReadExt;
+use futures::io::BufReader;
 use futures::try_join;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde::Serialize;
-use smol::future;
-use smol::io::AsyncBufReadExt;
-use smol::io::AsyncReadExt;
-use smol::io::BufReader;
 use text::LineEnding;
 use text::Rope;
 use time::OffsetDateTime;
 use time::UtcOffset;
 use time::macros::format_description;
-use util::command::Stdio;
 
 use crate::Oid;
 use crate::commit::get_messages;
@@ -140,7 +139,7 @@ async fn run_git_blame(git: &GitBinary, path: &RepoPath, source: BlameSource<'_>
             lines_read += 1;
 
             if lines_read % BLAME_PARSE_YIELD_INTERVAL == 0 {
-                future::yield_now().await;
+                async_macos::yield_now().await;
             }
         }
 

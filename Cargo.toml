@@ -8,6 +8,7 @@ version = "2.0.2"
 edition = "2024"
 
 [workspace.dependencies]
+async_macos = { path = "crates/async_macos" }
 activity_indicator = { path = "crates/activity_indicator" }
 assets = { path = "crates/assets" }
 buffer_diff = { path = "crates/buffer_diff" }
@@ -107,7 +108,6 @@ dispatch2 = { version = "0.3", default-features = false, features = ["std"] }
 encoding_rs = "0.8"
 etagere = "0.2"
 futures = "0.3.34"
-futures-lite = "2"
 globset = "0.4"
 heapless = "0.9.2"
 ignore = "0.4.22"
@@ -168,7 +168,6 @@ shellexpand = "3.1"
 shlex = "2.0"
 slotmap = "1.0.6"
 smallvec = { version = "1.6", features = ["const_new", "union"] }
-smol = "2.0"
 strum = { version = "0.28", features = ["derive"] }
 syn = { version = "2.0", default-features = false, features = ["proc-macro"] }
 sysinfo = { version = "0.39", default-features = false, features = ["system"] }
@@ -261,7 +260,6 @@ panic = "abort"  # The panic hook logs and exits anyway, so unwinding buys nothi
 codegen-units = 1
 
 [patch.crates-io]
-async-process = { git = "https://github.com/zed-industries/async-process.git", rev = "0b6d6713570af61806e1e5cb40e0f757cb93fd9d" }
-async-task = { git = "https://github.com/zed-industries/async-task.git", rev = "015845a19fc31752c02367567d3b8900a406f9da" }
+async-task = { git = "https://github.com/smol-rs/async-task.git", rev = "41fd3359c75e221bd8b187a8ee361aa309c1714c" }
 notify = { git = "https://github.com/zed-industries/notify", rev = "d842f16b2716bd60f09caf3ae3a894237ab38f54" }
 notify-types = { git = "https://github.com/zed-industries/notify", rev = "d842f16b2716bd60f09caf3ae3a894237ab38f54" }

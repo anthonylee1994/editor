@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use anyhow::Context as _;
 use anyhow::Result;
+use async_macos::yield_now;
 use buffer_diff::BufferDiff;
 use editor::Addon;
 use editor::DiffViewStyle;
@@ -22,7 +23,6 @@ use editor::scroll::ScrollAnchor;
 use editor::scroll::ScrollOffset;
 use futures::StreamExt as _;
 use futures::stream;
-use futures_lite::future::yield_now;
 use git::Oid;
 use git::repository::CommitDetails;
 use git::repository::RepoPath;

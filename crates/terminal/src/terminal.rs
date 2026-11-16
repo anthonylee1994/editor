@@ -6,7 +6,6 @@ use std::mem;
 use futures::channel::mpsc::UnboundedSender;
 use futures::future;
 use futures::io::AsyncRead;
-use util::command;
 use util::process::Child;
 use util::shell;
 mod mappings;
@@ -41,11 +40,11 @@ use anyhow::Result;
 use anyhow::bail;
 use async_channel::Receiver;
 use async_channel::Sender;
+use async_macos::yield_now;
 use futures::FutureExt;
 use futures::StreamExt;
 use futures::channel::mpsc::UnboundedReceiver;
 use futures::channel::mpsc::unbounded;
-use futures_lite::future::yield_now;
 use gpui::App;
 use gpui::AppContext as _;
 use gpui::BackgroundExecutor;
@@ -2593,7 +2592,7 @@ fn spawn_task_subprocess(
 
     use futures::io::AsyncReadExt as _;
 
-    let mut command = command::new_std_command(&program);
+    let mut command = util::new_std_command(&program);
     command.args(&args);
     command.envs(&env);
     if let Some(directory) = &working_directory {

@@ -7,6 +7,7 @@ edition.workspace = true
 path = "src/search.rs"
 
 [dependencies]
+async_macos.workspace = true
 any_vec.workspace = true
 anyhow.workspace = true
 bitflags.workspace = true
@@ -25,7 +26,6 @@ project.workspace = true
 regex.workspace = true
 rustc-hash.workspace = true
 settings.workspace = true
-smol.workspace = true
 text.workspace = true
 ui.workspace = true
 util.workspace = true

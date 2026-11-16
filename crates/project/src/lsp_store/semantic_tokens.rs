@@ -4,6 +4,7 @@ use std::result;
 use std::slice::Iter;
 use std::sync::Arc;
 
+use async_macos::yield_now;
 use clock::Global;
 use futures::FutureExt as _;
 use futures::future::Shared;
@@ -22,7 +23,6 @@ use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use settings::SemanticTokenRule;
 use settings::SemanticTokenRules;
-use smol::future::yield_now;
 use text::Anchor;
 use text::Bias;
 use text::OffsetUtf16;

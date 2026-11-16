@@ -6,8 +6,6 @@
 # code style 
 - add complete clippy lint
 
-- review async crates, replace smol with tokio? (as smol dev seems to be stopped)
-
 # should add low power mode? or my laptop is powerful enough
 - Frame pacing (#63477, #66237): large changes to window.rs, and the macOS Low Power Mode part drags in Linux and Windows power code. I’d skip them unless you’ve noticed stutter in Low Power Mode.
 

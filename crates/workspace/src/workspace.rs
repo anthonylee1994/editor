@@ -3,7 +3,6 @@ use std::sync::atomic::Ordering;
 
 use ed_actions::mode::Editor;
 use ed_actions::mode::Terminal;
-use futures_lite::future;
 use ui::font;
 pub mod dock;
 pub mod history_manager;
@@ -2282,7 +2281,7 @@ impl Workspace {
                                 .unwrap_or(false);
 
                             if focus_changed {
-                                future::yield_now().await;
+                                async_macos::yield_now().await;
                             }
                         }
 

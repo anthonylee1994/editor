@@ -8,12 +8,11 @@ too-many-lines-threshold = 150
 warn-on-all-wildcard-imports = true
 
 disallowed-methods = [
-  { path = "std::process::Command::spawn", reason = "Spawning `std::process::Command` can block the current thread for an unknown duration", replacement = "smol::process::Command::spawn" },
-  { path = "std::process::Command::output", reason = "Spawning `std::process::Command` can block the current thread for an unknown duration", replacement = "smol::process::Command::output" },
-  { path = "std::process::Command::status", reason = "Spawning `std::process::Command` can block the current thread for an unknown duration", replacement = "smol::process::Command::status" },
-  { path = "std::process::Command::stdin", reason = "`smol::process::Command::from()` does not preserve stdio configuration", replacement = "smol::process::Command::stdin" },
-  { path = "std::process::Command::stdout", reason = "`smol::process::Command::from()` does not preserve stdio configuration", replacement = "smol::process::Command::stdout" },
-  { path = "std::process::Command::stderr", reason = "`smol::process::Command::from()` does not preserve stdio configuration", replacement = "smol::process::Command::stderr" },
-  { path = "smol::Timer::after", reason = "smol::Timer introduces non-determinism in tests", replacement = "gpui::BackgroundExecutor::timer" },
+  { path = "std::process::Command::spawn", reason = "Spawning `std::process::Command` can block the current thread for an unknown duration", replacement = "async_macos::command::Command::spawn" },
+  { path = "std::process::Command::output", reason = "Spawning `std::process::Command` can block the current thread for an unknown duration", replacement = "async_macos::command::Command::output" },
+  { path = "std::process::Command::status", reason = "Spawning `std::process::Command` can block the current thread for an unknown duration", replacement = "async_macos::command::Command::status" },
+  { path = "std::process::Command::stdin", reason = "`async_macos::command::Command::from()` does not preserve stdio configuration", replacement = "async_macos::command::Command::stdin" },
+  { path = "std::process::Command::stdout", reason = "`async_macos::command::Command::from()` does not preserve stdio configuration", replacement = "async_macos::command::Command::stdout" },
+  { path = "std::process::Command::stderr", reason = "`async_macos::command::Command::from()` does not preserve stdio configuration", replacement = "async_macos::command::Command::stderr" },
   { path = "serde_json::from_reader", reason = "Parsing from a buffer is much slower than first reading the buffer into a Vec/String, see https://github.com/serde-rs/json/issues/160#issuecomment-253446892. Use `serde_json::from_slice` instead." },
 ]

@@ -74,7 +74,6 @@ use project::search::SearchQuery;
 use project::search::SearchResult;
 use project::search_history::SearchHistoryCursor;
 use rustc_hash::FxHashMap;
-use smol::future;
 use text::OffsetRangeExt;
 use ui::CommonAnimationExt;
 use ui::IconButtonShape;
@@ -688,7 +687,7 @@ async fn consume_search_stream(
             while let Some((buffer, new_ranges)) = new_ranges.next().await {
                 // `new_ranges.next().await` likely never gets hit while still pending so `async_task`
                 // will not reschedule, starving other front end tasks, insert a yield point for that here
-                future::yield_now().await;
+                async_macos::yield_now().await;
                 project_search
                     .update(cx, |project_search, cx| {
                         let workspace = project_search.workspace.upgrade();
@@ -911,7 +910,7 @@ async fn apply_reused_chunk(
             })
             .ok()?;
         chunk_changed |= batch_changed;
-        future::yield_now().await;
+        async_macos::yield_now().await;
     }
     project_search
         .update(cx, |project_search, cx| {

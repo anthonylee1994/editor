@@ -7,6 +7,7 @@ edition.workspace = true
 path = "src/git_ui.rs"
 
 [dependencies]
+async_macos.workspace = true
 anyhow.workspace = true
 async-channel.workspace = true
 buffer_diff.workspace = true
@@ -15,7 +16,6 @@ ed_actions.workspace = true
 editor.workspace = true
 file_icons.workspace = true
 futures.workspace = true
-futures-lite.workspace = true
 fuzzy.workspace = true
 fuzzy_nucleo.workspace = true
 git.workspace = true

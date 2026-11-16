@@ -7,10 +7,10 @@ edition.workspace = true
 path = "src/lsp.rs"
 
 [dependencies]
+async_macos.workspace = true
 anyhow.workspace = true
 async-channel = { workspace = true, features = ["std"] }
 futures.workspace = true
-futures-lite.workspace = true
 gpui.workspace = true
 gpui_util.workspace = true
 log.workspace = true

@@ -3,32 +3,29 @@
 Question: do we still need the `[patch.crates-io]` git forks in the root
 `Cargo.toml`, or can we switch to the latest crates.io release?
 
-Snapshot: Oct 2026. Answer: keep all four for now.
+Snapshot: Oct 2026, async patches updated 2026-11-16. Answer: `async-process`
+patch removed, `async-task` now points at upstream, keep `notify`.
 
 ## Summary
 
 | Patch | Fork base | Latest on crates.io | Fork-only changes | Verdict |
 |---|---|---|---|---|
-| `async-process` | 2.5.0 | 2.5.0 | macOS `Child::adopt_raw_pid` | Required: build breaks without it |
-| `async-task` | 4.7.1 | 4.7.1 | Waker vtable identity fix | Optional, but keep it (perf) |
+| `async-process` | 2.5.0 | 2.5.0 | macOS `Child::adopt_raw_pid` | Removed: no callers left |
+| `async-task` | 4.7.1 | 4.7.1 | Waker vtable identity fix | Patched to upstream `41fd335`; delete on 4.7.2 |
 | `notify` / `notify-types` | 9.0.0-rc.4 | 9.0.0-rc.6 | 6 macOS FSEvents fixes | Optional, but keep it (correctness) |
 
 ## async-process
 
-- Fork commit `0b6d671`: "Add the ability to adopt a child process by PID on
-  macOS". Adds `adopt_raw_pid` plus reaper support.
-- Used by `crates/util/src/command/darwin.rs` (`smol::process::Child::adopt_raw_pid`).
-- No newer upstream release, and upstream doesn't have this API. Drop the patch
-  only if we stop adopting PIDs.
+- Patch removed 2026-11-16; crates.io 2.5.0 is used. The fork only added
+  `adopt_raw_pid`, and its one caller (`crates/util/src/command/darwin.rs`) is
+  gone.
 
 ## async-task
 
-- Fork commit `015845a`: "Fix task waker vtable identity". Builds the
-  poll-context waker from the vtable stored in the task header. Without this,
-  `will_wake` fails for clones of the same waker, which causes redundant
-  wake-ups.
-- No newer upstream release. Dropping the patch still compiles. The cost is
-  extra wake-ups in gpui and the scheduler, not wrong behavior.
+- The fork's fix ("Fix task waker vtable identity") was merged upstream as
+  smol-rs/async-task#108 (`41fd335`, 2026-11-14) but is not released yet.
+- The patch now points at that upstream commit. Delete it once 4.7.2 is on
+  crates.io.
 
 ## notify / notify-types
 

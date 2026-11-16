@@ -7,11 +7,11 @@ edition.workspace = true
 path = "src/terminal.rs"
 
 [dependencies]
+async_macos.workspace = true
 alacritty_terminal = { git = "https://github.com/alacritty/alacritty", rev = "542147067dd016fc5f49120ef0ba605a98a4e3a7" }
 anyhow.workspace = true
 async-channel.workspace = true
 futures.workspace = true
-futures-lite.workspace = true
 gpui.workspace = true
 itertools.workspace = true
 libc.workspace = true

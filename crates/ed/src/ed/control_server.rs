@@ -9,12 +9,17 @@ use std::time::Instant;
 
 use anyhow::Context as _;
 use anyhow::Result;
+use async_macos::net::UnixListener;
+use async_macos::net::UnixStream;
 use control::Command;
 use control::MouseCommand;
 use control::MouseKind;
 use control::Request;
 use control::Response;
 use editor::Editor;
+use futures::io::AsyncBufReadExt as _;
+use futures::io::AsyncWriteExt as _;
+use futures::io::BufReader;
 use gpui::AnyWindowHandle;
 use gpui::App;
 use gpui::AsyncApp;
@@ -42,11 +47,6 @@ use gpui::px;
 use language::Point;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
-use smol::io::AsyncBufReadExt as _;
-use smol::io::AsyncWriteExt as _;
-use smol::io::BufReader;
-use smol::net::unix::UnixListener;
-use smol::net::unix::UnixStream;
 use util::ResultExt as _;
 use workspace::Pane;
 use workspace::Workspace;
@@ -91,7 +91,7 @@ pub fn init(cx: &mut App) {
     cx.spawn(async move |cx| {
         loop {
             match listener.accept().await {
-                Ok((stream, _)) => {
+                Ok(stream) => {
                     let pressed_button = pressed_button.clone();
                     let perf_start = perf_start.clone();
                     cx.spawn(async move |cx| handle_connection(stream, pressed_button, perf_start, cx).await.log_err())

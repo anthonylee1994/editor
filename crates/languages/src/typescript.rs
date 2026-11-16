@@ -7,6 +7,7 @@ use std::sync::LazyLock;
 
 use anyhow::Context as _;
 use anyhow::Result;
+use async_lock::RwLock;
 use futures::future::join_all;
 use gpui::App;
 use gpui::AppContext;
@@ -29,7 +30,6 @@ use language::language_settings::WordsCompletionMode;
 use project::Fs;
 use rustc_hash::FxHashMap;
 use settings::SemanticTokenRules;
-use smol::lock::RwLock;
 use task::TaskTemplate;
 use task::TaskTemplates;
 use task::VariableName;

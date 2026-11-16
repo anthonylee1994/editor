@@ -6,9 +6,9 @@ use std::process::Stdio;
 
 use anyhow::Context as _;
 use anyhow::Result;
-use smol::process;
+use async_macos::command as process;
 
-/// A wrapper around `smol::process::Child` that attempts to clean up subprocess
+/// A wrapper around `command::Child` that attempts to clean up subprocess
 /// trees: on Unix by using process groups, and on Windows by using job objects.
 ///
 /// On Windows, if job setup and assignment succeed, dropping this struct
@@ -57,10 +57,7 @@ impl Child {
     }
 
     pub fn kill(&mut self) -> Result<()> {
-        let pid = self.process.id();
-        unsafe {
-            libc::killpg(pid.cast_signed(), libc::SIGKILL);
-        }
+        self.process.kill_group();
         Ok(())
     }
 }

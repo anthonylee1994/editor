@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::sync::LazyLock;
 use std::time::Duration;
 
-use futures_lite::future::yield_now;
+use async_macos::yield_now;
 use gpui::App;
 use gpui::AppContext as _;
 use gpui::Context;
