@@ -11,7 +11,7 @@ use crate::diagrams::common::tokens::Pattern;
 use crate::diagrams::common::tokens::Reader;
 use crate::diagrams::common::tokens::SINGLE_LINE_COMMENT;
 use crate::diagrams::common::tokens::STRING;
-use crate::diagrams::common::tokens::TITLE;
+use crate::diagrams::common::tokens::TITLE_BEFORE_NAME;
 use crate::diagrams::common::tokens::TokenType;
 use crate::diagrams::common::tokens::WHITESPACE;
 use crate::diagrams::common::tokens::YAML;
@@ -19,6 +19,7 @@ use crate::diagrams::common::tokens::acc_descr_value;
 use crate::diagrams::common::tokens::acc_title_value;
 use crate::diagrams::common::tokens::keyword;
 use crate::diagrams::common::tokens::literal;
+use crate::diagrams::common::tokens::name_rest;
 use crate::diagrams::common::tokens::string_value;
 use crate::diagrams::common::tokens::title_value;
 use crate::diagrams::common::tokens::tokenize;
@@ -126,14 +127,20 @@ fn one_of(src: &str, p: usize, words: &[&str]) -> Option<usize> {
     words.iter().find(|word| rest.starts_with(*word)).map(|word| p + word.len())
 }
 
+/// One of `words`, giving way to a longer name except right after `option`, as in
+/// `graticule polygonaxis`.
+fn option_value(src: &str, p: usize, previous: u16, option: u16, words: &[&str]) -> Option<usize> {
+    one_of(src, p, words).filter(|&end| previous == option || !name_rest(src, end))
+}
+
 /// `circle|polygon`.
-fn graticule(src: &str, p: usize) -> Option<usize> {
-    one_of(src, p, &["circle", "polygon"])
+fn graticule(src: &str, p: usize, previous: u16) -> Option<usize> {
+    option_value(src, p, previous, t::GRATICULE, &["circle", "polygon"])
 }
 
 /// `true|false`.
-fn boolean(src: &str, p: usize) -> Option<usize> {
-    one_of(src, p, &["true", "false"])
+fn boolean(src: &str, p: usize, previous: u16) -> Option<usize> {
+    option_value(src, p, previous, t::SHOW_LEGEND, &["true", "false"])
 }
 
 /// A word that gives way to a longer `ID`.
@@ -158,13 +165,13 @@ pub(crate) const RADAR_TOKENS: &[TokenType] = &[
     literal("]"),
     literal("{"),
     literal("}"),
-    TokenType { first: Some("cp"), name: "GRATICULE", pattern: Pattern::Match(graticule), ..literal("") },
-    TokenType { first: Some("ft"), name: "BOOLEAN", pattern: Pattern::Match(boolean), ..literal("") },
+    TokenType { first: Some("cp"), name: "GRATICULE", pattern: Pattern::After(graticule), ..literal("") },
+    TokenType { first: Some("ft"), name: "BOOLEAN", pattern: Pattern::After(boolean), ..literal("") },
     // In the other grammars an `accDescr {` that never closes ends the lexing. Here `accDescr` is
     // also a name and `{` a token, so each unclosed one would read to the end of the text again.
     acc_descr("ACC_DESCR"),
     ACC_TITLE,
-    TITLE,
+    TITLE_BEFORE_NAME,
     TokenType { first: Some("0123456789"), name: "NUMBER", pattern: Pattern::Scan(number), ..literal("") },
     STRING,
     TokenType {

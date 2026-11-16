@@ -6,12 +6,15 @@ useful changes from, commit by commit. This file tracks where we are.
 
 ## Status
 
-- **Synced to Pele `d2defb6` (Release 1.9.0 `e7f092a`).** Next port starts
-  from the first Pele commit after `e7f092a`: `git log e7f092a..main -- src`.
+- **Synced to Pele `3a2f075` (1.13.0+).** Next port starts from the first
+  Pele commit after `3a2f075`: `git log 3a2f075..main -- src`.
 - Origin: our crate is a copy of Ondine `0b589ec`, which ported Pele at
   `458322a` (≈ 1.6.0). Everything from there to 1.9.0 was reviewed below.
 - Port only what changes our usvg-rasterized output or speed; browser-only
-  changes (mount, zoom, ids, CSS-variable plumbing, accessibility) are n/a.
+  changes (mount, zoom, ids, CSS-variable plumbing, accessibility, links,
+  images, fitting to `maxWidth` / auto direction) are n/a.
+- Diagrams removed here (gantt, git, journey, pie, quadrant, sankey, block,
+  venn, agentflow, treeview, swimlane) are n/a.
 
 ## 458322a → 1.9.0
 
@@ -51,7 +54,7 @@ Ported: `cba20f1` sequence tall self-message, `5c42e53` timeline center line,
 sankey `eb02018` labels apart, `6bcb901` Unicode names, `a06891e` +
 `a6d453e` link gradients (fixed sequential ids, no `idPrefix` gate),
 `cbd50fa` shrink labels; `e440f1a` C4 detect anchoring, `2c81661` C4 column
-gap, `02ddfd1` class wraps disconnected groups (`layout/components.rs`),
+gap, `02ddfd1` class wraps disconnected groups (removed with host-width fitting),
 `23ee8d4` state honours curve, `4d1be9d` quadrant label below title.
 Flowchart / YAML parse speed: `2c9de31`, `c90c048`, `cfa9c15`, `2370199`
 (scalar early return only).
@@ -72,6 +75,36 @@ Flowchart / YAML parse speed: `2c9de31`, `c90c048`, `cfa9c15`, `2370199`
 - Pele tests use proportional widths; ported tests use our 0.6 em monospace
   thresholds. At 16px, sankey adjacent-column labels can still overlap when
   no free spot exists (monospace is wider).
+
+## 1.9.0 → `3a2f075`
+
+Ported:
+- Layout: `44d7112` start ports don't push targets down a rank; `6043f6c` +
+  `52a4521` border ports in line with their edge ends (`TWIN`); `bdbad5d`
+  bends snap up to 24px.
+- Flowchart `205bd71`: a subgraph an edge enters or leaves drops its
+  `direction`.
+- Sequence: `cc8b825` bare title; `c9e7b75` comments.
+- Treemap: `b38b165`, `eaaa8ae`, `1dcddf2`, `bd1bc29`. No per-box corner cap
+  (Pele's `min(var(--_r),…)` needs CSS).
+- Names starting with `title` (`TITLE_BEFORE_WORD` / `_NAME`, railroad
+  `ABNF_TITLE`): `41bb013`, `27fae12` (radar option values see the previous
+  token via `Pattern::After`), `84157ee`, `1bd683f`. Bare titles: `0f9655f`,
+  `0c74342`. Keep the character before `%%`: `be3eafb`, `639154e`.
+- `59879ae` xychart bounds, `bc77180` radar overflow, `318655a` +
+  `602957e` invalid XML characters (styles reject, text drops).
+
+Skipped:
+- Author-set fill series (contrast label colors, edge casing, full-opacity
+  group fills, `ink.ts`): only for `style`/`classDef fill:`; colour parsing and
+  path sampling not worth it yet.
+- Sequence spare width (`44b0024`, `cc8f4ca`, `bc05979`, `9d11243`): only
+  runs only under `maxWidth`, which we dropped.
+- `e31312f`, `8a29830` palette: we read no `themeVariables`.
+- Monospace-measure commits (`c5851d8`, `141ab36`, `6b01062`), `03fa37f`:
+  every label is monospace already. `5ebbb98`: we already wrap by character.
+- Error positions (`57bf1d1`, `aaf867a`, `0f8a6a2`, …): the preview shows
+  the message only. URL, zoom, tooltip (`a64db96`): not in our output.
 
 ## Checking
 

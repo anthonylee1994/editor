@@ -1,7 +1,7 @@
 //! The flowchart model builder, equivalent to Mermaid's `FlowDB`. Port of Pele's
 //! `src/diagrams/flowchart/db.ts`.
 //!
-//! Pele's `FlowDb` keeps nodes, classes, and tooltips in `Map`s. Here each is a `Vec` in insertion
+//! Pele's `FlowDb` keeps nodes and classes in `Map`s. Here each is a `Vec` in insertion
 //! order with a `BTreeMap` index for lookups, so iteration order never depends on hashing.
 
 use std::collections::BTreeMap;
@@ -21,7 +21,6 @@ use crate::error::Error;
 use crate::error::push_u32;
 use crate::util::chars::is_space;
 use crate::util::float;
-use crate::util::url;
 use crate::yaml::Value;
 use crate::yaml::{self};
 
@@ -58,8 +57,6 @@ pub(crate) struct FlowDb {
     pub(crate) subgraphs: Vec<FlowSubgraph>,
     /// The front matter title.
     pub(crate) title: Option<String>,
-    /// Tooltips by node id, in insertion order.
-    pub(crate) tooltips: Vec<(String, String)>,
 
     class_index: BTreeMap<String, usize>,
     edge_by_id: BTreeMap<String, usize>,
@@ -69,7 +66,6 @@ pub(crate) struct FlowDb {
     pair_count: BTreeMap<(String, String), usize>,
     sub_count: usize,
     subgraph_lookup: BTreeMap<String, usize>,
-    tooltip_index: BTreeMap<String, usize>,
 }
 
 /// Pele's `labelType`: a known label type name, or Markdown.
@@ -239,8 +235,6 @@ impl FlowDb {
                 id: id.to_owned(),
                 img: None,
                 label_type: LabelType::Text,
-                link: None,
-                link_target: None,
                 pos: None,
                 props: None,
                 styles: Vec::new(),
@@ -531,37 +525,6 @@ impl FlowDb {
                 subgraph.classes.push(class_name.to_owned());
             }
         }
-    }
-
-    /// Sets the tooltip of each node in a comma-separated list.
-    pub(crate) fn set_tooltip(&mut self, ids: &str, tooltip: &str) {
-        for id in ids.split(',') {
-            if let Some(&index) = self.tooltip_index.get(id) {
-                if let Some(entry) = self.tooltips.get_mut(index) {
-                    tooltip.clone_into(&mut entry.1);
-                }
-            } else {
-                self.tooltip_index.insert(id.to_owned(), self.tooltips.len());
-                self.tooltips.push((id.to_owned(), tooltip.to_owned()));
-            }
-        }
-    }
-
-    /// Sets the click target of each node in a comma-separated list and marks them clickable.
-    pub(crate) fn set_link(&mut self, ids: &str, link: &str, target: Option<&str>) {
-        let url = js_trim(link);
-        for id in ids.split(',') {
-            if let Some(vertex) = self.node_mut(id) {
-                vertex.link = (!url.is_empty()).then(|| url::safe_url(url));
-                vertex.link_target = target.map(str::to_owned);
-            }
-        }
-        self.set_class(ids, "clickable");
-    }
-
-    /// Marks nodes clickable. Callbacks are never executed, as in Mermaid's strict mode.
-    pub(crate) fn set_click_event(&mut self, ids: &str) {
-        self.set_class(ids, "clickable");
     }
 
     /// Sets the accessible title without leading whitespace.

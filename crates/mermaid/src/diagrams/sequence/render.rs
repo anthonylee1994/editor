@@ -16,9 +16,6 @@ use super::types::line;
 use super::types::placement;
 use crate::Options;
 use crate::diagrams::Rendered;
-use crate::diagrams::common::fit_width::tighten;
-use crate::diagrams::common::fit_width::title_room;
-use crate::diagrams::common::literal_label::break_label;
 use crate::svg::builder::esc;
 use crate::svg::builder::esc_text;
 use crate::svg::builder::js_round;
@@ -327,13 +324,9 @@ fn trim_of(r#type: Head) -> f64 {
     }
 }
 
-/// Draws a sequence diagram, tightening its spacing when it does not fit the host's width.
-pub(crate) fn render(db: &SeqDb, config: &Value, options: &Options) -> Rendered {
-    tighten(options, |tight| draw(db, config, options, tight))
-}
-
+/// Draws a sequence diagram.
 #[expect(clippy::many_single_char_names, reason = "mirrors the names of Pele's draw")]
-fn draw(db: &SeqDb, config: &Value, options: &Options, tight: bool) -> Rendered {
+pub(crate) fn render(db: &SeqDb, config: &Value, options: &Options) -> Rendered {
     let conf = get(Some(config), "sequence");
     let size = options.font_size;
     let small = js_round(size * 0.875);
@@ -341,37 +334,26 @@ fn draw(db: &SeqDb, config: &Value, options: &Options, tight: bool) -> Rendered 
     let pad = options.padding;
     let mirror = get(conf, "mirrorActors") != Some(&Value::Bool(false));
     let right_angles = get(conf, "rightAngles") == Some(&Value::Bool(true));
-    let loose = |value: f64, tight_value: f64| if tight { value.min(tight_value) } else { value };
-    let actor_margin = loose(option(conf, "actorMargin", 40.0), 8.0);
-    let min_w = loose(option(conf, "width", 64.0), 48.0);
+    let actor_margin = option(conf, "actorMargin", 40.0);
+    let min_w = option(conf, "width", 64.0);
     let min_h = option(conf, "height", js_round(size * 1.5) + 20.0);
-    #[expect(clippy::cast_precision_loss, reason = "a participant count")]
-    let actor_count = db.actors.len() as f64;
-    let wrap_w = loose(
-        option(conf, "width", 160.0),
-        32.0_f64.max((options.max_width.unwrap_or(320.0) - 2.0 * pad) / actor_count.max(1.0) - actor_margin - 24.0),
-    );
+    let wrap_w = option(conf, "width", 160.0);
     // Mermaid's default of 35 corresponds to Pele's default gap. Other values move it by the
     // difference.
     let msg_gap = 4.0_f64.max(14.0 + option(conf, "messageMargin", 35.0) - 35.0);
-    let note_pad = loose(option(conf, "noteMargin", 10.0), 6.0);
-    let box_pad = loose(option(conf, "boxMargin", 10.0), 6.0);
+    let note_pad = option(conf, "noteMargin", 10.0);
+    let box_pad = option(conf, "boxMargin", 10.0);
     let align = match get(conf, "messageAlign") {
         Some(Value::String(a)) if a == "left" => -1,
         Some(Value::String(a)) if a == "right" => 1,
         _ => 0,
     };
 
-    let msg_pad = if tight { 6.0 } else { MSG_PAD };
-    let note_over = if tight { 8.0 } else { NOTE_OVER };
-    let frame_pad = if tight { 12.0 } else { FRAME_PAD };
-    let frame_nest = if tight { 6.0 } else { FRAME_NEST };
     let messages = &db.messages;
     let count = messages.len();
     let numbering = number_messages(messages, get(conf, "showSequenceNumbers") == Some(&Value::Bool(true)));
     let text = |raw: Option<&str>, font_size: f64, wrap: bool, width: f64, base: u8| -> Label {
-        let label = layout_label(raw, false, font_size, if tight || wrap { width } else { f64::INFINITY }, base, None);
-        if tight { break_label(&label, width.max(120.0)) } else { label }
+        layout_label(raw, false, font_size, if wrap { width } else { f64::INFINITY }, base, None)
     };
 
     let used: Option<BTreeSet<&str>> = (get(conf, "hideUnusedParticipants") == Some(&Value::Bool(true)))
@@ -403,7 +385,7 @@ fn draw(db: &SeqDb, config: &Value, options: &Options, tight: bool) -> Rendered 
             messages.get(at).is_some_and(|m| m.to.as_deref() == Some(id) || m.from.as_deref() == Some(id))
         });
         col_of.insert(id, cols.len());
-        let size = actor_size(kind, &label, min_w, min_h, tight.then_some(8.0));
+        let size = actor_size(kind, &label, min_w, min_h);
         cols.push(Column {
             activations: Vec::new(),
             actor,
@@ -465,7 +447,7 @@ fn draw(db: &SeqDb, config: &Value, options: &Options, tight: bool) -> Rendered 
                 need(a.checked_sub(1), a, w / 2.0 + NOTE_GAP);
                 need(Some(a), a + 1, w / 2.0 + NOTE_GAP);
             } else {
-                need(Some(a.min(b)), a.max(b), w - 2.0 * note_over);
+                need(Some(a.min(b)), a.max(b), w - 2.0 * NOTE_OVER);
             }
             views.push(Some(View { a, b, kind: V::Note, label, w, x: 0.0 }));
         } else if is_line_message(m.r#type) {
@@ -477,8 +459,7 @@ fn draw(db: &SeqDb, config: &Value, options: &Options, tight: bool) -> Rendered 
             } else {
                 let created = cols.get(b).filter(|col| col.create_at == Some(i)).map_or(0.0, |col| col.size.w / 2.0);
                 let central = if m.central_connection.is_some_and(|c| c != 0) { 4.0 * CENTRAL_R } else { 0.0 };
-                let width = if tight { label.width.min(16.0_f64.max(wrap_w - 16.0)) } else { label.width };
-                need(Some(a.min(b)), a.max(b), width + 2.0 * msg_pad + ACT_W + badge + created + central);
+                need(Some(a.min(b)), a.max(b), label.width + 2.0 * MSG_PAD + ACT_W + badge + created + central);
                 views.push(Some(View { a, b, kind: V::Line, label, w: 0.0, x: 0.0 }));
             }
         } else {
@@ -587,7 +568,7 @@ fn draw(db: &SeqDb, config: &Value, options: &Options, tight: bool) -> Rendered 
     let mut frame_at: Vec<Option<usize>> = vec![None; count];
     let mut open: Vec<usize> = Vec::new();
     let span_all = |cols: &[Column]| {
-        if n == 0 { (0.0, 120.0) } else { (col_x(cols, 0) - frame_pad, col_x(cols, n - 1) + frame_pad) }
+        if n == 0 { (0.0, 120.0) } else { (col_x(cols, 0) - FRAME_PAD, col_x(cols, n - 1) + FRAME_PAD) }
     };
     for (i, m) in messages.iter().enumerate() {
         let r#type = m.r#type;
@@ -651,8 +632,7 @@ fn draw(db: &SeqDb, config: &Value, options: &Options, tight: bool) -> Rendered 
                     let label = if raw.is_empty() {
                         Label::default()
                     } else {
-                        let least = if tight { FRAME_TEXT.min(wrap_w) } else { FRAME_TEXT };
-                        text(Some(&["[", raw, "]"].concat()), small, true, room.max(least), 0)
+                        text(Some(&["[", raw, "]"].concat()), small, true, room.max(FRAME_TEXT), 0)
                     };
                     if label.width > room {
                         frame.x1 += label.width - room;
@@ -667,8 +647,8 @@ fn draw(db: &SeqDb, config: &Value, options: &Options, tight: bool) -> Rendered 
             let (x0, x1) = (frame.x0, frame.x1);
             bounds.extend(x0, x1);
             if let Some(parent) = open.last().and_then(|&at| frames.get_mut(at)) {
-                parent.x0 = parent.x0.min(x0 - frame_nest);
-                parent.x1 = parent.x1.max(x1 + frame_nest);
+                parent.x0 = parent.x0.min(x0 - FRAME_NEST);
+                parent.x1 = parent.x1.max(x1 + FRAME_NEST);
             }
         } else if let Some(view) = views.get_mut(i).and_then(Option::as_mut) {
             let (Some(a), Some(b)) = (cols.get(view.a), cols.get(view.b)) else {
@@ -683,9 +663,9 @@ fn draw(db: &SeqDb, config: &Value, options: &Options, tight: bool) -> Rendered 
                     } else if view.a == view.b {
                         view.x = a.x - view.w / 2.0;
                     } else {
-                        let lo = a.x.min(b.x) - note_over;
-                        let hi = a.x.max(b.x) + note_over;
-                        if tight || m.wrap {
+                        let lo = a.x.min(b.x) - NOTE_OVER;
+                        let hi = a.x.max(b.x) + NOTE_OVER;
+                        if m.wrap {
                             view.label = text(message_text(m), small, true, wrap_w.max(hi - lo - 2.0 * note_pad), 0);
                         }
                         view.w = (hi - lo).max(view.label.width + 2.0 * note_pad);
@@ -697,8 +677,8 @@ fn draw(db: &SeqDb, config: &Value, options: &Options, tight: bool) -> Rendered 
                 V::Line => {
                     let mut x0 = a.x.min(b.x);
                     let mut x1 = a.x.max(b.x);
-                    if tight || m.wrap {
-                        view.label = text(message_text(m), small, true, wrap_w.max(x1 - x0 - 2.0 * msg_pad - ACT_W), 0);
+                    if m.wrap {
+                        view.label = text(message_text(m), small, true, wrap_w.max(x1 - x0 - 2.0 * MSG_PAD - ACT_W), 0);
                     }
                     if b.create_at == Some(i) {
                         if b.x > a.x {
@@ -712,8 +692,8 @@ fn draw(db: &SeqDb, config: &Value, options: &Options, tight: bool) -> Rendered 
             };
             bounds.extend(x0, x1);
             if let Some(frame) = open.last().and_then(|&at| frames.get_mut(at)) {
-                frame.x0 = frame.x0.min(x0 - frame_pad);
-                frame.x1 = frame.x1.max(x1 + frame_pad);
+                frame.x0 = frame.x0.min(x0 - FRAME_PAD);
+                frame.x1 = frame.x1.max(x1 + FRAME_PAD);
             }
         }
     }
@@ -1233,8 +1213,8 @@ fn draw(db: &SeqDb, config: &Value, options: &Options, tight: bool) -> Rendered 
                     let l = x0.min(x1);
                     let r = x0.max(x1);
                     let cx = match align {
-                        -1 => l + msg_pad + label.width / 2.0,
-                        1 => r - msg_pad - label.width / 2.0,
+                        -1 => l + MSG_PAD + label.width / 2.0,
+                        1 => r - MSG_PAD - label.width / 2.0,
                         _ => f64::midpoint(l, r),
                     };
                     bounds.extend(cx - label.width / 2.0, cx + label.width / 2.0);
@@ -1351,7 +1331,7 @@ fn draw(db: &SeqDb, config: &Value, options: &Options, tight: bool) -> Rendered 
 
     let mut min_y = 0.0;
     let mut title_out = String::new();
-    let title = text(db.title.as_deref(), size, false, if tight { title_room(options) } else { wrap_w }, BOLD);
+    let title = text(db.title.as_deref(), size, false, wrap_w, BOLD);
     if bounds.min_x > bounds.max_x {
         bounds.extend(0.0, title.width.max(40.0));
     }

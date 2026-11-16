@@ -178,6 +178,12 @@ pub(crate) fn tokenize(src: &str) -> Vec<Token> {
                     continue;
                 }
                 if c == 116
+                    && let Some(end) = bare_title(src, p)
+                {
+                    p = end;
+                    continue;
+                }
+                if c == 116
                     && let Some(end) = statement(p, "title")
                 {
                     p = emit(&mut tokens, T::Title, p, end);
@@ -370,4 +376,23 @@ pub(crate) fn tokenize(src: &str) -> Vec<Token> {
     }
 
     tokens
+}
+
+/// The end of a `title` with nothing after it on its line, past the blank lines after it: the
+/// grammar rejects blank statements.
+fn bare_title(src: &str, p: usize) -> Option<usize> {
+    if !src.get(p..)?.starts_with("title") {
+        return None;
+    }
+    let mut q = p + 5;
+    while let Some(c) = char_at(src, q).filter(|&c| c != '\r' && c != '\n' && is_space(u32::from(c))) {
+        q += c.len_utf8();
+    }
+    if !matches!(char_at(src, q), None | Some('\r' | '\n')) {
+        return None;
+    }
+    while let Some(c) = char_at(src, q).filter(|&c| is_space(u32::from(c))) {
+        q += c.len_utf8();
+    }
+    Some(q)
 }

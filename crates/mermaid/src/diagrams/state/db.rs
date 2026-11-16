@@ -1,7 +1,7 @@
 //! The state model builder: Mermaid's `StateDB` in its version 2 form, which Mermaid uses for both
 //! `stateDiagram` and `stateDiagram-v2`. Port of Pele's `src/diagrams/state/db.ts`.
 //!
-//! Pele keeps states, classes, and links in `Map`s. Here each is a `Vec` in insertion order with a
+//! Pele keeps states and classes in `Map`s. Here each is a `Vec` in insertion order with a
 //! `BTreeMap` index for lookups, so iteration order never depends on hashing.
 
 use std::collections::BTreeMap;
@@ -12,7 +12,6 @@ use super::graph::build_state_graph;
 use super::types::Description;
 use super::types::Doc;
 use super::types::StateClassDef;
-use super::types::StateLink;
 use super::types::StateNote;
 use super::types::StateRelation;
 use super::types::StateStmt;
@@ -32,8 +31,6 @@ pub(crate) struct StateDb {
     pub(crate) classes: Vec<StateClassDef>,
     /// The nodes and edges that are drawn.
     pub(crate) graph: StateGraph,
-    /// Links by state id, in insertion order.
-    pub(crate) links: Vec<(String, StateLink)>,
     /// Transitions of the root document.
     pub(crate) relations: Vec<StateRelation>,
     /// The parsed document.
@@ -48,7 +45,6 @@ pub(crate) struct StateDb {
 
     class_index: BTreeMap<String, usize>,
     divider_count: u32,
-    link_index: BTreeMap<String, usize>,
     state_index: BTreeMap<String, usize>,
 }
 
@@ -170,7 +166,6 @@ impl StateDb {
                     }
                 }
                 Stmt::ApplyClass { id, style_class } => self.set_css_class(trim(id), style_class),
-                Stmt::Click { id, tooltip, url } => self.add_link(&id.id, url, tooltip),
                 Stmt::Dir(_) | Stmt::Text(_) => {}
             }
         }
@@ -306,18 +301,6 @@ impl StateDb {
                 self.set_css_class(&trimmed, trim(name));
             }
         }
-    }
-
-    fn add_link(&mut self, state_id: &str, url: &str, tooltip: &str) {
-        let link = StateLink { tooltip: tooltip.to_owned(), url: url.to_owned() };
-        if let Some(&at) = self.link_index.get(state_id)
-            && let Some(entry) = self.links.get_mut(at)
-        {
-            entry.1 = link;
-            return;
-        }
-        self.link_index.insert(state_id.to_owned(), self.links.len());
-        self.links.push((state_id.to_owned(), link));
     }
 
     fn add_relation(&mut self, item1: &StateStmt, item2: &StateStmt, title: &str) {

@@ -184,30 +184,18 @@ fn rows(boxes: &mut [Box], ids: &[usize], per_row: f64, gap_x: f64, gap_y: f64, 
     (width, if ids.is_empty() { 0.0 } else { y - gap_y })
 }
 
-/// How many boxes go in a row: `limit`, or fewer when the diagram must fit `room`.
-fn count(boxes: &[Box], ids: &[usize], room: Option<f64>, limit: f64, gap: f64, group_pad: f64) -> f64 {
-    let Some(room) = room else {
-        return limit;
-    };
-    let widest = ids.iter().filter_map(|&id| boxes.get(id)).fold(1.0_f64, |w, b| w.max(b.w));
-    1.0_f64.max(limit.min(((room + gap - 2.0 * group_pad) / (widest + gap)).floor()))
-}
-
 /// Mermaid's grid: in each boundary, its shapes in rows of `c4ShapeInRow`, then the boundaries
-/// inside it in rows of `c4BoundaryInRow`, each sized around its own content. `room`, when set,
-/// is the width to fit, and `gap` the space between shapes then.
-pub(crate) fn layout_c4(db: &C4Db, size: f64, small: f64, room: Option<f64>, gap: f64) -> Layout {
-    let group_pad = if room.is_none() { GROUP_PAD } else { 12.0 };
+/// inside it in rows of `c4BoundaryInRow`, each sized around its own content.
+pub(crate) fn layout_c4(db: &C4Db, size: f64, small: f64) -> Layout {
     let mut boxes: Vec<Box> = Vec::new();
     let mut groups: Vec<Group> = Vec::with_capacity(db.boundaries.len());
     for (index, boundary) in db.boundaries.iter().enumerate() {
-        let label_room = room.map_or(4000.0, |room| 80.0_f64.max(room - 2.0 * HEAD_LEFT - 2.0 * GROUP_PAD * 2.0));
         let labels = if boundary.parent.is_some() {
             let r#type = boundary.r#type.as_deref().filter(|t| !t.is_empty()).map(|t| ["[", t, "]"].concat());
             vec![
-                layout_label(Some(&boundary.label), false, size, label_room, BOLD, None),
-                layout_label(r#type.as_deref(), false, small, label_room, 0, None),
-                layout_label(boundary.descr.as_deref(), false, small, label_room, 0, None),
+                layout_label(Some(&boundary.label), false, size, 4000.0, BOLD, None),
+                layout_label(r#type.as_deref(), false, small, 4000.0, 0, None),
+                layout_label(boundary.descr.as_deref(), false, small, 4000.0, 0, None),
             ]
         } else {
             Vec::new()
@@ -222,7 +210,7 @@ pub(crate) fn layout_c4(db: &C4Db, size: f64, small: f64, room: Option<f64>, gap
         boxes.push(Box::default());
         groups.push(Group {
             boundary: index,
-            head: if head > 0.0 { head + HEAD_TOP + 6.0 + LANE } else { group_pad },
+            head: if head > 0.0 { head + HEAD_TOP + 6.0 + LANE } else { GROUP_PAD },
             head_w,
             head_x: HEAD_LEFT,
             id,
@@ -240,33 +228,19 @@ pub(crate) fn layout_c4(db: &C4Db, size: f64, small: f64, room: Option<f64>, gap
     }
     // A boundary that ends up inside itself is not reachable from the top, as in Mermaid.
     let mut order: Vec<usize> = vec![0];
-    let mut depths: Vec<Option<usize>> = vec![None; groups.len()];
-    if let Some(depth) = depths.first_mut() {
-        *depth = Some(0);
-    }
     let mut i = 0;
     while let Some(&at) = order.get(i) {
-        let depth = depths.get(at).copied().flatten().unwrap_or(0);
-        for &kid in groups.get(at).map_or(&[][..], |g| &g.kids[..]) {
-            if let Some(slot) = depths.get_mut(kid) {
-                *slot = Some(depth + 1);
-            }
-            order.push(kid);
-        }
+        order.extend_from_slice(groups.get(at).map_or(&[][..], |g| &g.kids[..]));
         i += 1;
     }
     for (index, shape) in db.shapes.iter().enumerate() {
         let Some(parent) = shape.parent else {
             continue;
         };
-        let depth = depths.get(parent).copied().flatten().unwrap_or(0);
-        #[expect(clippy::cast_precision_loss, reason = "depths stay far below 2^52")]
-        let depth = depth as f64;
-        let node_width = room.map_or(SHAPE_W, |room| 100.0_f64.max(SHAPE_W.min(room - 2.0 * depth * group_pad - 32.0)));
         let Some(group) = groups.get_mut(parent) else {
             continue;
         };
-        let (shape_box, labels, text_h) = measure(shape, size, small, node_width);
+        let (shape_box, labels, text_h) = measure(shape, size, small, SHAPE_W);
         let id = boxes.len();
         boxes.push(shape_box);
         group.nodes.push(Node { id, labels, shape: index, text_h });
@@ -279,15 +253,14 @@ pub(crate) fn layout_c4(db: &C4Db, size: f64, small: f64, room: Option<f64>, gap
         let Some(group) = groups.get(at) else {
             continue;
         };
-        let gap_x = if room.is_none() { GAP_X } else { gap };
         let node_ids: Vec<usize> = group.nodes.iter().map(|node| node.id).collect();
         let kid_ids: Vec<usize> = group.kids.iter().filter_map(|&kid| groups.get(kid).map(|g| g.id)).collect();
-        let node_count = count(&boxes, &node_ids, room, per_row, gap_x, group_pad);
-        let (grid_w, grid_h) = rows(&mut boxes, &node_ids, node_count, gap_x, GAP_Y, true);
-        let kid_count = count(&boxes, &kid_ids, room, groups_per_row, GROUP_GAP, group_pad);
+        let node_count = per_row;
+        let (grid_w, grid_h) = rows(&mut boxes, &node_ids, node_count, GAP_X, GAP_Y, true);
+        let kid_count = groups_per_row;
         let (kids_w, kids_h) = rows(&mut boxes, &kid_ids, kid_count, GROUP_GAP, GROUP_GAP, false);
         let between = if grid_h > 0.0 && kids_h > 0.0 { GROUP_GAP } else { 0.0 };
-        let frame = if at == 0 { 0.0 } else { group_pad };
+        let frame = if at == 0 { 0.0 } else { GROUP_PAD };
         if let Some(top) = kids_top.get_mut(at) {
             *top = grid_h + between;
         }
@@ -308,7 +281,7 @@ pub(crate) fn layout_c4(db: &C4Db, size: f64, small: f64, room: Option<f64>, gap
         let Some(&own) = boxes.get(group.id) else {
             continue;
         };
-        let left = own.x + if at == 0 { 0.0 } else { group_pad };
+        let left = own.x + if at == 0 { 0.0 } else { GROUP_PAD };
         let top = own.y + if at == 0 { 0.0 } else { group.head };
         for node in &group.nodes {
             if let Some(b) = boxes.get_mut(node.id) {

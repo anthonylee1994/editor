@@ -22,16 +22,10 @@ pub(crate) struct ClassNode {
     pub(crate) annotations: Vec<String>,
     /// Class names, starting with `default`, separated by spaces.
     pub(crate) css_classes: String,
-    /// Set when a callback or `click ... call` names the class.
-    pub(crate) have_callback: bool,
     /// The class name, without its generic type.
     pub(crate) id: String,
     /// The shown name.
     pub(crate) label: String,
-    /// The link address.
-    pub(crate) link: Option<String>,
-    /// The link target, once a link is set.
-    pub(crate) link_target: Option<String>,
     /// Attributes.
     pub(crate) members: Vec<ClassMember>,
     /// Methods.
@@ -40,8 +34,6 @@ pub(crate) struct ClassNode {
     pub(crate) parent: Option<String>,
     /// Style declarations from `style` statements and class definitions.
     pub(crate) styles: Vec<String>,
-    /// The tooltip.
-    pub(crate) tooltip: Option<String>,
     /// The generic type, such as `T` for `List~T~`.
     pub(crate) r#type: String,
 }

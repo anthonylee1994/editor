@@ -54,8 +54,6 @@ pub(crate) fn skip_trivia(src: &str, from: usize) -> usize {
 
         if c == '%' && after(0) != Some(b'{') {
             p = line_end(src, p);
-        } else if c != '}' && after(0) == Some(b'%') && after(1) == Some(b'%') {
-            p = line_end(src, next + 2);
         } else if c == '\n' {
             return p;
         } else if is_space(u32::from(c)) {

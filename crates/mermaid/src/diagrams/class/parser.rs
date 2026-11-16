@@ -354,25 +354,18 @@ impl<'s> Parser<'s, '_> {
         }
     }
 
-    /// An optional tooltip string.
-    fn tooltip(&mut self, db: &mut ClassDb, id: &str) {
-        if self.kind() == T::Str {
-            let tip = self.take();
-            db.set_tooltip(id, Some(tip));
+    /// Skips the current token when it is a `kind`.
+    fn skip(&mut self, kind: T) {
+        if self.kind() == kind {
+            self.i += 1;
         }
     }
 
-    /// The address, tooltip, and target of a link.
-    fn link_statement(&mut self, db: &mut ClassDb, id: &str) -> Result<(), Error> {
-        let href = self.expect(T::Str)?;
-        let tip = if self.kind() == T::Str { Some(self.take()) } else { None };
-        if self.kind() == T::LinkTarget {
-            let target = self.take();
-            db.set_link(id, href, Some(target));
-        } else {
-            db.set_link(id, href, None);
-        }
-        db.set_tooltip(id, tip);
+    /// The address, tooltip, and target of a link. Links are not drawn, so nothing is kept.
+    fn link_statement(&mut self) -> Result<(), Error> {
+        self.expect(T::Str)?;
+        self.skip(T::Str);
+        self.skip(T::LinkTarget);
         Ok(())
     }
 
@@ -397,30 +390,26 @@ impl<'s> Parser<'s, '_> {
             }
             T::Callback => {
                 self.i += 1;
-                let id = self.name(true)?;
+                self.name(true)?;
                 self.expect(T::Str)?;
-                db.set_click_event(&id);
-                self.tooltip(db, &id);
+                self.skip(T::Str);
                 Ok(())
             }
             T::Link => {
                 self.i += 1;
-                let id = self.name(true)?;
-                self.link_statement(db, &id)
+                self.name(true)?;
+                self.link_statement()
             }
             T::Click => {
                 self.i += 1;
-                let id = self.name(true)?;
+                self.name(true)?;
                 if self.kind() == T::Href {
                     self.i += 1;
-                    return self.link_statement(db, &id);
+                    return self.link_statement();
                 }
                 self.expect(T::CallbackName)?;
-                if self.kind() == T::CallbackArgs {
-                    self.i += 1;
-                }
-                db.set_click_event(&id);
-                self.tooltip(db, &id);
+                self.skip(T::CallbackArgs);
+                self.skip(T::Str);
                 Ok(())
             }
             T::Style => {

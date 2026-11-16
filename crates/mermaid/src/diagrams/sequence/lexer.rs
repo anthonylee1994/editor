@@ -361,8 +361,17 @@ impl<'a> Lexer<'a> {
         if legacy {
             q += 1;
         }
+        let mut e = q;
+        while e < self.n && self.at(e) != 10 && is_space(self.at(e)) {
+            e += self.len(e);
+        }
+        if e >= self.n || self.at(e) == 10 {
+            self.p = e;
+            return true;
+        }
+        let sep = self.at(q);
         let next = q + self.len(q);
-        if !is_space(self.at(q)) || next >= self.n || !self.has(next, LINE) {
+        if !is_space(sep) || sep == 13 || !self.has(next, LINE) {
             return false;
         }
         let end = self.line_run(next);
@@ -452,12 +461,6 @@ impl<'a> Lexer<'a> {
             return;
         }
         if c == 35 || (c == 37 && self.at(p + 1) != 123) {
-            self.p = self.eol(p);
-            return;
-        }
-        // Pele looks one UTF-16 unit on, which is half of a character outside the BMP.
-        let next = p + self.len(p);
-        if c != 125 && c <= 0xffff && self.at(next) == 37 && self.at(next + 1) == 37 {
             self.p = self.eol(p);
             return;
         }

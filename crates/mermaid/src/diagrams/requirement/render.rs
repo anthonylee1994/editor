@@ -8,8 +8,6 @@ use super::graph::GraphEdge;
 use super::graph::build_requirement_graph;
 use crate::Options;
 use crate::diagrams::Rendered;
-use crate::diagrams::common::fit_width::runs_across;
-use crate::diagrams::common::fit_width::turn_to_fit;
 use crate::layout::compound::CEdge;
 use crate::layout::compound::CNode;
 use crate::layout::compound::Dir;
@@ -263,14 +261,6 @@ fn spread_ends(cnodes: &[CNode], cedges: &mut [CEdge], views: &[NodeView]) {
     }
 }
 
-/// Draws `model`, turned to run down when it runs across and does not fit the host's width.
-pub(crate) fn render(model: &RequirementDb, options: &Options) -> Rendered {
-    if !runs_across(Some(model.direction)) {
-        return draw(model, options, false);
-    }
-    turn_to_fit(options, |down| draw(model, options, down))
-}
-
 /// `class` without a leading `default` and one whitespace character after it, as
 /// `/^default\s?/` removes them.
 fn without_default(classes: &str) -> &str {
@@ -292,9 +282,9 @@ fn stereotype(text: &str) -> String {
     out
 }
 
-/// `turned` draws a diagram that runs across as one that runs down.
+/// Draws `model`.
 #[expect(clippy::too_many_lines, reason = "mirrors Pele's draw")]
-fn draw(model: &RequirementDb, options: &Options, turned: bool) -> Rendered {
+pub(crate) fn render(model: &RequirementDb, options: &Options) -> Rendered {
     let graph = build_requirement_graph(model);
     let size = options.font_size;
     let small = builder::js_round(size * 0.875);
@@ -360,7 +350,7 @@ fn draw(model: &RequirementDb, options: &Options, turned: bool) -> Rendered {
     }
     let find = |id: Option<&str>| id.and_then(|id| index.iter().find(|(own, _)| *own == id).map(|&(_, at)| at));
 
-    let root_dir = if turned { Dir::Tb } else { direction(Some(graph.direction)) };
+    let root_dir = direction(Some(graph.direction));
     let sideways = matches!(root_dir, Dir::Lr | Dir::Rl);
     let mut cedges: Vec<CEdge> = Vec::new();
     let mut edge_labels: Vec<Label> = Vec::new();

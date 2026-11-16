@@ -16,9 +16,7 @@ mod preprocess;
 mod yaml;
 
 mod layout {
-    pub(crate) mod components;
     pub(crate) mod compound;
-    pub(crate) mod lanes;
     pub(crate) mod layered;
 }
 
@@ -43,7 +41,6 @@ mod util {
     pub(crate) mod chars;
     pub(crate) mod float;
     pub(crate) mod unicode;
-    pub(crate) mod url;
 }
 
 mod diagrams;
@@ -57,11 +54,6 @@ pub use svg::theme::Theme;
 /// [`Theme`] and every width is monospace.
 #[derive(Clone, Debug)]
 pub struct Options {
-    /// Whether a diagram that runs across may be drawn running down when it does not fit
-    /// `max_width`.
-    pub auto_direction: bool,
-    /// The width under which a diagram may turn to run down.
-    pub direction_breakpoint: f64,
     /// Font size in pixels.
     pub font_size: f64,
     /// The most UTF-16 units of source to accept. Mermaid's default `maxTextSize`.
@@ -69,12 +61,6 @@ pub struct Options {
     /// The most edges a flowchart may have. `A & B --> C & D` multiplies edges, so a few
     /// kilobytes of source can ask for millions.
     pub max_edges: usize,
-    /// The width the host has for the diagram, in pixels. A type that can draw itself narrower
-    /// does, so its text is not shrunk with it. `None` leaves every diagram at its natural width.
-    pub max_width: Option<f64>,
-    /// The time a gantt chart schedules against, in milliseconds since the epoch. The compiler
-    /// reads no clock, so this defaults to the epoch.
-    pub now: f64,
     /// The most UTF-16 units of SVG to produce. A source within the limit can still describe
     /// megabytes of drawing, which would stall rasterizing.
     pub output_limit: usize,
@@ -84,17 +70,7 @@ pub struct Options {
 
 impl Default for Options {
     fn default() -> Self {
-        Self {
-            auto_direction: true,
-            direction_breakpoint: 640.0,
-            font_size: 16.0,
-            limit: 50_000,
-            max_edges: 5_000,
-            max_width: None,
-            now: 0.0,
-            output_limit: 4_000_000,
-            padding: 8.0,
-        }
+        Self { font_size: 16.0, limit: 50_000, max_edges: 5_000, output_limit: 4_000_000, padding: 8.0 }
     }
 }
 
@@ -185,6 +161,8 @@ mod tests {
     use super::Options;
     use super::Theme;
     use super::render;
+    use crate::svg::builder::esc;
+    use crate::svg::theme::resolve_style;
 
     #[test]
     fn output_has_no_browser_markup() {
@@ -201,6 +179,21 @@ mod tests {
                 assert!(!rendered.svg.contains(needle), "{needle} in {}", rendered.svg);
             }
             assert!(rendered.svg.contains(" width=\""), "{}", rendered.svg);
+        }
+    }
+
+    #[test]
+    fn reads_links_tooltips_and_images_without_drawing_them() {
+        let sources = [
+            "flowchart LR\n  A --> B\n  click A callback \"tip\"\n  click B \"https://example.com\" \"tip\" _blank\n  click A href \"https://example.com\" _self",
+            "classDiagram\n  class Duck\n  callback Duck \"cb\" \"tip\"\n  click Duck call cb() \"tip\"\n  click Duck href \"https://example.com\" \"tip\" _blank",
+            "stateDiagram-v2\n  [*] --> S\n  click S href \"https://example.com\"",
+            "sequenceDiagram\n  Alice->>Bob: Hi\n  links Alice: {\"Home\": \"https://example.com\"}\n  details Alice: x\n  properties Alice: {\"class\": \"c\"}",
+            "flowchart LR\n  A@{ img: \"https://example.com/a.png\", label: \"Pic\" }",
+        ];
+        for source in sources {
+            let out = svg(source);
+            assert!(!out.contains("example.com") && !out.contains("<image"), "{out}");
         }
     }
 
@@ -227,16 +220,14 @@ mod tests {
     }
 
     #[test]
-    fn event_modeling_routes_edges_in_wide_and_narrow_layouts() {
-        let source = "eventmodeling\ntimeframe 01 ui Cart\ntimeframe 02 command AddItem [[Add]]\ntimeframe 03 event ItemAdded [[Added]]";
-        let theme = Theme::default();
-        for max_width in [None, Some(180.0)] {
-            let out = render(source, &Options { max_width, ..Options::default() }, &theme).unwrap().svg;
-            assert!(out.contains("ondine-edge"), "{out}");
-            assert!(out.contains("AddItem"), "{out}");
-            assert!(out.contains("ItemAdded"), "{out}");
-            assert!(!out.contains("NaN"), "{out}");
-        }
+    fn event_modeling_routes_edges() {
+        let out = svg(
+            "eventmodeling\ntimeframe 01 ui Cart\ntimeframe 02 command AddItem [[Add]]\ntimeframe 03 event ItemAdded [[Added]]",
+        );
+        assert!(out.contains("ondine-edge"), "{out}");
+        assert!(out.contains("AddItem"), "{out}");
+        assert!(out.contains("ItemAdded"), "{out}");
+        assert!(!out.contains("NaN"), "{out}");
     }
 
     #[test]
@@ -335,6 +326,102 @@ mod tests {
     }
 
     #[test]
+    fn lines_up_unlinked_subgraph_members_with_the_member_an_outside_edge_enters() {
+        let out = svg("flowchart TB\n  subgraph S\n    a\n    b\n    c\n  end\n  x --> a");
+        let y = |id| translate(&out, id).1;
+        assert_eq!(y("b"), y("a"), "{out}");
+        assert_eq!(y("c"), y("a"), "{out}");
+    }
+
+    #[test]
+    fn ignores_a_subgraph_direction_when_its_nodes_link_outside_it() {
+        let groups = "flowchart LR\n  subgraph S\n    direction TB\n    s1\n    s2\n  end\n  subgraph P\n    direction TB\n    p1\n    p2\n  end\n";
+        let edges = "  s1 --> p2\n  s2 --> p1\n";
+        assert_eq!(
+            svg(&format!("{groups}{edges}")),
+            svg(&format!("{}{edges}", groups.replace("    direction TB\n", "")))
+        );
+
+        let out = svg(
+            "flowchart LR\n  subgraph one\n    direction TB\n    a1 --> a2\n  end\n  subgraph two\n    direction TB\n    b1 --> b2\n  end\n  subgraph outer\n    direction TB\n    subgraph inner\n      direction TB\n      c1 --> c2\n    end\n    c3\n  end\n  x --> one\n  x --> b1\n  c3 --> x",
+        );
+        let at = |id| translate(&out, id);
+        assert_eq!(at("a1").0, at("a2").0, "{out}");
+        assert_eq!(at("b1").1, at("b2").1, "{out}");
+        assert_eq!(at("c1").0, at("c2").0, "{out}");
+    }
+
+    fn fails(source: &str) -> bool {
+        render(source, &Options::default(), &Theme::default()).is_err()
+    }
+
+    #[test]
+    fn treats_a_bare_title_as_no_title() {
+        let out = svg("C4Context\ntitle\nPerson(a, \"Alice\")\nPerson(b, \"Bob\")");
+        assert!(out.contains("Alice") && out.contains("Bob"), "{out}");
+        assert!(svg("C4Context\ntitle\tOwn\nSystem(a, \"A\")").contains("Own"));
+
+        let out = svg("timeline\ntitle\n2024 : Event\n2025 : Next");
+        assert!(!out.contains("2024 : Event") && out.contains("2024") && out.contains("2025"), "{out}");
+        assert!(svg("timeline\n  title\u{a0}Kept\n  2024 : Event").contains("Kept"));
+    }
+
+    #[test]
+    fn keeps_the_character_before_a_comment() {
+        let out = svg("timeline\nA%% label : event\nB : e2");
+        assert!(out.contains("A%% label"), "{out}");
+        assert!(fails("timeline\n  2024 :%% c\n"));
+
+        assert!(!fails("xychart-beta\nx-axis [a, b]\nbar [1,2]%% note"));
+        assert!(fails("xychart-beta\ntitle Sales:%% note\nbar [1,2]"));
+    }
+
+    #[test]
+    fn reads_names_that_start_with_title_or_an_option_value() {
+        let out = svg(
+            "architecture-beta\ngroup titles(cloud)[G]\nservice title-db(database)[DB] in titles\nservice title_2 in titles\ntitle-db:R -- L:title_2",
+        );
+        assert!(out.contains("DB") && out.contains("title_2"), "{out}");
+        assert!(!fails(
+            "architecture-beta\ngroup titles(cloud)[G]\nservice title-x(database)[DB] in titles\njunction title1 in titles\ntitle-x:L -- R:title1\nalign row title-x title1\n"
+        ));
+
+        let out = svg(
+            "radar-beta\n axis circles, polygonal, trueNorth, falsey, titles\n curve titles{1, 2, 3, 4, 5}, circles{ circles: 1, polygonal 2, trueNorth: 3, falsey 4, titles: 5 }",
+        );
+        for name in ["circles", "polygonal", "trueNorth", "falsey", "titles"] {
+            assert!(out.contains(name), "{name}: {out}");
+        }
+        assert!(!fails("radar-beta\n axis a, b\n showLegend falsecurve x{1, 2}\n graticule polygonaxis c"));
+        assert!(fails("radar-beta\n axis circle, b"));
+
+        let out = svg("eventmodeling\ntf 01 ui titles\ntf 02 cmd title_x\nentity titles\n");
+        assert!(out.contains("titles") && out.contains("title_x"), "{out}");
+
+        for src in [
+            "railroad-beta\ntitles = nonterminal(\"title-x\") ;\ntitle-x = terminal(\"a\") ;",
+            "railroad-ebnf-beta\ntitles = title-x ;\ntitle-x = \"a\" ;",
+            "railroad-abnf-beta\ntitles = title-x ;\ntitle-x = \"a\" ;",
+            "railroad-peg-beta\ntitles <- title-x ;\ntitle-x <- \"a\" ;",
+        ] {
+            assert!(svg(src).contains("data-id=\"title-x\""), "{src}");
+        }
+    }
+
+    #[test]
+    fn drops_invalid_xml_characters_and_rejects_styles_with_them() {
+        assert_eq!(esc("a\u{fffe}b\u{ffff}<"), "ab&lt;");
+        assert_eq!(resolve_style(&["fill:u\u{1}rl(//evil.example/x)"]).shape, "");
+    }
+
+    #[test]
+    fn falls_back_to_the_data_range_when_set_y_bounds_clamp_together() {
+        let big = format!("2{}", "0".repeat(301));
+        let out = svg(&format!("xychart-beta\ny-axis {big} --> 3{}\nbar [1, 2]", &big[1..]));
+        assert!(!out.contains("NaN"), "{out}");
+    }
+
+    #[test]
     fn detects_c4_only_at_the_start() {
         let theme = Theme::default();
         for keyword in ["C4Context", "C4Container", "C4Component", "C4Dynamic", "C4Deployment"] {
@@ -383,41 +470,6 @@ mod tests {
         }
         let ignored = svg(&format!("---\nconfig:\n  state:\n    curve: step\n---\n{body}"));
         assert_eq!(ignored, smooth);
-    }
-
-    #[test]
-    fn class_wraps_disconnected_groups() {
-        let theme = Theme::default();
-        let body = "classA <|-- classB\nclassC *-- classD\nclassE o-- classF\nclassG <-- classH\nclassI -- classJ\nclassK <.. classL\nclassM <|.. classN\nclassO .. classP";
-        for dir in ["TB", "BT", "LR", "RL"] {
-            let source = format!("classDiagram\ndirection {dir}\n{body}");
-            let natural = render(&source, &Options { auto_direction: false, ..Options::default() }, &theme).unwrap();
-            for max_width in [320.0, 600.0] {
-                let options = Options { auto_direction: false, max_width: Some(max_width), ..Options::default() };
-                let narrow = render(&source, &options, &theme).unwrap();
-                if natural.width <= max_width {
-                    assert_eq!(narrow.svg, natural.svg);
-                    continue;
-                }
-                assert!(narrow.width <= max_width, "{dir} {max_width}: {}", narrow.width);
-                assert!(narrow.height > natural.height);
-                for (a, b) in
-                    [("A", "B"), ("C", "D"), ("E", "F"), ("G", "H"), ("I", "J"), ("K", "L"), ("M", "N"), ("O", "P")]
-                {
-                    let (from, to) =
-                        (translate(&narrow.svg, &format!("class{a}")), translate(&narrow.svg, &format!("class{b}")));
-                    let (old_from, old_to) =
-                        (translate(&natural.svg, &format!("class{a}")), translate(&natural.svg, &format!("class{b}")));
-                    assert!(((to.0 - from.0) - (old_to.0 - old_from.0)).abs() < 0.01);
-                    assert!(((to.1 - from.1) - (old_to.1 - old_from.1)).abs() < 0.01);
-                }
-            }
-        }
-        // A connected diagram stays as it is.
-        let source = "classDiagram\nA --> B\nB --> C\nC --> A : uses";
-        let natural = render(source, &Options::default(), &theme).unwrap();
-        let narrow = render(source, &Options { max_width: Some(1.0), ..Options::default() }, &theme).unwrap();
-        assert_eq!(narrow.svg, natural.svg);
     }
 
     #[test]

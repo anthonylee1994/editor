@@ -37,6 +37,9 @@ pub(crate) enum Pattern {
     Match(Matcher),
     /// A hand-written matcher with memory.
     Scan(Scanner),
+    /// A hand-written matcher that sees the kind of the last visible token, or [`EOF`] at the
+    /// start.
+    After(fn(&str, usize, u16) -> Option<usize>),
 }
 
 /// A token type, as Pele's `TokenType` describes one.
@@ -109,6 +112,12 @@ pub(crate) const ACC_TITLE: TokenType =
 pub(crate) const TITLE: TokenType =
     TokenType { first: Some("\t t"), name: "TITLE", pattern: Pattern::Match(title), ..literal("") };
 
+/// [`TITLE`], whose bare form gives way to a longer word, as in `titles`.
+pub(crate) const TITLE_BEFORE_WORD: TokenType = TokenType { pattern: Pattern::Match(title_before_word), ..TITLE };
+
+/// [`TITLE`], whose bare form gives way to a longer name with hyphens, as in `title-bar`.
+pub(crate) const TITLE_BEFORE_NAME: TokenType = TokenType { pattern: Pattern::Match(title_before_name), ..TITLE };
+
 /// A double- or single-quoted string with backslash escapes.
 pub(crate) const STRING: TokenType =
     TokenType { first: Some("\"'"), name: "STRING", pattern: Pattern::Match(string), ..literal("") };
@@ -174,14 +183,16 @@ pub(crate) fn tokenize<'a>(src: &'a str, types: &[TokenType], diagram: &'static 
             if c < 128 && !can_start(ty, c) {
                 continue;
             }
-            let Some(mut end) = try_type(src, p, types, k, &mut dead, &mut memos).filter(|&end| end > p) else {
+            let previous = tokens.last().map_or(EOF, |t: &Token| t.kind);
+            let Some(mut end) = try_type(src, p, types, k, &mut dead, &mut memos, previous).filter(|&end| end > p)
+            else {
                 continue;
             };
 
             let mut kind = k;
             for &alt in ty.longer {
                 let alt = usize::from(alt);
-                if let Some(alt_end) = try_type(src, p, types, alt, &mut dead, &mut memos)
+                if let Some(alt_end) = try_type(src, p, types, alt, &mut dead, &mut memos, previous)
                     && alt_end > end
                 {
                     kind = alt;
@@ -211,7 +222,9 @@ fn offset(p: usize) -> u32 {
 fn can_start(ty: &TokenType, c: u8) -> bool {
     match ty.pattern {
         Pattern::Keyword(text) | Pattern::Literal(text) => text.as_bytes().first() == Some(&c),
-        Pattern::Match(_) | Pattern::Scan(_) => ty.first.is_none_or(|first| first.as_bytes().contains(&c)),
+        Pattern::Match(_) | Pattern::Scan(_) | Pattern::After(_) => {
+            ty.first.is_none_or(|first| first.as_bytes().contains(&c))
+        }
     }
 }
 
@@ -223,6 +236,7 @@ fn try_type(
     k: usize,
     dead: &mut [bool],
     memos: &mut [Memo],
+    previous: u16,
 ) -> Option<usize> {
     if dead.get(k).copied().unwrap_or(true) {
         return None;
@@ -243,6 +257,7 @@ fn try_type(
             end
         }
         Pattern::Scan(scanner) => scanner(src, p, memos.get_mut(k)?),
+        Pattern::After(matcher) => matcher(src, p, previous),
     }
 }
 
@@ -339,6 +354,23 @@ fn title(src: &str, p: usize) -> Option<usize> {
         return Some(rest_of_line(src, r + 1));
     }
     Some(r)
+}
+
+fn title_before_word(src: &str, p: usize) -> Option<usize> {
+    title(src, p).filter(|&end| !src.as_bytes().get(end).is_some_and(|&b| is_word(b)))
+}
+
+fn title_before_name(src: &str, p: usize) -> Option<usize> {
+    title(src, p).filter(|&end| !name_rest(src, end))
+}
+
+/// Whether `[-\w]*\w` matches at `p`.
+pub(crate) fn name_rest(src: &str, p: usize) -> bool {
+    src.as_bytes().get(p..).unwrap_or_default().iter().take_while(|&&b| b == b'-' || is_word(b)).any(|&b| is_word(b))
+}
+
+const fn is_word(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'_'
 }
 
 fn string(src: &str, p: usize) -> Option<usize> {

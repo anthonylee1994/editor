@@ -22,7 +22,7 @@ pub(crate) const DIAGRAM: Diagram = Diagram { keep_comments: false, render: rend
 
 fn render_input(input: &Input<'_>, options: &Options) -> Result<Rendered, Error> {
     let db = parse(input.source, input.config, input.title, Some(input.max_edges))?;
-    Ok(render::render(&db, input.config, options, None))
+    Ok(render::render(&db, input.config, options))
 }
 
 /// The parsed flowchart model: Pele's `FlowDb`.

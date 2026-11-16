@@ -80,7 +80,7 @@ fn split_box(text: &str) -> Option<(&str, &str)> {
     Some((text.get(..word).unwrap_or(""), text.get(word..).unwrap_or("")))
 }
 
-/// The key and value pairs of a parsed `links` or `properties` text, as Pele's `entries` lists
+/// The key and value pairs of a parsed `properties` text, as Pele's `entries` lists
 /// them: the characters of a string, the members of an object or array, and nothing otherwise.
 fn entries(value: Value) -> Vec<(String, MenuValue)> {
     let key = |i: usize| {
@@ -104,35 +104,6 @@ fn map_set<V>(map: &mut Vec<(String, V)>, key: String, value: V) {
         Some(entry) => entry.1 = value,
         None => map.push((key, value)),
     }
-}
-
-/// `text.slice(start, end)` in UTF-16 units, with JavaScript's negative indices.
-fn js_slice(text: &str, start: i64, end: Option<i64>) -> String {
-    let units: Vec<u16> = text.encode_utf16().collect();
-    let len = i64::try_from(units.len()).unwrap_or(i64::MAX);
-    let clamp = |at: i64| {
-        let at = if at < 0 { (len + at).max(0) } else { at.min(len) };
-        usize::try_from(at).unwrap_or(0)
-    };
-    let from = clamp(start);
-    let to = clamp(end.unwrap_or(len));
-    if from >= to {
-        return String::new();
-    }
-    String::from_utf16_lossy(units.get(from..to).unwrap_or(&[]))
-}
-
-/// A menu statement's kind.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Menu {
-    /// `link`.
-    ALink,
-    /// `details`.
-    Details,
-    /// `links`.
-    Links,
-    /// `properties`.
-    Properties,
 }
 
 /// How a participant statement declares its participant.
@@ -167,12 +138,10 @@ pub(crate) enum Statement {
         /// The kind, from [`line`].
         signal_type: u8,
     },
-    /// A menu statement.
-    Menu {
+    /// A `properties` statement.
+    Properties {
         /// The participant.
         actor: String,
-        /// The kind.
-        kind: Menu,
         /// The text.
         text: SeqText,
     },
@@ -406,8 +375,6 @@ impl SeqDb {
         let actor = SeqActor {
             r#box: assigned_box,
             description: description.text,
-            details: None,
-            links: Vec::new(),
             name: name.to_owned(),
             next_actor: None,
             prev_actor: self.prev_actor.clone(),
@@ -505,31 +472,16 @@ impl SeqDb {
         });
     }
 
-    // Mermaid logs and ignores menu text that is not valid JSON. It also undoes the `&amp;` and
-    // `&equals;` its sanitizer writes; Pele has no sanitizer, and a `;` cannot occur in the text.
-    fn add_menu(&mut self, actor_id: &str, kind: Menu, text: &str) {
+    // Mermaid logs and ignores text that is not valid JSON.
+    fn add_properties(&mut self, actor_id: &str, text: &str) {
         let Some(actor) = self.actor_mut(actor_id) else {
             return;
         };
-        match kind {
-            Menu::Links | Menu::Properties => {
-                let Some(parsed) = json(text) else {
-                    return;
-                };
-                let map = if kind == Menu::Links { &mut actor.links } else { &mut actor.properties };
-                for (key, value) in entries(parsed) {
-                    map_set(map, key, value);
-                }
-            }
-            Menu::ALink => {
-                let sep = text.find('@').map_or(-1, |at| {
-                    i64::try_from(text.get(..at).unwrap_or("").encode_utf16().count()).unwrap_or(i64::MAX)
-                });
-                let key = js_slice(text, 0, Some(sep - 1));
-                let value = js_slice(text, sep + 1, None);
-                map_set(&mut actor.links, trim(&key).to_owned(), Value::String(trim(&value).to_owned()));
-            }
-            Menu::Details => actor.details = Some(text.to_owned()),
+        let Some(parsed) = json(text) else {
+            return;
+        };
+        for (key, value) in entries(parsed) {
+            map_set(&mut actor.properties, key, value);
         }
     }
 
@@ -585,7 +537,7 @@ impl SeqDb {
                 self.add_signal(Some(&actor), None, None, signal_type, false, None)?;
             }
             Statement::Note { actor, placement, text } => self.add_note(actor, placement, text),
-            Statement::Menu { actor, kind, text } => self.add_menu(&actor, kind, &text.text),
+            Statement::Properties { actor, text } => self.add_properties(&actor, &text.text),
             Statement::Message { activate, central_connection, from, msg, signal_type, to } => {
                 if let Some(created) = self.last_created.take() {
                     if to != created {

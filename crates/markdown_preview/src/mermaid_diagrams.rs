@@ -5,8 +5,6 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::OnceLock;
 use std::time::Duration;
-use std::time::SystemTime;
-use std::time::UNIX_EPOCH;
 
 use gpui::Animation;
 use gpui::AnimationExt;
@@ -343,9 +341,9 @@ impl CachedMermaidDiagram {
 }
 
 fn render_to_svg(source: &str, theme: &mermaid::Theme) -> anyhow::Result<String> {
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0.0, |now| now.as_millis() as f64);
-    let options = mermaid::Options { now, ..mermaid::Options::default() };
-    mermaid::render(source, &options, theme).map(|rendered| rendered.svg).map_err(|error| anyhow::anyhow!("{error:?}"))
+    mermaid::render(source, &mermaid::Options::default(), theme)
+        .map(|rendered| rendered.svg)
+        .map_err(|error| anyhow::anyhow!("{error:?}"))
 }
 
 /// How far the preview font is zoomed (cmd +/-) from its default size.

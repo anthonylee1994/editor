@@ -1,15 +1,11 @@
 //! Draws a railroad diagram: each rule's name above a track through its definition. Port of
 //! Pele's `src/diagrams/railroad/render.ts`.
 
-use std::mem;
-
 use super::common::fold;
 use super::types::RailroadModel;
 use super::types::RailroadNode;
 use crate::Options;
 use crate::diagrams::Rendered;
-use crate::diagrams::common::fit_width::tighten;
-use crate::diagrams::common::fit_width::title_room;
 use crate::svg::builder::esc;
 use crate::svg::builder::esc_text;
 use crate::svg::builder::js_round;
@@ -35,8 +31,6 @@ enum Kind {
     Choice,
     /// An element with a track over it that skips it.
     Bypass,
-    /// A sequence folded into rows.
-    Folded,
     /// An element with a track under it that goes back.
     Loop,
     /// A reference to another rule.
@@ -256,175 +250,91 @@ fn row(boxes: &Boxes, kids: Vec<usize>, width: f64) -> LaidOut {
     LaidOut { down, id: String::new(), kids, kind: Kind::Sequence, reach: 0.0, text: String::new(), up, width }
 }
 
-/// Lays out the definition `root` of `model` no wider than `room`, when it is finite.
-fn measure(model: &RailroadModel, root: usize, m: &Metrics, room: f64, boxes: &mut Boxes) -> usize {
+/// Lays out the definition `root` of `model`.
+fn measure(model: &RailroadModel, root: usize, m: &Metrics, boxes: &mut Boxes) -> usize {
     let parts = |node: usize| model.nodes.get(node).map_or(&[][..], RailroadNode::parts);
-    let mut budgets: Vec<(usize, f64)> = Vec::new();
-    let mut pending: Vec<(usize, f64)> = vec![(root, room)];
-    let mut i = 0;
-    while room != f64::INFINITY
-        && let Some(&(node, width)) = pending.get(i)
-    {
-        budgets.push((node, width));
-        // A sequence that folds puts its rows inside rails, so its parts are sized for those
-        // rows.
-        let around = match model.nodes.get(node) {
-            Some(RailroadNode::Choice(_) | RailroadNode::Optional(_)) => 4.0 * m.arc,
-            Some(RailroadNode::Repetition { min, .. }) => (if *min == 0.0 { 6.0 } else { 2.0 }) * m.arc,
-            Some(RailroadNode::Sequence(_)) => 6.0 * m.arc,
-            _ => 0.0,
-        };
-        for &child in parts(node) {
-            pending.push((child, 40.0_f64.max(width - around)));
+    fold(root, parts, |node, kids: Vec<usize>| match model.nodes.get(node) {
+        Some(RailroadNode::Terminal(value)) => {
+            let text = shown(value);
+            let text =
+                if !text.is_empty() && text.bytes().all(|b| b == b' ') { "␣".repeat(text.len()) } else { text };
+            leaf(boxes, Kind::Terminal, text, String::new(), MONO, m)
         }
-        i += 1;
-    }
-    // Each node of a definition appears once, so the budgets are in the order nodes were met.
-    budgets.sort_by_key(|&(node, _)| node);
-
-    fold(root, parts, |node, kids: Vec<usize>| {
-        let room = budgets
-            .binary_search_by_key(&node, |&(node, _)| node)
-            .ok()
-            .and_then(|at| budgets.get(at))
-            .map_or(f64::INFINITY, |&(_, width)| width);
-        match model.nodes.get(node) {
-            Some(RailroadNode::Terminal(value)) => {
-                let text = shown(value);
-                let text =
-                    if !text.is_empty() && text.bytes().all(|b| b == b' ') { "␣".repeat(text.len()) } else { text };
-                leaf(boxes, Kind::Terminal, text, String::new(), MONO, m)
-            }
-            Some(RailroadNode::NonTerminal(name)) => leaf(boxes, Kind::NonTerminal, shown(name), name.clone(), 0, m),
-            Some(RailroadNode::Special(text)) => {
-                let mut shown_text = String::from("? ");
-                shown_text.push_str(&shown(text));
-                shown_text.push_str(" ?");
-                leaf(boxes, Kind::Special, shown_text, String::new(), ITALIC, m)
-            }
-            Some(RailroadNode::Sequence(_)) => sequence(boxes, kids, room, m),
-            Some(RailroadNode::Choice(_)) => {
-                let mut inner: f64 = 0.0;
-                let mut offset = 0.0;
-                for (i, &kid) in kids.iter().enumerate() {
-                    let current = get(boxes, kid);
-                    inner = inner.max(current.width);
-                    if i > 0 {
-                        let above = get(boxes, kids.get(i - 1).copied().unwrap_or(kid));
-                        offset = below(offset, &above, &current, m);
-                    }
-                }
-                let up = kids.first().map_or(0.0, |&kid| get(boxes, kid).up);
-                let down = kids.last().map_or(0.0, |&kid| offset + get(boxes, kid).down);
-                add(
-                    boxes,
-                    LaidOut {
-                        down,
-                        id: String::new(),
-                        kids,
-                        kind: Kind::Choice,
-                        reach: 0.0,
-                        text: String::new(),
-                        up,
-                        width: inner + 4.0 * m.arc,
-                    },
-                )
-            }
-            Some(RailroadNode::Optional(_)) => bypass(boxes, kids.first().copied().unwrap_or(usize::MAX), m),
-            Some(&RailroadNode::Repetition { min, max, .. }) => {
-                let kid = kids.first().copied().unwrap_or(usize::MAX);
-                #[expect(clippy::float_cmp, reason = "Pele compares the counts exactly")]
-                if min == 1.0 && max == 1.0 {
-                    return kid;
-                }
-                let inner = get(boxes, kid);
-                let text = count(min, max);
-                let reach = (inner.down + m.sep).max(2.0 * m.arc);
-                let label = if text.is_empty() { 0.0 } else { even(measure::width(&text, COUNT_SIZE, 0)) };
-                let down = reach + if text.is_empty() { ARROW / 2.0 + 1.0 } else { COUNT_SIZE + 6.0 };
-                let repeated = add(
-                    boxes,
-                    LaidOut {
-                        down,
-                        id: String::new(),
-                        kids: vec![kid],
-                        kind: Kind::Loop,
-                        reach,
-                        text,
-                        up: inner.up,
-                        width: inner.width.max(label) + 2.0 * m.arc,
-                    },
-                );
-                if min == 0.0 { bypass(boxes, repeated, m) } else { repeated }
-            }
-            None => usize::MAX,
+        Some(RailroadNode::NonTerminal(name)) => leaf(boxes, Kind::NonTerminal, shown(name), name.clone(), 0, m),
+        Some(RailroadNode::Special(text)) => {
+            let mut shown_text = String::from("? ");
+            shown_text.push_str(&shown(text));
+            shown_text.push_str(" ?");
+            leaf(boxes, Kind::Special, shown_text, String::new(), ITALIC, m)
         }
+        Some(RailroadNode::Sequence(_)) => sequence(boxes, kids, m),
+        Some(RailroadNode::Choice(_)) => {
+            let mut inner: f64 = 0.0;
+            let mut offset = 0.0;
+            for (i, &kid) in kids.iter().enumerate() {
+                let current = get(boxes, kid);
+                inner = inner.max(current.width);
+                if i > 0 {
+                    let above = get(boxes, kids.get(i - 1).copied().unwrap_or(kid));
+                    offset = below(offset, &above, &current, m);
+                }
+            }
+            let up = kids.first().map_or(0.0, |&kid| get(boxes, kid).up);
+            let down = kids.last().map_or(0.0, |&kid| offset + get(boxes, kid).down);
+            add(
+                boxes,
+                LaidOut {
+                    down,
+                    id: String::new(),
+                    kids,
+                    kind: Kind::Choice,
+                    reach: 0.0,
+                    text: String::new(),
+                    up,
+                    width: inner + 4.0 * m.arc,
+                },
+            )
+        }
+        Some(RailroadNode::Optional(_)) => bypass(boxes, kids.first().copied().unwrap_or(usize::MAX), m),
+        Some(&RailroadNode::Repetition { min, max, .. }) => {
+            let kid = kids.first().copied().unwrap_or(usize::MAX);
+            #[expect(clippy::float_cmp, reason = "Pele compares the counts exactly")]
+            if min == 1.0 && max == 1.0 {
+                return kid;
+            }
+            let inner = get(boxes, kid);
+            let text = count(min, max);
+            let reach = (inner.down + m.sep).max(2.0 * m.arc);
+            let label = if text.is_empty() { 0.0 } else { even(measure::width(&text, COUNT_SIZE, 0)) };
+            let down = reach + if text.is_empty() { ARROW / 2.0 + 1.0 } else { COUNT_SIZE + 6.0 };
+            let repeated = add(
+                boxes,
+                LaidOut {
+                    down,
+                    id: String::new(),
+                    kids: vec![kid],
+                    kind: Kind::Loop,
+                    reach,
+                    text,
+                    up: inner.up,
+                    width: inner.width.max(label) + 2.0 * m.arc,
+                },
+            );
+            if min == 0.0 { bypass(boxes, repeated, m) } else { repeated }
+        }
+        None => usize::MAX,
     })
 }
 
-/// A sequence of `kids`, folded into rows when it is wider than `room`.
-fn sequence(boxes: &mut Boxes, kids: Vec<usize>, room: f64, m: &Metrics) -> usize {
+/// A sequence of `kids`.
+fn sequence(boxes: &mut Boxes, kids: Vec<usize>, m: &Metrics) -> usize {
     #[expect(clippy::cast_precision_loss, reason = "part counts stay far below 2^52")]
     let mut width = kids.len().saturating_sub(1) as f64 * m.gap;
     for &kid in &kids {
         width += get(boxes, kid).width;
     }
-    if width <= room || kids.len() < 2 {
-        let whole = row(boxes, kids, width);
-        return add(boxes, whole);
-    }
-
-    let mut rows: Vec<usize> = Vec::new();
-    let mut current: Vec<usize> = Vec::new();
-    let mut current_width = 0.0;
-    let limit = 40.0_f64.max(room - 6.0 * m.arc);
-    for &kid in &kids {
-        let kid_width = get(boxes, kid).width;
-        if !current.is_empty() && current_width + m.gap + kid_width > limit {
-            let full = row(boxes, mem::take(&mut current), current_width);
-            rows.push(add(boxes, full));
-            current_width = 0.0;
-        }
-        current_width += if current.is_empty() { 0.0 } else { m.gap } + kid_width;
-        current.push(kid);
-    }
-    let last = row(boxes, current, current_width);
-    rows.push(add(boxes, last));
-    if rows.len() < 2 {
-        let whole = row(boxes, kids, width);
-        return add(boxes, whole);
-    }
-
-    let mut folded_width: f64 = 0.0;
-    let mut offset = 0.0;
-    for (i, &each) in rows.iter().enumerate() {
-        let current = get(boxes, each);
-        folded_width = folded_width.max(current.width);
-        if i > 0 {
-            let above = get(boxes, rows.get(i - 1).copied().unwrap_or(each));
-            offset += above.down + m.sep.max(2.0 * m.arc) + current.up;
-        }
-    }
-    let up = rows.first().map_or(0.0, |&first| get(boxes, first).up);
-    let down = offset + rows.last().map_or(0.0, |&last| get(boxes, last).down);
-    add(
-        boxes,
-        LaidOut {
-            down,
-            id: String::new(),
-            kids: rows,
-            kind: Kind::Folded,
-            reach: 0.0,
-            text: String::new(),
-            up,
-            width: folded_width + 6.0 * m.arc,
-        },
-    )
-}
-
-/// Draws `model` with the `railroad` section of `config`.
-pub(crate) fn render(model: &RailroadModel, config: &Value, options: &Options) -> Rendered {
-    tighten(options, |tight| draw(model, config, options, tight))
+    let whole = row(boxes, kids, width);
+    add(boxes, whole)
 }
 
 /// Reverses `list` from `from` to its end.
@@ -566,41 +476,6 @@ fn place(
                     }
                     kx -= m.gap;
                 }
-            }
-            Kind::Folded => {
-                let start = x + 2.0 * arc;
-                let from = stack.len();
-                let mut offset = 0.0;
-                drawing.line(x, y, start);
-                let step = m.sep.max(2.0 * arc);
-                for (i, &kid) in kids.iter().enumerate() {
-                    let current = get(drawing.boxes, kid);
-                    let ky = y + offset;
-                    stack.push(kid);
-                    at.push(ky);
-                    at.push(start);
-                    if let Some(&next) = kids.get(i + 1) {
-                        let next = get(drawing.boxes, next);
-                        let next_offset = offset + current.down + step + next.up;
-                        let mid = y + offset + current.down + step / 2.0;
-                        push_move(&mut drawing.track, start + current.width, ky);
-                        push_step(&mut drawing.track, 'H', right - 2.0 * arc);
-                        push_step(&mut drawing.track, 'V', mid);
-                        push_step(&mut drawing.track, 'H', x + arc);
-                        push_step(&mut drawing.track, 'V', y + next_offset);
-                        push_step(&mut drawing.track, 'H', start);
-                        push_move(&mut drawing.arrows, start - ARROW, y + next_offset - ARROW / 2.0);
-                        drawing.arrows.push_str("l7,3.5l-7,3.5z");
-                        offset = next_offset;
-                    } else {
-                        push_move(&mut drawing.track, start + current.width, ky);
-                        push_step(&mut drawing.track, 'H', right - arc);
-                        push_step(&mut drawing.track, 'V', y);
-                        push_step(&mut drawing.track, 'H', right);
-                    }
-                }
-                reverse(&mut stack, from);
-                reverse(&mut at, 2 * from);
             }
             Kind::Choice => {
                 let inner = item.width - 4.0 * arc;
@@ -782,8 +657,8 @@ fn push_leaf(out: &mut String, item: &LaidOut, x: f64, y: f64, leaves: &Leaves<'
     }
 }
 
-/// Draws `model` with room to spare, or `tight`ly within the host's width.
-fn draw(model: &RailroadModel, config: &Value, options: &Options, tight: bool) -> Rendered {
+/// Draws `model` with the `railroad` section of `config`.
+pub(crate) fn render(model: &RailroadModel, config: &Value, options: &Options) -> Rendered {
     let base = options.font_size;
     let font_size = option(config, "fontSize", 0.0, 200.0);
     let size = if font_size == 0.0 { js_round(base * 0.875) } else { font_size };
@@ -791,8 +666,8 @@ fn draw(model: &RailroadModel, config: &Value, options: &Options, tight: bool) -
     let padding = option(config, "padding", -1.0, 200.0);
     let line_height = js_round(size * 1.5);
     let m = Metrics {
-        arc: option(config, "arcRadius", 10.0, 200.0).min(if tight { 6.0 } else { f64::INFINITY }),
-        gap: option(config, "horizontalSeparation", 16.0, 500.0).min(if tight { 12.0 } else { f64::INFINITY }),
+        arc: option(config, "arcRadius", 10.0, 200.0),
+        gap: option(config, "horizontalSeparation", 16.0, 500.0),
         height: even(line_height + if padding < 0.0 { 9.0 } else { 2.0 * padding }),
         padding: if padding < 0.0 { 12.0 } else { padding },
         sep: option(config, "verticalSeparation", 10.0, 500.0),
@@ -813,8 +688,7 @@ fn draw(model: &RailroadModel, config: &Value, options: &Options, tight: bool) -
     let pad = options.padding;
     let turns = Turns::new(m.arc);
 
-    let title =
-        layout_label(model.title.as_deref(), false, base, if tight { title_room(options) } else { 4000.0 }, BOLD, None);
+    let title = layout_label(model.title.as_deref(), false, base, 4000.0, BOLD, None);
     let title_height = if title.height > 0.0 { title.height + 16.0 } else { 0.0 };
     let head_height = js_round(head_size * 1.5);
     let leaves = Leaves { box_top: m.height / 2.0, height: m.height, stroke: &stroke, text_shift: size * 0.35 };
@@ -824,13 +698,8 @@ fn draw(model: &RailroadModel, config: &Value, options: &Options, tight: bool) -
     let mut top = pad + title_height;
     let mut bottom = pad + title.height;
     for rule in &model.rules {
-        let room = if tight {
-            80.0_f64.max(options.max_width.unwrap_or(320.0) - 2.0 * pad - 4.0 * radius - 2.0 * LEAD - 1.0)
-        } else {
-            f64::INFINITY
-        };
         let mut boxes = Boxes::new();
-        let root = measure(model, rule.definition, &m, room, &mut boxes);
+        let root = measure(model, rule.definition, &m, &mut boxes);
         let laid = get(&boxes, root);
         let name = shown(&rule.name);
         let baseline = top + head_height + HEAD_GAP + laid.up;

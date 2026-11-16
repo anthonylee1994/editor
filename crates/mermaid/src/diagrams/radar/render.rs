@@ -6,8 +6,6 @@ use std::f64::consts::PI;
 use super::model::RadarModel;
 use crate::Options;
 use crate::diagrams::Rendered;
-use crate::diagrams::common::fit_width::fit_width;
-use crate::diagrams::common::fit_width::title_room;
 use crate::svg::builder::esc_text;
 use crate::svg::builder::js_round;
 use crate::svg::builder::label_svg;
@@ -54,7 +52,9 @@ fn property<'v>(value: &'v Value, key: &str) -> Option<&'v Value> {
 /// The distance from the center of `value` between `min` at the center and `max` at `radius`.
 fn relative_radius(value: f64, min: f64, max: f64, radius: f64) -> f64 {
     let clipped = value.max(min).min(max);
-    (radius * (clipped - min)) / (max - min)
+    let scaled = radius * (clipped - min);
+    // Keeps the original rounding unless the multiplication overflows.
+    if scaled.is_finite() { scaled / (max - min) } else { radius * ((clipped - min) / (max - min)) }
 }
 
 /// Appends `x,y`.
@@ -101,17 +101,10 @@ fn polygon(points: &[Point]) -> String {
     out
 }
 
-/// Draws `model` with the `radar` section of `config`, narrowed to fit the host's width.
+/// Draws `model` with the `radar` section of `config`.
 pub(crate) fn render(model: &RadarModel, config: &Value, options: &Options) -> Rendered {
-    let natural = option(config, "width", 320.0, 1.0, 4000.0);
-    fit_width(options, natural, 160.0, |width, tight| {
-        let height = (option(config, "height", 320.0, 1.0, 4000.0) * width) / natural;
-        draw(model, config, options, width, height, tight)
-    })
-}
-
-/// `tight` is set when the chart does not fit the width it has with its legend beside it.
-fn draw(model: &RadarModel, config: &Value, options: &Options, width: f64, height: f64, tight: bool) -> Rendered {
+    let width = option(config, "width", 320.0, 1.0, 4000.0);
+    let height = option(config, "height", 320.0, 1.0, 4000.0);
     let size = options.font_size;
     let small = js_round(size * 0.875);
     let pad = options.padding;
@@ -248,13 +241,9 @@ fn draw(model: &RadarModel, config: &Value, options: &Options, width: f64, heigh
     }
     #[expect(clippy::cast_precision_loss, reason = "curve counts are small")]
     let legend_height = legend.len() as f64 * ROW;
-    let legend_x = if tight { -(SWATCH + 8.0 + legend_width) / 2.0 } else { x1 + GAP };
-    let legend_top = if tight { y1 + GAP / 2.0 } else { -legend_height / 2.0 };
-    if !legend.is_empty() && tight {
-        x0 = x0.min(legend_x);
-        x1 = x1.max(-legend_x);
-        y1 = legend_top + legend_height;
-    } else if !legend.is_empty() {
+    let legend_x = x1 + GAP;
+    let legend_top = -legend_height / 2.0;
+    if !legend.is_empty() {
         x1 = legend_x + SWATCH + 8.0 + legend_width;
         y0 = y0.min(-legend_height / 2.0);
         y1 = y1.max(legend_height / 2.0);
@@ -279,7 +268,7 @@ fn draw(model: &RadarModel, config: &Value, options: &Options, width: f64, heigh
         legend_out.push_str("</g>");
     }
 
-    let title = layout_label(model.title.as_deref(), false, size, title_room(options), BOLD, None);
+    let title = layout_label(model.title.as_deref(), false, size, 4000.0, BOLD, None);
     let title_height = if title.height > 0.0 { title.height + 8.0 } else { 0.0 };
     let body_width = (x1 - x0).max(title.width);
     let total_width = (body_width + 2.0 * pad).ceil();
@@ -330,4 +319,15 @@ fn draw(model: &RadarModel, config: &Value, options: &Options, width: f64, heigh
 
     let svg = svg_document("radar", total_width, total_height, size, &content);
     Rendered { height: total_height, svg, width: total_width }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::relative_radius;
+
+    #[test]
+    fn scales_radii_without_overflow() {
+        assert_eq!(relative_radius(5.0, 0.0, 10.0, 100.0), 50.0);
+        assert_eq!(relative_radius(f64::MAX, 0.0, f64::MAX, 100.0), 100.0);
+    }
 }

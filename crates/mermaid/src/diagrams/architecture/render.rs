@@ -8,8 +8,6 @@ use super::layout::place_on_grid;
 use super::layout::side_index;
 use crate::Options;
 use crate::diagrams::Rendered;
-use crate::diagrams::common::fit_width::tighten;
-use crate::diagrams::common::fit_width::title_room;
 use crate::svg::builder::esc_text;
 use crate::svg::builder::js_round;
 use crate::svg::builder::label_svg;
@@ -334,17 +332,12 @@ fn path_data(out: &mut String, p: &[f64], start_trim: f64, end_trim: f64) {
     push_point(out, at(&xs, n - 1), at(&ys, n - 1));
 }
 
-/// Draws `model` with the `architecture` section of `config`, tightened to fit the host's width.
-pub(crate) fn render_architecture(model: &ArchitectureDb, config: &Value, options: &Options) -> Rendered {
-    tighten(options, |tight| draw(model, config, options, tight))
-}
-
-/// Draws `model` once, tightly spaced when `tight`.
+/// Draws `model` with the `architecture` section of `config`.
 #[expect(clippy::many_single_char_names, reason = "names mirror Pele's draw")]
-fn draw(model: &ArchitectureDb, config: &Value, options: &Options, tight: bool) -> Rendered {
+pub(crate) fn render_architecture(model: &ArchitectureDb, config: &Value, options: &Options) -> Rendered {
     let icon_size = setting(config, "iconSize", 48.0, 8.0, 512.0);
     let size = setting(config, "fontSize", options.font_size, 4.0, 128.0);
-    let group_pad = setting(config, "padding", 20.0, 0.0, 256.0).min(if tight { 12.0 } else { f64::INFINITY });
+    let group_pad = setting(config, "padding", 20.0, 0.0, 256.0);
     let small = js_round(size * 0.875);
     let pad = options.padding;
     let half = icon_size / 2.0;
@@ -358,7 +351,7 @@ fn draw(model: &ArchitectureDb, config: &Value, options: &Options, tight: bool) 
     let grid = place_on_grid(&node_refs, &group_refs, &model.edges, &model.layout_hints);
 
     // A service is its icon square with the title beneath; a junction takes the same room.
-    let wrap = if tight { icon_size.max(64.0) } else { (icon_size * 2.25).max(96.0) };
+    let wrap = (icon_size * 2.25).max(96.0);
     let mut labels: Vec<Label> = Vec::with_capacity(n);
     let mut box_w = vec![0.0_f64; n];
     let mut box_h = vec![0.0_f64; n];
@@ -385,7 +378,7 @@ fn draw(model: &ArchitectureDb, config: &Value, options: &Options, tight: bool) 
     let r_count = row_of.len();
     let mut col_w = vec![0.0_f64; c_count];
     let mut row_h = vec![0.0_f64; r_count];
-    let gap = if tight { 24.0_f64.max(2.0 * STUB) } else { 40.0_f64.max(js_round(icon_size * 0.75)) };
+    let gap = 40.0_f64.max(js_round(icon_size * 0.75));
     let mut gap_x = vec![gap; c_count];
     let mut gap_y = vec![gap; r_count];
     let mut node_col = vec![0; n];
@@ -461,8 +454,7 @@ fn draw(model: &ArchitectureDb, config: &Value, options: &Options, tight: bool) 
         set(&mut c1, g, rank_of(&col_of, gc + at(&grid.group_cols, g) - 1).unwrap_or(0));
         set(&mut r0, g, rank_of(&row_of, gr).unwrap_or(0));
         set(&mut r1, g, rank_of(&row_of, gr + at(&grid.group_rows, g) - 1).unwrap_or(0));
-        let room = if tight { 80.0_f64.max(title_room(options) / 2.0) } else { 320.0 };
-        let label = layout_label(group.title.as_deref(), true, size, room, 0, None);
+        let label = layout_label(group.title.as_deref(), true, size, 320.0, 0, None);
         let icon = if group.icon.as_deref().is_some_and(|icon| !icon.is_empty()) { badge } else { 0.0 };
         let joint = if label.width > 0.0 && icon > 0.0 { 6.0 } else { 0.0 };
         set(&mut head_w, g, label.width + icon + joint);
@@ -829,7 +821,7 @@ fn draw(model: &ArchitectureDb, config: &Value, options: &Options, tight: bool) 
         nodes_out.push_str("</g>");
     }
 
-    let title_width = if tight { title_room(options) } else { 4000.0 };
+    let title_width = 4000.0;
     let title = layout_label(model.title.as_deref(), false, size, title_width, BOLD, None);
     let title_height = if title.height > 0.0 { title.height + 12.0 } else { 0.0 };
     let width = ((max_x - min_x).max(title.width) + 2.0 * pad).ceil();

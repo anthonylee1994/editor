@@ -169,11 +169,6 @@ pub(crate) fn tokenize(src: &str) -> Vec<Token> {
             p = up_to(src, p + 2, '\n');
             continue;
         }
-        // Mermaid's second comment rule takes any character before `%%` with it, a line break included.
-        if c != 125 && next == 37 && byte(src, p + width + 1) == b'%' {
-            p = up_to(src, p + width + 2, '\n');
-            continue;
-        }
         if c == 10 || c == 13 {
             // Only a line break that directly follows an axis or a series ends it. One after
             // spaces is skipped with them, and the state carries on to the next line.

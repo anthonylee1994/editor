@@ -6,7 +6,6 @@
 //! are pure functions of the source, so this port lists the statements flat as it reads them.
 
 use super::db::Declare;
-use super::db::Menu;
 use super::db::SeqDb;
 use super::db::Statement;
 use super::db::extract_wrap;
@@ -227,12 +226,15 @@ impl<'a> Parser<'a> {
         Ok(())
     }
 
-    fn menu(&mut self, kind: Menu) -> Result<(), Error> {
+    /// Reads a menu statement. Only `properties` are kept: links and details are not drawn.
+    fn menu(&mut self, properties: bool) -> Result<(), Error> {
         self.i += 1;
         let actor = self.actor()?;
         self.mention(actor);
         let text = self.text2()?;
-        self.out.push(Statement::Menu { actor: actor.to_owned(), kind, text });
+        if properties {
+            self.out.push(Statement::Properties { actor: actor.to_owned(), text });
+        }
         Ok(())
     }
 
@@ -391,7 +393,7 @@ pub(crate) fn parse_sequence(src: &str, db: &mut SeqDb) -> Result<(), Error> {
             T::Link => {
                 let next = p.token(p.i + 1).kind;
                 if matches!(next, T::Actor | T::Link) {
-                    p.menu(Menu::ALink)?;
+                    p.menu(false)?;
                 } else {
                     let from = p.actor()?;
                     p.signal(from)?;
@@ -399,11 +401,7 @@ pub(crate) fn parse_sequence(src: &str, db: &mut SeqDb) -> Result<(), Error> {
                 p.expect(T::Newline)?;
             }
             T::Links | T::Properties | T::Details => {
-                p.menu(match t {
-                    T::Links => Menu::Links,
-                    T::Properties => Menu::Properties,
-                    _ => Menu::Details,
-                })?;
+                p.menu(t == T::Properties)?;
                 p.expect(T::Newline)?;
             }
             T::Note => {

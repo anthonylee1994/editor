@@ -20,10 +20,16 @@ pub(crate) fn js_round(value: f64) -> f64 {
 
 /// Whether XML text needs escaping: markup characters, or control characters XML does not allow.
 const fn needs_esc(c: char) -> bool {
-    matches!(c, '&' | '<' | '>' | '"' | '\0'..='\x08' | '\x0b' | '\x0c' | '\x0e'..='\x1f' | '\x7f')
+    matches!(c, '&' | '<' | '>' | '"') || invalid_xml(c)
 }
 
-/// Escapes text for XML and drops the control characters XML does not allow.
+/// Characters XML does not allow, and DEL. Dropping them in [`esc`] can make validated values
+/// unsafe, so those reject them instead.
+pub(crate) const fn invalid_xml(c: char) -> bool {
+    matches!(c, '\0'..='\x08' | '\x0b' | '\x0c' | '\x0e'..='\x1f' | '\x7f' | '\u{fffe}' | '\u{ffff}')
+}
+
+/// Escapes text for XML and drops invalid XML characters and DEL.
 pub(crate) fn esc(text: &str) -> Cow<'_, str> {
     if !text.contains(needs_esc) {
         return Cow::Borrowed(text);

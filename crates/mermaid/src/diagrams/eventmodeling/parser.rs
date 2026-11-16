@@ -8,7 +8,7 @@ use crate::diagrams::common::tokens::EOF;
 use crate::diagrams::common::tokens::Pattern;
 use crate::diagrams::common::tokens::Reader;
 use crate::diagrams::common::tokens::SINGLE_LINE_COMMENT;
-use crate::diagrams::common::tokens::TITLE;
+use crate::diagrams::common::tokens::TITLE_BEFORE_WORD;
 use crate::diagrams::common::tokens::TokenType;
 use crate::diagrams::common::tokens::YAML;
 use crate::diagrams::common::tokens::keyword;
@@ -227,7 +227,7 @@ pub(crate) const EVENTMODELING_TOKENS: &[TokenType] = &[
     matched("EM_DATA_BLOCK", "{", em_data_block),
     acc_descr("EM_ACC_DESCR"),
     TokenType { name: "EM_ACC_TITLE", ..ACC_TITLE },
-    TokenType { name: "EM_TITLE", ..TITLE },
+    TokenType { name: "EM_TITLE", ..TITLE_BEFORE_WORD },
     TokenType { hidden: true, ..matched("EM_WS", "\t\n\u{b}\u{c}\r ", em_ws) },
     TokenType { name: "EM_YAML", ..YAML },
     TokenType { name: "EM_DIRECTIVE", ..DIRECTIVE },

@@ -6,7 +6,6 @@ use crate::Options;
 use crate::diagrams::Rendered;
 use crate::diagrams::common::fit::fit_label;
 use crate::diagrams::common::fit::plain_label;
-use crate::diagrams::common::fit_width::turn_to_fit;
 use crate::svg::builder::esc_text;
 use crate::svg::builder::js_round;
 use crate::svg::builder::label_svg;
@@ -72,17 +71,10 @@ fn push_box(out: &mut String, x: f64, y: f64, w: f64, h: f64, attrs: &str) {
     out.push_str("/>");
 }
 
-/// Draws `model` with the `timeline` section of `config`. A `TD` timeline always runs down;
-/// another runs down when across does not fit.
-pub(crate) fn render(model: &TimelineDb, config: &Value, options: &Options) -> Rendered {
-    if model.direction == "TD" {
-        return draw(model, config, options, true);
-    }
-    turn_to_fit(options, |down| draw(model, config, options, down))
-}
-
+/// Draws `model` with the `timeline` section of `config`. A `TD` timeline runs down.
 #[expect(clippy::cast_precision_loss, reason = "counts and indexes are far below 2^52")]
-fn draw(model: &TimelineDb, config: &Value, options: &Options, vertical: bool) -> Rendered {
+pub(crate) fn render(model: &TimelineDb, config: &Value, options: &Options) -> Rendered {
+    let vertical = model.direction == "TD";
     let size = options.font_size;
     let small = js_round(size * 0.875);
     let pad = options.padding;
@@ -108,16 +100,8 @@ fn draw(model: &TimelineDb, config: &Value, options: &Options, vertical: bool) -
     }
 
     // Columns widen, up to a point, for a word that would not fit; past that the word is cut.
-    // Running down, the two columns share the width the host has.
-    let room = match options.max_width {
-        Some(width) if vertical && width > 0.0 => width - 2.0 * pad,
-        _ => f64::INFINITY,
-    };
-    let taken = AXIS + SPINE * 2.0 + 4.0 * PAD_X;
-    let period_text = MIN_TEXT.min(80.0_f64.max(js_round((room - taken) * 0.38)));
-    let event_text = EVENT_TEXT_TD.min(110.0_f64.max(room - taken - period_text));
-    let mut text_w = period_text;
-    let event_text_w = |text_w: f64| if vertical { event_text } else { text_w };
+    let mut text_w = MIN_TEXT;
+    let event_text_w = |text_w: f64| if vertical { EVENT_TEXT_TD } else { text_w };
     let layout = |fit: bool, text_w: f64| -> (Vec<Label>, Vec<Vec<Label>>) {
         let label = |raw: &str, size: f64, max: f64| {
             if fit { fit_label(Some(raw), size, max, 0) } else { plain_label(Some(raw), size, max, 0) }
@@ -136,11 +120,10 @@ fn draw(model: &TimelineDb, config: &Value, options: &Options, vertical: bool) -
     }
     let mut overflow = widest > text_w;
     if vertical {
-        overflow = overflow || event_labels.iter().flatten().any(|label| label.width > event_text);
+        overflow = overflow || event_labels.iter().flatten().any(|label| label.width > EVENT_TEXT_TD);
     }
     if overflow {
-        let cap = if room == f64::INFINITY { MAX_TEXT } else { period_text };
-        text_w = widest.ceil().max(period_text).min(cap);
+        text_w = widest.ceil().clamp(MIN_TEXT, MAX_TEXT);
         (period_labels, event_labels) = layout(true, text_w);
     }
 

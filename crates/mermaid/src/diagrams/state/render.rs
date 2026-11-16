@@ -8,8 +8,6 @@ use super::graph::StateEdge;
 use super::graph::StateNode;
 use crate::Options;
 use crate::diagrams::Rendered;
-use crate::diagrams::common::fit_width::runs_across;
-use crate::diagrams::common::fit_width::turn_to_fit;
 use crate::layout::compound::CEdge;
 use crate::layout::compound::CNode;
 use crate::layout::compound::Dir;
@@ -263,15 +261,6 @@ fn strip_mermaid_classes(classes: &str) -> String {
     out
 }
 
-/// Draws a state diagram, turning one that runs across to run down when it does not fit the
-/// host's width.
-pub(crate) fn render(db: &StateDb, config: &Value, options: &Options) -> Rendered {
-    if !runs_across(Some(db.direction())) {
-        return draw(db, config, options, false);
-    }
-    turn_to_fit(options, |down| draw(db, config, options, down))
-}
-
 /// Pele's comparison of the order states take in their flow: initial states first, then the
 /// order transitions introduce them, then declaration order.
 fn by_flow(views: &[View<'_>], appear: &[f64], a: usize, b: usize) -> Ordering {
@@ -290,13 +279,13 @@ fn by_flow(views: &[View<'_>], appear: &[f64], a: usize, b: usize) -> Ordering {
     a.cmp(&b)
 }
 
-/// `turned` draws a diagram that runs across as one that runs down.
+/// Draws a state diagram.
 #[expect(
     clippy::too_many_lines,
     clippy::many_single_char_names,
     reason = "mirrors Pele's draw and its geometry names, one pass per drawing stage"
 )]
-fn draw(db: &StateDb, config: &Value, options: &Options, turned: bool) -> Rendered {
+pub(crate) fn render(db: &StateDb, config: &Value, options: &Options) -> Rendered {
     let graph = &db.graph;
     // State diagrams follow the flowchart curve.
     let curve = match get(config, "flowchart").and_then(|flow| get(flow, "curve")) {
@@ -307,7 +296,7 @@ fn draw(db: &StateDb, config: &Value, options: &Options, turned: bool) -> Render
     let small = js_round(size * 0.875);
     let wrap_width = number_option(config, "wrappingWidth", 200.0);
     let pad = options.padding;
-    let root_dir = if turned { Dir::Tb } else { direction(Some(db.direction())) };
+    let root_dir = direction(Some(db.direction()));
     let text =
         |raw: Option<&str>, font_size: f64, wrap: f64, style: u8| layout_label(raw, true, font_size, wrap, style, None);
 

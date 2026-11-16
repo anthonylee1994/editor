@@ -1,12 +1,10 @@
-//! Draws a mindmap: branches spreading to both sides of the root, or an indented outline running
-//! down when that is narrower. Port of Pele's `src/diagrams/mindmap/render.ts`.
+//! Draws a mindmap: branches spreading to both sides of the root. Port of Pele's
+//! `src/diagrams/mindmap/render.ts`.
 
 use super::db::MindmapDb;
 use super::db::MindmapNode;
 use crate::Options;
 use crate::diagrams::Rendered;
-use crate::diagrams::common::fit_width::title_room;
-use crate::diagrams::common::fit_width::turn_to_fit;
 use crate::diagrams::common::icon::icon_svg;
 use crate::svg::builder::esc_text;
 use crate::svg::builder::js_round;
@@ -20,7 +18,6 @@ use crate::svg::theme::class_names;
 use crate::svg::theme::series_color;
 use crate::text::icons::IconResolver;
 use crate::text::icons::icon_markup;
-use crate::text::label::Label;
 use crate::text::label::layout_label;
 use crate::text::measure::BOLD;
 use crate::yaml::Value;
@@ -39,12 +36,6 @@ const TEXT_PAD: f64 = 6.0;
 const PILL_PAD: f64 = 12.0;
 const TINT: &str = "0.22";
 const ICON_GAP: f64 = 6.0;
-/// Running down, each level is set in by this much, and links leave a node this far from its left
-/// edge.
-const INDENT: f64 = 28.0;
-const STEM: f64 = 12.0;
-const BEND: f64 = 8.0;
-const ROW_GAP: f64 = 10.0;
 
 const LABEL_ATTRS: &str = " class=\"ondine-label\"";
 
@@ -59,40 +50,6 @@ fn property<'v>(value: &'v Value, key: &str) -> Option<&'v Value> {
 /// JavaScript's truthiness of a number, as `a || b` reads it.
 fn truthy(value: f64) -> bool {
     value != 0.0 && !value.is_nan()
-}
-
-/// A label with each line starting at `left`, for an outline, where centered lines would look
-/// ragged.
-#[expect(clippy::cast_precision_loss, reason = "line counts are far below 2^52")]
-fn left_label(label: &Label, left: f64, cy: f64, icons: Option<IconResolver<'_>>) -> String {
-    if label.lines.len() < 2 {
-        return label_svg(label, left + label.width / 2.0, cy, LABEL_ATTRS, icons);
-    }
-    let mut out = String::new();
-    let count = label.lines.len() as f64;
-    for (k, (line, &width)) in label.lines.iter().zip(&label.widths).enumerate() {
-        let single = Label {
-            height: label.line_height,
-            line_height: label.line_height,
-            lines: vec![line.clone()],
-            size: label.size,
-            width,
-            widths: vec![width],
-        };
-        let y = cy + (k as f64 - (count - 1.0) / 2.0) * label.line_height;
-        out.push_str(&label_svg(&single, left + width / 2.0, y, LABEL_ATTRS, icons));
-    }
-    out
-}
-
-/// Draws `model` with the `mindmap` section of `config`, running down when across does not fit.
-pub(crate) fn render(
-    model: &MindmapDb,
-    config: &Value,
-    options: &Options,
-    icons: Option<IconResolver<'_>>,
-) -> Rendered {
-    turn_to_fit(options, |down| draw(model, config, options, icons, down))
 }
 
 /// Stacks the subtrees `list[from..to]` top to bottom, setting their offsets in `rel`. Returns
@@ -125,12 +82,15 @@ fn stack(
     (middle, stacked)
 }
 
-/// Draws the map. `down` draws it as an outline: the root at the top, and each level set in under
-/// its parent. It is far narrower than branches spreading to both sides, and as tall as it needs
-/// to be.
-#[expect(clippy::cast_precision_loss, reason = "depths and counts are far below 2^52")]
+/// Draws `model` with the `mindmap` section of `config`.
+#[expect(clippy::cast_precision_loss, reason = "counts are far below 2^52")]
 #[expect(clippy::many_single_char_names, reason = "Pele's names")]
-fn draw(model: &MindmapDb, config: &Value, options: &Options, icons: Option<IconResolver<'_>>, down: bool) -> Rendered {
+pub(crate) fn render(
+    model: &MindmapDb,
+    config: &Value,
+    options: &Options,
+    icons: Option<IconResolver<'_>>,
+) -> Rendered {
     let size = options.font_size;
     let pad = options.padding;
     let wrap = match property(config, "mindmap").and_then(|conf| property(conf, "maxNodeWidth")) {
@@ -142,25 +102,15 @@ fn draw(model: &MindmapDb, config: &Value, options: &Options, icons: Option<Icon
     let nodes = &model.nodes;
     let n = nodes.len();
     let mut parent = vec![0usize; n];
-    let mut depth = vec![0usize; n];
     for (i, node) in nodes.iter().enumerate() {
-        let own = depth.get(i).copied().unwrap_or(0);
         for &child in &node.children {
             if let Some(slot) = parent.get_mut(child) {
                 *slot = i;
-            }
-            if let Some(slot) = depth.get_mut(child) {
-                *slot = own + 1;
             }
         }
     }
     let at = |values: &[f64], i: usize| values.get(i).copied().unwrap_or(0.0);
 
-    // An outline has the width the host gives it, less what its level is set in.
-    let room = match options.max_width {
-        Some(width) if down && width > 0.0 => width - 2.0 * pad,
-        _ => f64::INFINITY,
-    };
     let mut labels = Vec::with_capacity(n);
     let mut shapes = Vec::with_capacity(n);
     let mut w = vec![0.0; n];
@@ -173,23 +123,14 @@ fn draw(model: &MindmapDb, config: &Value, options: &Options, icons: Option<Icon
 
     for (i, node) in nodes.iter().enumerate() {
         let has_icon = node.icon.as_deref().is_some_and(|icon| !icon_markup(icons, icon).is_empty());
-        let icon_room = if has_icon { glyph + ICON_GAP } else { 0.0 };
-        let level = depth.get(i).copied().unwrap_or(0) as f64;
-        let fit = wrap.min(72.0_f64.max(room - level * INDENT - 2.0 * TEXT_PAD - icon_room));
-        let label = layout_label(Some(&node.descr), true, size, fit, 0, icons);
+        let label = layout_label(Some(&node.descr), true, size, wrap, 0, icons);
         let tw = label.width + if has_icon { glyph + if label.width > 0.0 { ICON_GAP } else { 0.0 } } else { 0.0 };
         let th = label.height.max(js_round(size * 1.5));
-        let mut shape = match SHAPES.get(usize::from(node.kind)).copied() {
+        let shape = match SHAPES.get(usize::from(node.kind)).copied() {
             Some(shape) if !shape.is_empty() => shape,
             _ if i == 0 => ROOT_SHAPE,
             _ => "",
         };
-        // In an outline the root heads a column, and the trunk drops from under its left end. A
-        // circle or a cloud would stand wide of that, so the root is a pill there unless it is a
-        // box already.
-        if down && i == 0 && shape != "rect" && shape != "rounded" {
-            shape = ROOT_SHAPE;
-        }
         if let (Some(wi), Some(hi), Some(ai), Some(di)) = (w.get_mut(i), h.get_mut(i), anchor.get_mut(i), dy.get_mut(i))
         {
             if shape.is_empty() {
@@ -246,23 +187,7 @@ fn draw(model: &MindmapDb, config: &Value, options: &Options, icons: Option<Icon
     let mut y = vec![0.0; n];
     let mut band = vec![0.0; n];
     let mut side = vec![0.0; n];
-    // Running down: how far the trunk under each node has been drawn.
-    let mut trunk = vec![0.0; n];
-
-    if down {
-        // Nodes are in depth-first order, which is the order of an outline's rows.
-        let mut row = 0.0;
-        for i in 0..n {
-            if i > 0 && parent.get(i) == Some(&0) {
-                row += ROW_GAP;
-            }
-            if let (Some(xi), Some(yi)) = (x.get_mut(i), y.get_mut(i)) {
-                *xi = depth.get(i).copied().unwrap_or(0) as f64 * INDENT + at(&w, i) / 2.0;
-                *yi = row;
-            }
-            row += at(&h, i) + ROW_GAP;
-        }
-    } else if let Some(root) = nodes.first() {
+    if let Some(root) = nodes.first() {
         // The first branches go right and the rest left, split where the two sides are closest
         // in height.
         let branches = &root.children;
@@ -369,42 +294,7 @@ fn draw(model: &MindmapDb, config: &Value, options: &Options, icons: Option<Icon
             color = series_color(i64::try_from(node.section.unwrap_or(0)).unwrap_or(0));
         }
         let (wp, hp) = (at(&w, p), at(&h, p));
-        if i > 0 && down {
-            // The link drops from under its parent and turns in to the node's left. It starts
-            // where the link to the sibling above turned in, so each stretch of a shared trunk
-            // has one color. Under the root's rounded end, the trunk starts where that end has
-            // come down to the bottom.
-            let stem = if p == 0 { STEM.max(at(&h, 0) / 2.0).min(INDENT - BEND) } else { STEM };
-            let x1 = at(&x, p) - wp / 2.0 + stem.min(wp / 2.0);
-            let drawn_to = at(&trunk, p);
-            let y1 = if truthy(drawn_to) { drawn_to } else { at(&y, p) + hp };
-            let left = cx - wi / 2.0;
-            let x2 = left + if shape.is_empty() { 0.0 } else { shape_inset(shape, wi, hi, 3, 0.0) };
-            let y2 = top + at(&anchor, i);
-            let bend = BEND.min(x2 - x1).min(y2 - y1).max(0.0);
-            // The next link carries on from where this one leaves the trunk, so the trunk has no
-            // gap.
-            if let Some(slot) = trunk.get_mut(p) {
-                *slot = y2 - bend;
-            }
-            edges.push_str("<path class=\"ondine-edge\" d=\"M");
-            push_num(&mut edges, x1);
-            edges.push(',');
-            push_num(&mut edges, y1);
-            edges.push('V');
-            push_num(&mut edges, y2 - bend);
-            edges.push('Q');
-            push_num(&mut edges, x1);
-            edges.push(',');
-            push_num(&mut edges, y2);
-            edges.push(' ');
-            push_num(&mut edges, x1 + bend);
-            edges.push(',');
-            push_num(&mut edges, y2);
-            edges.push('H');
-            push_num(&mut edges, x2);
-            edges.push_str("\"/>");
-        } else if i > 0 {
+        if i > 0 {
             let dir = at(&side, i);
             let from = if dir > 0.0 { 1 } else { 3 };
             let parent_shape = shapes.get(p).copied().unwrap_or("");
@@ -493,15 +383,11 @@ fn draw(model: &MindmapDb, config: &Value, options: &Options, icons: Option<Icon
         push_num(group, top + hi / 2.0);
         group.push_str(")\">");
         group.push_str(&inner);
-        if down && shape.is_empty() {
-            group.push_str(&left_label(label, shift - label.width / 2.0, at(&dy, i), icons));
-        } else {
-            group.push_str(&label_svg(label, shift, at(&dy, i), LABEL_ATTRS, icons));
-        }
+        group.push_str(&label_svg(label, shift, at(&dy, i), LABEL_ATTRS, icons));
         group.push_str("</g>");
     }
 
-    let title = layout_label(model.title.as_deref(), false, size, title_room(options), BOLD, None);
+    let title = layout_label(model.title.as_deref(), false, size, 4000.0, BOLD, None);
     let title_height = if title.height > 0.0 { title.height + 16.0 } else { 0.0 };
     let width = (max_x - min_x).max(title.width);
     let total_width = (width + 2.0 * pad).ceil();

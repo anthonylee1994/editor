@@ -351,9 +351,6 @@ fn connect(a: &Box, b: &Box, shift: f64) -> [f64; 4] {
 pub(crate) struct Lanes {
     frames: [Vec<f64>; 2],
     level: Vec<f64>,
-    /// Routes that found no lane of their own: a line left straight behind a shape, or a lane
-    /// that runs along another.
-    pub(crate) squeezed: usize,
     taken: BTreeMap<usize, Vec<f64>>,
     upright: Vec<f64>,
 }
@@ -755,11 +752,9 @@ pub(crate) fn route(
         && blocked
         && !upright
         && !level
+        && let Some(around) = elbow(boxes, ids, others, lanes, start_trim, end_trim)
     {
-        if let Some(around) = elbow(boxes, ids, others, lanes, start_trim, end_trim) {
-            return around;
-        }
-        lanes.squeezed += 1;
+        return around;
     }
     if let Some(others) = others
         && blocked
@@ -879,9 +874,6 @@ pub(crate) fn route(
             }
         };
         let way = if forward { 1.0 } else { -1.0 };
-        if chosen.step > 4.0 {
-            lanes.squeezed += 1;
-        }
         lanes.take(&chosen.points);
         lanes.claim(ids.0, chosen.side, chosen.p0);
         lanes.claim(ids.1, chosen.side, chosen.p1);

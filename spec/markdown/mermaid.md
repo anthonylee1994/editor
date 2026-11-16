@@ -7,14 +7,17 @@
   features: every diagram type is always compiled and renders; a diagram
   that fails to compile shows its source.
 - `mermaid::render(source, &Options, &Theme)` takes typed `mermaid::Options`
-  (font size, padding, max width, auto direction / breakpoint, source and
-  output limits, max edges, and the gantt `now`), not JSON. The SVG is only
-  rasterized, so browser-only output is gone: the document always has a fixed
-  size (no `responsive` / `useMaxWidth`), there is no id prefix option
-  (internal ids are fixed), and no links, tooltips, or accessibility markup
-  (`click`/`link`/`href` and `accTitle`/`accDescr` still parse, but are
-  ignored). Image nodes keep relative/`http`/`https` addresses; loading them
-  is up to the rasterizer.
+  (font size, padding, source and output limits, max edges), not JSON. The
+  SVG is only rasterized in the markdown preview, so browser-only features are
+  gone:
+  - fixed document size (no `responsive` / `useMaxWidth`) and fixed internal
+    ids;
+  - no fitting to a host width: every diagram draws at its natural width in
+    its source direction (no max width, auto direction, tightening, or
+    narrow layouts);
+  - links, tooltips, callbacks, sequence `links`/`link`/`details`, and
+    `accTitle`/`accDescr` still parse but are not kept or drawn;
+  - image nodes keep their room but draw no image, since usvg loads no URLs.
 - `mermaid::render` takes a `mermaid::Theme` (opaque colors, chart series,
   font, stroke width, corner radius) and emits concrete values, so the SVG has
   no CSS variables or `color-mix()` and rasterizes with usvg as is. The preview

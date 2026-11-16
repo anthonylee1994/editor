@@ -301,20 +301,15 @@ pub(crate) fn parse_state(src: &str, db: &mut StateDb) -> Result<(), Error> {
                 add(&mut docs, Stmt::Text(value.to_owned()));
             }
             T::Click => {
+                // Links are not drawn, so a click is only checked.
                 p.i += 1;
-                let id = p.id_statement()?;
-                let (url, tooltip) = if p.kind() == T::Href {
-                    p.i += 1;
-                    (p.expect(T::String)?, "")
-                } else {
-                    if p.kind() != T::String {
-                        return Err(p.fail("'STRING', 'HREF'"));
-                    }
-                    let url = p.take();
-                    (url, p.expect(T::String)?)
-                };
+                p.id_statement()?;
+                if !matches!(p.kind(), T::Href | T::String) {
+                    return Err(p.fail("'STRING', 'HREF'"));
+                }
+                p.i += 1;
+                p.expect(T::String)?;
                 p.expect(T::Nl)?;
-                add(&mut docs, Stmt::Click { id, tooltip: tooltip.to_owned(), url: url.to_owned() });
             }
             T::ClassDef => {
                 p.i += 1;

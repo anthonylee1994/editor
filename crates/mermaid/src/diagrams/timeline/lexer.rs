@@ -115,12 +115,18 @@ pub(crate) fn tokenize<'a>(src: &'a str) -> Tokens<'a> {
                 continue;
             }
         }
-        // `\s` after a keyword also takes a line break, so `title` alone on a line takes the
-        // next line as its text.
-        if keyword_at(src, p, "title") && space_at(p + 5) {
-            let after = p + 5 + len_at(src, p + 5);
-            if after < n && bytes.get(after) != Some(&b'\n') {
-                p = emit(&mut out, TITLE, p, line_end(src, after));
+        if keyword_at(src, p, "title") {
+            // Unlike Mermaid, a bare title is ignored.
+            let mut e = p + 5;
+            while bytes.get(e).is_some_and(|&b| b != b'\n') && space_at(e) {
+                e += len_at(src, e);
+            }
+            if e >= n || bytes[e] == b'\n' {
+                p = e;
+                continue;
+            }
+            if bytes.get(p + 5) != Some(&b'\r') && space_at(p + 5) {
+                p = emit(&mut out, TITLE, p, line_end(src, p + 5 + len_at(src, p + 5)));
                 continue;
             }
         }

@@ -39,14 +39,13 @@ pub(crate) fn is_figure(kind: &str) -> bool {
 
 /// The size of a participant of `kind` with `label`, at least `min_w` by `min_h` for the kinds
 /// that hold their label.
-pub(crate) fn actor_size(kind: &str, label: &Label, min_w: f64, min_h: f64, padding_x: Option<f64>) -> ActorSize {
+pub(crate) fn actor_size(kind: &str, label: &Label, min_w: f64, min_h: f64) -> ActorSize {
     if is_figure(kind) {
         return ActorSize {
             h: GLYPH + if label.height > 0.0 { GLYPH_GAP + label.height } else { 0.0 },
             w: 40.0_f64.max(label.width + 8.0),
         };
     }
-    let padding_x = padding_x.unwrap_or(PAD_X);
     let extra = match kind {
         "collections" => STACK,
         "queue" => 2.0 * CAP,
@@ -54,7 +53,7 @@ pub(crate) fn actor_size(kind: &str, label: &Label, min_w: f64, min_h: f64, padd
     };
     ActorSize {
         h: min_h.max(label.height + 2.0 * PAD_Y) + if kind == "collections" { STACK } else { 0.0 },
-        w: min_w.max(label.width + 2.0 * padding_x) + extra,
+        w: min_w.max(label.width + 2.0 * PAD_X) + extra,
     }
 }
 

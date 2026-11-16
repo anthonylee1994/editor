@@ -15,11 +15,9 @@ use super::types::NamespaceNode;
 use super::types::RelationEnd;
 use super::types::StyleClass;
 use crate::error;
-use crate::text::entities;
 use crate::text::label::trim;
 use crate::text::label::trim_start;
 use crate::util::chars::is_space;
-use crate::util::url::sanitize_url;
 
 /// Records in insertion order with an index by key, as Pele's `Map` keeps them.
 #[derive(Debug)]
@@ -155,16 +153,12 @@ impl ClassDb {
             ClassNode {
                 annotations: Vec::new(),
                 css_classes: String::from("default"),
-                have_callback: false,
                 id: class_name.to_owned(),
                 label: class_name.to_owned(),
-                link: None,
-                link_target: None,
                 members: Vec::new(),
                 methods: Vec::new(),
                 parent: None,
                 styles: Vec::new(),
-                tooltip: None,
                 r#type: r#type.to_owned(),
             },
         );
@@ -329,43 +323,6 @@ impl ClassDb {
                 }
             }
         }
-    }
-
-    /// Sets the tooltip of the classes `ids` names.
-    pub(crate) fn set_tooltip(&mut self, ids: &str, tooltip: Option<&str>) {
-        let Some(tooltip) = tooltip else {
-            return;
-        };
-        for id in ids.split(',') {
-            if let Some(node) = self.classes.get_mut(split_name(id).0) {
-                node.tooltip = Some(tooltip.to_owned());
-            }
-        }
-    }
-
-    /// Links the classes `ids` names, and marks them clickable.
-    pub(crate) fn set_link(&mut self, ids: &str, link: &str, target: Option<&str>) {
-        // Entity codes are resolved first, so that what is checked is what a browser would follow.
-        let decoded = entities::decode(link);
-        let url = trim(&decoded);
-        for id in ids.split(',') {
-            if let Some(node) = self.classes.get_mut(&lookup_id(id)) {
-                node.link = (!url.is_empty()).then(|| sanitize_url(url));
-                node.link_target = Some(target.unwrap_or("_blank").to_owned());
-            }
-        }
-        self.set_css_class(ids, "clickable");
-    }
-
-    /// Marks the classes `ids` names as having a callback, and clickable. Callbacks are never
-    /// executed, as in Mermaid's strict mode.
-    pub(crate) fn set_click_event(&mut self, ids: &str) {
-        for id in ids.split(',') {
-            if let Some(node) = self.classes.get_mut(split_name(id).0) {
-                node.have_callback = true;
-            }
-        }
-        self.set_css_class(ids, "clickable");
     }
 
     /// Sets the flow direction.

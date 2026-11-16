@@ -115,15 +115,6 @@ pub(crate) enum Stmt {
         /// The class name.
         id: String,
     },
-    /// `click id ...`.
-    Click {
-        /// The state clicked.
-        id: StateStmt,
-        /// The tooltip, quotes included.
-        tooltip: String,
-        /// The target, quotes included.
-        url: String,
-    },
     /// `direction XX`.
     Dir(&'static str),
     /// A transition.
@@ -161,13 +152,4 @@ pub(crate) struct StateClassDef {
     pub(crate) styles: Vec<String>,
     /// The declarations that style text.
     pub(crate) text_styles: Vec<String>,
-}
-
-/// Pele's `StateLink`.
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) struct StateLink {
-    /// The tooltip, quotes included.
-    pub(crate) tooltip: String,
-    /// The target, quotes included.
-    pub(crate) url: String,
 }

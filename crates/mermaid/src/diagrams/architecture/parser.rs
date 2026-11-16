@@ -10,7 +10,7 @@ use crate::diagrams::common::tokens::Pattern;
 use crate::diagrams::common::tokens::Reader;
 use crate::diagrams::common::tokens::SINGLE_LINE_COMMENT;
 use crate::diagrams::common::tokens::STRING;
-use crate::diagrams::common::tokens::TITLE;
+use crate::diagrams::common::tokens::TITLE_BEFORE_NAME;
 use crate::diagrams::common::tokens::TokenType;
 use crate::diagrams::common::tokens::WHITESPACE;
 use crate::diagrams::common::tokens::YAML;
@@ -81,7 +81,7 @@ pub(crate) const ARCHITECTURE_TOKENS: &[TokenType] = &[
     TokenType { name: "ARROW_INTO", pattern: Pattern::Match(into), ..literal("") },
     ACC_DESCR,
     ACC_TITLE,
-    TITLE,
+    TITLE_BEFORE_NAME,
     STRING,
     ID,
     NEWLINE,

@@ -19,9 +19,6 @@ use super::route::queue_rx;
 use super::route::route;
 use crate::Options;
 use crate::diagrams::Rendered;
-use crate::diagrams::common::fit_width::Drawn;
-use crate::diagrams::common::fit_width::tighten;
-use crate::diagrams::common::fit_width::title_room;
 use crate::diagrams::common::literal_label::left_label_svg;
 use crate::error::Code;
 use crate::error::Error;
@@ -45,8 +42,6 @@ use crate::text::measure::ITALIC;
 use crate::yaml::push_number;
 
 const PAIR_SHIFT: f64 = 7.0;
-const NARROW_GAP: f64 = 36.0;
-const WIDEN: f64 = 24.0;
 const MAX_OFFSET: f64 = 2000.0;
 /// A label may cover this much of a shape's edge, where there is no text.
 const EDGE: f64 = 8.0;
@@ -66,46 +61,6 @@ fn user_style(fill: Option<&str>, stroke: Option<&str>, color: Option<&str>) -> 
     resolve_style(&declarations)
 }
 
-/// A drawing or the error that stopped it, as [`tighten`] takes it.
-struct Drawing(Result<Rendered, Error>);
-
-impl Drawn for Drawing {
-    fn width(&self) -> f64 {
-        self.0.as_ref().map_or(0.0, |rendered| rendered.width)
-    }
-}
-
-/// Draws a C4 diagram, more tightly when it does not fit the host's width.
-///
-/// # Errors
-///
-/// Returns a semantic error for a relation that names an unknown shape or boundary.
-pub(crate) fn render(db: &C4Db, options: &Options) -> Result<Rendered, Error> {
-    let result = tighten(options, |tight| {
-        if !tight {
-            return Drawing(draw(db, options, false, NARROW_GAP).map(|drawn| drawn.0));
-        }
-        let (mut best, mut squeezed) = match draw(db, options, true, NARROW_GAP) {
-            Ok(drawn) => drawn,
-            Err(error) => return Drawing(Err(error)),
-        };
-        let mut gap = NARROW_GAP + WIDEN;
-        while squeezed > 0 && gap <= NARROW_GAP + 3.0 * WIDEN {
-            match draw(db, options, true, gap) {
-                Ok((wider, left)) if left < squeezed => {
-                    best = wider;
-                    squeezed = left;
-                }
-                Ok(_) => {}
-                Err(error) => return Drawing(Err(error)),
-            }
-            gap += WIDEN;
-        }
-        Drawing(Ok(best))
-    });
-    result.0
-}
-
 #[cold]
 fn unknown(from: &str, to: &str) -> Error {
     let mut error = Error::new(
@@ -116,13 +71,17 @@ fn unknown(from: &str, to: &str) -> Error {
     error
 }
 
+/// Draws a C4 diagram.
+///
+/// # Errors
+///
+/// Returns a semantic error for a relation that names an unknown shape or boundary.
 #[expect(clippy::too_many_lines, reason = "mirrors Pele's draw")]
-fn draw(db: &C4Db, options: &Options, tight: bool, gap: f64) -> Result<(Rendered, usize), Error> {
+pub(crate) fn render(db: &C4Db, options: &Options) -> Result<Rendered, Error> {
     let size = options.font_size;
     let small = js_round(size * 0.8125);
     let pad = options.padding;
-    let room = tight.then(|| 80.0_f64.max(options.max_width.unwrap_or(320.0) - 2.0 * pad));
-    let mut layout = layout_c4(db, size, small, room, gap);
+    let mut layout = layout_c4(db, size, small);
     let root = layout.groups.first().and_then(|group| layout.boxes.get(group.id)).copied().unwrap_or_default();
 
     let mut min_x = 0.0_f64;
@@ -298,8 +257,8 @@ fn draw(db: &C4Db, options: &Options, tight: bool, gap: f64) -> Result<(Rendered
         let aside = if r.lean == 0.0 { beside } else { 0.0_f64.max(r.lean.min(beside - 14.0)) };
         // Manual offsets are tuned to the original spacing. Reposition compact labels beside
         // their routed arrows so an offset cannot leave them floating outside a boundary.
-        let mut dx = r.nx * aside + if tight { 0.0 } else { offset(rel.offset_x) };
-        let mut dy = r.ny * aside + if tight { 0.0 } else { offset(rel.offset_y) };
+        let mut dx = r.nx * aside + offset(rel.offset_x);
+        let mut dy = r.ny * aside + offset(rel.offset_y);
         let mut at = 0.5;
         if careful {
             // Slide along the line to the spot that covers least. Offsets from the diagram are
@@ -497,8 +456,7 @@ fn draw(db: &C4Db, options: &Options, tight: bool, gap: f64) -> Result<(Rendered
         }
     }
 
-    let title =
-        layout_label(db.title.as_deref(), false, size, if tight { title_room(options) } else { 4000.0 }, BOLD, None);
+    let title = layout_label(db.title.as_deref(), false, size, 4000.0, BOLD, None);
     let title_height = if title.height > 0.0 { title.height + 12.0 } else { 0.0 };
     let inner = (max_x - min_x).max(title.width);
     let width = (inner + 2.0 * pad).ceil();
@@ -543,5 +501,5 @@ fn draw(db: &C4Db, options: &Options, tight: bool, gap: f64) -> Result<(Rendered
     content.push_str("</g>");
 
     let svg = svg_document("c4", width, height, size, &content);
-    Ok((Rendered { height, svg, width }, lanes.squeezed))
+    Ok(Rendered { height, svg, width })
 }

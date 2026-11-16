@@ -3,12 +3,12 @@
 
 use std::mem;
 
+use super::common::ABNF_TITLE;
 use super::common::ACC_DESCR;
 use super::common::ACC_TITLE;
 use super::common::AstNode;
 use super::common::Grammar;
 use super::common::LETTERS;
-use super::common::TITLE;
 use super::common::add;
 use super::common::attach;
 use super::common::choice;
@@ -132,7 +132,7 @@ pub(crate) const ABNF_TOKENS: &[TokenType] = &[
     literal(")"),
     literal("["),
     literal("]"),
-    TITLE,
+    ABNF_TITLE,
     ACC_TITLE,
     ACC_DESCR,
     matched("ABNF_RULENAME", LETTERS, rule_name),

@@ -7,7 +7,7 @@ use crate::diagrams::common::tokens::EOF;
 use crate::diagrams::common::tokens::NEWLINE;
 use crate::diagrams::common::tokens::Pattern;
 use crate::diagrams::common::tokens::Reader;
-use crate::diagrams::common::tokens::TITLE;
+use crate::diagrams::common::tokens::TITLE_BEFORE_WORD;
 use crate::diagrams::common::tokens::TokenType;
 use crate::diagrams::common::tokens::WHITESPACE;
 use crate::diagrams::common::tokens::acc_descr_value;
@@ -148,7 +148,7 @@ const fn matcher(name: &'static str, first: &'static str, f: fn(&str, usize) -> 
 pub(crate) const TREEMAP_TOKENS: &[TokenType] = &[
     ACC_DESCR,
     ACC_TITLE,
-    TITLE,
+    TITLE_BEFORE_WORD,
     matcher("TREEMAP_KEYWORD", "t", keyword),
     matcher("CLASS_DEF", "c", class_def),
     TokenType { name: "STYLE_SEPARATOR", ..literal(":::") },

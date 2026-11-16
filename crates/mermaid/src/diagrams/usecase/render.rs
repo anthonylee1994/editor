@@ -14,8 +14,6 @@ use super::types::ActorType;
 use super::types::UsecaseModel;
 use crate::Options;
 use crate::diagrams::Rendered;
-use crate::diagrams::common::fit_width::runs_across;
-use crate::diagrams::common::fit_width::turn_to_fit;
 use crate::layout::compound::CEdge;
 use crate::layout::compound::CNode;
 use crate::layout::compound::Dir;
@@ -359,15 +357,6 @@ fn figure(view: &View, node: &GraphNode<'_>) -> String {
     out
 }
 
-/// Draws `model` with the `usecase` section of `config`, turned to run down when it runs across
-/// and does not fit the host's width.
-pub(crate) fn render(model: &UsecaseModel, config: &Value, options: &Options) -> Rendered {
-    if !runs_across(Some(model.direction)) {
-        return draw(model, config, options, false);
-    }
-    turn_to_fit(options, |down| draw(model, config, options, down))
-}
-
 /// `classes` without a leading `default` and one whitespace character after it, as
 /// `/^default\s?/` removes them.
 fn without_default(classes: &str) -> &str {
@@ -480,15 +469,15 @@ fn measure(node: &GraphNode<'_>, size: f64, small: f64, tiny: f64) -> View {
     view
 }
 
-/// `turned` draws a diagram that runs across as one that runs down.
+/// Draws `model` with the `usecase` section of `config`.
 #[expect(clippy::too_many_lines, reason = "mirrors Pele's draw")]
-fn draw(model: &UsecaseModel, config: &Value, options: &Options, turned: bool) -> Rendered {
+pub(crate) fn render(model: &UsecaseModel, config: &Value, options: &Options) -> Rendered {
     let graph = build_usecase_graph(model);
     let size = options.font_size;
     let small = js_round(size * 0.875);
     let tiny = js_round(size * 0.8125);
     let pad = options.padding;
-    let root_dir = if turned { Dir::Tb } else { direction(Some(model.direction)) };
+    let root_dir = direction(Some(model.direction));
     let sideways = matches!(root_dir, Dir::Lr | Dir::Rl);
 
     // Ids by node, the last node of an id winning, as a `Map` set in order keeps it.

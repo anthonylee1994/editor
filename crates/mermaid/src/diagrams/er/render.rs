@@ -10,12 +10,9 @@ use super::markers::MARKER_LENGTH;
 use super::markers::er_marker;
 use crate::Options;
 use crate::diagrams::Rendered;
-use crate::diagrams::common::fit_width::runs_across;
-use crate::diagrams::common::fit_width::turn_to_fit;
 use crate::diagrams::common::generics::parse_generic_types;
 use crate::layout::compound::CEdge;
 use crate::layout::compound::CNode;
-use crate::layout::compound::Dir;
 use crate::layout::compound::cnode;
 use crate::layout::compound::compound_layout;
 use crate::layout::compound::direction;
@@ -239,22 +236,13 @@ fn strip_default(classes: &str) -> &str {
     }
 }
 
-/// Draws an ER diagram, turning one that runs across to run down when it does not fit the host's
-/// width.
-pub(crate) fn render(db: &ErDb, config: &Value, options: &Options) -> Rendered {
-    if !runs_across(Some(db.direction)) {
-        return draw(db, config, options, false);
-    }
-    turn_to_fit(options, |down| draw(db, config, options, down))
-}
-
-/// `turned` draws a diagram that runs across as one that runs down.
+/// Draws an ER diagram.
 #[expect(
     clippy::many_single_char_names,
     clippy::too_many_lines,
     reason = "mirrors Pele's draw, one pass per drawing stage"
 )]
-fn draw(db: &ErDb, config: &Value, options: &Options, turned: bool) -> Rendered {
+pub(crate) fn render(db: &ErDb, config: &Value, options: &Options) -> Rendered {
     let graph = graph::build(db);
     let size = options.font_size;
     let small_size = js_round(size * 0.875);
@@ -445,7 +433,7 @@ fn draw(db: &ErDb, config: &Value, options: &Options, turned: bool) -> Rendered 
     let layout = compound_layout(
         &mut cnodes,
         &mut cedges,
-        if turned { Dir::Tb } else { direction(Some(db.direction)) },
+        direction(Some(db.direction)),
         &LayeredOptions {
             apart: false,
             edge_sep: EDGE_SEP,

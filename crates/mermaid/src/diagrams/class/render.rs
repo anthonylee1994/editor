@@ -14,11 +14,7 @@ use super::members::ClassMember;
 use super::types::ClassNode;
 use crate::Options;
 use crate::diagrams::Rendered;
-use crate::diagrams::common::fit_width::runs_across;
-use crate::diagrams::common::fit_width::tighten;
-use crate::diagrams::common::fit_width::turn_to_fit;
 use crate::diagrams::common::generics::parse_generic_types;
-use crate::layout::components::wrap_components;
 use crate::layout::compound::CEdge;
 use crate::layout::compound::CNode;
 use crate::layout::compound::Dir;
@@ -170,13 +166,6 @@ fn strip_default(classes: &str) -> &str {
     }
 }
 
-/// Draws a class diagram, turning one that runs across to run down, and tightening it, when it
-/// does not fit the host's width.
-pub(crate) fn render(db: &ClassDb, config: &Value, options: &Options) -> Rendered {
-    let fitted = |down: bool| tighten(options, |tight| draw(db, config, options, down, tight));
-    if runs_across(Some(db.direction)) { turn_to_fit(options, fitted) } else { fitted(false) }
-}
-
 /// The style of a class: the effective declarations of its class definitions and its own, the
 /// last of each property winning. A class may carry the declarations of many definitions many
 /// times over, so each distinct declaration is checked once.
@@ -241,15 +230,14 @@ impl Styler<'_> {
     }
 }
 
-/// `turned` draws a diagram that runs across as one that runs down. `tight` gives up the room
-/// that keeps a namespace's name clear of an edge coming in beside it.
+/// Draws a class diagram.
 #[expect(
     clippy::float_cmp,
     clippy::many_single_char_names,
     clippy::too_many_lines,
     reason = "mirrors Pele's draw, one pass per drawing stage, and its exact comparisons"
 )]
-fn draw(db: &ClassDb, config: &Value, options: &Options, turned: bool, tight: bool) -> Rendered {
+pub(crate) fn render(db: &ClassDb, config: &Value, options: &Options) -> Rendered {
     let conf = get(config, "class").filter(|value| matches!(value, Value::Object(_)));
     let hierarchical = !matches!(conf.and_then(|conf| get(conf, "hierarchicalNamespaces")), Some(Value::Bool(false)));
     let graph = graph::build(db, hierarchical);
@@ -259,7 +247,7 @@ fn draw(db: &ClassDb, config: &Value, options: &Options, turned: bool, tight: bo
     let tiny = js_round(size * 0.8);
     let tiny_height = js_round(tiny * 1.4);
     let pad = options.padding;
-    let root_dir = if turned { Dir::Tb } else { direction(Some(db.direction)) };
+    let root_dir = direction(Some(db.direction));
     let n = graph.nodes.len();
 
     let mut styler = Styler { db, effect: BTreeMap::new(), from_defs: BTreeMap::new(), kept: Vec::new() };
@@ -320,11 +308,7 @@ fn draw(db: &ClassDb, config: &Value, options: &Options, turned: bool, tight: bo
                 c.pad_top = if label.height > 0.0 { label.height + 16.0 } else { GROUP_PAD };
                 c.pad_bottom = GROUP_PAD;
                 c.min_w = label.width + 2.0 * GROUP_PAD - 12.0
-                    + if crossed.get(i).copied().unwrap_or(false) && !tight {
-                        (label.width + 24.0).min(240.0)
-                    } else {
-                        0.0
-                    };
+                    + if crossed.get(i).copied().unwrap_or(false) { (label.width + 24.0).min(240.0) } else { 0.0 };
                 (base(label, 0.0, 0.0, size), c)
             } else {
                 let w = (label.width + 2.0 * GROUP_PAD).max(80.0);
@@ -715,38 +699,6 @@ fn draw(db: &ClassDb, config: &Value, options: &Options, turned: bool, tight: bo
                 to.map_or(0, |end| end.side),
                 to.is_none_or(|end| end.after),
             );
-        }
-    }
-
-    // Disconnected parts that are too wide together go in rows.
-    if let Some(available) = options.max_width.filter(|&available| available > 0.0)
-        && max_x - min_x + 2.0 * pad > available
-    {
-        let mut all = cnodes.clone();
-        all.extend(cards.iter().map(|item| CNode {
-            x: item.x,
-            y: item.y,
-            ..cnode(item.w, item.h, i32::try_from(item.parent).unwrap_or(-1))
-        }));
-        let wrapped = wrap_components(
-            &mut all,
-            &mut cedges,
-            f64::max(1.0, available - 2.0 * pad),
-            number_option(conf, "nodeSpacing", NODE_SEP),
-        );
-        if let Some(wrapped) = wrapped {
-            for (c, moved) in cnodes.iter_mut().zip(&all) {
-                c.x = moved.x;
-                c.y = moved.y;
-            }
-            for (item, moved) in cards.iter_mut().zip(all.get(cnodes.len()..).unwrap_or(&[])) {
-                item.x = moved.x;
-                item.y = moved.y;
-            }
-            min_x = 0.0;
-            min_y = 0.0;
-            max_x = wrapped.width;
-            max_y = wrapped.height;
         }
     }
 

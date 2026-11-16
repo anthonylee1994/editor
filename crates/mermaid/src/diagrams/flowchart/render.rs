@@ -1,23 +1,17 @@
-//! Lays out and draws a flowchart, or a variant of one such as a swimlane diagram. Port of Pele's
+//! Lays out and draws a flowchart. Port of Pele's
 //! `src/diagrams/flowchart/render.ts`.
 
 use std::collections::BTreeMap;
 
 use super::db::FlowDb;
-use super::graph::FlowGraph;
 use super::graph::GraphEdge;
 use super::graph::GraphNode;
 use super::graph::{self};
 use super::shapes::canonical_shape;
 use crate::Options;
 use crate::diagrams::Rendered;
-use crate::diagrams::common::fit_width::runs_across;
-use crate::diagrams::common::fit_width::tighten;
-use crate::diagrams::common::fit_width::title_room;
-use crate::diagrams::common::fit_width::turn_to_fit;
 use crate::layout::compound::CEdge;
 use crate::layout::compound::CNode;
-use crate::layout::compound::CompoundResult;
 use crate::layout::compound::Dir;
 use crate::layout::compound::cnode;
 use crate::layout::compound::compound_layout;
@@ -57,7 +51,6 @@ use crate::text::label::layout_label;
 use crate::text::measure::BOLD;
 use crate::text::measure::ITALIC;
 use crate::util::chars;
-use crate::util::url::{self};
 use crate::yaml::Value;
 
 const NODE_SEP: f64 = 40.0;
@@ -67,23 +60,6 @@ const GROUP_PAD: f64 = 20.0;
 const LOOP: f64 = 26.0;
 const SHAPE_ATTRS: &str = " fill=\"var(--_s)\" stroke=\"var(--_b)\"";
 const LINE_ATTRS: &str = " stroke=\"var(--_b)\"";
-
-/// Draws a top-level group from its box, title, style, classes, escaped id, and the diagram's
-/// direction.
-pub(crate) type DrawGroup = fn(&CNode, &Label, &ResolvedStyle, &str, &str, Dir) -> String;
-
-/// A diagram type that is a flowchart with a different layout, which may draw its top-level groups
-/// itself: Pele's `FlowVariant`.
-pub(crate) struct Variant {
-    /// Draws top-level groups. Groups use the flowchart's drawing without it.
-    pub(crate) draw_group: Option<DrawGroup>,
-    /// Lays out the nodes and edges in a direction. The flag asks for tighter spacing.
-    pub(crate) layout: fn(&mut [CNode], &mut [CEdge], Dir, &LayeredOptions, bool) -> CompoundResult,
-    /// Adjusts the graph before it is measured.
-    pub(crate) prepare: fn(&mut FlowGraph),
-    /// The diagram type, which names its config section and the SVG's type.
-    pub(crate) r#type: &'static str,
-}
 
 /// What a node is drawn as, beside its layout box.
 struct NodeView<'g> {
@@ -118,40 +94,18 @@ fn asset_size(value: Option<f64>, fallback: f64) -> f64 {
     }
 }
 
-/// Draws a flowchart, or the flowchart `variant`, turning one that runs across to run down, and
-/// tightening its spacing, when it does not fit the host's width.
-pub(crate) fn render(db: &FlowDb, config: &Value, options: &Options, variant: Option<&Variant>) -> Rendered {
-    let fitted = |down: bool| tighten(options, |tight| draw(db, config, options, variant, down, tight));
-
-    if runs_across(db.direction.as_deref()) { turn_to_fit(options, fitted) } else { fitted(false) }
-}
-
-/// `turned` draws a flowchart that runs across as one that runs down. `tight` sets nodes closer.
+/// Draws a flowchart.
 #[expect(clippy::too_many_lines, reason = "mirrors Pele's draw, one pass per drawing stage")]
-fn draw(
-    db: &FlowDb,
-    config: &Value,
-    options: &Options,
-    variant: Option<&Variant>,
-    turned: bool,
-    tight: bool,
-) -> Rendered {
-    let group_pad = if tight { 12.0 } else { GROUP_PAD };
-    let own = variant.and_then(|variant| get(config, variant.r#type)).filter(|value| matches!(value, Value::Object(_)));
-    let flow = own.or_else(|| get(config, "flowchart").filter(|value| matches!(value, Value::Object(_))));
+pub(crate) fn render(db: &FlowDb, config: &Value, options: &Options) -> Rendered {
+    let flow = get(config, "flowchart").filter(|value| matches!(value, Value::Object(_)));
     let curve = match flow.and_then(|flow| get(flow, "curve")) {
         Some(Value::String(curve)) => Some(curve.as_str()),
         _ => None,
     };
-    let mut graph = graph::build(db, curve);
-    if let Some(variant) = variant {
-        (variant.prepare)(&mut graph);
-    }
+    let graph = graph::build(db, curve);
     let size = options.font_size;
     let edge_size = builder::js_round(size * 0.875);
-    let squeezed = variant.is_some() && tight;
-    let wrap_width = number_option(flow, "wrappingWidth", 200.0).min(if squeezed { 100.0 } else { f64::INFINITY });
-    let group_title_width = if squeezed { 80.0_f64.max(title_room(options) / 2.0) } else { 4000.0 };
+    let wrap_width = number_option(flow, "wrappingWidth", 200.0);
     let pad = options.padding;
 
     let mut index: BTreeMap<&str, usize> = BTreeMap::new();
@@ -175,14 +129,14 @@ fn draw(
         let font_size = style.font_size.unwrap_or(size);
 
         let (view, mut c) = if node.is_group {
-            let label = layout_label(node.label.as_deref(), markdown, font_size, group_title_width, text_style, None);
+            let label = layout_label(node.label.as_deref(), markdown, font_size, 4000.0, text_style, None);
             let mut c = cnode(0.0, 0.0, -1);
             c.is_group = true;
             c.dir = node.dir.as_deref().map(|dir| direction(Some(dir)));
-            c.pad_x = group_pad;
+            c.pad_x = GROUP_PAD;
             c.pad_top = if label.height > 0.0 { label.height + 16.0 } else { GROUP_PAD };
-            c.pad_bottom = group_pad;
-            c.min_w = label.width + 2.0 * group_pad - 12.0;
+            c.pad_bottom = GROUP_PAD;
+            c.min_w = label.width + 2.0 * GROUP_PAD - 12.0;
             let view = NodeView { dy: 0.0, h: 0.0, label, node, shape: "group", style, w: 0.0 };
             (view, c)
         } else {
@@ -226,8 +180,34 @@ fn draw(
             c.parent = parent;
         }
     }
+    // As in Mermaid, a group that an edge enters or leaves takes its parent's direction.
+    let ancestors = |cnodes: &[CNode], i: usize| {
+        let mut out = Vec::new();
+        let mut p = cnodes[i].parent;
+        while let Ok(at) = usize::try_from(p) {
+            if out.contains(&at) {
+                break;
+            }
+            out.push(at);
+            p = cnodes[at].parent;
+        }
+        out
+    };
+    for edge in &graph.edges {
+        let (Some(&src), Some(&dst)) = (index.get(edge.start.as_str()), index.get(edge.end.as_str())) else {
+            continue;
+        };
+        if src == dst {
+            continue;
+        }
+        let a = ancestors(&cnodes, src);
+        let b = ancestors(&cnodes, dst);
+        for &g in a.iter().filter(|g| !b.contains(g)).chain(b.iter().filter(|g| !a.contains(g))) {
+            cnodes[g].dir = None;
+        }
+    }
 
-    let root_dir = if turned { Dir::Tb } else { direction(db.direction.as_deref()) };
+    let root_dir = direction(db.direction.as_deref());
     let flows_sideways = |cnodes: &[CNode], i: usize| -> bool {
         let mut dir: Option<Dir> = None;
         let mut p = cnodes.get(i).map_or(-1, |c| c.parent);
@@ -304,19 +284,15 @@ fn draw(
         apart: false,
         edge_sep: EDGE_SEP,
         head_room: marker_trim("arrow_point"),
-        node_sep: number_option(flow, "nodeSpacing", NODE_SEP) * if tight { 0.5 } else { 1.0 },
+        node_sep: number_option(flow, "nodeSpacing", NODE_SEP),
         port_sep: 20.0,
-        rank_sep: number_option(flow, "rankSpacing", RANK_SEP) * if tight { 0.75 } else { 1.0 },
+        rank_sep: number_option(flow, "rankSpacing", RANK_SEP),
         straight: curve == Some("linear"),
         tracks: curve.is_some_and(|curve| curve.starts_with("step")),
     };
-    let layout = match variant {
-        Some(variant) => (variant.layout)(&mut cnodes, &mut cedges, root_dir, &layout_options, tight),
-        None => compound_layout(&mut cnodes, &mut cedges, root_dir, &layout_options),
-    };
+    let layout = compound_layout(&mut cnodes, &mut cedges, root_dir, &layout_options);
 
-    let title_width = if tight { title_room(options) } else { 4000.0 };
-    let title = layout_label(db.title.as_deref(), false, size, title_width, BOLD, None);
+    let title = layout_label(db.title.as_deref(), false, size, 4000.0, BOLD, None);
     let title_height = if title.height > 0.0 { title.height + 12.0 } else { 0.0 };
     let inner = layout.width.max(title.width);
     let ox = pad + (inner - layout.width) / 2.0;
@@ -342,16 +318,8 @@ fn draw(
         let classes = class_names(strip_default(&node.css_classes));
         let id = esc_text(&node.id);
 
-        if c.is_group
-            && c.parent < 0
-            && let Some(draw_group) = variant.and_then(|variant| variant.draw_group)
-        {
-            clusters.push_str(&draw_group(c, &view.label, &view.style, &classes, &id, root_dir));
-            continue;
-        }
-
         if c.is_group {
-            let title_x = cluster_title_x(c, view.label.width, &crossings, group_pad);
+            let title_x = cluster_title_x(c, view.label.width, &crossings, GROUP_PAD);
             let title_y = c.y - c.h / 2.0 + 8.0 + view.label.height / 2.0;
             let mut title_attrs = String::from(" class=\"ondine-cluster-label\" fill=\"var(--_m)\"");
             title_attrs.push_str(&view.style.text);
@@ -394,8 +362,9 @@ fn draw(
         }
 
         let (w, h) = (view.w, view.h);
-        let inner = if let Some(img) = node.img.as_deref().filter(|img| !img.is_empty()) {
-            image(node, view, img)
+        // An image keeps its room, but is not drawn: the rasterizer loads no URLs.
+        let inner = if node.img.as_deref().is_some_and(|img| !img.is_empty()) {
+            String::new()
         } else if let Some(icon) = node.icon.as_deref().filter(|icon| !icon.is_empty()) {
             icon_svg(node, view, icon)
         } else {
@@ -564,7 +533,7 @@ fn draw(
     content.push_str("<g class=\"ondine-nodes\">");
     content.push_str(&nodes_out);
     content.push_str("</g>");
-    let svg = svg_document(variant.map_or("flowchart", |variant| variant.r#type), width, height, size, &content);
+    let svg = svg_document("flowchart", width, height, size, &content);
 
     Rendered { height, svg, width }
 }
@@ -598,35 +567,6 @@ fn strip_edge_classes(classes: &str) -> String {
             out.replace_range(at..at + name.len(), "");
         }
     }
-    out
-}
-
-fn image(node: &GraphNode, view: &NodeView<'_>, img: &str) -> String {
-    let aw = asset_size(node.asset_width, 80.0);
-    let ah = asset_size(node.asset_height, 80.0);
-    let top = if view.label.height > 0.0 {
-        if node.pos.as_deref() == Some("t") { view.h / 2.0 - ah } else { -view.h / 2.0 }
-    } else {
-        -ah / 2.0
-    };
-    let safe = url::safe_url(img);
-    let Some(src) = url::image_url(&safe) else {
-        return String::new();
-    };
-
-    let mut out = String::from("<image href=\"");
-    out.push_str(&esc(src));
-    out.push_str("\" x=\"");
-    push_num(&mut out, -aw / 2.0);
-    out.push_str("\" y=\"");
-    push_num(&mut out, top);
-    out.push_str("\" width=\"");
-    push_num(&mut out, aw);
-    out.push_str("\" height=\"");
-    push_num(&mut out, ah);
-    out.push_str("\" preserveAspectRatio=\"");
-    out.push_str(if node.constraint.as_deref() == Some("on") { "xMidYMid meet" } else { "none" });
-    out.push_str("\"/>");
     out
 }
 

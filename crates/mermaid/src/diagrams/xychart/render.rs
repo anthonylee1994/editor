@@ -8,7 +8,6 @@ use super::ticks::tick_value;
 use super::ticks::ticks_between;
 use crate::Options;
 use crate::diagrams::Rendered;
-use crate::diagrams::common::fit_width::cap_width;
 use crate::error::Code;
 use crate::error::Error;
 use crate::svg::builder::esc;
@@ -179,10 +178,8 @@ pub(crate) fn render(model: &XyChartDb, config: &Value, options: &Options) -> Re
     let small = js_round(size * 0.875);
     let tiny = js_round(size * 0.75);
     let pad = options.padding;
-    let natural = dimension(setting("width"), 700.0);
-    let width = cap_width(options, natural, 240.0, 0.0);
-    // A narrower chart is not as much shorter, so that the plot keeps room for its marks.
-    let height = js_round(dimension(setting("height"), 500.0) * max(0.6, width / natural));
+    let width = dimension(setting("width"), 700.0);
+    let height = js_round(dimension(setting("height"), 500.0));
     let horizontal = match model.horizontal {
         Some(horizontal) => horizontal,
         None => matches!(setting("chartOrientation"), Some(Value::String(o)) if o == "horizontal"),
@@ -225,14 +222,11 @@ pub(crate) fn render(model: &XyChartDb, config: &Value, options: &Options) -> Re
     let bars = plots.iter().filter(|plot| plot.bar).count();
     #[expect(clippy::cast_precision_loss, reason = "series counts stay far below 2^52")]
     let bars_f = bars as f64;
-    let mut lo = model.y_axis.min;
-    let mut hi = model.y_axis.max;
+    let mut lo = finite(Some(model.y_axis.min)).unwrap_or(f64::INFINITY);
+    let mut hi = finite(Some(model.y_axis.max)).unwrap_or(f64::NEG_INFINITY);
     #[expect(clippy::float_cmp, reason = "mirrors Pele's exact comparison")]
     let exact = model.has_set_y_axis && lo.is_finite() && hi.is_finite() && lo != hi;
-    if exact {
-        lo = finite(Some(lo)).unwrap_or(f64::NAN);
-        hi = finite(Some(hi)).unwrap_or(f64::NAN);
-    } else {
+    if !exact {
         lo = f64::INFINITY;
         hi = f64::NEG_INFINITY;
         for plot in plots {

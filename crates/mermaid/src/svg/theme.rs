@@ -7,6 +7,7 @@
 use std::borrow::Cow;
 
 use crate::svg::builder::esc;
+use crate::svg::builder::invalid_xml;
 use crate::text::label::trim;
 use crate::util::chars::is_space;
 use crate::util::float;
@@ -409,7 +410,7 @@ pub(crate) fn resolve_style<S: AsRef<str>>(declarations: &[S]) -> ResolvedStyle 
         let prop = lowercase(trim(decl.get(..at).unwrap_or("")));
         let value = strip_important(decl.get(at + 1..).unwrap_or(""));
         let value = trim(&value);
-        if value.is_empty() || unsafe_value(value) {
+        if value.is_empty() || unsafe_value(value) || value.chars().any(invalid_xml) {
             continue;
         }
         if SHAPE_PROPS.contains(&prop.as_str()) {

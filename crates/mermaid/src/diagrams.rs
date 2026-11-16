@@ -5,7 +5,6 @@ pub(crate) mod common {
     pub(crate) mod caseless;
     pub(crate) mod fit;
     pub(crate) mod fit_text;
-    pub(crate) mod fit_width;
     pub(crate) mod generics;
     pub(crate) mod icon;
     pub(crate) mod literal_label;
@@ -59,12 +58,6 @@ pub(crate) struct Rendered {
     pub(crate) svg: String,
     /// Width in pixels.
     pub(crate) width: f64,
-}
-
-impl common::fit_width::Drawn for Rendered {
-    fn width(&self) -> f64 {
-        self.width
-    }
 }
 
 /// A diagram type, as Pele's `Diagram` describes one.

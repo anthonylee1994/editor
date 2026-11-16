@@ -60,3 +60,40 @@ fn member<'v>(value: &'v Value, key: &str) -> Option<&'v Value> {
         _ => None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::diagrams::sequence::types::MessageText;
+
+    fn model(src: &str) -> Result<Model, Error> {
+        parse(src, &Value::Null, None)
+    }
+
+    fn texts(m: &Model) -> Vec<&str> {
+        m.messages
+            .iter()
+            .filter_map(|x| match &x.message {
+                MessageText::Text(t) => Some(t.as_str()),
+                MessageText::Numbering(_) => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn bare_title_is_no_title() {
+        for src in ["sequenceDiagram\ntitle\nA->>B: Hi\nB->>A: Bye", "sequenceDiagram\ntitle: \nA->>B: Hi\nB->>A: Bye"]
+        {
+            let m = model(src).unwrap();
+            assert_eq!(m.title, None, "{src}");
+            assert_eq!(texts(&m), ["Hi", "Bye"], "{src}");
+        }
+        assert_eq!(model("sequenceDiagram\n  title My title\n  A->>B: x").unwrap().title.as_deref(), Some("My title"));
+    }
+
+    #[test]
+    fn keeps_the_character_before_a_comment() {
+        assert_eq!(texts(&model("sequenceDiagram\n  A->>B:%% comment").unwrap()), ["%% comment"]);
+        model("sequenceDiagram\n  autonumber 5%% comment").unwrap_err();
+    }
+}

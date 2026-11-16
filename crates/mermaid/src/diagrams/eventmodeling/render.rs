@@ -1,5 +1,4 @@
-//! Draws an event model: frames as boxes in swimlanes with time running across, or as cards
-//! running down when that fits the host better. Port of Pele's
+//! Draws an event model: frames as boxes in swimlanes with time running across. Port of Pele's
 //! `src/diagrams/eventmodeling/render.ts`.
 
 use std::mem;
@@ -9,10 +8,6 @@ use super::model::EntityKind;
 use super::model::EventModelingModel;
 use crate::Options;
 use crate::diagrams::Rendered;
-use crate::diagrams::common::fit_width::turn_to_fit;
-use crate::diagrams::common::literal_label::break_label;
-use crate::diagrams::common::literal_label::left_label_svg;
-use crate::diagrams::common::literal_label::literal_label;
 use crate::svg::builder::esc;
 use crate::svg::builder::esc_text;
 use crate::svg::builder::js_round;
@@ -235,11 +230,6 @@ fn push_move(out: &mut String, x: f64, y: f64) {
     push_num(out, y);
 }
 
-/// Draws `model`, running down when across does not fit the host.
-pub(crate) fn render(model: &EventModelingModel, options: &Options) -> Rendered {
-    turn_to_fit(options, |down| if down { vertical(model, options) } else { horizontal(model, options) })
-}
-
 /// The document around drawn content.
 fn document(width: f64, height: f64, size: f64, content: &str) -> Rendered {
     Rendered { height, svg: svg_document("eventmodeling", width, height, size, content), width }
@@ -274,7 +264,7 @@ struct Band {
 }
 
 /// Draws `model` with time running across and one band per lane.
-fn horizontal(model: &EventModelingModel, options: &Options) -> Rendered {
+pub(crate) fn render(model: &EventModelingModel, options: &Options) -> Rendered {
     let size = options.font_size;
     let name_size = js_round(size * 0.875);
     let small = js_round(size * 0.8125);
@@ -547,255 +537,4 @@ fn horizontal(model: &EventModelingModel, options: &Options) -> Rendered {
     content.push_str(&nodes);
     content.push_str(&cards);
     document(total_width, total_height, size, &content)
-}
-
-/// A card placed when running down.
-#[derive(Clone, Copy)]
-struct Card {
-    /// Height.
-    h: f64,
-    /// The card's position in frame order.
-    index: usize,
-    /// The width of its lane heading.
-    lane: f64,
-    /// Width.
-    w: f64,
-    /// Top edge.
-    y: f64,
-}
-
-/// Draws `model` as cards running down, with relations that skip cards on rails beside them.
-fn vertical(model: &EventModelingModel, options: &Options) -> Rendered {
-    let size = options.font_size;
-    let small = js_round(size * 0.875);
-    let mono = js_round(size * 0.75);
-    let pad = options.padding;
-    let room = 160.0_f64.max(options.max_width.unwrap_or(320.0) - 2.0 * pad);
-
-    // A relation that skips a card runs down a rail beside the cards. Relations into one card
-    // share a rail; others whose runs overlap take the next rail out, so that no two follow the
-    // same line.
-    let mut runs: Vec<(usize, [usize; 2])> = Vec::new();
-    // A relation between neighbouring cards passes the lower card's lane heading.
-    let mut passed = vec![false; model.boxes.len()];
-    for &(s, t) in &model.relations {
-        if s == t || s >= model.boxes.len() || t >= model.boxes.len() {
-            continue;
-        }
-        if s.abs_diff(t) < 2 {
-            if let Some(flag) = passed.get_mut(s.max(t)) {
-                *flag = true;
-            }
-            continue;
-        }
-        match runs.iter_mut().find(|(target, _)| *target == t) {
-            Some((_, run)) => {
-                run[0] = run[0].min(s);
-                run[1] = run[1].max(s);
-            }
-            None => runs.push((t, [s.min(t), s.max(t)])),
-        }
-    }
-    runs.sort_by_key(|&(_, [from, _])| from);
-    let mut rail_of: Vec<(usize, usize)> = Vec::new();
-    let mut rail_ends: Vec<usize> = Vec::new();
-    for &(target, [from, to]) in &runs {
-        let rail = rail_ends.iter().position(|&end| end < from).unwrap_or(rail_ends.len());
-        match rail_ends.get_mut(rail) {
-            Some(end) => *end = to,
-            None => rail_ends.push(to),
-        }
-        rail_of.push((target, rail));
-    }
-    #[expect(clippy::cast_precision_loss, reason = "rail counts stay far below 2^52")]
-    let gutter = 24.0 + RAIL_GAP * rail_ends.len().saturating_sub(1) as f64;
-    // Rails are never shared to save room: past what the width allows, the drawing is wider.
-    let card_width = CARD_MIN.max(room - gutter);
-    let text_room = card_width - 2.0 * BOX_PAD_X;
-    let title = layout_label(model.title.as_deref(), false, size, room, BOLD, None);
-    let mut y = pad + if title.height > 0.0 { title.height + 12.0 } else { 0.0 };
-    let mut bottom = pad + title.height;
-    let mut width = title.width.max(card_width + gutter);
-    let mut nodes = String::new();
-    let mut edges = String::new();
-    let mut cards = String::new();
-    let mut placed: Vec<Card> = Vec::with_capacity(model.boxes.len());
-    let text = |raw: &str, size: f64, style: u8| literal_label(&decode(raw), size, text_room, style);
-
-    let mut lane_attrs = String::from(" class=\"ondine-cluster-label\"");
-    lane_attrs.push_str(&font_size(small));
-    lane_attrs.push_str(" font-weight=\"var(--_hw)\" fill=\"var(--_m)\"");
-    let mut name_attrs = String::from(" class=\"ondine-label\"");
-    name_attrs.push_str(&font_size(small));
-    name_attrs.push_str(" font-weight=\"var(--_hw)\"");
-    let mut data_attrs = String::from(" class=\"ondine-em-data\" font-family=\"");
-    data_attrs.push_str(FONT_MONO);
-    data_attrs.push('"');
-    data_attrs.push_str(&font_size(mono));
-    for (index, item) in model.boxes.iter().enumerate() {
-        let lane_label = model.lanes.get(item.lane).map_or("", |lane| lane.label.as_str());
-        let lane_room = if passed.get(index).copied().unwrap_or(false) { text_room - ARROW_ROOM } else { text_room };
-        let lane = break_label(&layout_label(Some(lane_label), false, small, lane_room, BOLD, None), lane_room);
-        let name = layout_label(Some(&item.name), false, small, text_room - 36.0, BOLD, None);
-        let data = item.data.as_deref().filter(|data| !data.is_empty()).map(|data| text(data, mono, MONO));
-        let w = card_width
-            .max(lane.width + 2.0 * BOX_PAD_X)
-            .max(name.width + 2.0 * BOX_PAD_X + 36.0)
-            .max(data.as_ref().map_or(0.0, |data| data.width) + 2.0 * BOX_PAD_X);
-        let head_h = lane.height + 12.0;
-        let h = 2.0 * BOX_PAD_Y + name.height + data.as_ref().map_or(0.0, |data| data.height + 6.0);
-        let cy = y + head_h;
-        let frame = frame_attrs(pad, cy, w, h);
-        nodes.push_str("<g class=\"ondine-cluster ondine-em-lane\" data-id=\"");
-        nodes.push_str(&esc_text(lane_label));
-        nodes.push_str("\">");
-        nodes.push_str(&left_label_svg(&lane, pad + BOX_PAD_X, y, &lane_attrs));
-        push_box_open(&mut nodes, item);
-        nodes.push_str("<rect ");
-        nodes.push_str(&frame);
-        nodes.push_str(" fill=\"var(--_bg)\" stroke=\"var(--_b)\"/>");
-        if let Some(slot) = series(item.kind) {
-            push_series_rect(&mut nodes, &frame, slot);
-        }
-        nodes.push_str(&label_svg(
-            &name,
-            pad + BOX_PAD_X + name.width / 2.0,
-            cy + BOX_PAD_Y + name.height / 2.0,
-            &name_attrs,
-            None,
-        ));
-        nodes.push_str("<text class=\"ondine-em-frame\" x=\"");
-        push_num(&mut nodes, pad + w - BOX_PAD_X);
-        nodes.push_str("\" y=\"");
-        push_num(&mut nodes, cy + BOX_PAD_Y + small);
-        nodes.push_str("\" text-anchor=\"end\"");
-        nodes.push_str(&font_size(mono));
-        nodes.push_str(" fill=\"var(--_m)\">");
-        nodes.push_str(&esc(&item.id));
-        nodes.push_str("</text>");
-        if let Some(data) = &data {
-            nodes.push_str(&lines(
-                &label_rows(data),
-                pad + BOX_PAD_X,
-                cy + BOX_PAD_Y + name.height + 6.0 + data.line_height / 2.0 + mono * 0.35,
-                data.line_height,
-                &data_attrs,
-            ));
-        }
-        nodes.push_str("</g></g>");
-        placed.push(Card { h, index, lane: lane.width, w, y: cy });
-        width = width.max(w + gutter);
-        bottom = cy + h;
-        y = bottom + 28.0;
-    }
-
-    let trim = marker_trim("arrow_point");
-    for &relation in &model.relations {
-        let (Some(&s), Some(&t)) = (placed.get(relation.0), placed.get(relation.1)) else {
-            continue;
-        };
-        if relation.0 == relation.1 {
-            continue;
-        }
-        let down = t.y > s.y;
-        let dir = if down { 1.0 } else { -1.0 };
-        let sy = if down { s.y + s.h } else { s.y };
-        let ty = if down { t.y } else { t.y + t.h };
-        let mut d = String::new();
-        let head = if s.index.abs_diff(t.index) == 1 {
-            // The lower card's lane heading sits in the gap, and wraps to leave the arrow room
-            // beside it.
-            let lower = if down { t } else { s };
-            let cx = pad + (s.w.min(t.w) / 2.0).max(BOX_PAD_X + lower.lane + 16.0);
-            push_move(&mut d, cx, sy);
-            d.push('V');
-            push_num(&mut d, ty - dir * trim);
-            marker("arrow_point", cx, ty, 0.0, dir, "var(--_l)")
-        } else {
-            let slot = rail_of.iter().find(|&&(target, _)| target == relation.1).map_or(0, |&(_, rail)| rail);
-            #[expect(clippy::cast_precision_loss, reason = "rail counts stay far below 2^52")]
-            let rail = pad + width - gutter + 12.0 + RAIL_GAP * slot as f64;
-            // A card can send one relation and receive another: they leave above and arrive
-            // below its middle.
-            let from = s.y + s.h / 2.0 - 5.0;
-            let to = t.y + t.h / 2.0 + 5.0;
-            push_move(&mut d, pad + s.w, from);
-            d.push('H');
-            push_num(&mut d, rail);
-            d.push('V');
-            push_num(&mut d, to);
-            d.push('H');
-            push_num(&mut d, pad + t.w + trim);
-            marker("arrow_point", pad + t.w, to, -1.0, 0.0, "var(--_l)")
-        };
-        push_edge(&mut edges, model, relation, &d, &head);
-    }
-
-    let mut head_attrs = font_size(small);
-    head_attrs.push_str(" font-weight=\"var(--_hw)\"");
-    let row_attrs = font_size(small);
-    let mut card = |kind: &str, heading: &str, frame: &str, raw: &str| {
-        let head = layout_label(Some(&card_heading(model, heading, frame)), false, small, text_room, BOLD, None);
-        let body = text(raw, small, 0);
-        let w = card_width.max(head.width + 2.0 * BOX_PAD_X).max(body.width + 2.0 * BOX_PAD_X);
-        let h = 2.0 * BOX_PAD_Y + head.height + body.height;
-        cards.push_str("<g class=\"ondine-em-");
-        cards.push_str(kind);
-        cards.push_str("\" data-id=\"");
-        cards.push_str(&esc_text(frame));
-        cards.push_str("\"><rect x=\"");
-        push_num(&mut cards, pad);
-        cards.push_str("\" y=\"");
-        push_num(&mut cards, y);
-        cards.push_str("\" width=\"");
-        push_num(&mut cards, w);
-        cards.push_str("\" height=\"");
-        push_num(&mut cards, h);
-        cards.push_str("\" rx=\"");
-        cards.push_str(RADIUS);
-        cards.push_str("\" fill=\"var(--_bg)\" stroke=\"var(--_b)\"/>");
-        cards.push_str(&label_svg(
-            &head,
-            pad + BOX_PAD_X + head.width / 2.0,
-            y + BOX_PAD_Y + head.height / 2.0,
-            &head_attrs,
-            None,
-        ));
-        cards.push_str(&lines(
-            &label_rows(&body),
-            pad + BOX_PAD_X,
-            y + BOX_PAD_Y + head.height + body.line_height / 2.0 + small * 0.35,
-            body.line_height,
-            &row_attrs,
-        ));
-        cards.push_str("</g>");
-        bottom = y + h;
-        y = bottom + CARD_GAP;
-        width = width.max(w);
-    };
-    for note in &model.notes {
-        card("note", "Note", &note.frame, &note.text);
-    }
-    for spec in &model.specifications {
-        card(
-            "specification",
-            "Given / When / Then",
-            &spec.frame,
-            &specification_rows(&spec.given, &spec.when, &spec.then).join("\n"),
-        );
-    }
-
-    let total_width = (width + 2.0 * pad).ceil();
-    let height = (bottom + pad).ceil();
-    let mut content = label_svg(
-        &title,
-        total_width / 2.0,
-        pad + title.height / 2.0,
-        " class=\"ondine-title\" font-weight=\"var(--_tw)\"",
-        None,
-    );
-    content.push_str(&edges);
-    content.push_str(&nodes);
-    content.push_str(&cards);
-    document(total_width, height, size, &content)
 }

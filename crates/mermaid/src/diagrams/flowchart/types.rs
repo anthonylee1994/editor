@@ -56,10 +56,6 @@ pub(crate) struct FlowNode {
     pub(crate) img: Option<String>,
     /// How the label is written.
     pub(crate) label_type: LabelType,
-    /// The sanitized click target.
-    pub(crate) link: Option<String>,
-    /// The click target window.
-    pub(crate) link_target: Option<String>,
     /// `pos` from shape data.
     pub(crate) pos: Option<String>,
     /// `[|field:value|...]` properties, in insertion order. Set by the first `addVertex`.

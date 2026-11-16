@@ -541,69 +541,53 @@ impl Parser<'_, '_> {
         }
     }
 
-    fn link_tail(&mut self, id: &str, url: &str) -> Result<(), Error> {
+    /// Reads the rest of a `click` link. Links and tooltips are not drawn, so nothing is kept.
+    fn link_tail(&mut self) -> Result<(), Error> {
         if self.kind() != T::Space {
-            self.db.set_link(id, url, None);
             return Ok(());
         }
-
         self.i += 1;
         if self.kind() == T::LinkTarget {
-            let target = self.take();
-            self.db.set_link(id, url, Some(&target));
+            self.i += 1;
             return Ok(());
         }
-
-        let tooltip = self.expect(T::Str, "'LINK_TARGET'")?;
+        self.expect(T::Str, "'LINK_TARGET'")?;
         if self.kind() == T::Space {
             self.i += 1;
-            let target = self.expect(T::LinkTarget, "")?;
-            self.db.set_link(id, url, Some(&target));
-        } else {
-            self.db.set_link(id, url, None);
+            self.expect(T::LinkTarget, "")?;
         }
-        self.db.set_tooltip(id, &tooltip);
         Ok(())
     }
 
+    /// Reads a `click` statement. Callbacks are never run and links are not drawn.
     fn click_statement(&mut self) -> Result<(), Error> {
-        let id = self.take();
+        self.i += 1;
         match self.kind() {
             T::CallbackName => {
                 self.i += 1;
                 if self.kind() == T::CallbackArgs {
                     self.i += 1;
                 }
-                let tooltip = if self.kind() == T::Space {
+                if self.kind() == T::Space {
                     self.i += 1;
-                    Some(self.expect(T::Str, "")?)
-                } else {
-                    None
-                };
-                self.db.set_click_event(&id);
-                if let Some(tooltip) = tooltip {
-                    self.db.set_tooltip(&id, &tooltip);
+                    self.expect(T::Str, "")?;
                 }
                 Ok(())
             }
             T::Href => {
                 self.i += 1;
-                let url = self.expect(T::Str, "")?;
-                self.link_tail(&id, &url)
+                self.expect(T::Str, "")?;
+                self.link_tail()
             }
             T::Str => {
-                let url = self.take();
-                self.link_tail(&id, &url)
+                self.i += 1;
+                self.link_tail()
             }
             _ => {
                 self.alpha_num()?;
                 if self.kind() == T::Space {
                     self.i += 1;
-                    let tooltip = self.expect(T::Str, "")?;
-                    self.db.set_click_event(&id);
-                    self.db.set_tooltip(&id, &tooltip);
-                } else {
-                    self.db.set_click_event(&id);
+                    self.expect(T::Str, "")?;
                 }
                 Ok(())
             }

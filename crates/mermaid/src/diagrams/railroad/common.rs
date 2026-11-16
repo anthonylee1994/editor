@@ -38,16 +38,26 @@ fn to_comment(src: &str, at: usize) -> usize {
     i
 }
 
-/// `title(?:[\t ][^\n\r]*?(?=%%)|[\t ][^\n\r]*|)`.
-fn title(src: &str, at: usize) -> Option<usize> {
+/// `title(?:[\t ][^\n\r]*?(?=%%)|[\t ][^\n\r]*|(?!rest))`, where `rest` is a character that
+/// continues a name, so `title` does not split longer names.
+fn title(src: &str, at: usize, rest: fn(u8) -> bool) -> Option<usize> {
     if !src.get(at..)?.starts_with("title") {
         return None;
     }
     let r = at + 5;
-    if matches!(src.as_bytes().get(r), Some(b' ' | b'\t')) {
-        return Some(to_comment(src, r + 1));
+    match src.as_bytes().get(r) {
+        Some(b' ' | b'\t') => Some(to_comment(src, r + 1)),
+        Some(&b) if rest(b) => None,
+        _ => Some(r),
     }
-    Some(r)
+}
+
+fn word_title(src: &str, at: usize) -> Option<usize> {
+    title(src, at, |b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+}
+
+fn abnf_title(src: &str, at: usize) -> Option<usize> {
+    title(src, at, |b| b.is_ascii_alphanumeric() || b == b'-')
 }
 
 /// `accTitle[\t ]*:(?:[^\n\r]*?(?=%%)|[^\n\r]*)`.
@@ -91,9 +101,12 @@ fn acc_descr(src: &str, at: usize, memo: &mut Memo) -> Option<usize> {
     close.map(|close| i + 1 + close + 1)
 }
 
-/// The railroad `title` token type.
+/// The railroad `title` token type, before names of `[\w-]`.
 pub(crate) const TITLE: TokenType =
-    TokenType { first: Some("t"), name: "TITLE", pattern: Pattern::Match(title), ..literal("") };
+    TokenType { first: Some("t"), name: "TITLE", pattern: Pattern::Match(word_title), ..literal("") };
+
+/// The ABNF `title` token type, before rule names of `[A-Za-z0-9-]`.
+pub(crate) const ABNF_TITLE: TokenType = TokenType { pattern: Pattern::Match(abnf_title), ..TITLE };
 
 /// The railroad `accTitle` token type.
 pub(crate) const ACC_TITLE: TokenType =

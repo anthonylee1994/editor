@@ -285,6 +285,12 @@ const IN_LINE: f64 = 0.5;
 /// The farthest a node moves to bring one more of its edges into line.
 const SNAP: f64 = 12.0;
 
+/// The farthest bends with no node in line with them move to bring an edge into line.
+const BEND_SNAP: f64 = 24.0;
+
+/// How far apart two edges may be at both ends and still count as twins.
+const TWIN: f64 = 1.0;
+
 /// An end that leans keeps this far from the ends of the part of its side that edges spread
 /// along.
 const LEAN_CLEAR: f64 = 40.0;
@@ -749,6 +755,8 @@ pub(crate) fn layered_with(
         }
     }
 
+    align_ports(&g, &mut xs, empty);
+
     // A rank that holds nothing but bends is only there because some other edge has a label or
     // a twin. Its bends move onto the straight line between the ends of their edges, and one
     // that gets there is left out of the route.
@@ -1207,6 +1215,12 @@ pub(crate) fn rank(nodes: &mut [LNode], edges: &[LEdge], step: usize) {
     }
 
     let mut r = vec![0i64; n];
+    // Start ports go above every node later, so they don't push their targets down a rank.
+    for (i, node) in nodes.iter().enumerate() {
+        if node.kind == Kind::StartPort {
+            r[i] = -step;
+        }
+    }
     let mut indeg: Vec<usize> = (0..n).map(|i| in_start[i + 1] - in_start[i]).collect();
     let mut topo = Vec::with_capacity(n);
     topo.extend((0..n).filter(|&i| indeg[i] == 0));
@@ -1378,6 +1392,40 @@ fn follow(g: &Graph, empty: Option<&[bool]>, mut e: usize, side: usize) -> usize
         e = if side == 0 { g.pred_e[g.pred_start[u]] } else { g.succ_e[g.succ_start[u]] };
     }
     e
+}
+
+/// Aligns border ports with the ends on their nodes so edges run straight across the gap. Ports
+/// are kept `edge_sep` apart while placed, more than ends on a short side get, so without this an
+/// edge turns outside the border and again in the gap. Leaves a rank alone unless every port can
+/// move without passing or meeting its neighbours.
+fn align_ports(g: &Graph, xs: &mut [f64], empty: Option<&[bool]>) {
+    let mut to = Vec::new();
+    for (r, kind) in [(0, Kind::StartPort), (g.max_rank, Kind::EndPort)] {
+        let s = g.layer_start[r];
+        let end = g.layer_start[r + 1];
+        let start = kind == Kind::StartPort;
+        to.clear();
+        for &v in &g.order[s..end] {
+            let degree =
+                if start { g.succ_start[v + 1] - g.succ_start[v] } else { g.pred_start[v + 1] - g.pred_start[v] };
+            if g.kind[v] != kind || degree != 1 {
+                break;
+            }
+            let e = if start { g.succ_e[g.succ_start[v]] } else { g.pred_e[g.pred_start[v]] };
+            let e = follow(g, empty, e, usize::from(start));
+            let at = if start { xs[g.et[e]] + g.etd[e] } else { xs[g.ef[e]] + g.efd[e] };
+            if to.last().is_some_and(|&last| at < last + TWIN) {
+                break;
+            }
+            to.push(at);
+        }
+        if to.is_empty() || to.len() != end - s {
+            continue;
+        }
+        for (i, &x) in to.iter().enumerate() {
+            xs[g.order[s + i]] = x;
+        }
+    }
 }
 
 /// How many ends that may move along it each node has on the side its edges arrive at, and on
@@ -1698,7 +1746,7 @@ fn settle(
     }
 }
 
-/// Brings edges that are nearly straight into line, by moving a node a little across the flow
+/// Brings edges that are nearly straight into line, by moving a node or bend a little across the flow
 /// along with everything already in line with it, where the nodes beside them leave room.
 #[expect(clippy::many_single_char_names, reason = "names mirror Pele's layered.ts for side-by-side review")]
 fn snap(g: &Graph, xs: &mut [f64], empty: Option<&[bool]>, opt: &LayeredOptions) {
@@ -1743,7 +1791,7 @@ fn snap(g: &Graph, xs: &mut [f64], empty: Option<&[bool]>, opt: &LayeredOptions)
         let d = off(xs, k).abs();
         if d < 0.01 {
             join(&mut block, &mut members, a[k], b[k]);
-        } else if d <= SNAP {
+        } else if d <= BEND_SNAP {
             near.push(k);
         }
     }
@@ -1779,7 +1827,7 @@ fn snap(g: &Graph, xs: &mut [f64], empty: Option<&[bool]>, opt: &LayeredOptions)
             join(&mut block, &mut members, a[k], b[k]);
             continue;
         }
-        if d.abs() > SNAP || block[a[k]] == block[b[k]] {
+        if d.abs() > BEND_SNAP || block[a[k]] == block[b[k]] {
             continue;
         }
         // The smaller of the two blocks moves, if it can; else the other.
@@ -1789,6 +1837,9 @@ fn snap(g: &Graph, xs: &mut [f64], empty: Option<&[bool]>, opt: &LayeredOptions)
         let second = if first == upper { lower } else { upper };
         for id in [first, second] {
             let shift = if id == upper { d } else { -d };
+            if d.abs() > SNAP && !members[id].iter().all(|&v| g.kind[v] == Kind::Dummy) {
+                continue;
+            }
             if !free(xs, &block, &members, id, shift) {
                 continue;
             }
@@ -2248,7 +2299,8 @@ fn straighten(
         while i < row.len() {
             twins.clear();
             let mut j = i;
-            while j < row.len() && (from[row[j]] - from[row[i]]).abs() < 1.0 && (to[row[j]] - to[row[i]]).abs() < 1.0 {
+            while j < row.len() && (from[row[j]] - from[row[i]]).abs() < TWIN && (to[row[j]] - to[row[i]]).abs() < TWIN
+            {
                 twins.push(row[j]);
                 j += 1;
             }

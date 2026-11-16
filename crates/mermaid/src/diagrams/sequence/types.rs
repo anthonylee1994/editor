@@ -149,7 +149,7 @@ pub(crate) struct SeqBox {
     pub(crate) wrap: bool,
 }
 
-/// A JSON value from a `links` or `properties` statement, in `JSON.parse`'s shapes.
+/// A JSON value from a `properties` statement, in `JSON.parse`'s shapes.
 pub(crate) use crate::yaml::Value as MenuValue;
 
 /// A participant.
@@ -159,10 +159,6 @@ pub(crate) struct SeqActor {
     pub(crate) r#box: Option<usize>,
     /// The label.
     pub(crate) description: String,
-    /// The id of the page element named by a `details` statement. Pele has no page to read it from.
-    pub(crate) details: Option<String>,
-    /// Menu links, in insertion order.
-    pub(crate) links: Vec<(String, MenuValue)>,
     /// The id.
     pub(crate) name: String,
     /// The id of the participant declared after it.
