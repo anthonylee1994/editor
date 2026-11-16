@@ -1,7 +1,6 @@
 use std::cmp;
 use std::collections::VecDeque;
 use std::mem;
-use std::num::NonZeroU32;
 use std::ops::Deref;
 use std::ops::Range;
 use std::sync::Arc;
@@ -22,7 +21,6 @@ use gpui::Task;
 use gpui::TextSystem;
 use language::LanguageAwareStyling;
 use language::Point;
-use language::language_settings::SoftWrapIndent;
 use multi_buffer::RowInfo;
 use rustc_hash::FxHashMap;
 use sum_tree::Bias;
@@ -64,7 +62,6 @@ pub struct WrapMap {
     interpolated_edits: WrapPatch,
     edits_since_sync: WrapPatch,
     wrap_width: Option<Pixels>,
-    soft_wrap_indent: SoftWrapIndent,
     background_task: Option<Task<()>>,
     font_with_size: (Font, Pixels),
 }
@@ -197,7 +194,6 @@ impl WrapMap {
             let mut this = Self {
                 font_with_size: (font, font_size),
                 wrap_width: None,
-                soft_wrap_indent: SoftWrapIndent::default(),
                 pending_edits: VecDeque::default(),
                 interpolated_edits: Patch::default(),
                 edits_since_sync: Patch::default(),
@@ -255,20 +251,6 @@ impl WrapMap {
         true
     }
 
-    pub fn set_soft_wrap_indent(&mut self, indent: SoftWrapIndent, cx: &Context<Self>) -> bool {
-        if indent == self.soft_wrap_indent {
-            return false;
-        }
-
-        self.soft_wrap_indent = indent;
-        self.rewrap(cx);
-        true
-    }
-
-    const fn indent_adjustment(&self, tab_size: NonZeroU32) -> IndentAdjustment {
-        indent_adjustment_for(self.soft_wrap_indent, tab_size)
-    }
-
     fn rewrap(&mut self, cx: &Context<Self>) {
         self.background_task.take();
         self.interpolated_edits.clear();
@@ -288,17 +270,17 @@ impl WrapMap {
 
             if total_rows < WRAP_YIELD_ROW_INTERVAL {
                 let edits = gpui::block_on(new_snapshot.update(
-                    tab_snapshot.clone(),
+                    tab_snapshot,
                     &tab_edits,
                     wrap_width,
-                    self.indent_adjustment(tab_snapshot.tab_size),
+                    IndentAdjustment::SameIndent,
                     &mut line_wrapper,
                     &mut fragment_builder,
                 ));
                 self.snapshot = new_snapshot;
                 self.edits_since_sync = self.edits_since_sync.compose(&edits);
             } else {
-                let indent_adjustment = self.indent_adjustment(tab_snapshot.tab_size);
+                let indent_adjustment = IndentAdjustment::SameIndent;
                 let task = cx.background_spawn(async move {
                     let edits = new_snapshot
                         .update(
@@ -388,7 +370,7 @@ impl WrapMap {
             if update_passes + total_new_rows < WRAP_YIELD_ROW_INTERVAL {
                 let mut wrap_edits = Patch::default();
                 for (tab_snapshot, tab_edits) in pending_edits {
-                    let indent_adjustment = self.indent_adjustment(tab_snapshot.tab_size);
+                    let indent_adjustment = IndentAdjustment::SameIndent;
                     let edits = gpui::block_on(snapshot.update(
                         tab_snapshot,
                         &tab_edits,
@@ -402,11 +384,10 @@ impl WrapMap {
                 self.snapshot = snapshot;
                 self.edits_since_sync = self.edits_since_sync.compose(&wrap_edits);
             } else {
-                let soft_wrap_indent = self.soft_wrap_indent;
                 let update_task = cx.background_spawn(async move {
                     let mut edits = Patch::default();
                     for (tab_snapshot, tab_edits) in pending_edits {
-                        let indent_adjustment = indent_adjustment_for(soft_wrap_indent, tab_snapshot.tab_size);
+                        let indent_adjustment = IndentAdjustment::SameIndent;
                         let wrap_edits = snapshot
                             .update(
                                 tab_snapshot,
@@ -1103,15 +1084,6 @@ impl Iterator for WrapRows<'_> {
         } else {
             buffer_row
         })
-    }
-}
-
-const fn indent_adjustment_for(indent: SoftWrapIndent, tab_size: NonZeroU32) -> IndentAdjustment {
-    match indent {
-        SoftWrapIndent::None => IndentAdjustment::NoIndent,
-        SoftWrapIndent::Same => IndentAdjustment::SameIndent,
-        SoftWrapIndent::ExtraOne => IndentAdjustment::ExtraColumns(tab_size.get()),
-        SoftWrapIndent::ExtraTwo => IndentAdjustment::ExtraColumns(tab_size.get() * 2),
     }
 }
 

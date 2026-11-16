@@ -20,7 +20,6 @@ use language::Buffer;
 use picker::Picker;
 use project::ProjectPath;
 use project::search::SearchResult;
-use settings::SeedQuerySetting;
 use text::Anchor;
 use ui::Window;
 use workspace::ItemHandle;
@@ -30,6 +29,7 @@ use workspace::pane::SplitDown;
 use workspace::pane::SplitLeft;
 use workspace::pane::SplitRight;
 use workspace::pane::SplitUp;
+use workspace::searchable::SeedQuery;
 
 use crate::project_search;
 
@@ -242,7 +242,7 @@ impl TextFinder {
         }
 
         if let Some(searchable_item) = item.to_searchable_item_handle(cx) {
-            let query = searchable_item.query_suggestion(Some(SeedQuerySetting::Selection), window, cx);
+            let query = searchable_item.query_suggestion(Some(SeedQuery::Selection), window, cx);
             if !query.is_empty() {
                 return Some(QuerySeed::Text(query));
             }

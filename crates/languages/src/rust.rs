@@ -23,12 +23,9 @@ use gpui::AsyncApp;
 use gpui::Entity;
 use gpui::SharedString;
 use gpui::Task;
-use language::language_settings::DocumentSymbols;
-use language::language_settings::FormatOnSave;
-use language::language_settings::FormatterList;
 use language::language_settings::LanguageSettings;
 use language::language_settings::RewrapBehavior;
-use language::language_settings::SoftWrap;
+use language::language_settings::SemanticTokenRules;
 use language::language_settings::WordsCompletionMode;
 #[allow(clippy::wildcard_imports)]
 pub use language::*;
@@ -38,7 +35,6 @@ use project::lsp_store::rust_analyzer_ext::CARGO_DIAGNOSTICS_SOURCE_NAME;
 use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde_json::json;
-use settings::SemanticTokenRules;
 use smallvec::SmallVec;
 use task::TaskTemplate;
 use task::TaskTemplates;
@@ -978,15 +974,14 @@ pub(crate) fn settings() -> LanguageSettings {
     LanguageSettings {
         tab_size: NonZeroU32::new(4).unwrap(),
         hard_tabs: false,
-        soft_wrap: SoftWrap::None,
+        soft_wrap: false,
         preferred_line_length: 120,
         wrap_guides: vec![120],
-        format_on_save: FormatOnSave::On,
-        formatter: FormatterList::Single(language::language_settings::Formatter::Auto),
+        formatter: language::language_settings::Formatter::Auto,
         code_actions_on_format: FxHashMap::default(),
         remove_trailing_whitespace_on_save: true,
         ensure_final_newline_on_save: true,
-        document_symbols: DocumentSymbols::On,
+        lsp_document_symbols: true,
         allow_rewrap: RewrapBehavior::InComments,
         use_on_type_format: true,
         auto_indent_on_paste: true,

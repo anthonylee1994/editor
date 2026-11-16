@@ -1,6 +1,5 @@
 use std::sync::LazyLock;
 
-use settings::ScanSymlinksSetting;
 use util::paths::PathMatcher;
 use util::rel_path::RelPath;
 
@@ -11,7 +10,6 @@ pub struct WorktreeSettings {
     /// This field contains all ancestors of the `file_scan_inclusions`. It's used to
     /// determine whether to terminate worktree scanning for a given dir.
     pub parent_dir_scan_inclusions: PathMatcher,
-    pub scan_symlinks: ScanSymlinksSetting,
     pub file_scan_depth: Option<u32>,
     pub hidden_files: PathMatcher,
 }
@@ -56,7 +54,6 @@ impl WorktreeSettings {
             parent_dir_scan_inclusions,
             file_scan_inclusions,
             hidden_files: valid_path_matchers(vec!["**/.*".into()], "hidden_files"),
-            scan_symlinks: ScanSymlinksSetting::Expanded,
             file_scan_depth: Some(5),
         }
     }
@@ -149,7 +146,6 @@ mod tests {
         assert!(settings.is_path_always_included(&RelPath::new_test(".env.local"), false));
         assert!(settings.is_path_hidden(&RelPath::new_test("a/.cache/b")));
         assert!(!settings.is_path_hidden(&RelPath::new_test("a/b")));
-        assert_eq!(settings.scan_symlinks, ScanSymlinksSetting::Expanded);
         assert_eq!(settings.file_scan_depth, Some(5));
     }
 

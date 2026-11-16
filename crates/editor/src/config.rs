@@ -1,5 +1,4 @@
 use language::language_settings::INDENT_GUIDES;
-use language::language_settings::SOFT_WRAP_INDENT;
 
 use super::App;
 use super::Arc;
@@ -12,12 +11,10 @@ use super::Pixels;
 use super::Point;
 use super::SmallVec;
 use super::SoftWrap;
-use super::SoftWrapIndent;
 use super::TextStyleRefinement;
 use super::ToggleIndentGuides;
 use super::ToggleSoftWrap;
 use super::Window;
-use super::language_settings;
 use super::smallvec;
 
 impl Editor {
@@ -31,8 +28,9 @@ impl Editor {
         }
     }
 
-    pub fn set_soft_wrap_mode(&mut self, mode: language_settings::SoftWrap, cx: &mut Context<Self>) {
-        self.soft_wrap_mode_override = Some(mode);
+    /// Overrides the language's soft wrap: `true` wraps at the editor width.
+    pub fn set_soft_wrap_mode(&mut self, soft_wrap: bool, cx: &mut Context<Self>) {
+        self.soft_wrap_mode_override = Some(soft_wrap);
         cx.notify();
     }
 
@@ -119,50 +117,26 @@ impl Editor {
             return wrap_guides;
         }
 
-        match self.soft_wrap_mode(cx) {
-            SoftWrap::Bounded(soft_wrap) => {
-                wrap_guides.push((soft_wrap as usize, true));
-            }
-            SoftWrap::GitDiff | SoftWrap::None | SoftWrap::EditorWidth => {}
-        }
         let settings = self.buffer.read(cx).language_settings(cx);
         wrap_guides.extend(settings.wrap_guides.iter().map(|guide| (*guide, false)));
 
         wrap_guides
     }
 
-    pub(super) const fn soft_wrap_indent(&self) -> SoftWrapIndent {
-        SOFT_WRAP_INDENT
-    }
-
     pub fn soft_wrap_mode(&self, cx: &App) -> SoftWrap {
         let settings = self.buffer.read(cx).language_settings(cx);
-        let mode = self.soft_wrap_mode_override.unwrap_or(settings.soft_wrap);
-        match mode {
-            language_settings::SoftWrap::PreferLine | language_settings::SoftWrap::None => SoftWrap::None,
-            language_settings::SoftWrap::EditorWidth => SoftWrap::EditorWidth,
-            language_settings::SoftWrap::Bounded => SoftWrap::Bounded(settings.preferred_line_length),
-        }
+        if self.soft_wrap_mode_override.unwrap_or(settings.soft_wrap) { SoftWrap::EditorWidth } else { SoftWrap::None }
     }
 
     // Called by the element. This method is not designed to be called outside of the editor
     // element's layout code because it does not notify when rewrapping is computed synchronously.
     pub(super) fn set_wrap_width(&mut self, width: Option<Pixels>, cx: &mut Context<Self>) -> bool {
-        let indent = self.soft_wrap_indent();
         let changed = if self.is_empty(cx) {
-            self.placeholder_display_map.as_ref().is_some_and(|display_map| {
-                display_map.update(cx, |map, cx| {
-                    let wrap_width_changed = map.set_wrap_width(width, cx);
-                    let indent_changed = map.set_soft_wrap_indent(indent, cx);
-                    wrap_width_changed || indent_changed
-                })
-            })
+            self.placeholder_display_map
+                .as_ref()
+                .is_some_and(|display_map| display_map.update(cx, |map, cx| map.set_wrap_width(width, cx)))
         } else {
-            self.display_map.update(cx, |map, cx| {
-                let wrap_width_changed = map.set_wrap_width(width, cx);
-                let indent_changed = map.set_soft_wrap_indent(indent, cx);
-                wrap_width_changed || indent_changed
-            })
+            self.display_map.update(cx, |map, cx| map.set_wrap_width(width, cx))
         };
         if changed {
             self.inlay_hint_visibility_changed(cx);
@@ -176,8 +150,8 @@ impl Editor {
         } else {
             let soft_wrap = match self.soft_wrap_mode(cx) {
                 SoftWrap::GitDiff => return,
-                SoftWrap::None => language_settings::SoftWrap::EditorWidth,
-                SoftWrap::EditorWidth | SoftWrap::Bounded(_) => language_settings::SoftWrap::None,
+                SoftWrap::None => true,
+                SoftWrap::EditorWidth => false,
             };
             self.soft_wrap_mode_override = Some(soft_wrap);
         }

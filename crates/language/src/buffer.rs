@@ -98,8 +98,6 @@ use crate::diagnostic_set::DiagnosticEntry;
 use crate::diagnostic_set::DiagnosticEntryRef;
 use crate::diagnostic_set::DiagnosticGroup;
 pub use crate::diagnostic_set::DiagnosticSet;
-use crate::language_settings::AUTO_INDENT;
-use crate::language_settings::AutoIndentMode;
 use crate::language_settings::LanguageSettings;
 use crate::outline::OutlineItem;
 use crate::row_chunk::RowChunkId;
@@ -2039,7 +2037,6 @@ impl Buffer {
             let entries: Vec<_> = edits
                 .into_iter()
                 .enumerate()
-                .filter(|_| AUTO_INDENT == AutoIndentMode::SyntaxAware)
                 .map(|(ix, (range, new_text))| {
                     let new_text = LineEnding::normalize_arc(new_text);
                     let new_text_length = new_text.len();

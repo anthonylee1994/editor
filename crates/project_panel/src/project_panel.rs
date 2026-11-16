@@ -127,7 +127,6 @@ use project::project_settings::GoToDiagnosticSeverityFilter;
 use rayon::slice::ParallelSliceMut;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
-use settings::FolderIndicator;
 use smallvec::SmallVec;
 use svg_preview::svg_preview_view::SvgPreviewView;
 use ui::ContextMenu;
@@ -5511,11 +5510,7 @@ impl ProjectPanel {
     fn entry_icons(entry: &Entry, is_expanded: bool, cx: &App) -> (Option<SharedString>, Option<SharedString>) {
         match entry.kind {
             EntryKind::File => (None, FileIcons::get_icon(entry.path.as_std_path(), cx)),
-            _ => {
-                let indicator =
-                    FileIcons::get_folder_indicators(FolderIndicator::Icon, is_expanded, entry.path.as_std_path(), cx);
-                (indicator.chevron, indicator.icon)
-            }
+            _ => (None, FileIcons::get_folder_icon(is_expanded, entry.path.as_std_path(), cx)),
         }
     }
 

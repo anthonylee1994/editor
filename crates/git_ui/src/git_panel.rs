@@ -119,7 +119,6 @@ use project::git_store::RepositoryId;
 use project::git_store::pending_op;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
-use settings::FolderIndicator;
 use smallvec::SmallVec;
 use strum::IntoEnumIterator;
 use strum::VariantNames;
@@ -5828,8 +5827,7 @@ impl GitPanel {
             (colors.ghost_element_hover, colors.ghost_element_active)
         };
 
-        let folder_indicators =
-            FileIcons::get_folder_indicators(FolderIndicator::Icon, entry.expanded, entry.key.path.as_std_path(), cx);
+        let folder_icon = FileIcons::get_folder_icon(entry.expanded, entry.key.path.as_std_path(), cx);
         let fallback_folder_icon = if entry.expanded { IconName::FolderOpen } else { IconName::Folder };
 
         let stage_status = if let Some(repo) = &self.active_repository {
@@ -5860,7 +5858,7 @@ impl GitPanel {
                         .color(Color::Muted)
                 };
 
-                [render_indicator(folder_indicators.icon, fallback_folder_icon)]
+                [render_indicator(folder_icon, fallback_folder_icon)]
             }))
             .child(self.entry_label(entry.name.clone(), label_color).truncate());
         h_flex()

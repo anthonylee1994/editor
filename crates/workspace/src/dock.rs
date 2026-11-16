@@ -279,26 +279,6 @@ pub enum DockPosition {
     Right,
 }
 
-impl From<settings::DockPosition> for DockPosition {
-    fn from(value: settings::DockPosition) -> Self {
-        match value {
-            settings::DockPosition::Left => Self::Left,
-            settings::DockPosition::Bottom => Self::Bottom,
-            settings::DockPosition::Right => Self::Right,
-        }
-    }
-}
-
-impl From<DockPosition> for settings::DockPosition {
-    fn from(val: DockPosition) -> Self {
-        match val {
-            DockPosition::Left => settings::DockPosition::Left,
-            DockPosition::Bottom => settings::DockPosition::Bottom,
-            DockPosition::Right => settings::DockPosition::Right,
-        }
-    }
-}
-
 impl DockPosition {
     const fn label(&self) -> &'static str {
         match self {

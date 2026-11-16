@@ -4560,7 +4560,7 @@ fn subscribe_for_editor_events(
                                 let mut invalidated = false;
                                 for (buffer_id, outlines) in &mut outline_panel.buffers {
                                     if editor_buffer.buffer(*buffer_id).is_some_and(|buffer| {
-                                        LanguageSettings::for_buffer(buffer.read(cx), cx).document_symbols.lsp_enabled()
+                                        LanguageSettings::for_buffer(buffer.read(cx), cx).lsp_document_symbols
                                     }) {
                                         outlines.invalidate_outlines();
                                         invalidated = true;

@@ -22,8 +22,6 @@ use language::DiskState;
 use language::File as _;
 use language::Language;
 use language::LineEnding;
-use language::language_settings::LINE_ENDING;
-use language::language_settings::LineEndingSetting;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use text::BufferId;
@@ -629,13 +627,8 @@ fn apply_initial_line_ending(buffer: &mut Buffer, cx: &mut Context<Buffer>) {
     if buffer.max_point().row > 0 {
         return;
     }
-    let desired = match LINE_ENDING {
-        LineEndingSetting::Detect => return,
-        LineEndingSetting::PreferLf | LineEndingSetting::EnforceLf => LineEnding::Unix,
-        LineEndingSetting::PreferCrlf | LineEndingSetting::EnforceCrlf => LineEnding::Windows,
-    };
-    if buffer.line_ending() != desired {
-        buffer.set_line_ending(desired, cx);
+    if buffer.line_ending() != LineEnding::Unix {
+        buffer.set_line_ending(LineEnding::Unix, cx);
     }
 }
 

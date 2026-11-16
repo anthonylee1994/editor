@@ -47,8 +47,6 @@ use alacritty_terminal::vi_mode::ViMotion as AlacViMotion;
 use alacritty_terminal::vte::ansi::ClearMode;
 use alacritty_terminal::vte::ansi::CursorShape as AlacCursorShape;
 use alacritty_terminal::vte::ansi::CursorStyle as AlacCursorStyle;
-use alacritty_terminal::vte::ansi::NamedPrivateMode;
-use alacritty_terminal::vte::ansi::PrivateMode;
 use anyhow::Context as _;
 use anyhow::Result;
 use futures::channel::mpsc::UnboundedSender;
@@ -81,7 +79,6 @@ use crate::TerminalBackendEvent;
 use crate::TerminalBounds;
 use crate::ViMotion;
 use crate::pty_info::ProcessIdGetter;
-use crate::terminal_settings::AlternateScroll;
 use crate::terminal_settings::CursorShape as SettingsCursorShape;
 
 pub(super) type AlacrittyPty = tty::Pty;
@@ -223,16 +220,9 @@ pub(super) fn new_term(
     config: &AlacrittyTermConfig,
     bounds: TerminalBounds,
     events_tx: UnboundedSender<PtyEvent>,
-    alternate_scroll: AlternateScroll,
     generation: u64,
 ) -> Arc<AlacrittyTermLock> {
-    let mut term = Term::new(config.clone(), &bounds, ZedListener { sender: events_tx, generation });
-
-    if alternate_scroll == AlternateScroll::Off {
-        term.unset_private_mode(PrivateMode::Named(NamedPrivateMode::AlternateScroll));
-    }
-
-    Arc::new(FairMutex::new(term))
+    Arc::new(FairMutex::new(Term::new(config.clone(), &bounds, ZedListener { sender: events_tx, generation })))
 }
 
 pub(super) fn spawn_event_loop(

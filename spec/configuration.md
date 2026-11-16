@@ -93,7 +93,13 @@ migrator, or Vim/Helix mode.
     still marks the bell), does not open on startup, always docked at the
     bottom (no `dock` or `default_width` setting); always uses the buffer
     font family, fallbacks and size with normal weight and ligatures off (no
-    terminal font settings);
+    terminal font settings); line height is 1.3; the cursor always blinks
+    (programs cannot turn blinking off); alternate scroll is always on; new
+    shells start in the active project directory, then the first project,
+    then home (no `working_directory`, `blinking`, `alternate_scroll` or
+    `line_height` setting);
+  - worktree: symlinked directories are scanned only once expanded (no
+    `scan_symlinks` setting);
   - git panel: no file icons, no count badge, does not open on startup;
     there are no git panel settings (see `git.md`);
   - git: there are no `git` settings (see `git.md`);

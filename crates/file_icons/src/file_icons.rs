@@ -5,7 +5,6 @@ use std::str;
 
 use gpui::App;
 use gpui::SharedString;
-use settings_content::FolderIndicator;
 use util::paths::PathExt;
 
 use crate::icons::ICONS;
@@ -13,13 +12,6 @@ use crate::icons::ICONS;
 /// File and folder icons for panels and pickers, from the built-in set in `icons.rs`.
 #[derive(Debug)]
 pub struct FileIcons;
-
-/// What a panel draws ahead of a directory's name, in render order.
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct FolderIndicators {
-    pub chevron: Option<SharedString>,
-    pub icon: Option<SharedString>,
-}
 
 impl FileIcons {
     pub fn get_icon(path: &Path, cx: &App) -> Option<SharedString> {
@@ -105,19 +97,5 @@ impl FileIcons {
 
     pub fn get_chevron_icon(expanded: bool, _cx: &App) -> Option<SharedString> {
         Some(ICONS.chevron.get(expanded))
-    }
-
-    /// Resolves what a panel should draw ahead of a directory's name. Shared by every
-    /// panel that exposes a `folder_indicator` setting so they stay in agreement.
-    pub fn get_folder_indicators(
-        indicator: FolderIndicator,
-        expanded: bool,
-        path: &Path,
-        cx: &App,
-    ) -> FolderIndicators {
-        let chevron = indicator.shows_chevron().then(|| Self::get_chevron_icon(expanded, cx)).flatten();
-        let icon = indicator.shows_icon().then(|| Self::get_folder_icon(expanded, path, cx)).flatten();
-
-        FolderIndicators { chevron, icon }
     }
 }

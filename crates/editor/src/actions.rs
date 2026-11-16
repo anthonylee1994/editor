@@ -8,7 +8,6 @@ use super::Deserialize;
 use super::DisplayRow;
 use super::Editor;
 use super::Entity;
-use super::OpenResultsIn;
 
 /// Selects the next occurrence of the current selection.
 #[derive(PartialEq, Eq, Clone, Deserialize, Default, Action)]
@@ -875,13 +874,22 @@ actions!(
     ]
 );
 
+/// Where to show LSP results that can contain multiple locations.
+#[derive(Copy, Clone, Debug, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum OpenResultsIn {
+    #[default]
+    MultiBuffer,
+    Picker,
+}
+
 /// Goes to the definition of the symbol at cursor.
 #[derive(PartialEq, Eq, Clone, Default, Deserialize, Action)]
 #[action(namespace = editor)]
 #[serde(deny_unknown_fields)]
 pub struct GoToDefinition {
-    /// Where to show the definitions. Falls back to the `lsp_results_location`
-    /// setting when omitted. A single result is always opened directly.
+    /// Where to show the definitions. Defaults to a multibuffer
+    /// when omitted. A single result is always opened directly.
     #[serde(default)]
     pub open_results_in: Option<OpenResultsIn>,
 }
@@ -891,8 +899,8 @@ pub struct GoToDefinition {
 #[action(namespace = editor)]
 #[serde(deny_unknown_fields)]
 pub struct GoToDeclaration {
-    /// Where to show the declarations. Falls back to the `lsp_results_location`
-    /// setting when omitted. A single result is always opened directly.
+    /// Where to show the declarations. Defaults to a multibuffer
+    /// when omitted. A single result is always opened directly.
     #[serde(default)]
     pub open_results_in: Option<OpenResultsIn>,
 }
@@ -902,8 +910,8 @@ pub struct GoToDeclaration {
 #[action(namespace = editor)]
 #[serde(deny_unknown_fields)]
 pub struct GoToImplementation {
-    /// Where to show the implementations. Falls back to the `lsp_results_location`
-    /// setting when omitted. A single result is always opened directly.
+    /// Where to show the implementations. Defaults to a multibuffer
+    /// when omitted. A single result is always opened directly.
     #[serde(default)]
     pub open_results_in: Option<OpenResultsIn>,
 }
@@ -913,8 +921,8 @@ pub struct GoToImplementation {
 #[action(namespace = editor)]
 #[serde(deny_unknown_fields)]
 pub struct GoToTypeDefinition {
-    /// Where to show the definitions. Falls back to the `lsp_results_location`
-    /// setting when omitted. A single result is always opened directly.
+    /// Where to show the definitions. Defaults to a multibuffer
+    /// when omitted. A single result is always opened directly.
     #[serde(default)]
     pub open_results_in: Option<OpenResultsIn>,
 }
@@ -925,8 +933,8 @@ pub struct GoToTypeDefinition {
 #[serde(deny_unknown_fields, default)]
 pub struct FindAllReferences {
     pub always_open_multibuffer: bool,
-    /// Where to show the references. Falls back to the `lsp_results_location`
-    /// setting when omitted. A single result is always opened directly.
+    /// Where to show the references. Defaults to a multibuffer
+    /// when omitted. A single result is always opened directly.
     pub open_results_in: Option<OpenResultsIn>,
 }
 

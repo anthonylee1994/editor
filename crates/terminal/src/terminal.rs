@@ -85,7 +85,6 @@ use serde::Deserialize;
 use serde::Serialize;
 use task::Shell;
 use task::SpawnInTerminal;
-use terminal_settings::AlternateScroll;
 use terminal_settings::CursorShape as SettingsCursorShape;
 use terminal_settings::TerminalSettings;
 use theme::ActiveTheme;
@@ -581,7 +580,6 @@ pub enum Event {
     CloseTerminal,
     Bell,
     Wakeup,
-    BlinkChanged(bool),
     SelectionsChanged,
     NewNavigationTarget(Option<MaybeNavigationTarget>),
     Open(MaybeNavigationTarget),
@@ -842,7 +840,6 @@ impl TerminalBuilder {
         shell: Shell,
         mut env: FxHashMap<String, String>,
         cursor_shape: SettingsCursorShape,
-        alternate_scroll: AlternateScroll,
         max_scroll_history_lines: Option<usize>,
         path_hyperlink_regexes: Vec<String>,
         path_hyperlink_timeout: Duration,
@@ -917,7 +914,7 @@ impl TerminalBuilder {
             //TODO: Remove with a bounded sender which can be dispatched on &self
             let (events_tx, events_rx) = unbounded();
             //Set up the terminal...
-            let term = new_term(&config, TerminalBounds::default(), events_tx.clone(), alternate_scroll, 0);
+            let term = new_term(&config, TerminalBounds::default(), events_tx.clone(), 0);
 
             // When `no_pty` is set (headless hosts), run the task as a plain
             // subprocess and pump its piped output into the same emulator the
@@ -1008,7 +1005,6 @@ impl TerminalBuilder {
                     shell,
                     env,
                     cursor_shape,
-                    alternate_scroll,
                     max_scroll_history_lines,
                     path_hyperlink_regexes,
                     path_hyperlink_timeout,
@@ -1163,7 +1159,6 @@ struct CopyTemplate {
     shell: Shell,
     env: FxHashMap<String, String>,
     cursor_shape: SettingsCursorShape,
-    alternate_scroll: AlternateScroll,
     max_scroll_history_lines: Option<usize>,
     path_hyperlink_regexes: Vec<String>,
     path_hyperlink_timeout: Duration,
@@ -1242,11 +1237,7 @@ impl Terminal {
             TerminalBackendEvent::TextAreaSizeRequest(format) => {
                 self.write_to_pty(format(self.last_content.terminal_bounds).into_bytes())
             }
-            TerminalBackendEvent::CursorBlinkingChange => {
-                let terminal = self.term.lock();
-                let blinking = terminal.cursor_style().blinking;
-                cx.emit(Event::BlinkChanged(blinking));
-            }
+            TerminalBackendEvent::CursorBlinkingChange => {}
             TerminalBackendEvent::Bell => {
                 cx.emit(Event::Bell);
             }
@@ -1517,7 +1508,7 @@ impl Terminal {
             bail!("display output generation exhausted");
         };
         let bounds = self.last_content.terminal_bounds;
-        let term = new_term(&self.term_config, bounds, events_tx.clone(), self.template.alternate_scroll, generation);
+        let term = new_term(&self.term_config, bounds, events_tx.clone(), generation);
         self.output_generation = generation;
         self.term = term;
         self.output_processor = None;
@@ -1539,7 +1530,6 @@ impl Terminal {
         self.cwd_history.clear();
         self.pending_cwd_boundary = None;
         self.write_raw_output(bytes, cx);
-        cx.emit(Event::BlinkChanged(self.term.lock().cursor_style().blinking));
         cx.emit(Event::NewNavigationTarget(None));
         cx.emit(Event::OutputReplaced);
         Ok(())
@@ -2532,7 +2522,6 @@ impl Terminal {
             self.template.shell.clone(),
             self.template.env.clone(),
             self.template.cursor_shape,
-            self.template.alternate_scroll,
             self.template.max_scroll_history_lines,
             self.template.path_hyperlink_regexes.clone(),
             self.template.path_hyperlink_timeout,

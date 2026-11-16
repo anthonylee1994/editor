@@ -5,21 +5,14 @@ use gpui::px;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use serde::Serialize;
-pub use settings::AlternateScroll;
-use settings::TerminalBlink;
-use settings::TerminalLineHeight;
-use settings::WorkingDirectory;
 use task::Shell;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct TerminalSettings {
     pub shell: Shell,
-    pub working_directory: WorkingDirectory,
-    pub line_height: TerminalLineHeight,
+    pub line_height: f32,
     pub env: FxHashMap<String, String>,
     pub cursor_shape: CursorShape,
-    pub blinking: TerminalBlink,
-    pub alternate_scroll: AlternateScroll,
     pub option_as_meta: bool,
     pub copy_on_select: bool,
     pub keep_selection_on_copy: bool,
@@ -43,12 +36,9 @@ impl TerminalSettings {
     fn built_in() -> Self {
         TerminalSettings {
             shell: Shell::System,
-            working_directory: WorkingDirectory::CurrentProjectDirectory,
-            line_height: TerminalLineHeight::Standard,
+            line_height: 1.3,
             env: FxHashMap::default(),
             cursor_shape: CursorShape::Bar,
-            blinking: TerminalBlink::On,
-            alternate_scroll: AlternateScroll::On,
             option_as_meta: true,
             copy_on_select: true,
             keep_selection_on_copy: true,

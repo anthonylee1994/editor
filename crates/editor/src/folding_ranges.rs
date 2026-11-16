@@ -1,4 +1,3 @@
-use language::language_settings::DOCUMENT_FOLDING_RANGES;
 use text::BufferId;
 use ui::Context;
 use ui::Window;
@@ -6,6 +5,9 @@ use ui::Window;
 use crate::Editor;
 use crate::LSP_REQUEST_DEBOUNCE_TIMEOUT;
 use crate::LspDataKind;
+
+/// Folding ranges from language servers are off; tree-sitter and indent-based folding are used.
+const LSP_FOLDING_RANGES: bool = false;
 
 impl Editor {
     pub(super) fn refresh_folding_ranges(
@@ -22,7 +24,7 @@ impl Editor {
         };
 
         let buffers_to_query =
-            self.lsp_data_buffers(for_buffer, cx).into_iter().filter(|_| DOCUMENT_FOLDING_RANGES.enabled()).collect();
+            self.lsp_data_buffers(for_buffer, cx).into_iter().filter(|_| LSP_FOLDING_RANGES).collect();
         self.spawn_lsp_data_tasks(LspDataKind::FoldingRanges, for_buffer, buffers_to_query, cx, |buffer, cx| {
             let project = project.clone();
             let buffer_id = buffer.read(cx).buffer_id();

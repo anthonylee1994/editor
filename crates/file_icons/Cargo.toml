@@ -9,7 +9,6 @@ path = "src/file_icons.rs"
 [dependencies]
 gpui.workspace = true
 rustc-hash.workspace = true
-settings_content.workspace = true
 util.workspace = true
 
 [lints]

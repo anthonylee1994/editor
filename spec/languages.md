@@ -9,13 +9,22 @@
   Markdown/Markdown-Inline, Go Mod/Go Work). Buffers without a
   registered language use `LanguageSettings::fallback()` (in `language`).
   - Per-language fields are only those a language may need to differ in: tab
-    size, hard tabs, soft wrap, preferred line length, wrap guides, format on
-    save, formatter, code actions on format, trailing whitespace / final
-    newline on save, document symbols source, rewrap scope, on-type
-    formatting, auto-indent on paste, and word completions.
-  - Everything else is an editor-wide constant in `language::language_settings`
-    (soft-wrap indent, indent guides, line ending, LSP folding ranges, visible
-    whitespace, inlay hints, auto-indent mode, LSP completion options) or always on with no setting: comment/list continuation,
+    size, hard tabs, soft wrap (off or at the editor width), preferred line
+    length, wrap guides, formatter (auto or a language server), code actions on
+    format, trailing whitespace / final newline on save, LSP vs tree-sitter
+    document symbols, rewrap scope (comments or anywhere), on-type formatting,
+    auto-indent on paste, and word completions (fallback or disabled). The
+    types live in `language::language_settings`; there is no
+    `settings_content` crate.
+  - Everything else is fixed: inlay hints, indent guides and LSP completion
+    options are constants in `language::language_settings`; the rest is inlined
+    where used. Files are always formatted on save (save-without-format still
+    skips it); there are no external-command formatters or modifications-only
+    formatting. Soft-wrapped lines keep the original line's indentation. Indent
+    guides use indent-aware colors with no background. Whitespace is drawn
+    only inside selections. Auto-indent is syntax-aware. LSP completions
+    replace the text after the cursor only when the completion ends with it.
+    LSP folding ranges are off. Other always-on behaviour with no setting: comment/list continuation,
     list indent on tab, autoclose and auto-surround, linked edits, completions
     on input and their documentation, word diff, language tasks (LSP tasks
     preferred), and language servers.
@@ -47,8 +56,8 @@
     no grammar-name registry and `config.toml` has no `grammar` key.
 - Markdown uses the upstream `tree-sitter-md` crate from crates.io (no fork).
   Outlines use LSP document symbols by default
-  (`document_symbols: "on"`), but Markdown overrides this to tree-sitter
-  (`"off"`) because there is no Markdown language server; headings make up the
+  (`lsp_document_symbols: true`), but Markdown overrides this to tree-sitter
+  (`false`) because there is no Markdown language server; headings make up the
   outline. LSP symbols are fetched per buffer, so in a multibuffer refreshing one
   file never cancels another file's pending fetch.
 - Diff, Git Commit, Go Mod, Go Work, Terraform, Terraform Vars and TOML are

@@ -92,8 +92,6 @@ use itertools::Itertools;
 use language::Diagnostic;
 use language::IndentGuideSettings;
 use language::LanguageAwareStyling;
-use language::language_settings::SHOW_WHITESPACES;
-use language::language_settings::ShowWhitespaceSetting;
 use language::language_settings::WHITESPACE_SPACE;
 use language::language_settings::WHITESPACE_TAB;
 use minimap::MinimapLayout;
@@ -109,8 +107,6 @@ use multi_buffer::RowInfo;
 use multi_buffer::ToOffset;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
-use settings::IndentGuideBackgroundColoring;
-use settings::IndentGuideColoring;
 use smallvec::SmallVec;
 use smallvec::smallvec;
 use sum_tree::Bias;
@@ -1673,7 +1669,6 @@ impl EditorElement {
                         Some(IndentGuideLayout {
                             origin: point(start_x, start_y),
                             length,
-                            single_indent_width,
                             display_row_range,
                             depth: indent_guide.depth,
                             active: active_indent_guide_indices.contains(&i),
@@ -1691,7 +1686,7 @@ impl EditorElement {
         indent_guides
             .iter()
             .find(|guide| guide.depth == 0 && guide.display_row_range.contains(&row))
-            .and_then(|guide| guide.settings.visible_line_width(guide.active).map(|width| px(width as f32 * 2.0)))
+            .map(|guide| px(guide.settings.visible_line_width(guide.active) as f32 * 2.0))
             .unwrap_or(px(0.0))
     }
 
@@ -3677,57 +3672,20 @@ impl EditorElement {
             // TODO fixed for now, expose them through themes later
             const INDENT_AWARE_ALPHA: f32 = 0.2;
             const INDENT_AWARE_ACTIVE_ALPHA: f32 = 0.4;
-            const INDENT_AWARE_BACKGROUND_ALPHA: f32 = 0.1;
-            const INDENT_AWARE_BACKGROUND_ACTIVE_ALPHA: f32 = 0.2;
 
-            let line_color = match (settings.coloring, indent_guide.active) {
-                (IndentGuideColoring::Disabled, _) => None,
-                (IndentGuideColoring::Fixed, false) => Some(cx.theme().colors().editor_indent_guide),
-                (IndentGuideColoring::Fixed, true) => Some(cx.theme().colors().editor_indent_guide_active),
-                (IndentGuideColoring::IndentAware, false) => {
-                    Some(faded_color(indent_accent_colors, INDENT_AWARE_ALPHA))
-                }
-                (IndentGuideColoring::IndentAware, true) => {
-                    Some(faded_color(indent_accent_colors, INDENT_AWARE_ACTIVE_ALPHA))
-                }
-            };
+            let line_color = faded_color(
+                indent_accent_colors,
+                if indent_guide.active { INDENT_AWARE_ACTIVE_ALPHA } else { INDENT_AWARE_ALPHA },
+            );
 
-            let background_color = match (settings.background_coloring, indent_guide.active) {
-                (IndentGuideBackgroundColoring::Disabled, _) => None,
-                (IndentGuideBackgroundColoring::IndentAware, false) => {
-                    Some(faded_color(indent_accent_colors, INDENT_AWARE_BACKGROUND_ALPHA))
-                }
-                (IndentGuideBackgroundColoring::IndentAware, true) => {
-                    Some(faded_color(indent_accent_colors, INDENT_AWARE_BACKGROUND_ACTIVE_ALPHA))
-                }
-            };
-
-            let line_indicator_width = if let Some(requested_line_width) =
-                settings.visible_line_width(indent_guide.active)
-                && let Some(color) = line_color
-            {
-                window.paint_quad(fill(
-                    window.pixel_snap_bounds(Bounds {
-                        origin: indent_guide.origin,
-                        size: size(px(requested_line_width as f32), indent_guide.length),
-                    }),
-                    color,
-                ));
-                requested_line_width as f32
-            } else {
-                0.
-            };
-
-            if let Some(color) = background_color {
-                let width = indent_guide.single_indent_width - px(line_indicator_width);
-                window.paint_quad(fill(
-                    window.pixel_snap_bounds(Bounds {
-                        origin: point(indent_guide.origin.x + px(line_indicator_width), indent_guide.origin.y),
-                        size: size(width, indent_guide.length),
-                    }),
-                    color,
-                ));
-            }
+            let line_width = settings.visible_line_width(indent_guide.active);
+            window.paint_quad(fill(
+                window.pixel_snap_bounds(Bounds {
+                    origin: indent_guide.origin,
+                    size: size(px(line_width as f32), indent_guide.length),
+                }),
+                line_color,
+            ));
         }
     }
 
@@ -4226,19 +4184,9 @@ impl EditorElement {
         window: &mut Window,
         cx: &mut App,
     ) {
-        let whitespace_setting = SHOW_WHITESPACES;
-
         for (ix, line_with_invisibles) in layout.position_map.line_layouts.iter().enumerate() {
             let row = DisplayRow(layout.visible_display_row_range.start.0 + ix as u32);
-            line_with_invisibles.draw(
-                layout,
-                row,
-                layout.content_origin,
-                whitespace_setting,
-                invisible_display_ranges,
-                window,
-                cx,
-            )
+            line_with_invisibles.draw(layout, row, layout.content_origin, invisible_display_ranges, window, cx)
         }
 
         for line_element in &mut layout.line_elements {
@@ -5053,7 +5001,6 @@ impl LineWithInvisibles {
         layout: &EditorLayout,
         row: DisplayRow,
         content_origin: gpui::Point<Pixels>,
-        whitespace_setting: ShowWhitespaceSetting,
         selection_ranges: &[Range<DisplayPoint>],
         window: &mut Window,
         cx: &mut App,
@@ -5220,17 +5167,7 @@ impl LineWithInvisibles {
             ));
         }
 
-        self.draw_invisibles(
-            selection_ranges,
-            layout,
-            content_origin,
-            line_y,
-            row,
-            line_height,
-            whitespace_setting,
-            window,
-            cx,
-        );
+        self.draw_invisibles(selection_ranges, layout, content_origin, line_y, row, line_height, window, cx);
         DiagnosticUnderline::paint_all(&underlines, window);
     }
 
@@ -5273,7 +5210,6 @@ impl LineWithInvisibles {
         line_y: Pixels,
         row: DisplayRow,
         line_height: Pixels,
-        whitespace_setting: ShowWhitespaceSetting,
         window: &mut Window,
         cx: &mut App,
     ) {
@@ -5308,74 +5244,11 @@ impl LineWithInvisibles {
             )
         };
 
-        let invisible_iter = self.invisibles.iter().map(extract_whitespace_info);
-        match whitespace_setting {
-            ShowWhitespaceSetting::None => (),
-            ShowWhitespaceSetting::All => invisible_iter.for_each(|(_, paint)| paint(window, cx)),
-            ShowWhitespaceSetting::Selection => invisible_iter.for_each(|([start, _], paint)| {
-                let invisible_point = DisplayPoint::new(row, start as u32);
-                if !selection_ranges
-                    .iter()
-                    .any(|region| region.start <= invisible_point && invisible_point < region.end)
-                {
-                    return;
-                }
-
+        // Whitespace is only drawn inside selections.
+        for ([start, _], paint) in self.invisibles.iter().map(extract_whitespace_info) {
+            let invisible_point = DisplayPoint::new(row, start as u32);
+            if selection_ranges.iter().any(|region| region.start <= invisible_point && invisible_point < region.end) {
                 paint(window, cx);
-            }),
-
-            ShowWhitespaceSetting::Trailing => {
-                let mut previous_start = self.len;
-                for ([start, end], paint) in invisible_iter.rev() {
-                    if previous_start != end {
-                        break;
-                    }
-                    previous_start = start;
-                    paint(window, cx);
-                }
-            }
-
-            // For a whitespace to be on a boundary, any of the following conditions need to be met:
-            // - It is a tab
-            // - It is adjacent to an edge (start or end)
-            // - It is adjacent to a whitespace (left or right)
-            ShowWhitespaceSetting::Boundary => {
-                // We'll need to keep track of the last invisible we've seen and then check if we are adjacent to it for some of
-                // the above cases.
-                // Note: We zip in the original `invisibles` to check for tab equality
-                #[allow(clippy::type_complexity)]
-                let mut last_seen: Option<(bool, usize, Box<dyn Fn(&mut Window, &mut App)>)> = None;
-                for (([start, end], paint), invisible) in invisible_iter.zip_eq(self.invisibles.iter()) {
-                    let should_render = match (&last_seen, invisible) {
-                        (_, Invisible::Tab { .. }) => true,
-                        (Some((_, last_end, _)), _) => *last_end == start,
-                        _ => false,
-                    };
-
-                    if should_render || start == 0 || end == self.len {
-                        paint(window, cx);
-
-                        // Since we are scanning from the left, we will skip over the first available whitespace that is part
-                        // of a boundary between non-whitespace segments, so we correct by manually redrawing it if needed.
-                        if let Some((should_render_last, last_end, paint_last)) = last_seen {
-                            // Note that we need to make sure that the last one is actually adjacent
-                            if !should_render_last && last_end == start {
-                                paint_last(window, cx);
-                            }
-                        }
-                    }
-
-                    // Manually render anything within a selection
-                    let invisible_point = DisplayPoint::new(row, start as u32);
-                    if selection_ranges
-                        .iter()
-                        .any(|region| region.start <= invisible_point && invisible_point < region.end)
-                    {
-                        paint(window, cx);
-                    }
-
-                    last_seen = Some((should_render, end, paint));
-                }
             }
         }
     }
@@ -7249,7 +7122,6 @@ pub fn layout_line(
 pub struct IndentGuideLayout {
     origin: gpui::Point<Pixels>,
     length: Pixels,
-    single_indent_width: Pixels,
     display_row_range: Range<DisplayRow>,
     depth: u32,
     active: bool,
@@ -7527,7 +7399,6 @@ fn calculate_wrap_width(soft_wrap: SoftWrap, editor_width: Pixels, em_width: Pix
         SoftWrap::GitDiff => None,
         SoftWrap::None => Some(wrap_width_for(MAX_LINE_LEN as u32 / 2)),
         SoftWrap::EditorWidth => Some(editor_width),
-        SoftWrap::Bounded(column) => Some(editor_width.min(wrap_width_for(column))),
     }
 }
 

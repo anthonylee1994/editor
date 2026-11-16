@@ -4,8 +4,6 @@ mod keymap;
 
 use std::fmt;
 
-#[allow(clippy::wildcard_imports)]
-pub use ::settings_content::*;
 pub use built_in_keymap::keymap as built_in_keymap;
 pub use keymap::KeyBindingSpec;
 pub use keymap::built_in_key_bindings;

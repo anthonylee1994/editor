@@ -50,7 +50,6 @@ use registrar::ForDismissed;
 use registrar::SearchActionsRegistrar;
 pub use registrar::register_pane_search_actions;
 use rustc_hash::FxHashMap;
-use settings::SeedQuerySetting;
 use ui::BASE_REM_SIZE_IN_PX;
 use ui::IconButtonShape;
 use ui::Tooltip;
@@ -83,6 +82,7 @@ use workspace::searchable::FilteredSearchRange;
 use workspace::searchable::SearchEvent;
 use workspace::searchable::SearchToken;
 use workspace::searchable::SearchableItemHandle;
+use workspace::searchable::SeedQuery;
 use workspace::searchable::SelectSearchOptions;
 use workspace::searchable::WeakSearchableItemHandle;
 
@@ -721,7 +721,7 @@ impl BufferSearchBar {
     pub fn deploy(
         &mut self,
         deploy: &Deploy,
-        seed_query_override: Option<SeedQuerySetting>,
+        seed_query_override: Option<SeedQuery>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
@@ -849,7 +849,7 @@ impl BufferSearchBar {
 
     pub fn search_suggested(
         &mut self,
-        seed_query_override: Option<SeedQuerySetting>,
+        seed_query_override: Option<SeedQuery>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -909,7 +909,7 @@ impl BufferSearchBar {
 
     pub fn query_suggestion(
         &mut self,
-        seed_query_override: Option<SeedQuerySetting>,
+        seed_query_override: Option<SeedQuery>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Option<String> {
@@ -975,7 +975,7 @@ impl BufferSearchBar {
     pub fn use_selection_for_find(&mut self, _: &UseSelectionForFind, window: &mut Window, cx: &mut Context<Self>) {
         self.deploy(
             &Deploy { focus: false, replace_enabled: false, selection_search_enabled: false },
-            Some(SeedQuerySetting::Always),
+            Some(SeedQuery::Always),
             window,
             cx,
         );

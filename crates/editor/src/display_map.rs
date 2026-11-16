@@ -149,7 +149,6 @@ use language::Point;
 use language::Subscription as BufferSubscription;
 use language::language_settings::AllLanguageSettings;
 use language::language_settings::LanguageSettings;
-use language::language_settings::SoftWrapIndent;
 use multi_buffer::Anchor;
 use multi_buffer::AnchorRangeExt;
 use multi_buffer::MultiBuffer;
@@ -1069,10 +1068,6 @@ impl DisplayMap {
 
     pub fn set_wrap_width(&self, width: Option<Pixels>, cx: &mut Context<Self>) -> bool {
         self.wrap_map.update(cx, |map, cx| map.set_wrap_width(width, cx))
-    }
-
-    pub fn set_soft_wrap_indent(&self, indent: SoftWrapIndent, cx: &mut Context<Self>) -> bool {
-        self.wrap_map.update(cx, |map, cx| map.set_soft_wrap_indent(indent, cx))
     }
 
     pub fn update_fold_widths(

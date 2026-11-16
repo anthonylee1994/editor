@@ -48,9 +48,6 @@ use project::Project;
 use project::ProjectEntryId;
 use project::search::SearchQuery;
 use serde::Deserialize;
-use settings::SeedQuerySetting;
-use settings::TerminalBlink;
-use settings::WorkingDirectory;
 use task::SpawnInTerminal;
 use terminal::Clear;
 use terminal::Copy;
@@ -129,6 +126,7 @@ use workspace::searchable::SearchOptions;
 use workspace::searchable::SearchToken;
 use workspace::searchable::SearchableItem;
 use workspace::searchable::SearchableItemHandle;
+use workspace::searchable::SeedQuery;
 
 struct ImeState {
     marked_text: String,
@@ -196,7 +194,6 @@ pub struct TerminalView {
     context_menu: Option<(Entity<ContextMenu>, GpuiPoint<Pixels>, Subscription)>,
     cursor_shape: CursorShape,
     blink_manager: Entity<BlinkManager>,
-    blinking_terminal_enabled: bool,
     custom_title: Option<String>,
     hover: Option<HoverTarget>,
     hover_tooltip_update: Task<()>,
@@ -250,9 +247,7 @@ impl TerminalView {
 
         let scroll_handle = TerminalScrollHandle::new(terminal.read(cx));
 
-        let blink_manager = cx.new(|_| {
-            BlinkManager::new(CURSOR_BLINK_INTERVAL, !matches!(TerminalSettings::get().blinking, TerminalBlink::Off))
-        });
+        let blink_manager = cx.new(|_| BlinkManager::new(CURSOR_BLINK_INTERVAL, true));
 
         let subscriptions = vec![focus_in, focus_out, cx.observe(&blink_manager, |_, _, cx| cx.notify())];
 
@@ -265,7 +260,6 @@ impl TerminalView {
             context_menu: None,
             cursor_shape,
             blink_manager,
-            blinking_terminal_enabled: false,
             hover: None,
             hover_tooltip_update: Task::ready(()),
             block_below_cursor: None,
@@ -613,14 +607,7 @@ impl TerminalView {
             return true;
         }
 
-        // When focused, check blinking settings and blink manager state
-        match TerminalSettings::get().blinking {
-            TerminalBlink::Off => true,
-            TerminalBlink::TerminalControlled => {
-                !self.blinking_terminal_enabled || self.blink_manager.read(cx).visible()
-            }
-            TerminalBlink::On => self.blink_manager.read(cx).visible(),
-        }
+        self.blink_manager.read(cx).visible()
     }
 
     pub fn pause_cursor_blinking(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
@@ -840,96 +827,74 @@ fn subscribe_for_terminal_events(
 ) -> Vec<Subscription> {
     let terminal_subscription = cx.observe(terminal, |_, _, cx| cx.notify());
     let terminal_events_subscription =
-        cx.subscribe_in(terminal, window, move |terminal_view, terminal, event, window, cx| {
-            match event {
-                Event::Wakeup => {
-                    cx.notify();
-                    window.invalidate_character_coordinates();
-                    cx.emit(Event::Wakeup);
-                    cx.emit(ItemEvent::UpdateTab);
-                    cx.emit(SearchEvent::MatchesInvalidated);
-                }
+        cx.subscribe_in(terminal, window, move |terminal_view, terminal, event, window, cx| match event {
+            Event::Wakeup => {
+                cx.notify();
+                window.invalidate_character_coordinates();
+                cx.emit(Event::Wakeup);
+                cx.emit(ItemEvent::UpdateTab);
+                cx.emit(SearchEvent::MatchesInvalidated);
+            }
 
-                Event::OutputReplaced => {
-                    terminal_view.hover = None;
-                    terminal_view.hover_tooltip_update = Task::ready(());
-                    terminal_view.scroll_top = Pixels::ZERO;
-                    terminal_view.scroll_handle.future_display_offset.set(None);
-                    terminal_view.scroll_handle.update(terminal.read(cx));
-                    terminal_view.block_below_cursor = None;
-                    window.invalidate_character_coordinates();
-                    cx.emit(SearchEvent::MatchesInvalidated);
-                    cx.emit(SearchEvent::ActiveMatchChanged);
-                    cx.emit(ItemEvent::UpdateTab);
-                    cx.notify();
-                }
+            Event::OutputReplaced => {
+                terminal_view.hover = None;
+                terminal_view.hover_tooltip_update = Task::ready(());
+                terminal_view.scroll_top = Pixels::ZERO;
+                terminal_view.scroll_handle.future_display_offset.set(None);
+                terminal_view.scroll_handle.update(terminal.read(cx));
+                terminal_view.block_below_cursor = None;
+                window.invalidate_character_coordinates();
+                cx.emit(SearchEvent::MatchesInvalidated);
+                cx.emit(SearchEvent::ActiveMatchChanged);
+                cx.emit(ItemEvent::UpdateTab);
+                cx.notify();
+            }
 
-                Event::Bell => {
-                    terminal_view.has_bell = true;
-                    cx.emit(Event::Wakeup);
-                }
+            Event::Bell => {
+                terminal_view.has_bell = true;
+                cx.emit(Event::Wakeup);
+            }
 
-                Event::BlinkChanged(blinking) => {
-                    terminal_view.blinking_terminal_enabled = *blinking;
+            Event::TitleChanged => {
+                cx.emit(ItemEvent::UpdateTab);
+            }
 
-                    // If in terminal-controlled mode and focused, update blink manager
-                    if matches!(TerminalSettings::get().blinking, TerminalBlink::TerminalControlled)
-                        && terminal_view.focus_handle.is_focused(window)
-                    {
-                        terminal_view.blink_manager.update(cx, |manager, cx| {
-                            if *blinking {
-                                manager.enable(cx);
-                            } else {
-                                manager.disable(cx);
-                            }
-                        });
-                    }
-                }
-
-                Event::TitleChanged => {
-                    cx.emit(ItemEvent::UpdateTab);
-                }
-
-                Event::NewNavigationTarget(maybe_navigation_target) => {
-                    match maybe_navigation_target
-                        .as_ref()
-                        .zip(terminal.read(cx).last_content.last_hovered_word.as_ref())
-                    {
-                        Some((MaybeNavigationTarget::Url(url), hovered_word)) => {
-                            if Some(hovered_word) != terminal_view.hover.as_ref().map(|hover| &hover.hovered_word) {
-                                terminal_view.hover =
-                                    Some(HoverTarget { tooltip: url.clone(), hovered_word: hovered_word.clone() });
-                                terminal_view.hover_tooltip_update = Task::ready(());
-                                cx.notify();
-                            }
-                        }
-                        Some((MaybeNavigationTarget::PathLike(path_like_target), hovered_word)) => {
-                            if Some(hovered_word) != terminal_view.hover.as_ref().map(|hover| &hover.hovered_word) {
-                                terminal_view.hover = None;
-                                terminal_view.hover_tooltip_update =
-                                    hover_path_like_target(&workspace, hovered_word.clone(), path_like_target, cx);
-                                cx.notify();
-                            }
-                        }
-                        None => {
-                            terminal_view.hover = None;
+            Event::NewNavigationTarget(maybe_navigation_target) => {
+                match maybe_navigation_target.as_ref().zip(terminal.read(cx).last_content.last_hovered_word.as_ref()) {
+                    Some((MaybeNavigationTarget::Url(url), hovered_word)) => {
+                        if Some(hovered_word) != terminal_view.hover.as_ref().map(|hover| &hover.hovered_word) {
+                            terminal_view.hover =
+                                Some(HoverTarget { tooltip: url.clone(), hovered_word: hovered_word.clone() });
                             terminal_view.hover_tooltip_update = Task::ready(());
                             cx.notify();
                         }
                     }
-                }
-
-                Event::Open(maybe_navigation_target) => match maybe_navigation_target {
-                    MaybeNavigationTarget::Url(url) => cx.open_url(url),
-                    MaybeNavigationTarget::PathLike(path_like_target) => {
-                        open_path_like_target(&workspace, terminal_view, path_like_target, window, cx)
+                    Some((MaybeNavigationTarget::PathLike(path_like_target), hovered_word)) => {
+                        if Some(hovered_word) != terminal_view.hover.as_ref().map(|hover| &hover.hovered_word) {
+                            terminal_view.hover = None;
+                            terminal_view.hover_tooltip_update =
+                                hover_path_like_target(&workspace, hovered_word.clone(), path_like_target, cx);
+                            cx.notify();
+                        }
                     }
-                },
-                Event::CloseTerminal => cx.emit(ItemEvent::CloseItem),
-                Event::SelectionsChanged => {
-                    window.invalidate_character_coordinates();
-                    cx.emit(SearchEvent::ActiveMatchChanged)
+                    None => {
+                        terminal_view.hover = None;
+                        terminal_view.hover_tooltip_update = Task::ready(());
+                        cx.notify();
+                    }
                 }
+            }
+
+            Event::Open(maybe_navigation_target) => match maybe_navigation_target {
+                MaybeNavigationTarget::Url(url) => cx.open_url(url),
+                MaybeNavigationTarget::PathLike(path_like_target) => {
+                    open_path_like_target(&workspace, terminal_view, path_like_target, window, cx)
+                }
+            },
+            Event::CloseTerminal => cx.emit(ItemEvent::CloseItem),
+            Event::SelectionsChanged => {
+                window.invalidate_character_coordinates();
+                cx.emit(SearchEvent::ActiveMatchChanged)
             }
         });
     vec![terminal_subscription, terminal_events_subscription]
@@ -987,15 +952,7 @@ impl TerminalView {
             terminal.focus_in();
         });
 
-        let should_blink = match TerminalSettings::get().blinking {
-            TerminalBlink::Off => false,
-            TerminalBlink::On => true,
-            TerminalBlink::TerminalControlled => self.blinking_terminal_enabled,
-        };
-
-        if should_blink {
-            self.blink_manager.update(cx, BlinkManager::enable);
-        }
+        self.blink_manager.update(cx, BlinkManager::enable);
 
         window.invalidate_character_coordinates();
         cx.notify();
@@ -1416,7 +1373,7 @@ impl SearchableItem for TerminalView {
     /// Returns the selection content to pre-load into this search
     fn query_suggestion(
         &mut self,
-        _seed_query_override: Option<SeedQuerySetting>,
+        _seed_query_override: Option<SeedQuery>,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) -> String {
@@ -1524,20 +1481,7 @@ impl SearchableItem for TerminalView {
 /// Gets the working directory for the given workspace, respecting the user's settings.
 /// Falls back to home directory when no project directory is available.
 pub fn default_working_directory(workspace: &Workspace, cx: &App) -> Option<PathBuf> {
-    let directory = match &TerminalSettings::get().working_directory {
-        WorkingDirectory::CurrentFileDirectory => {
-            workspace.project().read(cx).active_entry_directory(cx).or_else(|| current_project_directory(workspace, cx))
-        }
-        WorkingDirectory::CurrentProjectDirectory => current_project_directory(workspace, cx),
-        WorkingDirectory::FirstProjectDirectory => first_project_directory(workspace, cx),
-        WorkingDirectory::AlwaysHome => None,
-        WorkingDirectory::Always { directory } => shellexpand::full(directory)
-            .ok()
-            .map(|dir| Path::new(&dir.to_string()).to_path_buf())
-            .filter(|dir| dir.is_dir()),
-    };
-
-    directory.or_else(dirs::home_dir)
+    current_project_directory(workspace, cx).or_else(dirs::home_dir)
 }
 
 fn current_project_directory(workspace: &Workspace, cx: &App) -> Option<PathBuf> {

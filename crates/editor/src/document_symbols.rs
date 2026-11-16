@@ -154,7 +154,7 @@ impl Editor {
 }
 
 fn lsp_symbols_enabled(buffer: &Buffer, cx: &App) -> bool {
-    LanguageSettings::for_buffer(buffer, cx).document_symbols.lsp_enabled()
+    LanguageSettings::for_buffer(buffer, cx).lsp_document_symbols
 }
 
 /// Finds where the symbol name appears in the buffer and returns combined

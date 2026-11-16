@@ -22,14 +22,11 @@ use language::ManifestName;
 use language::ManifestProvider;
 use language::ManifestQuery;
 use language::Symbol;
-use language::language_settings::DocumentSymbols;
-use language::language_settings::FormatOnSave;
 use language::language_settings::Formatter;
-use language::language_settings::FormatterList;
 use language::language_settings::LanguageServerFormatterSpecifier;
 use language::language_settings::LanguageSettings;
 use language::language_settings::RewrapBehavior;
-use language::language_settings::SoftWrap;
+use language::language_settings::SemanticTokenRules;
 use language::language_settings::WordsCompletionMode;
 use lsp::CompletionItemKind;
 use lsp::LanguageServerBinary;
@@ -38,7 +35,6 @@ use lsp::Uri;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
 use serde_json::json;
-use settings::SemanticTokenRules;
 use task::TaskTemplate;
 use task::TaskTemplates;
 use task::VariableName;
@@ -362,17 +358,14 @@ pub(crate) fn settings() -> LanguageSettings {
     LanguageSettings {
         tab_size: NonZeroU32::new(4).unwrap(),
         hard_tabs: false,
-        soft_wrap: SoftWrap::None,
+        soft_wrap: false,
         preferred_line_length: 120,
         wrap_guides: vec![120],
-        format_on_save: FormatOnSave::On,
-        formatter: FormatterList::Single(Formatter::LanguageServer(LanguageServerFormatterSpecifier::Specific {
-            name: "ruff".into(),
-        })),
+        formatter: Formatter::LanguageServer(LanguageServerFormatterSpecifier::Specific { name: "ruff".into() }),
         code_actions_on_format: std::iter::once(("source.organizeImports.ruff".into(), true)).collect(),
         remove_trailing_whitespace_on_save: true,
         ensure_final_newline_on_save: true,
-        document_symbols: DocumentSymbols::On,
+        lsp_document_symbols: true,
         allow_rewrap: RewrapBehavior::InComments,
         use_on_type_format: true,
         auto_indent_on_paste: true,

@@ -66,7 +66,6 @@ rope = { path = "crates/rope" }
 scheduler = { path = "crates/scheduler" }
 search = { path = "crates/search" }
 settings = { path = "crates/settings" }
-settings_content = { path = "crates/settings_content" }
 snippet = { path = "crates/snippet" }
 spell_check = { path = "crates/spell_check" }
 sum_tree = { path = "crates/sum_tree" }

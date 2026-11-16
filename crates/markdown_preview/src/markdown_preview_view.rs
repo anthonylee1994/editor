@@ -55,7 +55,6 @@ use markdown::MarkdownOptions;
 use project::Project;
 use project::ProjectPath;
 use project::search::SearchQuery;
-use settings::SeedQuerySetting;
 use theme::built_in::BUFFER_LINE_HEIGHT;
 use ui::ContextMenu;
 use ui::LinkPreview;
@@ -103,6 +102,7 @@ use workspace::searchable::SearchOptions;
 use workspace::searchable::SearchToken;
 use workspace::searchable::SearchableItem;
 use workspace::searchable::SearchableItemHandle;
+use workspace::searchable::SeedQuery;
 
 use crate::CloseAndReturnToEditor;
 use crate::OpenFollowingPreview;
@@ -1505,7 +1505,7 @@ impl SearchableItem for MarkdownPreviewView {
 
     fn query_suggestion(
         &mut self,
-        _seed_query_override: Option<SeedQuerySetting>,
+        _seed_query_override: Option<SeedQuery>,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) -> String {

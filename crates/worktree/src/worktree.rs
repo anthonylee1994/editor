@@ -4202,7 +4202,7 @@ impl BackgroundScanner {
     fn should_scan_directory(&self, state: &BackgroundScannerState, entry: &Entry, in_repo: bool) -> bool {
         let beyond_scan_depth = !in_repo && is_beyond_scan_depth(self.settings.file_scan_depth, &entry.path);
         let scannable = state.scanning_enabled
-            && (!entry.is_external || self.settings.scan_symlinks == settings::ScanSymlinksSetting::Always)
+            && !entry.is_external
             && (!(entry.is_ignored || beyond_scan_depth) || entry.is_always_included);
 
         scannable

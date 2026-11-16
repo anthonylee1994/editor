@@ -28,7 +28,6 @@ use gpui::actions;
 use gpui::div;
 use itertools::Itertools as _;
 use language::LanguageServerId;
-use language::language_settings::SoftWrap;
 use lsp::LanguageServer;
 use lsp::LanguageServerName;
 use lsp::LanguageServerSelector;
@@ -47,7 +46,6 @@ use project::lsp_store::log_store::{self};
 use project::search::SearchQuery;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
-use settings::SeedQuerySetting;
 use ui::Checkbox;
 use ui::ContextMenu;
 use ui::PopoverMenu;
@@ -75,6 +73,7 @@ use workspace::searchable::SearchOptions;
 use workspace::searchable::SearchToken;
 use workspace::searchable::SearchableItem;
 use workspace::searchable::SearchableItemHandle;
+use workspace::searchable::SeedQuery;
 
 use crate::get_or_create_tool;
 
@@ -710,7 +709,7 @@ impl SearchableItem for LspLogView {
 
     fn query_suggestion(
         &mut self,
-        seed_query_override: Option<SeedQuerySetting>,
+        seed_query_override: Option<SeedQuery>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> String {
@@ -1109,7 +1108,7 @@ fn initialize_new_editor(content: String, move_to_end: bool, window: &mut Window
         editor.set_show_runnables(false, cx);
         editor.set_read_only(true);
 
-        editor.set_soft_wrap_mode(SoftWrap::EditorWidth, cx);
+        editor.set_soft_wrap_mode(true, cx);
         if move_to_end {
             editor.move_to_end(&MoveToEnd, window, cx);
         }

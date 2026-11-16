@@ -6,6 +6,7 @@ use futures::FutureExt as _;
 use gpui::App;
 use language::language_settings::AllLanguageSettings;
 use language::language_settings::LanguageSettings;
+use language::language_settings::SemanticTokenRules;
 #[allow(clippy::wildcard_imports)]
 pub use language::*;
 use language_core::QueryFile;
@@ -16,7 +17,6 @@ use python::PyprojectTomlManifestProvider;
 use rust::CargoLibraryProvider;
 use rust::CargoManifestProvider;
 use rust_embed::RustEmbed;
-use settings::SemanticTokenRules;
 
 mod bash;
 mod biome;
@@ -165,9 +165,7 @@ fn assert_queries_compile(dir: &str, grammar: tree_sitter::Language) {
 #[cfg(test)]
 mod tests {
     use language::language_settings::Formatter;
-    use language::language_settings::FormatterList;
     use language::language_settings::RewrapBehavior;
-    use language::language_settings::SoftWrap;
     use language::language_settings::WordsCompletionMode;
     use rustc_hash::FxHashSet;
 
@@ -234,15 +232,15 @@ mod tests {
         assert!(!diff.remove_trailing_whitespace_on_save && !diff.ensure_final_newline_on_save);
 
         let markdown = markdown::settings();
-        assert_eq!(markdown.soft_wrap, SoftWrap::EditorWidth);
+        assert!(markdown.soft_wrap);
         assert_eq!(markdown.word_completions, WordsCompletionMode::Disabled);
         assert_eq!(markdown.allow_rewrap, RewrapBehavior::Anywhere);
 
         for settings in [plain_text::settings(), git_commit::settings()] {
-            assert_eq!(settings.soft_wrap, SoftWrap::EditorWidth);
+            assert!(settings.soft_wrap);
             assert_eq!(settings.allow_rewrap, RewrapBehavior::Anywhere);
         }
 
-        assert!(matches!(python::settings().formatter, FormatterList::Single(Formatter::LanguageServer(_))));
+        assert!(matches!(python::settings().formatter, Formatter::LanguageServer(_)));
     }
 }

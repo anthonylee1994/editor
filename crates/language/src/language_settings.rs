@@ -13,46 +13,18 @@ use globset::GlobSet;
 use globset::GlobSetBuilder;
 use gpui::App;
 use gpui::Global;
+use gpui::Rgba;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
-pub use settings::AutoIndentMode;
-use settings::DocumentFoldingRanges;
-pub use settings::DocumentSymbols;
-pub use settings::FormatOnSave;
-pub use settings::Formatter;
-pub use settings::FormatterList;
-use settings::IndentGuideBackgroundColoring;
-use settings::IndentGuideColoring;
-pub use settings::InlayHintKind;
-pub use settings::LanguageServerFormatterSpecifier;
-pub use settings::LineEndingSetting;
-pub use settings::LspInsertMode;
-pub use settings::RewrapBehavior;
-use settings::SemanticTokenRules;
-pub use settings::ShowWhitespaceSetting;
-pub use settings::SoftWrap;
-pub use settings::SoftWrapIndent;
-pub use settings::WordsCompletionMode;
+use serde::Deserialize;
 use text::ToOffset;
 
 use crate::Buffer;
 use crate::BufferSnapshot;
 use crate::LanguageName;
 
-/// How to indent soft-wrapped continuation lines.
-pub const SOFT_WRAP_INDENT: SoftWrapIndent = SoftWrapIndent::Same;
-pub const INDENT_GUIDES: IndentGuideSettings = IndentGuideSettings {
-    enabled: true,
-    line_width: 1,
-    active_line_width: 1,
-    coloring: IndentGuideColoring::IndentAware,
-    background_coloring: IndentGuideBackgroundColoring::Disabled,
-};
-/// How line endings are initialized for new files and normalized during format and save.
-pub const LINE_ENDING: LineEndingSetting = LineEndingSetting::EnforceLf;
-/// Whether folding ranges from language servers replace tree-sitter and indent-based folding.
-pub const DOCUMENT_FOLDING_RANGES: DocumentFoldingRanges = DocumentFoldingRanges::Off;
-pub const SHOW_WHITESPACES: ShowWhitespaceSetting = ShowWhitespaceSetting::Selection;
+pub const INDENT_GUIDES: IndentGuideSettings =
+    IndentGuideSettings { enabled: true, line_width: 1, active_line_width: 1 };
 pub const WHITESPACE_SPACE: &str = "•";
 pub const WHITESPACE_TAB: &str = "→";
 pub const INLAY_HINTS: InlayHintSettings = InlayHintSettings {
@@ -63,13 +35,8 @@ pub const INLAY_HINTS: InlayHintSettings = InlayHintSettings {
     edit_debounce_ms: 700,
     scroll_debounce_ms: 50,
 };
-pub const AUTO_INDENT: AutoIndentMode = AutoIndentMode::SyntaxAware;
-pub const COMPLETIONS: CompletionSettings = CompletionSettings {
-    words_min_length: 3,
-    lsp: true,
-    lsp_fetch_timeout_ms: 0,
-    lsp_insert_mode: LspInsertMode::ReplaceSuffix,
-};
+pub const COMPLETIONS: CompletionSettings =
+    CompletionSettings { words_min_length: 3, lsp: true, lsp_fetch_timeout_ms: 0 };
 
 /// Returns the settings for all languages.
 pub fn all_language_settings(cx: &App) -> &AllLanguageSettings {
@@ -111,19 +78,19 @@ pub struct LanguageSettings {
     pub tab_size: NonZeroU32,
     /// Whether to indent lines using tab characters, as opposed to multiple spaces.
     pub hard_tabs: bool,
-    pub soft_wrap: SoftWrap,
+    /// Whether to soft wrap at the editor width.
+    pub soft_wrap: bool,
     /// The column at which to soft-wrap lines, for buffers where soft-wrap is enabled.
     pub preferred_line_length: u32,
     /// Columns at which to show wrap guides (vertical rulers).
     pub wrap_guides: Vec<usize>,
-    pub format_on_save: FormatOnSave,
-    pub formatter: FormatterList,
+    pub formatter: Formatter,
     /// Which code actions to run on format.
     pub code_actions_on_format: FxHashMap<String, bool>,
     pub remove_trailing_whitespace_on_save: bool,
     pub ensure_final_newline_on_save: bool,
-    /// The source of document symbols used for outlines and breadcrumbs.
-    pub document_symbols: DocumentSymbols,
+    /// Whether outlines and breadcrumbs use LSP document symbols instead of tree-sitter.
+    pub lsp_document_symbols: bool,
     /// Where the `editor::Rewrap` action is allowed.
     pub allow_rewrap: RewrapBehavior,
     /// Whether to format on LSP on-type-format trigger characters.
@@ -142,7 +109,6 @@ pub struct CompletionSettings {
     pub lsp: bool,
     /// How long to wait for each language server's completions; 0 waits indefinitely.
     pub lsp_fetch_timeout_ms: u64,
-    pub lsp_insert_mode: LspInsertMode,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -152,19 +118,13 @@ pub struct IndentGuideSettings {
     pub line_width: u32,
     /// Width of the active indent guide in pixels, between 1 and 10.
     pub active_line_width: u32,
-    pub coloring: IndentGuideColoring,
-    pub background_coloring: IndentGuideBackgroundColoring,
 }
 
 impl IndentGuideSettings {
-    /// Returns the clamped line width in pixels for an indent guide based on
-    /// whether it is active, or `None` when line coloring is disabled.
-    pub fn visible_line_width(&self, active: bool) -> Option<u32> {
-        if self.coloring == IndentGuideColoring::Disabled {
-            return None;
-        }
+    /// Returns the clamped line width in pixels for an indent guide based on whether it is active.
+    pub fn visible_line_width(&self, active: bool) -> u32 {
         let width = if active { self.active_line_width } else { self.line_width };
-        Some(width.clamp(1, 10))
+        width.clamp(1, 10)
     }
 }
 
@@ -313,21 +273,139 @@ impl LanguageSettings {
         Self {
             tab_size: NonZeroU32::new(4).unwrap(),
             hard_tabs: false,
-            soft_wrap: SoftWrap::None,
+            soft_wrap: false,
             preferred_line_length: 120,
             wrap_guides: vec![120],
-            format_on_save: FormatOnSave::On,
-            formatter: FormatterList::Single(Formatter::Auto),
+            formatter: Formatter::Auto,
             code_actions_on_format: FxHashMap::default(),
             remove_trailing_whitespace_on_save: true,
             ensure_final_newline_on_save: true,
-            document_symbols: DocumentSymbols::On,
+            lsp_document_symbols: true,
             allow_rewrap: RewrapBehavior::InComments,
             use_on_type_format: true,
             auto_indent_on_paste: true,
             word_completions: WordsCompletionMode::Fallback,
         }
     }
+}
+
+/// Which formatter runs when formatting code.
+#[derive(Clone, Default, Debug, PartialEq, Eq)]
+pub enum Formatter {
+    /// Format with Biome where it applies, else with a language server.
+    #[default]
+    Auto,
+    /// Run a language server code action.
+    CodeAction(String),
+    LanguageServer(LanguageServerFormatterSpecifier),
+}
+
+#[derive(Clone, Default, Debug, PartialEq, Eq)]
+pub enum LanguageServerFormatterSpecifier {
+    Specific {
+        name: String,
+    },
+    #[default]
+    Current,
+}
+
+/// Where `editor::Rewrap` is allowed.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Default)]
+pub enum RewrapBehavior {
+    #[default]
+    InComments,
+    Anywhere,
+}
+
+/// How buffer words are offered as completions.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum WordsCompletionMode {
+    /// Only when LSP completions fail or time out.
+    Fallback,
+    /// Never automatically; the word completion action still works.
+    Disabled,
+}
+
+/// The kind of an inlay hint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum InlayHintKind {
+    Type,
+    Parameter,
+}
+
+impl InlayHintKind {
+    /// Returns the [`InlayHintKind`] for `name`, or `None` for an unknown name.
+    pub fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "type" => Some(Self::Type),
+            "parameter" => Some(Self::Parameter),
+            _ => None,
+        }
+    }
+
+    pub const fn name(&self) -> &'static str {
+        match self {
+            Self::Type => "type",
+            Self::Parameter => "parameter",
+        }
+    }
+}
+
+/// Custom rules for rendering LSP semantic tokens, loaded from each language's JSON.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+#[serde(transparent)]
+pub struct SemanticTokenRules {
+    pub rules: Vec<SemanticTokenRule>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq)]
+pub struct SemanticTokenRule {
+    pub token_type: Option<String>,
+    #[serde(default)]
+    pub token_modifiers: Vec<String>,
+    #[serde(default)]
+    pub style: Vec<String>,
+    pub foreground_color: Option<Rgba>,
+    pub background_color: Option<Rgba>,
+    pub underline: Option<SemanticTokenColorOverride>,
+    pub strikethrough: Option<SemanticTokenColorOverride>,
+    pub font_weight: Option<SemanticTokenFontWeight>,
+    pub font_style: Option<SemanticTokenFontStyle>,
+}
+
+impl SemanticTokenRule {
+    pub const fn no_style_defined(&self) -> bool {
+        self.style.is_empty()
+            && self.foreground_color.is_none()
+            && self.background_color.is_none()
+            && self.underline.is_none()
+            && self.strikethrough.is_none()
+            && self.font_weight.is_none()
+            && self.font_style.is_none()
+    }
+}
+
+#[derive(Copy, Clone, Debug, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum SemanticTokenColorOverride {
+    InheritForeground(bool),
+    Replace(Rgba),
+}
+
+#[derive(Copy, Clone, Debug, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SemanticTokenFontWeight {
+    #[default]
+    Normal,
+    Bold,
+}
+
+#[derive(Copy, Clone, Debug, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SemanticTokenFontStyle {
+    #[default]
+    Normal,
+    Italic,
 }
 
 #[cfg(test)]
@@ -372,8 +450,8 @@ mod tests {
 
     #[test]
     fn test_indent_guide_visible_line_width() {
-        assert_eq!(INDENT_GUIDES.visible_line_width(false), Some(1));
-        let disabled = IndentGuideSettings { coloring: IndentGuideColoring::Disabled, ..INDENT_GUIDES };
-        assert_eq!(disabled.visible_line_width(true), None);
+        assert_eq!(INDENT_GUIDES.visible_line_width(false), 1);
+        let wide = IndentGuideSettings { active_line_width: 20, ..INDENT_GUIDES };
+        assert_eq!(wide.visible_line_width(true), 10);
     }
 }

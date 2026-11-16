@@ -1040,7 +1040,7 @@ impl Element for TerminalElement {
             let font_fallbacks = font::buffer_font().fallbacks.clone();
             let font_features = FontFeatures::disable_ligatures();
             let font_weight = FontWeight::NORMAL;
-            let line_height = terminal_settings.line_height.value();
+            let line_height = terminal_settings.line_height;
             let font_size = buffer_font_size;
 
             let theme = cx.theme();

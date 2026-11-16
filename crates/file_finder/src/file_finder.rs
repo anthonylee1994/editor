@@ -51,7 +51,6 @@ use project::WorktreeId;
 use project::worktree_store::WorktreeStore;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
-use settings::SeedQuerySetting;
 use ui::Checkbox;
 use ui::HighlightedLabel;
 use ui::ListItem;
@@ -87,6 +86,7 @@ use workspace::OpenOptions;
 use workspace::OpenVisible;
 use workspace::Workspace;
 use workspace::notifications::NotifyResultExt;
+use workspace::searchable::SeedQuery;
 
 actions!(
     file_finder,
@@ -196,8 +196,7 @@ impl FileFinder {
         });
 
         focused_item.into_iter().chain(active_item).find_map(|item| {
-            let query =
-                item.to_searchable_item_handle(cx)?.query_suggestion(Some(SeedQuerySetting::Selection), window, cx);
+            let query = item.to_searchable_item_handle(cx)?.query_suggestion(Some(SeedQuery::Selection), window, cx);
             sanitize_file_query(&query)
         })
     }

@@ -46,13 +46,12 @@ use crate::searchable::SearchableItemHandle;
 #[derive(Clone, Copy, Debug)]
 pub struct SaveOptions {
     pub format: bool,
-    pub force_format: bool,
     pub autosave: bool,
 }
 
 impl Default for SaveOptions {
     fn default() -> Self {
-        Self { format: true, force_format: false, autosave: false }
+        Self { format: true, autosave: false }
     }
 }
 

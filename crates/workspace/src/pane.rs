@@ -1883,7 +1883,6 @@ impl Pane {
         }
 
         let should_format = save_intent != SaveIntent::SaveWithoutFormat;
-        let force_format = save_intent == SaveIntent::FormatAndSave;
 
         if has_conflict && can_save {
             if has_deleted_file && is_singleton {
@@ -1894,12 +1893,7 @@ impl Pane {
                 match answer.await {
                     Ok(0) => {
                         pane.update_in(cx, |_, window, cx| {
-                            item.save(
-                                SaveOptions { format: should_format, force_format, autosave: false },
-                                project,
-                                window,
-                                cx,
-                            )
+                            item.save(SaveOptions { format: should_format, autosave: false }, project, window, cx)
                         })?
                         .await?
                     }
@@ -1925,12 +1919,7 @@ impl Pane {
                 match answer.await {
                     Ok(0) => {
                         pane.update_in(cx, |_, window, cx| {
-                            item.save(
-                                SaveOptions { format: should_format, force_format, autosave: false },
-                                project,
-                                window,
-                                cx,
-                            )
+                            item.save(SaveOptions { format: should_format, autosave: false }, project, window, cx)
                         })?
                         .await?
                     }
@@ -1995,7 +1984,7 @@ impl Pane {
             if can_save {
                 pane.update_in(cx, |pane, window, cx| {
                     pane.unpreview_item_if_preview(item.item_id());
-                    item.save(SaveOptions { format: should_format, force_format, autosave: false }, project, window, cx)
+                    item.save(SaveOptions { format: should_format, autosave: false }, project, window, cx)
                 })?
                 .await?;
             } else if can_save_as && is_singleton {
@@ -2034,7 +2023,7 @@ impl Pane {
                 if should_format {
                     pane.update_in(cx, |pane, window, cx| {
                         pane.unpreview_item_if_preview(item.item_id());
-                        item.save(SaveOptions { format: true, autosave: false, force_format }, project, window, cx)
+                        item.save(SaveOptions { format: true, autosave: false }, project, window, cx)
                     })?
                     .await?;
                 }
@@ -2055,7 +2044,7 @@ impl Pane {
         cx: &mut App,
     ) -> Task<Result<()>> {
         if item.can_autosave(cx) {
-            item.save(SaveOptions { format: true, force_format: false, autosave: true }, project, window, cx)
+            item.save(SaveOptions { format: true, autosave: true }, project, window, cx)
         } else {
             Task::ready(Ok(()))
         }

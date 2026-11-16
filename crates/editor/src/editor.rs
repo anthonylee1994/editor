@@ -232,6 +232,7 @@ pub(crate) use actions::NextSnippetTabstop;
 pub(crate) use actions::OpenContextMenu;
 pub(crate) use actions::OpenDocs;
 pub(crate) use actions::OpenGitBlameCommit;
+pub use actions::OpenResultsIn;
 pub(crate) use actions::OpenSelectedFilename;
 pub(crate) use actions::OpenSelectionsInMultibuffer;
 pub(crate) use actions::OpenUrl;
@@ -507,14 +508,10 @@ use language::TextObject;
 use language::TransactionId;
 use language::TreeSitterOptions;
 use language::WordsQuery;
-use language::language_settings::COMPLETIONS;
 use language::language_settings::INLAY_HINTS;
 use language::language_settings::LanguageSettings;
-use language::language_settings::LspInsertMode;
 use language::language_settings::RewrapBehavior;
-use language::language_settings::SoftWrapIndent;
 use language::language_settings::WordsCompletionMode;
-use language::language_settings::{self};
 use language::point_to_lsp;
 use language::text_diff_with_options;
 pub use linked_editing_ranges::LinkedEdits;
@@ -568,7 +565,6 @@ use project::git_store::GitStoreEvent;
 use project::lsp_store::BufferSemanticTokens;
 use project::lsp_store::CacheInlayHints;
 use project::lsp_store::CompletionDocumentation;
-use project::lsp_store::FormatTrigger;
 use project::lsp_store::LspFormatTarget;
 use project::lsp_store::OpenLspBufferHandle;
 use project::project_settings::DiagnosticSeverity;
@@ -585,7 +581,6 @@ use selections_collection::MutableSelectionsCollection;
 use selections_collection::SelectionsCollection;
 use serde::Deserialize;
 use serde::Serialize;
-pub use settings::OpenResultsIn;
 use smallvec::SmallVec;
 use smallvec::smallvec;
 use snippet::Snippet;
@@ -847,8 +842,6 @@ pub enum SoftWrap {
     None,
     /// Soft wrap lines that exceed the editor width.
     EditorWidth,
-    /// Soft wrap line at the preferred line length or the editor width (whichever is smaller).
-    Bounded(u32),
 }
 
 #[derive(Clone)]
@@ -1184,7 +1177,7 @@ pub struct Editor {
     diagnostics_enabled: bool,
     word_completions_enabled: bool,
     inline_diagnostics: Vec<(Anchor, InlineDiagnostic)>,
-    soft_wrap_mode_override: Option<language_settings::SoftWrap>,
+    soft_wrap_mode_override: Option<bool>,
     hard_wrap: Option<usize>,
     project: Option<Entity<Project>>,
     semantics_provider: Option<Rc<dyn SemanticsProvider>>,
@@ -1880,7 +1873,7 @@ impl Editor {
             blink_manager
         });
 
-        let soft_wrap_mode_override = matches!(mode, EditorMode::SingleLine).then(|| language_settings::SoftWrap::None);
+        let soft_wrap_mode_override = matches!(mode, EditorMode::SingleLine).then_some(false);
 
         let mut project_subscriptions = Vec::new();
         if full_mode && let Some(project) = project.as_ref() {
@@ -5979,13 +5972,7 @@ impl Editor {
 
         let project = self.project.clone()?;
 
-        Some(self.perform_format(
-            project,
-            FormatTrigger::Manual,
-            FormatTarget::Buffers(self.buffer.read(cx).all_buffers()),
-            window,
-            cx,
-        ))
+        Some(self.perform_format(project, FormatTarget::Buffers(self.buffer.read(cx).all_buffers()), window, cx))
     }
 
     fn format_selections(
@@ -6007,13 +5994,12 @@ impl Editor {
             .map(|selection| selection.range())
             .collect_vec();
 
-        Some(self.perform_format(project, FormatTrigger::Manual, FormatTarget::Ranges(ranges), window, cx))
+        Some(self.perform_format(project, FormatTarget::Ranges(ranges), window, cx))
     }
 
     fn perform_format(
         &self,
         project: Entity<Project>,
-        trigger: FormatTrigger,
         target: FormatTarget,
         window: &Window,
         cx: &mut Context<Self>,
@@ -6061,7 +6047,7 @@ impl Editor {
             .unwrap_or_else(|| (self.selections.disjoint_anchors_arc(), self.add_selections_state.clone()));
 
         let mut timeout = cx.background_executor().timer(FORMAT_TIMEOUT).fuse();
-        let format = project.update(cx, |project, cx| project.format(buffers, target, true, trigger, cx));
+        let format = project.update(cx, |project, cx| project.format(buffers, target, true, cx));
 
         cx.spawn_in(window, async move |editor, cx| {
             let transaction = futures::select_biased! {
@@ -7921,39 +7907,18 @@ fn process_completion_for_edit(
                 CompletionIntent::CompleteWithInsert => false,
                 CompletionIntent::CompleteWithReplace => true,
                 CompletionIntent::Complete | CompletionIntent::Compose => {
-                    let insert_mode = COMPLETIONS.lsp_insert_mode;
-                    match insert_mode {
-                        LspInsertMode::Insert => false,
-                        LspInsertMode::Replace => true,
-                        LspInsertMode::ReplaceSubsequence => {
-                            let mut text_to_replace = buffer.chars_for_range(
-                                buffer.anchor_before(replace_range.start)..buffer.anchor_after(replace_range.end),
-                            );
-                            let mut current_needle = text_to_replace.next();
-                            for haystack_ch in lsp_completion.label.chars() {
-                                if let Some(needle_ch) = current_needle
-                                    && haystack_ch.eq_ignore_ascii_case(&needle_ch)
-                                {
-                                    current_needle = text_to_replace.next();
-                                }
-                            }
-                            current_needle.is_none()
-                        }
-                        LspInsertMode::ReplaceSuffix => {
-                            if replace_range.end.cmp(cursor_position, &buffer_snapshot).is_gt() {
-                                let range_after_cursor = *cursor_position..replace_range.end;
-                                let text_after_cursor = buffer
-                                    .text_for_range(
-                                        buffer.anchor_before(range_after_cursor.start)
-                                            ..buffer.anchor_after(range_after_cursor.end),
-                                    )
-                                    .collect::<String>()
-                                    .to_ascii_lowercase();
-                                lsp_completion.label.to_ascii_lowercase().ends_with(&text_after_cursor)
-                            } else {
-                                true
-                            }
-                        }
+                    if replace_range.end.cmp(cursor_position, &buffer_snapshot).is_gt() {
+                        let range_after_cursor = *cursor_position..replace_range.end;
+                        let text_after_cursor = buffer
+                            .text_for_range(
+                                buffer.anchor_before(range_after_cursor.start)
+                                    ..buffer.anchor_after(range_after_cursor.end),
+                            )
+                            .collect::<String>()
+                            .to_ascii_lowercase();
+                        lsp_completion.label.to_ascii_lowercase().ends_with(&text_after_cursor)
+                    } else {
+                        true
                     }
                 }
             };
@@ -8641,7 +8606,7 @@ impl ui_input::ErasedEditor for ErasedEditorImpl {
         self.0.update(cx, |this, cx| {
             if let Some(max_lines) = max_lines {
                 this.set_mode(EditorMode::AutoHeight { min_lines: 1, max_lines: Some(max_lines) });
-                this.set_soft_wrap_mode(language_settings::SoftWrap::EditorWidth, cx);
+                this.set_soft_wrap_mode(true, cx);
             } else {
                 this.set_mode(EditorMode::SingleLine);
             }

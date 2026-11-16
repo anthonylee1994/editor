@@ -159,7 +159,6 @@ pub use tree_sitter::Tree;
 use tree_sitter::{self};
 use util::rel_path::RelPath;
 
-pub use crate::language_settings::AutoIndentMode;
 pub use crate::language_settings::IndentGuideSettings;
 
 static QUERY_CURSORS: Mutex<Vec<QueryCursor>> = Mutex::new(vec![]);

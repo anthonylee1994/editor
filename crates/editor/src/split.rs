@@ -39,7 +39,6 @@ use project::Project;
 use project::search::SearchQuery;
 use rope::Point;
 use rustc_hash::FxHashMap;
-use settings::SeedQuerySetting;
 use text::Bias;
 use text::BufferId;
 use text::OffsetRangeExt as _;
@@ -69,6 +68,7 @@ use workspace::searchable::SearchEvent;
 use workspace::searchable::SearchToken;
 use workspace::searchable::SearchableItem;
 use workspace::searchable::SearchableItemHandle;
+use workspace::searchable::SeedQuery;
 
 use crate::Autoscroll;
 use crate::DefaultDiffHunkRenderer;
@@ -1359,7 +1359,7 @@ impl SearchableItem for SplittableEditor {
 
     fn query_suggestion(
         &mut self,
-        seed_query_override: Option<SeedQuerySetting>,
+        seed_query_override: Option<SeedQuery>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> String {

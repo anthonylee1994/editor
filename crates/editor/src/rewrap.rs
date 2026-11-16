@@ -247,7 +247,6 @@ impl Editor {
 
             let allow_rewrap_based_on_language = match language_settings.allow_rewrap {
                 RewrapBehavior::InComments => inside_comment,
-                RewrapBehavior::InSelections => !wrap_range.is_empty(),
                 RewrapBehavior::Anywhere => true,
             };
 

@@ -1,6 +1,5 @@
 use anyhow::Context as _;
 use gpui::TaskExt as _;
-use language::language_settings::AUTO_INDENT;
 
 use super::Anchor;
 use super::AnchorRangeExt;
@@ -563,12 +562,8 @@ impl Editor {
                                 extra_line_additional_indent,
                                 prevent_auto_indent,
                             } => {
-                                let auto_indent_mode = AUTO_INDENT;
-                                let preserve_indent = auto_indent_mode != language::AutoIndentMode::None;
-                                let apply_syntax_indent = auto_indent_mode == language::AutoIndentMode::SyntaxAware;
                                 let capacity_for_delimiter = delimiter.as_deref().map(str::len).unwrap_or_default();
-                                let existing_indent_len =
-                                    if preserve_indent { existing_indent.len as usize } else { 0 };
+                                let existing_indent_len = existing_indent.len as usize;
                                 let extra_line_len = extra_line_additional_indent
                                     .map(|i| 1 + existing_indent_len + i.len as usize)
                                     .unwrap_or(0);
@@ -579,18 +574,14 @@ impl Editor {
                                         + extra_line_len,
                                 );
                                 new_text.push('\n');
-                                if preserve_indent {
-                                    new_text.extend(existing_indent.chars());
-                                }
+                                new_text.extend(existing_indent.chars());
                                 new_text.extend(additional_indent.chars());
                                 if let Some(delimiter) = &delimiter {
                                     new_text.push_str(delimiter);
                                 }
                                 if let Some(extra_indent) = extra_line_additional_indent {
                                     new_text.push('\n');
-                                    if preserve_indent {
-                                        new_text.extend(existing_indent.chars());
-                                    }
+                                    new_text.extend(existing_indent.chars());
                                     new_text.extend(extra_indent.chars());
                                 }
                                 // Extend the edit to the beginning of the line
@@ -598,15 +589,11 @@ impl Editor {
                                 // otherwise remain as trailing whitespace. This
                                 // applies to blank lines and lines where only
                                 // indentation remains before the cursor.
-                                if selection_is_empty
-                                    && preserve_indent
-                                    && full_indent_len > 0
-                                    && start_point.column == full_indent_len
-                                {
+                                if selection_is_empty && full_indent_len > 0 && start_point.column == full_indent_len {
                                     start = buffer.point_to_offset(Point::new(start_point.row, 0));
                                 }
 
-                                (start, new_text, *prevent_auto_indent || !apply_syntax_indent)
+                                (start, new_text, *prevent_auto_indent)
                             }
                         };
 

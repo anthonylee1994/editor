@@ -40,8 +40,6 @@ use language::CharScopeContext;
 use language::LocalFile;
 use language::PLAIN_TEXT;
 use language::Point;
-use language::language_settings::FormatOnSave;
-use language::language_settings::LanguageSettings;
 use lsp::DiagnosticSeverity;
 use multi_buffer::BufferOffset;
 use multi_buffer::MultiBufferOffset;
@@ -50,17 +48,12 @@ use project::File;
 use project::Project;
 use project::ProjectItem as _;
 use project::ProjectPath;
-use project::git_store::GitStore;
-use project::lsp_store::FormatTrigger;
 use project::lsp_store::LanguageServerShowDocumentRequest;
 use project::search::SearchQuery;
 use rope::TextSummary;
 use rustc_hash::FxHashMap;
-use rustc_hash::FxHashSet;
-use settings::SeedQuerySetting;
 use text::BufferSnapshot;
 use text::OffsetRangeExt;
-use text::ToPoint as _;
 use ui::IconDecorationKind;
 use ui::prelude::Color;
 use ui::prelude::FluentBuilder;
@@ -96,6 +89,7 @@ use workspace::searchable::SearchOptions;
 use workspace::searchable::SearchToken;
 use workspace::searchable::SearchableItem;
 use workspace::searchable::SearchableItemHandle;
+use workspace::searchable::SeedQuery;
 use workspace::searchable::SelectSearchOptions;
 
 use crate::Anchor;
@@ -365,24 +359,13 @@ impl Item for Editor {
                 .collect()
         };
 
-        let format_trigger = if options.force_format { FormatTrigger::Manual } else { FormatTrigger::Save };
-
         cx.spawn_in(window, async move |this, cx| {
             if options.format {
                 let format_task = this.update_in(cx, |editor, window, cx| {
-                    let format_target = compute_format_target(
-                        &buffers_to_save,
-                        format_trigger,
-                        editor.buffer(),
-                        project.read(cx).git_store(),
-                        cx,
-                    );
-                    format_target
-                        .map(|target| editor.perform_format(project.clone(), format_trigger, target, window, cx))
+                    let target = FormatTarget::Buffers(buffers_to_save.clone());
+                    editor.perform_format(project.clone(), target, window, cx)
                 })?;
-                if let Some(format_task) = format_task {
-                    format_task.await?;
-                }
+                format_task.await?;
             }
 
             if !buffers_to_save.is_empty() {
@@ -805,22 +788,21 @@ impl SearchableItem for Editor {
 
     fn query_suggestion(
         &mut self,
-        seed_query_override: Option<SeedQuerySetting>,
+        seed_query_override: Option<SeedQuery>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> String {
-        let setting = seed_query_override.unwrap_or(SeedQuerySetting::Always);
+        let setting = seed_query_override.unwrap_or(SeedQuery::Always);
         let snapshot = self.snapshot(window, cx);
         let selection = self.selections.newest_adjusted(&snapshot.display_snapshot);
         let buffer_snapshot = snapshot.buffer_snapshot();
 
         match setting {
-            SeedQuerySetting::Never => String::new(),
-            SeedQuerySetting::Selection | SeedQuerySetting::Always if !selection.is_empty() => {
+            SeedQuery::Selection | SeedQuery::Always if !selection.is_empty() => {
                 buffer_snapshot.text_for_range(selection.start..selection.end).collect()
             }
-            SeedQuerySetting::Selection => String::new(),
-            SeedQuerySetting::Always => {
+            SeedQuery::Selection => String::new(),
+            SeedQuery::Always => {
                 let (range, kind) =
                     buffer_snapshot.surrounding_word(selection.start, Some(CharScopeContext::Completion));
                 if kind == Some(CharKind::Word) {
@@ -1304,105 +1286,6 @@ fn chunk_search_range(
         chunk_start = end_offset;
         Some(ret)
     }))
-}
-
-/// Decides what to format based on the `format_on_save` settings of the saved buffers.
-///
-/// In the modifications modes, only lines with unstaged changes are formatted.
-/// When no git diff is available for a buffer, `modifications` skips formatting while `modifications_if_available`
-/// falls back to formatting entire buffers.
-/// When a diff is available but empty, nothing is formatted in either mode.
-fn compute_format_target(
-    buffers: &FxHashSet<Entity<Buffer>>,
-    trigger: FormatTrigger,
-    multi_buffer: &Entity<MultiBuffer>,
-    git_store: &Entity<GitStore>,
-    cx: &App,
-) -> Option<FormatTarget> {
-    if trigger == FormatTrigger::Manual {
-        return Some(FormatTarget::Buffers(buffers.clone()));
-    }
-
-    let multi_buffer_snapshot = multi_buffer.read(cx).snapshot(cx);
-    let git_store = git_store.read(cx);
-
-    let mut fall_back_to_full_format = false;
-    let mut modified_ranges: Vec<Range<Point>> = Vec::new();
-
-    for buffer_entity in buffers {
-        let buffer = buffer_entity.read(cx);
-        let settings = LanguageSettings::for_buffer(buffer, cx);
-        match settings.format_on_save {
-            FormatOnSave::On | FormatOnSave::Off => {
-                return Some(FormatTarget::Buffers(buffers.clone()));
-            }
-            FormatOnSave::Modifications | FormatOnSave::ModificationsIfAvailable => {}
-        }
-
-        let Some(diff_snapshot) =
-            git_store.get_unstaged_diff(buffer.buffer_id(), cx).map(|diff| diff.read(cx).snapshot(cx))
-        else {
-            if settings.format_on_save == FormatOnSave::ModificationsIfAvailable {
-                fall_back_to_full_format = true;
-            }
-            continue;
-        };
-
-        let anchor_ranges = compute_modified_ranges(&buffer.snapshot(), &diff_snapshot);
-        let flat_anchors = anchor_ranges.iter().flat_map(|range| [range.start, range.end]).collect::<Vec<_>>();
-        let multi_buffer_anchors = multi_buffer_snapshot.text_anchors_to_visible_anchors(flat_anchors);
-        for pair in multi_buffer_anchors.as_chunks::<2>().0 {
-            let (Some(start), Some(end)) = (&pair[0], &pair[1]) else {
-                continue;
-            };
-            modified_ranges.push(start.to_point(&multi_buffer_snapshot)..end.to_point(&multi_buffer_snapshot));
-        }
-    }
-
-    if fall_back_to_full_format {
-        Some(FormatTarget::Buffers(buffers.clone()))
-    } else if modified_ranges.is_empty() {
-        None
-    } else {
-        Some(FormatTarget::Ranges(modified_ranges))
-    }
-}
-
-/// Computes the buffer ranges that have unstaged changes, expanded to full lines and
-/// with adjacent hunks merged, for use with format-on-save. An empty result means the
-/// buffer has no formatable modifications.
-fn compute_modified_ranges(
-    buffer_snapshot: &language::BufferSnapshot,
-    diff_snapshot: &buffer_diff::BufferDiffSnapshot,
-) -> Vec<Range<text::Anchor>> {
-    let mut merged: Vec<Range<text::Anchor>> = Vec::new();
-    for hunk in diff_snapshot.hunks(buffer_snapshot) {
-        let range = hunk.buffer_range;
-        if range.start.cmp(&range.end, buffer_snapshot).is_eq() {
-            // Deletion-only hunks produce no buffer content to format.
-            continue;
-        }
-        let start_point = range.start.to_point(buffer_snapshot);
-        let end_point = range.end.to_point(buffer_snapshot);
-        let start_row = start_point.row;
-        let end_row =
-            if end_point.column == 0 && end_point.row > start_point.row { end_point.row - 1 } else { end_point.row };
-        let line_start = text::Point::new(start_row, 0);
-        let line_end = text::Point::new(end_row, buffer_snapshot.line_len(end_row));
-        let expanded = buffer_snapshot.anchor_before(line_start)..buffer_snapshot.anchor_after(line_end);
-
-        if let Some(last) = merged.last_mut() {
-            let last_end_point = last.end.to_point(buffer_snapshot);
-            if start_row <= last_end_point.row + 1 {
-                if expanded.end.to_point(buffer_snapshot) > last_end_point {
-                    last.end = expanded.end;
-                }
-                continue;
-            }
-        }
-        merged.push(expanded);
-    }
-    merged
 }
 
 pub(crate) fn handle_lsp_show_document(

@@ -155,11 +155,9 @@ use language::ToPointUtf16;
 use language::Transaction;
 use language::Unclipped;
 use language::language_settings::COMPLETIONS;
-use language::language_settings::FormatOnSave;
 use language::language_settings::Formatter;
-use language::language_settings::LINE_ENDING;
+use language::language_settings::LanguageServerFormatterSpecifier;
 use language::language_settings::LanguageSettings;
-use language::language_settings::LineEndingSetting;
 use language::lsp_to_symbol_kind;
 use language::point_to_lsp;
 use language::range_from_lsp;
@@ -333,12 +331,6 @@ impl ProgressToken {
             Self::String(string) => lsp::NumberOrString::String(string.to_string()),
         }
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FormatTrigger {
-    Save,
-    Manual,
 }
 
 pub enum LspFormatTarget {
@@ -1212,7 +1204,6 @@ impl LocalLspStore {
         lsp_store: WeakEntity<LspStore>,
         mut buffers: Vec<FormattableBuffer>,
         push_to_history: bool,
-        trigger: FormatTrigger,
         cx: &mut AsyncApp,
     ) -> anyhow::Result<ProjectTransaction> {
         // Do not allow multiple concurrent formatting requests for the
@@ -1254,8 +1245,7 @@ impl LocalLspStore {
                 anyhow::Ok(transaction_id)
             })?;
 
-            let result =
-                Self::format_buffer_locally(lsp_store.clone(), buffer, formatting_transaction_id, trigger, cx).await;
+            let result = Self::format_buffer_locally(lsp_store.clone(), buffer, formatting_transaction_id, cx).await;
 
             buffer.handle.update(cx, |buffer, cx| {
                 let Some(formatting_transaction) = buffer.get_transaction(formatting_transaction_id).cloned() else {
@@ -1288,7 +1278,6 @@ impl LocalLspStore {
         lsp_store: WeakEntity<LspStore>,
         buffer: &FormattableBuffer,
         formatting_transaction_id: clock::Lamport,
-        trigger: FormatTrigger,
         cx: &mut AsyncApp,
     ) -> Result<()> {
         let (adapters_and_servers, settings, request_timeout) = lsp_store.update(cx, |lsp_store, cx| {
@@ -1308,7 +1297,6 @@ impl LocalLspStore {
                 (adapters_and_servers, settings, request_timeout)
             })
         })?;
-        let had_existing_line_endings = buffer.handle.read_with(cx, |buffer, _| buffer.max_point().row > 0);
 
         // When formatting a selection, only the rows it spans may be touched.
         let selection_row_ranges = buffer.ranges.as_ref().map(|ranges| {
@@ -1347,55 +1335,22 @@ impl LocalLspStore {
             })?;
         }
 
-        let line_ending_policy = match LINE_ENDING {
-            LineEndingSetting::Detect => None,
-            LineEndingSetting::PreferLf => Some((LineEnding::Unix, true)),
-            LineEndingSetting::PreferCrlf => Some((LineEnding::Windows, true)),
-            LineEndingSetting::EnforceLf => Some((LineEnding::Unix, false)),
-            LineEndingSetting::EnforceCrlf => Some((LineEnding::Windows, false)),
-        };
-        if let Some((desired_line_ending, preserve_existing)) = line_ending_policy {
-            buffer.handle.update(cx, |buffer, cx| {
-                if buffer.line_ending() == desired_line_ending {
-                    return;
-                }
-                if preserve_existing && had_existing_line_endings {
-                    return;
-                }
-                buffer.set_line_ending(desired_line_ending, cx);
-            });
-        }
+        // Line endings are always normalized to LF.
+        buffer.handle.update(cx, |buffer, cx| {
+            if buffer.line_ending() != LineEnding::Unix {
+                buffer.set_line_ending(LineEnding::Unix, cx);
+            }
+        });
 
         // Formatter for `code_actions_on_format` that runs before
         // the rest of the formatters
-        let mut code_actions_on_format_formatters = None;
-        let should_run_code_actions_on_format =
-            !matches!((trigger, &settings.format_on_save), (FormatTrigger::Save, &FormatOnSave::Off));
-        if should_run_code_actions_on_format {
-            let have_code_actions_to_run_on_format = settings.code_actions_on_format.values().any(|enabled| *enabled);
-            if have_code_actions_to_run_on_format {
-                code_actions_on_format_formatters = Some(
-                    settings
-                        .code_actions_on_format
-                        .iter()
-                        .filter_map(|(action, enabled)| enabled.then_some(action))
-                        .cloned()
-                        .map(Formatter::CodeAction)
-                        .collect::<Vec<_>>(),
-                );
-            }
-        }
-
-        let formatters = match (trigger, &settings.format_on_save) {
-            (FormatTrigger::Save, FormatOnSave::Off) => &[],
-            (FormatTrigger::Manual, _)
-            | (
-                FormatTrigger::Save,
-                FormatOnSave::On | FormatOnSave::Modifications | FormatOnSave::ModificationsIfAvailable,
-            ) => settings.formatter.as_ref(),
-        };
-
-        let formatters = code_actions_on_format_formatters.iter().flatten().chain(formatters);
+        let code_actions_on_format_formatters = settings
+            .code_actions_on_format
+            .iter()
+            .filter(|(_, enabled)| **enabled)
+            .map(|(action, _)| Formatter::CodeAction(action.clone()))
+            .collect::<Vec<_>>();
+        let formatters = code_actions_on_format_formatters.iter().chain([&settings.formatter]);
 
         // Only explicitly configured formatters surface their failures;
         // auto-resolved ones stay silent so a missing optional tool
@@ -1409,7 +1364,7 @@ impl LocalLspStore {
                 Self::apply_biome_formatter(buffer, formatting_transaction_id, cx).await
             } else {
                 let formatter = if is_auto {
-                    &Formatter::LanguageServer(settings::LanguageServerFormatterSpecifier::Current)
+                    &Formatter::LanguageServer(LanguageServerFormatterSpecifier::Current)
                 } else {
                     formatter
                 };
@@ -1421,7 +1376,6 @@ impl LocalLspStore {
                     &adapters_and_servers,
                     &settings,
                     request_timeout,
-                    trigger,
                     cx,
                 )
                 .await
@@ -1488,32 +1442,12 @@ impl LocalLspStore {
         adapters_and_servers: &[(Arc<CachedLspAdapter>, Arc<LanguageServer>)],
         settings: &LanguageSettings,
         request_timeout: Duration,
-        trigger: FormatTrigger,
         cx: &mut AsyncApp,
     ) -> anyhow::Result<()> {
         match formatter {
-            Formatter::None => {
-                return Ok(());
-            }
             Formatter::Auto => {
                 log::error!("Auto resolved above");
                 return Ok(());
-            }
-            Formatter::External { command, arguments } => {
-                if buffer.ranges.is_some() {
-                    return Ok(());
-                }
-
-                let diff = Self::format_via_external_command(buffer, command, arguments.as_deref(), cx)
-                    .await
-                    .with_context(|| format!("Failed to format buffer via external command: {}", command))?;
-                let Some(diff) = diff else {
-                    return Ok(());
-                };
-
-                extend_formatting_transaction(buffer, formatting_transaction_id, cx, |buffer, cx| {
-                    buffer.apply_diff(diff, cx);
-                })?;
             }
             Formatter::LanguageServer(specifier) => {
                 let Some(buffer_path_abs) = buffer.abs_path.as_ref() else {
@@ -1524,37 +1458,24 @@ impl LocalLspStore {
                 };
 
                 let adapter_and_server = match specifier {
-                    settings::LanguageServerFormatterSpecifier::Specific { name } => {
+                    LanguageServerFormatterSpecifier::Specific { name } => {
                         adapters_and_servers.iter().find(|(adapter, _)| adapter.name.0.as_ref() == name).cloned()
                     }
-                    settings::LanguageServerFormatterSpecifier::Current => {
-                        lsp_store.read_with(cx, |lsp_store, cx| {
-                            let local = &lsp_store.local;
-                            let buffer_snapshot = buffer.handle.read(cx);
-                            let adapter_and_server = if buffer.ranges.is_some() {
-                                let range_formatter = adapters_and_servers.iter().find(|(adapter, server)| {
-                                    buffer_supports_lsp_range_formatting(local, buffer_snapshot, adapter, server)
-                                });
-                                if range_formatter.is_some() {
-                                    range_formatter
-                                } else if trigger == FormatTrigger::Save
-                                    && settings.format_on_save == FormatOnSave::ModificationsIfAvailable
-                                {
-                                    adapters_and_servers.iter().find(|(adapter, server)| {
-                                        buffer_supports_lsp_formatting(local, buffer_snapshot, adapter, server)
-                                    })
-                                } else {
-                                    None
-                                }
-                            } else {
-                                adapters_and_servers.iter().find(|(adapter, server)| {
-                                    buffer_supports_lsp_formatting(local, buffer_snapshot, adapter, server)
-                                        || buffer_supports_lsp_range_formatting(local, buffer_snapshot, adapter, server)
-                                })
-                            };
-                            adapter_and_server.cloned()
-                        })?
-                    }
+                    LanguageServerFormatterSpecifier::Current => lsp_store.read_with(cx, |lsp_store, cx| {
+                        let local = &lsp_store.local;
+                        let buffer_snapshot = buffer.handle.read(cx);
+                        let adapter_and_server = if buffer.ranges.is_some() {
+                            adapters_and_servers.iter().find(|(adapter, server)| {
+                                buffer_supports_lsp_range_formatting(local, buffer_snapshot, adapter, server)
+                            })
+                        } else {
+                            adapters_and_servers.iter().find(|(adapter, server)| {
+                                buffer_supports_lsp_formatting(local, buffer_snapshot, adapter, server)
+                                    || buffer_supports_lsp_range_formatting(local, buffer_snapshot, adapter, server)
+                            })
+                        };
+                        adapter_and_server.cloned()
+                    })?,
                 };
 
                 let Some((adapter, language_server)) = adapter_and_server else {
@@ -1575,28 +1496,7 @@ impl LocalLspStore {
                     .await
                     .context("Failed to format ranges via language server")?;
 
-                    match range_edits {
-                        Some(edits) => edits,
-                        None => {
-                            if trigger == FormatTrigger::Save
-                                && settings.format_on_save == FormatOnSave::ModificationsIfAvailable
-                            {
-                                Self::format_via_lsp(
-                                    lsp_store,
-                                    &buffer.handle,
-                                    buffer_path_abs,
-                                    &adapter,
-                                    &language_server,
-                                    settings,
-                                    cx,
-                                )
-                                .await
-                                .context("failed to format via language server")?
-                            } else {
-                                Vec::new()
-                            }
-                        }
-                    }
+                    range_edits.unwrap_or_default()
                 } else {
                     Self::format_via_lsp(
                         lsp_store,
@@ -2136,45 +2036,6 @@ impl LocalLspStore {
         } else {
             Ok(Vec::with_capacity(0))
         }
-    }
-
-    async fn format_via_external_command(
-        buffer: &FormattableBuffer,
-        command: &str,
-        arguments: Option<&[String]>,
-        cx: &mut AsyncApp,
-    ) -> Result<Option<Diff>> {
-        let working_dir_path = buffer.handle.update(cx, |buffer, cx| {
-            let file = File::from_dyn(buffer.file())?;
-            let worktree = file.worktree.read(cx);
-            let mut worktree_path = worktree.abs_path().to_path_buf();
-            if worktree.root_entry()?.is_file() {
-                worktree_path.pop();
-            }
-            Some(worktree_path)
-        });
-
-        let mut child = command::new_command(command);
-
-        if let Some(buffer_env) = buffer.env.as_ref() {
-            child.envs(buffer_env);
-        }
-
-        if let Some(working_dir_path) = working_dir_path {
-            child.current_dir(working_dir_path);
-        }
-
-        if let Some(arguments) = arguments {
-            child.args(arguments.iter().map(|arg| {
-                if let Some(buffer_abs_path) = buffer.abs_path.as_ref() {
-                    arg.replace("{buffer_path}", &buffer_abs_path.to_string_lossy())
-                } else {
-                    arg.replace("{buffer_path}", "Untitled")
-                }
-            }));
-        }
-
-        Self::run_formatter_command(buffer, child, command, cx).await
     }
 
     /// Formats the buffer with Biome, resolved per `biome::resolve_command`.
@@ -4387,9 +4248,8 @@ impl LspStore {
 
     pub fn supports_range_formatting(&self, buffer: &Entity<Buffer>, cx: &App) -> bool {
         let settings = LanguageSettings::for_buffer(buffer.read(cx), cx);
-        settings.formatter.as_ref().iter().any(|formatter| {
-            match formatter {
-                Formatter::None => false,
+        {
+            match &settings.formatter {
                 Formatter::Auto => {
                     biome::supports(buffer.read(cx).language().map(AsRef::as_ref))
                         || self.check_if_any_relevant_text_document_server_matches(
@@ -4401,8 +4261,7 @@ impl LspStore {
                             cx,
                         )
                 }
-                Formatter::External { .. } => false,
-                Formatter::LanguageServer(settings::LanguageServerFormatterSpecifier::Current) => self
+                Formatter::LanguageServer(LanguageServerFormatterSpecifier::Current) => self
                     .check_if_any_relevant_text_document_server_matches(
                         buffer,
                         "textDocument/rangeFormatting",
@@ -4411,7 +4270,7 @@ impl LspStore {
                         },
                         cx,
                     ),
-                Formatter::LanguageServer(settings::LanguageServerFormatterSpecifier::Specific { name }) => self
+                Formatter::LanguageServer(LanguageServerFormatterSpecifier::Specific { name }) => self
                     .check_if_any_relevant_text_document_server_matches(
                         buffer,
                         "textDocument/rangeFormatting",
@@ -4426,7 +4285,7 @@ impl LspStore {
                 // they operate on the whole buffer rather than the selected text.
                 Formatter::CodeAction(_) => false,
             }
-        })
+        }
     }
 
     pub fn request_lsp<R>(
@@ -7131,7 +6990,6 @@ impl LspStore {
         buffers: FxHashSet<Entity<Buffer>>,
         target: LspFormatTarget,
         push_to_history: bool,
-        trigger: FormatTrigger,
         cx: &mut Context<Self>,
     ) -> Task<anyhow::Result<ProjectTransaction>> {
         {
@@ -7163,8 +7021,7 @@ impl LspStore {
                 }
 
                 let result =
-                    LocalLspStore::format_locally(lsp_store.clone(), formattable_buffers, push_to_history, trigger, cx)
-                        .await;
+                    LocalLspStore::format_locally(lsp_store.clone(), formattable_buffers, push_to_history, cx).await;
 
                 lsp_store.update(cx, |lsp_store, _| {
                     lsp_store.update_last_formatting_failure(&result);

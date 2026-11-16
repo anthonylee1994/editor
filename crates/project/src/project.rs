@@ -1739,10 +1739,9 @@ impl Project {
         buffers: FxHashSet<Entity<Buffer>>,
         target: LspFormatTarget,
         push_to_history: bool,
-        trigger: lsp_store::FormatTrigger,
         cx: &mut Context<Project>,
     ) -> Task<anyhow::Result<ProjectTransaction>> {
-        self.lsp_store.update(cx, |lsp_store, cx| lsp_store.format(buffers, target, push_to_history, trigger, cx))
+        self.lsp_store.update(cx, |lsp_store, cx| lsp_store.format(buffers, target, push_to_history, cx))
     }
 
     pub fn supports_range_formatting(&self, buffer: &Entity<Buffer>, cx: &App) -> bool {
