@@ -14,8 +14,22 @@ use smol_str::SmolStr;
 /// A shared string is an immutable string that can be cheaply cloned in GPUI
 /// tasks. Essentially an abstraction over an `Arc<str>` and `&'static str`,
 /// currently backed by a [`SmolStr`].
-#[derive(Eq, PartialEq, PartialOrd, Ord, Hash, Clone)]
+#[derive(Eq, PartialOrd, Ord, Clone)]
 pub struct SharedString(SmolStr);
+
+impl PartialEq for SharedString {
+    fn eq(&self, other: &Self) -> bool {
+        // Clones share their bytes, so compare pointers before the contents.
+        let (this, other_str) = (self.as_str(), other.as_str());
+        (this.as_ptr() == other_str.as_ptr() && this.len() == other_str.len()) || self.0 == other.0
+    }
+}
+
+impl std::hash::Hash for SharedString {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
 
 impl Deref for SharedString {
     type Target = str;
@@ -195,5 +209,21 @@ impl<'de> Deserialize<'de> for SharedString {
         D: serde::Deserializer<'de>,
     {
         SmolStr::deserialize(deserializer).map(SharedString)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SharedString;
+
+    #[test]
+    fn equality_holds_for_clones_and_separate_copies() {
+        let text = SharedString::from("a string long enough to live on the heap, not inline");
+        assert_eq!(text, text.clone());
+        assert_eq!(text, SharedString::from(text.to_string()));
+        assert_ne!(text, SharedString::new_static("a string"));
+        // Same start pointer, different length.
+        let abc: &'static str = "abc";
+        assert_ne!(SharedString::new_static(abc), SharedString::new_static(&abc[..2]));
     }
 }
