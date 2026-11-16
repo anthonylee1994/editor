@@ -188,10 +188,11 @@ impl Keymap {
         let mut pending_bindings = SmallVec::<[(BindingIndex, &KeyBinding); 1]>::new();
 
         for (ix, binding) in keymap_bindings {
-            let Some(depth) = self.binding_enabled(binding, context_stack) else {
+            // Keystroke matching is cheaper and rejects most bindings.
+            let Some(pending) = binding.match_keystrokes(input) else {
                 continue;
             };
-            let Some(pending) = binding.match_keystrokes(input) else {
+            let Some(depth) = self.binding_enabled(binding, context_stack) else {
                 continue;
             };
 
@@ -261,5 +262,30 @@ impl Keymap {
         } else {
             Some(contexts.len())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Keystroke;
+
+    actions!(keymap_test, [First, Second]);
+
+    #[test]
+    fn bindings_for_input_requires_both_keystrokes_and_context() {
+        let keymap = Keymap::new(vec![
+            KeyBinding::new("cmd-a", First, Some("Editor")),
+            KeyBinding::new("cmd-b", Second, Some("Pane")),
+        ]);
+        let input = [Keystroke::parse("cmd-a").unwrap()];
+
+        let (bindings, pending) = keymap.bindings_for_input(&input, &[KeyContext::parse("Editor").unwrap()]);
+        assert!(!pending);
+        assert_eq!(bindings.len(), 1);
+        assert!(bindings[0].action().partial_eq(&First));
+
+        let (bindings, _) = keymap.bindings_for_input(&input, &[KeyContext::parse("Pane").unwrap()]);
+        assert!(bindings.is_empty());
     }
 }
