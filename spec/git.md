@@ -188,6 +188,10 @@ blobs with no language server, so they are not mixed into editor panes.
   from `git_graph::Open` / File History, commits from the graph, blame, commit
   tooltips, the stash picker and the git panel. Opening one switches to Git
   History mode. A new repository-wide graph is always the first tab of its pane.
+- Git History always holds the repository graph: whatever opens a history tab
+  (File History, a commit, a revision) also opens its repository's graph as
+  the first tab of that pane, behind it, unless that graph is already open, so
+  closing the tab lands on the graph instead of leaving the mode.
   The repository-wide graph tab is permanent (`Item::is_permanent`): it has no
   close button, no Pin/Unpin entries, and every close path (Close, Close All,
   middle click, max tabs) skips it, so Git History mode is left through the
@@ -217,8 +221,7 @@ blobs with no language server, so they are not mixed into editor panes.
 - A revision's right-click menu disables, as in any read-only editor, Rename,
   Format, Code Actions, Cut and Paste.
 - Focusing a dock panel or an editor pane (opening a file, Open File in Project
-  from a commit, File Finder, …) switches back to Editor mode. Closing the
-  last tab of the last history pane does too.
+  from a commit, File Finder, …) switches back to Editor mode.
 - A preview (Markdown, tabular data) of a revision keeps its commit's sidebar,
   since the sidebar follows the commit the active tab belongs to.
 - The commit details panel (author, refs, email, SHA, message, changed files)

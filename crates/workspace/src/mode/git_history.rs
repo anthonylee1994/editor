@@ -133,11 +133,6 @@ impl Workspace {
         self.git_history_center.panes()
     }
 
-    /// Whether no history pane has any tabs.
-    pub fn git_history_is_empty(&self, cx: &App) -> bool {
-        self.git_history_panes().iter().all(|pane| pane.read(cx).items_len() == 0)
-    }
-
     pub(crate) fn new_git_history_pane(
         workspace: WeakEntity<Self>,
         project: Entity<Project>,
@@ -271,10 +266,6 @@ impl Workspace {
                 self.split_git_history_pane(pane.clone(), *direction, *mode, window, cx);
             }
             pane::Event::Remove { .. } => self.remove_git_history_pane(pane, window, cx),
-            pane::Event::RemovedItem { .. } if self.git_history_is_empty(cx) => {
-                self.zoom_git_history_pane(None, cx);
-                self.set_mode(WorkspaceMode::Editor, window, cx)
-            }
             pane::Event::ZoomIn => self.zoom_git_history_pane(Some(pane), cx),
             pane::Event::ZoomOut => self.zoom_git_history_pane(None, cx),
             pane::Event::Focus => {

@@ -772,6 +772,14 @@ pub fn init(cx: &mut App) {
                 }
             })
             .detach();
+
+            // Every way into Git History keeps the item's repository graph open.
+            cx.subscribe_in(&cx.entity(), window, |workspace, _, event, window, cx| {
+                if let workspace::Event::GitHistoryItemAdded { item } = event {
+                    ensure_repository_graph(workspace, item.as_ref(), window, cx);
+                }
+            })
+            .detach();
         }
 
         workspace.register_action(|workspace, _: &GitHistory, window, cx| {
@@ -884,25 +892,18 @@ fn resolve_file_history_target(workspace: &Workspace, window: &Window, cx: &App)
 /// tab if it belongs to that repository, otherwise shows its graph.
 pub fn show_active_repository_history(workspace: &mut Workspace, window: &mut Window, cx: &mut Context<Workspace>) {
     let project = workspace.project().read(cx);
-    let active_repo_id = project.active_repository(cx).map(|repo| repo.read(cx).id);
+    let Some(active_repo_id) = project.active_repository(cx).map(|repo| repo.read(cx).id) else {
+        return;
+    };
     let git_store = project.git_store().clone();
     let shown_repo_id =
         workspace.git_history_pane().read(cx).active_item().and_then(|item| history_item_repo_id(item.as_ref(), cx));
 
-    if let Some(repo_id) = graph_repo_to_show(active_repo_id, shown_repo_id) {
-        open_or_reuse_graph(workspace, repo_id, git_store, LogSource::All, None, window, cx);
-    } else if !workspace.git_history_is_empty(cx) {
+    if shown_repo_id == Some(active_repo_id) {
         workspace.set_mode(WorkspaceMode::GitHistory, window, cx);
+    } else {
+        open_or_reuse_graph(workspace, active_repo_id, git_store, LogSource::All, None, window, cx);
     }
-}
-
-/// The repository whose graph must be shown so Git History matches the active
-/// repository, or `None` when the active history tab already shows it.
-fn graph_repo_to_show(
-    active_repo_id: Option<RepositoryId>,
-    shown_repo_id: Option<RepositoryId>,
-) -> Option<RepositoryId> {
-    active_repo_id.filter(|active_repo_id| shown_repo_id != Some(*active_repo_id))
 }
 
 /// The repository whose graph shows a commit: its own when known, otherwise
@@ -922,6 +923,48 @@ fn history_item_repo_id(item: &dyn ItemHandle, cx: &App) -> Option<RepositoryId>
     }
     let details = item.side_card(cx)?.downcast::<CommitDetailsPanel>().ok()?;
     details.read(cx).repository_id(cx)
+}
+
+/// Opens, behind `item`, its repository's graph unless already open, so a
+/// repository graph is always the first tab and Git History is left only
+/// through the mode switch. A tab of unknown repository (a revision before
+/// its commit sidebar is adopted) comes from a commit view that already did this.
+fn ensure_repository_graph(
+    workspace: &Workspace,
+    item: &dyn ItemHandle,
+    window: &mut Window,
+    cx: &mut Context<Workspace>,
+) {
+    let Some(repo_id) = history_item_repo_id(item, cx) else {
+        return;
+    };
+    let panes = workspace.git_history_panes();
+    let is_open = panes.iter().flat_map(|pane| pane.read(cx).items_of_type::<GitGraph>()).any(|graph| {
+        let graph = graph.read(cx);
+        graph.repo_id == repo_id && is_repository_graph(&graph.log_source)
+    });
+    if is_open {
+        return;
+    }
+    let pane = panes
+        .into_iter()
+        .find(|pane| pane.read(cx).index_for_item(item).is_some())
+        .unwrap_or_else(|| workspace.git_history_pane())
+        .clone();
+
+    let git_store = workspace.project().read(cx).git_store().clone();
+    let workspace_handle = workspace.weak_handle();
+    let languages = workspace.project().read(cx).languages().clone();
+    let git_graph =
+        cx.new(|cx| GitGraph::new(repo_id, git_store, workspace_handle, languages, Some(LogSource::All), window, cx));
+    pane.update(cx, |pane, cx| {
+        let active_item = pane.active_item();
+        pane.add_item(Box::new(git_graph), false, false, Some(0), window, cx);
+        // Adding without activating leaves the active index stale.
+        if let Some(ix) = active_item.and_then(|active_item| pane.index_for_item(active_item.as_ref())) {
+            pane.activate_item(ix, false, false, window, cx);
+        }
+    });
 }
 
 /// Shows the git graph for `repo_id` and `log_source` in the git history
@@ -3578,7 +3621,6 @@ mod tests {
     use super::commit_hash_match_range;
     use super::format_timestamp;
     use super::graph_data_source;
-    use super::graph_repo_to_show;
     use super::history_reveal_path;
     use super::is_repository_graph;
     use super::kept_branch_filter;
@@ -3669,17 +3711,6 @@ mod tests {
         assert_eq!(commit_graph_repo(Some(b), None), Some(b));
         assert_eq!(commit_graph_repo(None, Some(a)), Some(a));
         assert_eq!(commit_graph_repo(None, None), None);
-    }
-
-    #[test]
-    fn test_graph_repo_to_show() {
-        let a = RepositoryId(1);
-        let b = RepositoryId(2);
-        assert_eq!(graph_repo_to_show(Some(a), Some(a)), None);
-        assert_eq!(graph_repo_to_show(Some(b), Some(a)), Some(b));
-        assert_eq!(graph_repo_to_show(Some(a), None), Some(a));
-        assert_eq!(graph_repo_to_show(None, Some(a)), None);
-        assert_eq!(graph_repo_to_show(None, None), None);
     }
 
     #[test]
