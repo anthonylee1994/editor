@@ -661,6 +661,15 @@ pub fn natural_sort(a: &str, b: &str) -> Ordering {
 /// Case-insensitive natural sort without applying the final lowercase/uppercase tie-breaker.
 /// This is useful when comparing individual path components where we want to keep walking
 /// deeper components before deciding on casing.
+/// Compares `a.to_lowercase()` with `b.to_lowercase()`, without allocating for ASCII.
+fn compare_lowercase(a: &str, b: &str) -> Ordering {
+    if a.is_ascii() && b.is_ascii() {
+        a.bytes().map(|byte| byte.to_ascii_lowercase()).cmp(b.bytes().map(|byte| byte.to_ascii_lowercase()))
+    } else {
+        a.to_lowercase().cmp(&b.to_lowercase())
+    }
+}
+
 fn natural_sort_no_tiebreak(a: &str, b: &str) -> Ordering {
     if a.eq_ignore_ascii_case(b) { Ordering::Equal } else { natural_sort(a, b) }
 }
@@ -805,11 +814,7 @@ pub fn compare_rel_paths_by(
                             if a_leaf_file && b_leaf_file {
                                 match order {
                                     SortOrder::Unicode => a_ext.unwrap_or_default().cmp(b_ext.unwrap_or_default()),
-                                    _ => {
-                                        let a_ext_str = a_ext.unwrap_or_default().to_lowercase();
-                                        let b_ext_str = b_ext.unwrap_or_default().to_lowercase();
-                                        a_ext_str.cmp(&b_ext_str)
-                                    }
+                                    _ => compare_lowercase(a_ext.unwrap_or_default(), b_ext.unwrap_or_default()),
                                 }
                             } else {
                                 Ordering::Equal
@@ -891,6 +896,7 @@ mod tests {
     use std::cmp::Ordering;
 
     use super::PathWithPosition;
+    use super::compare_lowercase;
     use super::natural_sort;
 
     #[test]
@@ -898,6 +904,13 @@ mod tests {
         assert_eq!(natural_sort("file10", "file10"), Ordering::Equal);
         assert_eq!(natural_sort("file2", "file10"), Ordering::Less);
         assert_ne!(natural_sort("File", "file"), Ordering::Equal);
+    }
+
+    #[test]
+    fn compare_lowercase_matches_allocating_comparison() {
+        for (a, b) in [("RS", "rs"), ("md", "Rs"), ("TXT", "toml"), ("", "a"), ("Ä", "ä"), ("Été", "etc")] {
+            assert_eq!(compare_lowercase(a, b), a.to_lowercase().cmp(&b.to_lowercase()), "{a} vs {b}");
+        }
     }
 
     #[test]
