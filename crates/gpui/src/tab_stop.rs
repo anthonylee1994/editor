@@ -62,7 +62,7 @@ impl Ord for TabStopNode {
 
 impl PartialOrd for TabStopNode {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(&other))
+        Some(self.cmp(other))
     }
 }
 
@@ -144,7 +144,7 @@ impl TabStopMap {
         }
     }
 
-    pub fn paint_index(&self) -> usize {
+    pub const fn paint_index(&self) -> usize {
         self.insertion_history.len()
     }
 
@@ -182,7 +182,7 @@ mod tests {
             FocusHandle::new(&focus_map).tab_stop(true).tab_index(2),
         ];
 
-        for handle in focus_handles.iter() {
+        for handle in &focus_handles {
             tab_index_map.insert(handle);
         }
         let expected = [
@@ -253,7 +253,6 @@ mod tests {
     }
 
     impl TabStopMapTest {
-        #[must_use]
         fn new() -> Self {
             Self {
                 tab_map: TabStopMap::default(),
@@ -262,14 +261,12 @@ mod tests {
             }
         }
 
-        #[must_use]
         fn tab_non_stop(mut self, index: isize) -> Self {
             let handle = FocusHandle::new(&self.focus_map).tab_stop(false).tab_index(index);
             self.tab_map.insert(&handle);
             self
         }
 
-        #[must_use]
         fn tab_stop(mut self, index: isize, expected: usize) -> Self {
             let handle = FocusHandle::new(&self.focus_map).tab_stop(true).tab_index(index);
             self.tab_map.insert(&handle);
@@ -278,7 +275,6 @@ mod tests {
             self
         }
 
-        #[must_use]
         fn tab_group(mut self, tab_index: isize, children: impl FnOnce(Self) -> Self) -> Self {
             self.tab_map.begin_group(tab_index);
             self = children(self);
@@ -308,7 +304,7 @@ mod tests {
             assert_eq!(forward_found, expected);
 
             // Test overflow. Last to first
-            assert_eq!(self.tab_map.next(forward_found.last()).map(|handle| handle.id), expected.first().cloned());
+            assert_eq!(self.tab_map.next(forward_found.last()).map(|handle| handle.id), expected.first().copied());
 
             // Check previous order
             let reversed_found = self.traverse_tab_map(|tab_map, prev| tab_map.prev(prev));
@@ -316,7 +312,7 @@ mod tests {
             assert_eq!(reversed_found, expected);
 
             // Test overflow. First to last
-            assert_eq!(self.tab_map.prev(reversed_found.last()).map(|handle| handle.id), expected.first().cloned(),);
+            assert_eq!(self.tab_map.prev(reversed_found.last()).map(|handle| handle.id), expected.first().copied(),);
         }
     }
 
