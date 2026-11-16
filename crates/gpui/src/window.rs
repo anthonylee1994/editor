@@ -20,7 +20,6 @@ use std::time::Duration;
 use anyhow::Result;
 use futures::channel::oneshot;
 use gpui_util::ResultExt;
-use gpui_util::measure;
 use gpui_util::post_inc;
 use itertools::FoldWhile::Continue;
 use itertools::FoldWhile::Done;
@@ -989,20 +988,18 @@ impl Window {
 
                 let should_draw = invalidator.is_dirty() || force_render;
                 if should_draw {
-                    measure("frame duration", || {
-                        handle
-                            .update(&mut cx, |_, window, cx| {
-                                if force_render {
-                                    // Bypass cached view reuse so we don't replay stale
-                                    // atlas tile references after a GPU device recovery.
-                                    window.refresh();
-                                }
-                                let arena_clear_needed = window.draw(cx);
-                                window.present();
-                                arena_clear_needed.clear(cx);
-                            })
-                            .log_err();
-                    })
+                    handle
+                        .update(&mut cx, |_, window, cx| {
+                            if force_render {
+                                // Bypass cached view reuse so we don't replay stale
+                                // atlas tile references after a GPU device recovery.
+                                window.refresh();
+                            }
+                            let arena_clear_needed = window.draw(cx);
+                            window.present();
+                            arena_clear_needed.clear(cx);
+                        })
+                        .log_err();
                 } else if needs_present {
                     handle.update(&mut cx, |_, window, _| window.present()).log_err();
                 }

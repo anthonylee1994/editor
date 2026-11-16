@@ -1,5 +1,4 @@
 use core::panic;
-use std::env;
 use std::ffi::OsStr;
 use std::fmt;
 use std::hash::BuildHasher;
@@ -8,10 +7,8 @@ use std::ops::AddAssign;
 use std::panic::Location;
 use std::pin::Pin;
 use std::process::Command;
-use std::sync::OnceLock;
 use std::task::Context;
 use std::task::Poll;
-use std::time::Instant;
 
 pub fn new_std_command(program: impl AsRef<OsStr>) -> Command {
     Command::new(program)
@@ -27,23 +24,6 @@ pub fn post_inc<T: From<u8> + AddAssign<T> + Copy>(value: &mut T) -> T {
     let prev = *value;
     *value += T::from(1);
     prev
-}
-
-pub fn measure<R>(label: &str, f: impl FnOnce() -> R) -> R {
-    static ED_MEASUREMENTS: OnceLock<bool> = OnceLock::new();
-    let ed_measurements = ED_MEASUREMENTS.get_or_init(|| {
-        env::var("ED_MEASUREMENTS").map(|measurements| measurements == "1" || measurements == "true").unwrap_or(false)
-    });
-
-    if *ed_measurements {
-        let start = Instant::now();
-        let result = f();
-        let elapsed = start.elapsed();
-        eprintln!("{}: {:?}", label, elapsed);
-        result
-    } else {
-        f()
-    }
 }
 
 pub trait ResultExt<E> {

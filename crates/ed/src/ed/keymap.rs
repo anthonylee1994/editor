@@ -96,9 +96,11 @@ fn build(build_action: BuildAction<'_>) -> Vec<KeyBinding> {
     k.bind("alt-cmd-h", "ed::HideOthers");
     k.bind("cmd-m", "ed::Minimize");
     k.bind("ctrl-cmd-l", "lsp_tool::ToggleMenu");
+
     k.group(Some("menu"));
     k.bind("right", "menu::SelectChild");
     k.bind("left", "menu::SelectParent");
+
     k.group(Some("Editor"));
     k.bind("escape", "editor::Cancel");
     k.bind("shift-backspace", "editor::Backspace");
@@ -108,11 +110,6 @@ fn build(build_action: BuildAction<'_>) -> Vec<KeyBinding> {
     k.bind("delete", "editor::Delete");
     k.bind("tab", "editor::Tab");
     k.bind("shift-tab", "editor::Backtab");
-    // k.bind("ctrl-t", "editor::Transpose");
-    // k.bind("ctrl-k", "editor::KillRingCut");
-    // k.bind("ctrl-y", "editor::KillRingYank");
-    // k.bind("cmd-k cmd-q", "editor::Rewrap");
-    // k.bind("cmd-k q", "editor::Rewrap");
     k.bind("cmd-backspace", "editor::DeleteToBeginningOfLine");
     k.bind("cmd-delete", "editor::DeleteToEndOfLine");
     k.bind_input(
@@ -215,38 +212,41 @@ fn build(build_action: BuildAction<'_>) -> Vec<KeyBinding> {
     k.bind("ctrl-cmd-space", "editor::ShowCharacterPalette");
     k.bind("cmd-'", "editor::ToggleSelectedDiffHunks");
     k.bind("cmd-\"", "editor::ExpandAllDiffHunks");
-    // k.bind("cmd-alt-g b", "git::Blame");
-    // k.bind("cmd-alt-g m", "git::OpenModifiedFiles");
     k.bind("ctrl-f12", "editor::GoToDeclaration");
     k.bind("alt-ctrl-f12", "editor::GoToDeclarationSplit");
+
     k.group(Some("Editor && mode == full"));
     k.bind("shift-enter", "editor::Newline");
     k.bind("enter", "editor::Newline");
     k.bind("cmd-enter", "editor::NewlineBelow");
     k.bind("cmd-shift-enter", "editor::NewlineAbove");
-    // k.bind("cmd-k z", "editor::ToggleSoftWrap");
     k.bind("cmd-f", "buffer_search::Deploy");
     k.bind_input("cmd-alt-l", "buffer_search::Deploy", json!({"selection_search_enabled": true}));
     k.bind("cmd-e", "buffer_search::UseSelectionForFind");
     k.bind("cmd-alt-e", "editor::SelectEnclosingSymbol");
     k.bind("alt-enter", "editor::OpenSelectionsInMultibuffer");
     k.bind("alt-cmd-f", "text_finder::Toggle");
+
     k.group(Some("Editor && multibuffer"));
     k.bind("cmd-up", "editor::MoveToStartOfExcerpt");
     k.bind("cmd-down", "editor::MoveToStartOfNextExcerpt");
     k.bind("cmd-shift-up", "editor::SelectToStartOfExcerpt");
     k.bind("cmd-shift-down", "editor::SelectToStartOfNextExcerpt");
+
     k.group(Some("Editor && mode == auto_height"));
     k.bind("ctrl-enter", "editor::Newline");
     k.bind("shift-enter", "editor::Newline");
     k.bind("ctrl-shift-enter", "editor::NewlineBelow");
+
     k.group(Some("Markdown"));
     k.bind("cmd-c", "markdown::Copy");
+
     k.group(Some("Editor"));
     k.bind("cmd-alt-z", "git::Restore");
     k.bind("cmd-alt-y", "git::ToggleStaged");
     k.bind("cmd-y", "git::StageAndNext");
     k.bind("cmd-shift-y", "git::UnstageAndNext");
+
     k.group(Some("BufferSearchBar"));
     k.bind("escape", "buffer_search::Dismiss");
     k.bind("tab", "buffer_search::FocusEditor");
@@ -257,17 +257,22 @@ fn build(build_action: BuildAction<'_>) -> Vec<KeyBinding> {
     k.bind("cmd-f", "search::FocusSearch");
     k.bind("cmd-alt-l", "search::ToggleSelection");
     k.bind("alt-cmd-f", "text_finder::Toggle");
+
     k.group(Some("BufferSearchBar && in_replace > Editor"));
     k.bind("enter", "search::ReplaceNext");
     k.bind("cmd-enter", "search::ReplaceAll");
+
     k.group(Some("BufferSearchBar && !in_replace > Editor"));
     k.bind("ctrl-enter", "editor::Newline");
     k.bind("shift-enter", "search::SelectPreviousMatch");
+
     k.group(Some("BufferSearchBar && !in_replace > Editor"));
     k.bind("up", "search::PreviousHistoryQuery");
     k.bind("down", "search::NextHistoryQuery");
+
     k.group(Some("BufferSearchBar || ProjectSearchBar"));
     k.bind("ctrl-enter", "editor::Newline");
+
     k.group(Some("ProjectSearchBar"));
     k.bind("escape", "project_search::ToggleFocus");
     k.bind("cmd-shift-j", "project_search::ToggleFilters");
@@ -277,14 +282,18 @@ fn build(build_action: BuildAction<'_>) -> Vec<KeyBinding> {
     k.bind("alt-cmd-g", "search::ToggleRegex");
     k.bind("alt-cmd-x", "search::ToggleRegex");
     k.bind("alt-cmd-f", "project_search::OpenTextFinder");
+
     k.group(Some("ProjectSearchBar > Editor"));
     k.bind("up", "search::PreviousHistoryQuery");
     k.bind("down", "search::NextHistoryQuery");
+
     k.group(Some("ProjectSearchBar && in_replace > Editor"));
     k.bind("enter", "search::ReplaceNext");
     k.bind("cmd-enter", "search::ReplaceAll");
+
     k.group(Some("ProjectSearchBar && !in_replace > Editor"));
     k.bind("ctrl-enter", "editor::Newline");
+
     k.group(Some("ProjectSearchView"));
     k.bind("escape", "project_search::ToggleFocus");
     k.bind("cmd-shift-j", "project_search::ToggleFilters");
@@ -293,6 +302,7 @@ fn build(build_action: BuildAction<'_>) -> Vec<KeyBinding> {
     k.bind("alt-cmd-g", "search::ToggleRegex");
     k.bind("alt-cmd-x", "search::ToggleRegex");
     k.bind("alt-cmd-f", "project_search::OpenTextFinder");
+
     k.group(Some("Pane"));
     k.bind("alt-cmd-left", "pane::ActivatePreviousItem");
     k.bind("cmd-{", "pane::ActivatePreviousItem");
@@ -312,6 +322,7 @@ fn build(build_action: BuildAction<'_>) -> Vec<KeyBinding> {
     k.bind("alt-cmd-c", "search::ToggleCaseSensitive");
     k.bind("alt-cmd-w", "search::ToggleWholeWord");
     k.bind("alt-cmd-x", "search::ToggleRegex");
+
     k.group(Some("Editor"));
     k.bind("cmd-[", "editor::Outdent");
     k.bind("cmd-]", "editor::Indent");
@@ -335,7 +346,6 @@ fn build(build_action: BuildAction<'_>) -> Vec<KeyBinding> {
     k.bind("cmd-f2", "editor::SelectAllMatches");
     k.bind_input("ctrl-cmd-d", "editor::SelectPrevious", json!({"replace_newest": false}));
     k.bind_input("cmd-/", "editor::ToggleComments", json!({"advance_downwards": false, "comment_empty_lines": true}));
-    // k.bind("cmd-k cmd-/", "editor::ToggleBlockComments");
     k.bind("shift-alt-a", "editor::ToggleBlockComments");
     k.bind_input("f8", "editor::GoToDiagnostic", json!({"severity": {"min": "hint", "max": "error"}}));
     k.bind_input("shift-f8", "editor::GoToPreviousDiagnostic", json!({"severity": {"min": "hint", "max": "error"}}));
@@ -353,16 +363,16 @@ fn build(build_action: BuildAction<'_>) -> Vec<KeyBinding> {
     k.bind("ctrl-space", "editor::ShowCompletions");
     k.bind("ctrl-shift-space", "editor::ShowWordCompletions");
     k.bind("cmd-.", "editor::ToggleCodeActions");
-    // k.bind("cmd-k r", "editor::RevealInFileManager");
-    // k.bind("cmd-k p", "workspace::CopyPath");
     k.bind("cmd-\\", "pane::SplitRight");
+
     k.group(Some("Editor"));
-    // k.bind("cmd-k v", "preview::OpenPreviewToTheSide");
     k.bind("cmd-shift-v", "preview::OpenPreview");
+
     k.group(Some("Editor && mode == full"));
     k.bind("ctrl-g", "go_to_line::Toggle");
     k.bind("cmd-shift-backspace", "editor::GoToPreviousChange");
     k.bind("cmd-shift-alt-backspace", "editor::GoToNextChange");
+
     k.group(Some("Pane"));
     k.bind_input("ctrl-1", "pane::ActivateItem", json!(0));
     k.bind_input("ctrl-2", "pane::ActivateItem", json!(1));
@@ -375,6 +385,7 @@ fn build(build_action: BuildAction<'_>) -> Vec<KeyBinding> {
     k.bind_input("ctrl-9", "pane::ActivateItem", json!(8));
     k.bind("ctrl-0", "pane::ActivateLastItem");
     k.bind("cmd-shift-f", "pane::DeploySearch");
+
     k.group(Some("Workspace"));
     k.bind("f6", "workspace::FocusNextPart");
     k.bind("shift-f6", "workspace::FocusPreviousPart");
@@ -413,8 +424,10 @@ fn build(build_action: BuildAction<'_>) -> Vec<KeyBinding> {
     k.bind("cmd-shift-m", "diagnostics::Deploy");
     k.bind_input("cmd-w", "pane::CloseActiveItem", json!({"close_pinned": false}));
     k.bind("ctrl-alt-w", "workspace::CloseActiveDock");
+
     k.group(Some("Workspace && !Terminal"));
     k.bind("cmd-n", "workspace::NewFile");
+
     k.group(Some("Editor"));
     k.bind("cmd-u", "editor::UndoSelection");
     k.bind("cmd-shift-u", "editor::ToggleCase");
@@ -432,18 +445,24 @@ fn build(build_action: BuildAction<'_>) -> Vec<KeyBinding> {
     k.bind("ctrl-alt-shift-b", "editor::SelectToPreviousSubwordStart");
     k.bind("ctrl-alt-shift-right", "editor::SelectToNextSubwordEnd");
     k.bind("ctrl-alt-shift-f", "editor::SelectToNextSubwordEnd");
+
     k.group(Some("Editor && renaming"));
     k.bind("enter", "editor::ConfirmRename");
+
     k.group(Some("Editor && showing_completions"));
     k.bind("enter", "editor::ConfirmCompletion");
     k.bind("shift-enter", "editor::ConfirmCompletionReplace");
     k.bind("tab", "editor::ComposeCompletion");
+
     k.group(Some("Editor && in_snippet && has_next_tabstop && !showing_completions"));
     k.bind("tab", "editor::NextSnippetTabstop");
+
     k.group(Some("Editor && in_snippet && has_previous_tabstop && !showing_completions"));
     k.bind("shift-tab", "editor::PreviousSnippetTabstop");
+
     k.group(Some("Editor && showing_code_actions"));
     k.bind("enter", "editor::ConfirmCodeAction");
+
     k.group(Some("Editor && (showing_code_actions || showing_completions)"));
     k.bind("up", "editor::ContextMenuPrevious");
     k.bind("ctrl-p", "editor::ContextMenuPrevious");
@@ -451,13 +470,16 @@ fn build(build_action: BuildAction<'_>) -> Vec<KeyBinding> {
     k.bind("ctrl-n", "editor::ContextMenuNext");
     k.bind("pageup", "editor::ContextMenuFirst");
     k.bind("pagedown", "editor::ContextMenuLast");
+
     k.group(Some("Editor && mode == full"));
     k.bind("shift-enter", "editor::ExpandExcerpts");
     k.bind("cmd-shift-e", "pane::RevealInProjectPanel");
     k.bind("cmd-f8", "editor::GoToHunk");
     k.bind("cmd-shift-f8", "editor::GoToPreviousHunk");
+
     k.group(Some("ProjectSearchBar && !in_replace"));
     k.bind("cmd-enter", "project_search::SearchInNew");
+
     k.group(Some("OutlinePanel && not_editing"));
     k.bind("escape", "menu::Cancel");
     k.bind("left", "outline_panel::CollapseSelectedEntry");
@@ -468,6 +490,7 @@ fn build(build_action: BuildAction<'_>) -> Vec<KeyBinding> {
     k.bind("space", "outline_panel::OpenSelectedEntry");
     k.bind("shift-down", "menu::SelectNext");
     k.bind("shift-up", "menu::SelectPrevious");
+
     k.group(Some("ProjectPanel"));
     k.bind("left", "project_panel::CollapseSelectedEntry");
     k.bind("cmd-left", "project_panel::CollapseAllEntries");
@@ -497,8 +520,10 @@ fn build(build_action: BuildAction<'_>) -> Vec<KeyBinding> {
     k.bind("shift-down", "menu::SelectNext");
     k.bind("shift-up", "menu::SelectPrevious");
     k.bind("escape", "menu::Cancel");
+
     k.group(Some("ProjectPanel && not_editing"));
     k.bind("space", "project_panel::Open");
+
     k.group(Some("GitPanel && ChangesList && !GitBranchSelector"));
     k.bind("up", "menu::SelectPrevious");
     k.bind("down", "menu::SelectNext");
@@ -506,6 +531,7 @@ fn build(build_action: BuildAction<'_>) -> Vec<KeyBinding> {
     k.bind("shift-down", "menu::SelectNext");
     k.bind("enter", "menu::Confirm");
     k.bind("escape", "menu::Cancel");
+
     k.group(Some("GitPanel && ChangesList && !GitBranchSelector"));
     k.bind("up", "git_panel::PreviousEntry");
     k.bind("down", "git_panel::NextEntry");
@@ -527,16 +553,20 @@ fn build(build_action: BuildAction<'_>) -> Vec<KeyBinding> {
     k.bind_input("delete", "git::RestoreFile", json!({"skip_prompt": false}));
     k.bind_input("cmd-backspace", "git::RestoreFile", json!({"skip_prompt": true}));
     k.bind_input("cmd-delete", "git::RestoreFile", json!({"skip_prompt": true}));
+
     k.group(Some("GitPanel && CommitEditor"));
     k.bind("escape", "git::Cancel");
+
     k.group(Some("GitDiff > Editor"));
     k.bind("cmd-enter", "git::Commit");
     k.bind("cmd-shift-enter", "git::Amend");
     k.bind("cmd-ctrl-y", "git::StageAll");
     k.bind("cmd-ctrl-shift-y", "git::UnstageAll");
     k.bind("cmd-alt-z", "git::RestoreAndNext");
+
     k.group(Some("CommitEditor > Editor && !showing_code_actions && !showing_completions"));
     k.bind("enter", "editor::Newline");
+
     k.group(Some("CommitEditor > Editor"));
     k.bind("cmd-enter", "git::Commit");
     k.bind("cmd-shift-enter", "git::Amend");
@@ -544,24 +574,21 @@ fn build(build_action: BuildAction<'_>) -> Vec<KeyBinding> {
     k.bind("shift-tab", "git_panel::FocusChanges");
     k.bind("alt-up", "git_panel::FocusChanges");
     k.bind("alt-shift-escape", "git::ToggleFillCommitEditor");
+
     k.group(Some("GitPanel"));
-    // k.bind("ctrl-g ctrl-g", "git::Fetch");
-    // k.bind("ctrl-g up", "git::Push");
-    // k.bind("ctrl-g down", "git::Pull");
-    // k.bind("ctrl-g shift-up", "git::ForcePush");
-    // k.bind("ctrl-g d", "git::Diff");
-    // k.bind("ctrl-g backspace", "git::RestoreTrackedFiles");
-    // k.bind("ctrl-g shift-backspace", "git::DeleteUntrackedFiles");
     k.bind("cmd-ctrl-y", "git::StageAll");
     k.bind("cmd-ctrl-shift-y", "git::UnstageAll");
     k.bind("cmd-enter", "git::Commit");
     k.bind("cmd-shift-enter", "git::Amend");
+
     k.group(Some("GitCommit > Editor && mode == auto_height && !showing_code_actions && !showing_completions"));
     k.bind("enter", "editor::Newline");
+
     k.group(Some("GitCommit > Editor && mode == auto_height"));
     k.bind("escape", "menu::Cancel");
     k.bind("cmd-enter", "git::Commit");
     k.bind("cmd-shift-enter", "git::Amend");
+
     k.group(Some("Picker > Editor"));
     k.bind("escape", "menu::Cancel");
     k.bind("up", "menu::SelectPrevious");
@@ -569,22 +596,28 @@ fn build(build_action: BuildAction<'_>) -> Vec<KeyBinding> {
     k.bind("tab", "picker::ConfirmCompletion");
     k.bind_input("alt-enter", "picker::ConfirmInput", json!({"secondary": false}));
     k.bind_input("cmd-alt-enter", "picker::ConfirmInput", json!({"secondary": true}));
+
     k.group(Some("LspCommandSelector > Picker > Editor"));
     k.bind("tab", "lsp_command_selector::ToggleArgumentsFocus");
+
     k.group(Some("FileFinder || (FileFinder > Picker > Editor)"));
     k.bind("cmd-shift-i", "search::ToggleIncludeIgnored");
+
     k.group(Some("RecentProjects || (RecentProjects > Picker > Editor)"));
     k.bind("cmd-shift-a", "workspace::AddFolderToProject");
     k.bind("shift-backspace", "recent_projects::RemoveSelected");
     k.bind("cmd-shift-enter", "recent_projects::AddToWorkspace");
+
     k.group(Some("TabSwitcher"));
     k.bind("ctrl-shift-tab", "menu::SelectPrevious");
     k.bind("ctrl-up", "menu::SelectPrevious");
     k.bind("ctrl-down", "menu::SelectNext");
     k.bind("ctrl-backspace", "tab_switcher::CloseSelectedItem");
+
     k.group(Some("StashList || (StashList > Picker > Editor)"));
     k.bind("ctrl-shift-backspace", "stash_picker::DropStashItem");
     k.bind("ctrl-shift-v", "stash_picker::ShowStashItem");
+
     k.group(Some("Terminal"));
     k.bind_input("shift-enter", "terminal::SendText", json!("\u{001b}\r"));
     k.bind("ctrl-cmd-space", "terminal::ShowCharacterPalette");
