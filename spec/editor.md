@@ -145,6 +145,10 @@
   `editor::ToggleInlayHints` / `editor::ToggleSemanticHighlights` action or
   keybinding. The per-kind `inlay_hints.show_*`
   filters, background and debounce settings remain.
+- Inlay hints are fetched per 50-row chunk and cached without limit until an
+  edit or a server refresh invalidates them. Singleton buffers of up to 1000
+  rows fetch every chunk (on open and on each invalidation); larger buffers
+  and multibuffers fetch only the chunks in the viewport.
 - The hover popover's code lens row renders in the UI font, like the outline
   panel; the signature and docs below it use the shared hover markdown style.
 - No breadcrumbs anywhere (no breadcrumbs toolbar item, `Item::breadcrumbs`

@@ -629,6 +629,7 @@ impl Editor {
         }
         inlay_hints.invalidate_hints_for_buffers.extend(invalidate_hints_for_buffers);
 
+        let is_singleton = multi_buffer.read(cx).is_singleton();
         let mut buffers_to_query = FxHashMap::default();
         for (buffer_snapshot, visible_range, _) in visible_excerpts {
             let buffer_id = buffer_snapshot.buffer_id();
@@ -642,8 +643,14 @@ impl Editor {
             };
 
             let buffer_version = buffer_snapshot.version().clone();
+            let query_range = hint_query_range(
+                visible_range.start.0..visible_range.end.0,
+                buffer_snapshot.len(),
+                buffer_snapshot.max_point().row,
+                is_singleton,
+            );
             let buffer_anchor_range =
-                buffer_snapshot.anchor_before(visible_range.start)..buffer_snapshot.anchor_after(visible_range.end);
+                buffer_snapshot.anchor_before(query_range.start)..buffer_snapshot.anchor_after(query_range.end);
 
             let visible_excerpts = buffers_to_query.entry(buffer_id).or_insert_with(|| VisibleExcerpts {
                 ranges: Vec::new(),
@@ -1196,6 +1203,14 @@ fn normalize_hint_biases(
         .collect()
 }
 
+/// Small singleton buffers are fetched whole, so scrolling never waits for hints and a
+/// server refresh restores every page, not only the visible one.
+const MAX_ROWS_TO_FETCH_WHOLE: u32 = 1000;
+
+const fn hint_query_range(visible: Range<usize>, buffer_len: usize, max_row: u32, is_singleton: bool) -> Range<usize> {
+    if is_singleton && max_row <= MAX_ROWS_TO_FETCH_WHOLE { 0..buffer_len } else { visible }
+}
+
 fn label_part_has_command(hint: &InlayHint, offset_in_hint: usize) -> bool {
     let InlayHintLabel::LabelParts(label_parts) = &hint.label else {
         return false;
@@ -1262,4 +1277,17 @@ fn spawn_editor_hints_refresh(
         finished_sender.send(()).ok();
     });
     HintRefreshTask { task, finished: finished.shared() }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::MAX_ROWS_TO_FETCH_WHOLE;
+    use super::hint_query_range;
+
+    #[test]
+    fn test_hint_query_range() {
+        assert_eq!(hint_query_range(10..20, 500, MAX_ROWS_TO_FETCH_WHOLE, true), 0..500);
+        assert_eq!(hint_query_range(10..20, 500, MAX_ROWS_TO_FETCH_WHOLE + 1, true), 10..20);
+        assert_eq!(hint_query_range(10..20, 500, 5, false), 10..20);
+    }
 }
