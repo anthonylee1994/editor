@@ -19,7 +19,7 @@ gpui_macros.workspace = true
 gpui_shared_string.workspace = true
 gpui_util.workspace = true
 image.workspace = true
-inventory.workspace = true
+inventory = "0.3.19"
 itertools.workspace = true
 log.workspace = true
 lru.workspace = true
@@ -31,7 +31,16 @@ pin-project = "1.1.10"
 raw-window-handle.workspace = true
 refineable.workspace = true
 regex = { workspace = true, default-features = true }
-resvg.workspace = true
+resvg = {
+  version = "0.48.1",
+  default-features = false,
+  features = [
+    "memmap-fonts",
+    "raster-images",
+    "system-fonts",
+    "text",
+  ]
+}
 rustc-hash.workspace = true
 scheduler.workspace = true
 seahash = "4.1"
@@ -42,7 +51,8 @@ smallvec.workspace = true
 strum.workspace = true
 sum_tree.workspace = true
 taffy = {
-  workspace = true,
+  version = "=0.13.0",
+  default-features = false,
   features = [
     "block_layout",
     "content_size",

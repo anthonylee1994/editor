@@ -7,7 +7,7 @@ edition.workspace = true
 path = "src/terminal.rs"
 
 [dependencies]
-alacritty_terminal.workspace = true
+alacritty_terminal = { git = "https://github.com/alacritty/alacritty", rev = "542147067dd016fc5f49120ef0ba605a98a4e3a7" }
 anyhow.workspace = true
 async-channel.workspace = true
 futures.workspace = true
@@ -17,7 +17,7 @@ itertools.workspace = true
 libc.workspace = true
 log.workspace = true
 parking_lot.workspace = true
-percent-encoding.workspace = true
+percent-encoding = "2.3.2"
 regex.workspace = true
 rustc-hash.workspace = true
 serde.workspace = true
@@ -29,7 +29,7 @@ thiserror.workspace = true
 url.workspace = true
 urlencoding.workspace = true
 util.workspace = true
-vte.workspace = true
+vte = { version = "0.15.0", features = ["ansi"] }
 
 [lints]
 workspace = true

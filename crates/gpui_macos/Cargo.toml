@@ -18,7 +18,34 @@ image.workspace = true
 itertools.workspace = true
 log.workspace = true
 objc2.workspace = true
-objc2-app-kit = { workspace = true, features = ["NSEvent", "NSTextInputClient", "NSVisualEffectView", "objc2-quartz-core"] }
+objc2-app-kit = {
+  version = "0.3.2",
+  default-features = false,
+  features = [
+    "NSAlert",
+    "NSApplication",
+    "NSButton",
+    "NSControl",
+    "NSEvent",
+    "NSGraphics",
+    "NSImage",
+    "NSOpenPanel",
+    "NSPanel",
+    "NSPasteboard",
+    "NSResponder",
+    "NSSavePanel",
+    "NSScreen",
+    "NSTextInputClient",
+    "NSTrackingArea",
+    "NSView",
+    "NSVisualEffectView",
+    "NSWindow",
+    "NSWorkspace",
+    "block2",
+    "objc2-core-foundation",
+    "objc2-quartz-core",
+  ]
+}
 objc2-core-foundation = { workspace = true, features = ["CFBase", "CFData", "CFNumber", "CFRunLoop", "CFString", "CFUUID", "std"] }
 objc2-core-graphics = { workspace = true, features = ["CGDirectDisplay", "CGError", "CGRemoteOperation"] }
 objc2-foundation = { workspace = true, features = ["NSKeyedArchiver", "NSRunLoop"] }

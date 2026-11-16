@@ -8,7 +8,7 @@ path = "src/file_content.rs"
 
 [dependencies]
 anyhow.workspace = true
-chardetng.workspace = true
+chardetng = "0.1"
 encoding_rs.workspace = true
 futures-lite.workspace = true
 

@@ -30,12 +30,12 @@ serde_json.workspace = true
 settings.workspace = true
 smallvec.workspace = true
 sum_tree.workspace = true
-syntect.workspace = true
+syntect = { version = "5.3", default-features = false, features = ["parsing", "regex-onig", "yaml-load"] }
 task.workspace = true
 text.workspace = true
 theme.workspace = true
 tree-sitter.workspace = true
-two-face.workspace = true
+two-face = { version = "0.5.2", default-features = false, features = ["syntect-onig"] }
 unicase.workspace = true
 util.workspace = true
 watch.workspace = true

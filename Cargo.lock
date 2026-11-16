@@ -850,7 +850,7 @@ dependencies = [
 
 [[package]]
 name = "ed"
-version = "2.0.1"
+version = "2.0.2"
 dependencies = [
  "activity_indicator",
  "anyhow",
@@ -910,7 +910,7 @@ dependencies = [
 
 [[package]]
 name = "ed_actions"
-version = "2.0.1"
+version = "2.0.2"
 dependencies = [
  "gpui",
  "serde",
@@ -5185,7 +5185,7 @@ checksum = "ec7a2a501ed189703dba8b08142f057e887dfc4b2cc4db2d343ac6376ba3e0b9"
 
 [[package]]
 name = "xtask"
-version = "2.0.1"
+version = "2.0.2"
 dependencies = [
  "framework_lint",
 ]

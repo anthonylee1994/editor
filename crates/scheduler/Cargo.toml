@@ -8,7 +8,7 @@ path = "src/scheduler.rs"
 
 [dependencies]
 async-task.workspace = true
-flume.workspace = true
+flume = { version = "0.12", default-features = false, features = ["async"] }
 futures.workspace = true
 parking_lot.workspace = true
 

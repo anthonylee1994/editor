@@ -10,7 +10,7 @@ path = "src/fuzzy_nucleo.rs"
 fuzzy.workspace = true
 gpui.workspace = true
 gpui_util.workspace = true
-nucleo.workspace = true
+nucleo = { package = "nucleo-matcher", version = "0.3" }
 path.workspace = true
 
 [lints]
