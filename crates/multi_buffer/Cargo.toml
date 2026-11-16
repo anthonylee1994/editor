@@ -25,7 +25,6 @@ sum_tree.workspace = true
 text.workspace = true
 theme.workspace = true
 tree-sitter.workspace = true
-unicode-segmentation.workspace = true
 util.workspace = true
 
 [lints]

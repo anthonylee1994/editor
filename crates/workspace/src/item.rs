@@ -36,9 +36,9 @@ use ui::Label;
 use ui::LabelCommon;
 
 use crate::ItemNavHistory;
-use crate::SerializableItemRegistry;
 use crate::Workspace;
 use crate::invalid_item_view::InvalidItemView;
+use crate::item_registry::SerializableItemRegistry;
 use crate::pane::Pane;
 use crate::pane::{self};
 use crate::searchable::SearchableItemHandle;

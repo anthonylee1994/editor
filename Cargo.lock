@@ -2470,7 +2470,6 @@ dependencies = [
  "text",
  "theme",
  "tree-sitter",
- "unicode-segmentation",
  "util",
 ]
 

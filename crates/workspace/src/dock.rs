@@ -48,11 +48,11 @@ use ui::prelude::Toggleable;
 use ui::prelude::h_flex;
 use util::ResultExt as _;
 
-use crate::DraggedDock;
 use crate::Event;
 use crate::ModalLayer;
 use crate::Pane;
 use crate::Workspace;
+use crate::docks::DraggedDock;
 use crate::persistence::model::DockData;
 use crate::status_bar::StatusItemView;
 

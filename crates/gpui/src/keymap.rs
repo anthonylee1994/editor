@@ -262,48 +262,4 @@ impl Keymap {
             Some(contexts.len())
         }
     }
-
-    /// Find the bindings that can follow the current input sequence, in precedence order. Only
-    /// includes bindings that dispatch would run for their full keystrokes, so bindings disabled
-    /// with `null` or `Unbind` are left out.
-    pub fn possible_next_bindings_for_input(
-        &self,
-        input: &[Keystroke],
-        context_stack: &[KeyContext],
-    ) -> Vec<KeyBinding> {
-        // Keeps `null` and `Unbind` bindings, which can disable candidates.
-        let bindings_extending_input = self
-            .bindings()
-            .enumerate()
-            .rev()
-            .filter(|(_, binding)| binding.match_keystrokes(input).is_some_and(|pending| pending))
-            .collect::<Vec<_>>();
-
-        let mut full_input = SmallVec::<[&Keystroke; 4]>::new();
-        let mut candidates = bindings_extending_input
-            .iter()
-            .filter(|(_, binding)| !is_no_action(&*binding.action) && !is_unbind(&*binding.action))
-            .filter_map(|&(ix, binding)| {
-                let depth = self.binding_enabled(binding, context_stack)?;
-                // Use the typed input rather than the binding's own keystrokes. A typed keystroke
-                // can match through its physical key, like `alt-s`, or the character it produced,
-                // like `ß`.
-                full_input.clear();
-                full_input.extend(input.iter());
-                full_input.extend(binding.keystrokes[input.len()..].iter().map(AsKeystroke::as_keystroke));
-                let (dispatched, _) = self.resolve_bindings_for_input(
-                    &full_input,
-                    context_stack,
-                    bindings_extending_input.iter().copied(),
-                );
-                dispatched
-                    .iter()
-                    .any(|(dispatched_ix, _)| *dispatched_ix == BindingIndex(ix))
-                    .then_some((depth, ix, binding))
-            })
-            .collect::<Vec<_>>();
-        candidates.sort_unstable_by(|(depth_a, ix_a, _), (depth_b, ix_b, _)| depth_b.cmp(depth_a).then(ix_b.cmp(ix_a)));
-
-        candidates.into_iter().map(|(_, _, binding)| binding.clone()).collect()
-    }
 }

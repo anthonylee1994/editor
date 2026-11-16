@@ -4,6 +4,7 @@ use std::sync::atomic::AtomicBool;
 
 use anyhow::Context as _;
 use language::language_settings::COMPLETIONS;
+use snippet::Snippet;
 use text::ToOffset as _;
 
 use super::Anchor;
@@ -26,7 +27,6 @@ use super::Completion;
 use super::CompletionContext;
 use super::CompletionDisplayOptions;
 use super::CompletionDocumentation;
-use super::CompletionEdit;
 use super::CompletionId;
 use super::CompletionIntent;
 use super::CompletionItemKind;
@@ -78,7 +78,6 @@ use super::WordsCompletionMode;
 use super::WordsQuery;
 use super::point_to_lsp;
 use super::post_inc;
-use super::process_completion_for_edit;
 use crate::hover_popover;
 
 impl Editor {
@@ -1329,4 +1328,81 @@ pub(crate) fn snippet_candidate_suffixes<'a>(
             Some(chunk)
         }
     })
+}
+
+fn process_completion_for_edit(
+    completion: &Completion,
+    intent: CompletionIntent,
+    buffer: &Entity<Buffer>,
+    cursor_position: &text::Anchor,
+    cx: &Context<Editor>,
+) -> CompletionEdit {
+    let buffer = buffer.read(cx);
+    let buffer_snapshot = buffer.snapshot();
+    let (snippet, new_text) = if completion.is_snippet() {
+        let mut snippet_source = completion.new_text.clone();
+        // Workaround for typescript language server issues so that methods don't expand within
+        // strings and functions with type expressions. The previous point is used because the query
+        // for function identifier doesn't match when the cursor is immediately after. See PR #30312
+        let previous_point = text::ToPoint::to_point(cursor_position, &buffer_snapshot);
+        let previous_point = if previous_point.column > 0 {
+            cursor_position.to_previous_offset(&buffer_snapshot)
+        } else {
+            cursor_position.to_offset(&buffer_snapshot)
+        };
+        if let Some(scope) = buffer_snapshot.language_scope_at(previous_point)
+            && scope.prefers_label_for_snippet_in_completion()
+            && let Some(label) = completion.label()
+            && matches!(completion.kind(), Some(CompletionItemKind::FUNCTION) | Some(CompletionItemKind::METHOD))
+        {
+            snippet_source = label;
+        }
+        match Snippet::parse(&snippet_source).log_err() {
+            Some(parsed_snippet) => (Some(parsed_snippet.clone()), parsed_snippet.text),
+            None => (None, completion.new_text.clone()),
+        }
+    } else {
+        (None, completion.new_text.clone())
+    };
+
+    let mut range_to_replace = {
+        let replace_range = &completion.replace_range;
+        if let CompletionSource::Lsp { insert_range: Some(insert_range), lsp_completion, .. } = &completion.source {
+            let should_replace = match intent {
+                CompletionIntent::CompleteWithInsert => false,
+                CompletionIntent::CompleteWithReplace => true,
+                CompletionIntent::Complete | CompletionIntent::Compose => {
+                    if replace_range.end.cmp(cursor_position, &buffer_snapshot).is_gt() {
+                        let range_after_cursor = *cursor_position..replace_range.end;
+                        let text_after_cursor = buffer
+                            .text_for_range(
+                                buffer.anchor_before(range_after_cursor.start)
+                                    ..buffer.anchor_after(range_after_cursor.end),
+                            )
+                            .collect::<String>()
+                            .to_ascii_lowercase();
+                        lsp_completion.label.to_ascii_lowercase().ends_with(&text_after_cursor)
+                    } else {
+                        true
+                    }
+                }
+            };
+
+            if should_replace { replace_range.clone() } else { insert_range.clone() }
+        } else {
+            replace_range.clone()
+        }
+    };
+
+    if range_to_replace.end.cmp(cursor_position, &buffer_snapshot).is_lt() {
+        range_to_replace.end = *cursor_position;
+    }
+
+    CompletionEdit { new_text, replace_range: range_to_replace, snippet }
+}
+
+struct CompletionEdit {
+    new_text: String,
+    replace_range: Range<text::Anchor>,
+    snippet: Option<Snippet>,
 }

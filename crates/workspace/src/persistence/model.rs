@@ -15,9 +15,9 @@ use util::ResultExt;
 use crate::Member;
 use crate::Pane;
 use crate::PaneAxis;
-use crate::SerializableItemRegistry;
 use crate::Workspace;
 use crate::item::ItemHandle;
+use crate::item_registry::SerializableItemRegistry;
 use crate::path_list::PathList;
 
 /// A project that was open when ed last quit.

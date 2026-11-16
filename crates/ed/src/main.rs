@@ -58,7 +58,6 @@ use workspace::AppState;
 use workspace::SessionWorkspace;
 use workspace::Toast;
 use workspace::Workspace;
-use workspace::WorkspaceStore;
 use workspace::notifications::NotificationId;
 use workspace::restore_workspace;
 
@@ -231,11 +230,9 @@ fn main() {
 
         languages::init(languages.clone(), fs.clone(), cx);
 
-        let workspace_store = cx.new(WorkspaceStore::new);
-
         ed::init(cx);
 
-        let app_state = Arc::new(AppState { languages, fs: fs.clone(), build_window_options, workspace_store });
+        let app_state = Arc::new(AppState { languages, fs: fs.clone(), build_window_options });
         AppState::set_global(app_state.clone(), cx);
 
         command_palette::init(cx);

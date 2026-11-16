@@ -3,6 +3,7 @@ use std::mem;
 use std::ops::Range;
 use std::sync::Arc;
 
+use anyhow::Result;
 use clock::Global;
 use gpui::App;
 use gpui::AppContext as _;
@@ -16,6 +17,7 @@ use gpui::Task;
 use gpui::Window;
 use language::Buffer;
 use language::BufferRow;
+use language::Point;
 use language::Runnable;
 use lsp::LanguageServerName;
 use multi_buffer::Anchor;
@@ -35,6 +37,7 @@ use task::TaskContext;
 use task::TaskTemplate;
 use task::TaskVariables;
 use task::VariableName;
+use text::Bias;
 use text::BufferId;
 use text::OffsetRangeExt as _;
 use text::ToOffset as _;
@@ -55,6 +58,7 @@ use crate::ToggleCodeActions;
 use crate::UPDATE_DEBOUNCE;
 use crate::display_map::DisplayPoint;
 use crate::display_map::DisplayRow;
+use crate::display_map::ToDisplayPoint as _;
 
 #[derive(Debug)]
 pub(super) struct RunnableData {
@@ -658,5 +662,76 @@ impl Editor {
         let buffer = self.buffer.read(cx).buffer(buffer_id)?;
         let tasks = Arc::new(tasks.to_owned());
         Some((buffer, row, tasks))
+    }
+}
+
+impl Editor {
+    pub(super) fn active_run_indicators(
+        &self,
+        range: Range<DisplayRow>,
+        window: &Window,
+        cx: &mut Context<Self>,
+    ) -> FxHashSet<DisplayRow> {
+        let snapshot = self.snapshot(window, cx);
+
+        let offset_range_start = snapshot.display_point_to_point(DisplayPoint::new(range.start, 0), Bias::Left);
+
+        let offset_range_end = snapshot.display_point_to_point(DisplayPoint::new(range.end, 0), Bias::Right);
+
+        self.runnables
+            .all_runnables()
+            .filter_map(|tasks| {
+                let multibuffer_point = tasks.offset.to_point(snapshot.buffer_snapshot());
+                if multibuffer_point < offset_range_start || multibuffer_point > offset_range_end {
+                    return None;
+                }
+                let multibuffer_row = MultiBufferRow(multibuffer_point.row);
+                let buffer_folded = snapshot
+                    .buffer_snapshot()
+                    .buffer_line_for_row(multibuffer_row)
+                    .map(|(buffer_snapshot, _)| buffer_snapshot.buffer_id())
+                    .map(|buffer_id| self.is_buffer_folded(buffer_id, cx))
+                    .unwrap_or(false);
+                if buffer_folded {
+                    return None;
+                }
+
+                if snapshot.is_line_folded(multibuffer_row) {
+                    // Skip folded indicators, unless it's the starting line of a fold.
+                    if multibuffer_row
+                        .0
+                        .checked_sub(1)
+                        .is_some_and(|previous_row| snapshot.is_line_folded(MultiBufferRow(previous_row)))
+                    {
+                        return None;
+                    }
+                }
+
+                let display_row = multibuffer_point.to_display_point(&snapshot).row();
+                Some(display_row)
+            })
+            .collect()
+    }
+
+    pub(super) fn build_tasks_context(
+        project: &Entity<Project>,
+        buffer: &Entity<Buffer>,
+        buffer_row: u32,
+        tasks: &Arc<RunnableTasks>,
+        cx: &mut Context<Self>,
+    ) -> Task<Result<Option<task::TaskContext>>> {
+        let position = Point::new(buffer_row, tasks.column);
+        let range_start = buffer.read(cx).anchor_at(position, Bias::Right);
+        let location = Location { buffer: buffer.clone(), range: range_start..range_start };
+        // Fill in the environmental variables from the tree-sitter captures
+        let mut captured_task_variables = TaskVariables::default();
+        for (capture_name, value) in tasks.extra_variables.clone() {
+            captured_task_variables.insert(task::VariableName::Custom(capture_name.into()), value);
+        }
+        project.update(cx, |project, cx| {
+            project.task_store().update(cx, |task_store, cx| {
+                task_store.task_context_for_location(captured_task_variables, location, cx)
+            })
+        })
     }
 }

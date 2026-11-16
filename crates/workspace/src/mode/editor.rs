@@ -29,13 +29,13 @@ use ui::prelude::v_flex;
 use ui::utils;
 
 use crate::CARD_GAP;
-use crate::DraggedDock;
 use crate::Pane;
 use crate::PaneRenderContext;
 use crate::Workspace;
 use crate::WorkspaceMode;
 use crate::dock::Dock;
 use crate::dock::DockPosition;
+use crate::docks::DraggedDock;
 
 impl Workspace {
     pub(super) fn render_editor_mode(&self, window: &mut Window, cx: &mut Context<Self>) -> Div {
