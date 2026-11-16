@@ -2,7 +2,6 @@ use core::cmp;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
-use anyhow::Context as _;
 use editor::Editor;
 use fuzzy::StringMatchCandidate;
 use git::repository::Branch;
@@ -29,7 +28,6 @@ use gpui::SharedString;
 use gpui::Styled;
 use gpui::Subscription;
 use gpui::Task;
-use gpui::TaskExt;
 use gpui::WeakEntity;
 use gpui::Window;
 use gpui::actions;
@@ -213,6 +211,7 @@ pub struct BranchList {
     pub picker: Entity<Picker<BranchListDelegate>>,
     picker_focus_handle: FocusHandle,
     _subscriptions: Vec<Subscription>,
+    _load_default_branch: Option<Task<()>>,
     embedded: bool,
 }
 
@@ -343,22 +342,27 @@ impl BranchList {
             }));
         }
 
-        // Fetch default branch asynchronously since it requires a git operation
-        cx.spawn_in(window, async move |this, cx| {
-            let default_branch =
-                default_branch_request.context("No active repository")?.await.map(Result::ok).ok().flatten().flatten();
+        // Owned by the list, so closing it early cancels the load instead of logging
+        // "entity released" when it finishes.
+        let load_default_branch = default_branch_request.map(|default_branch_request| {
+            cx.spawn(async move |this, cx| {
+                let default_branch = default_branch_request.await.ok().and_then(Result::ok).flatten();
+                this.update(cx, |this, cx| {
+                    this.picker.update(cx, |picker, _| {
+                        picker.delegate.default_branch = default_branch;
+                    });
+                })
+                .log_err();
+            })
+        });
 
-            let _ = this.update_in(cx, |this, _window, cx| {
-                this.picker.update(cx, |picker, _cx| {
-                    picker.delegate.default_branch = default_branch;
-                });
-            });
-
-            anyhow::Ok(())
-        })
-        .detach_and_log_err(cx);
-
-        Self { picker, picker_focus_handle, _subscriptions: subscriptions, embedded }
+        Self {
+            picker,
+            picker_focus_handle,
+            _subscriptions: subscriptions,
+            _load_default_branch: load_default_branch,
+            embedded,
+        }
     }
 
     fn new_embedded(
