@@ -1309,7 +1309,8 @@ impl CompletionsMenu {
 
         let query_start_lower = query.as_ref().and_then(|q| q.chars().next()).and_then(|c| c.to_lowercase().next());
 
-        matches.sort_unstable_by_key(|string_match| {
+        // The key allocates, so build it once per match.
+        matches.sort_by_cached_key(|string_match| {
             let completion = &completions[string_match.candidate_id];
 
             let sort_text = match &completion.source {
@@ -1796,5 +1797,62 @@ impl CodeActionsMenu {
                 )
                 .into_any_element(),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use fuzzy::StringMatch;
+    use language::CodeLabel;
+    use project::Completion;
+    use project::CompletionSource;
+    use text::Anchor;
+    use text::BufferId;
+
+    use super::CompletionsMenu;
+
+    fn completion(label: &str) -> Completion {
+        Completion {
+            replace_range: Anchor::min_min_range_for_buffer(BufferId::new(1).unwrap()),
+            new_text: label.to_string(),
+            label: CodeLabel::plain(label.to_string(), None),
+            documentation: None,
+            source: CompletionSource::Custom,
+            icon_path: None,
+            icon_color: None,
+            match_start: None,
+            snippet_deduplication_key: None,
+            insert_text_mode: None,
+            confirm: None,
+            group: None,
+        }
+    }
+
+    #[test]
+    fn sort_keeps_order_of_equal_keys() {
+        // Overloads share their label, so their sort keys are equal. An unstable sort only
+        // reorders equal elements in longer slices, hence the number of overloads.
+        let functions = ["eprint", "println", "print"];
+        let completions = (0..16).flat_map(|_| functions.map(completion)).collect::<Vec<_>>();
+        let matches = completions
+            .iter()
+            .enumerate()
+            .map(|(candidate_id, completion)| StringMatch {
+                candidate_id,
+                score: 1.,
+                positions: Vec::new(),
+                string: completion.label.text.clone().into(),
+            })
+            .collect::<Vec<_>>();
+
+        let sorted = CompletionsMenu::sort_string_matches(matches, Some("print"), &completions);
+
+        // The exact match goes first and the match that doesn't start a word goes last;
+        // equal labels keep their input order.
+        let mut expected = Vec::new();
+        for function in ["print", "println", "eprint"] {
+            expected.extend((0..completions.len()).filter(|&ix| completions[ix].label.text == function));
+        }
+        assert_eq!(sorted.iter().map(|m| m.candidate_id).collect::<Vec<_>>(), expected);
     }
 }
