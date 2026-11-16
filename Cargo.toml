@@ -96,7 +96,7 @@ any_vec = "0.14"
 anyhow = "1"
 async-channel = { version = "2.5", default-features = false }
 async-lock = { version = "3.4", default-features = false }
-async-task = "4.7"
+async-task = { git = "https://github.com/smol-rs/async-task.git", rev = "41fd3359c75e221bd8b187a8ee361aa309c1714c" }
 async-trait = "0.1"
 base64 = "0.22"
 bitflags = "2.6.0"
@@ -260,6 +260,5 @@ panic = "abort"  # The panic hook logs and exits anyway, so unwinding buys nothi
 codegen-units = 1
 
 [patch.crates-io]
-async-task = { git = "https://github.com/smol-rs/async-task.git", rev = "41fd3359c75e221bd8b187a8ee361aa309c1714c" }
 notify = { git = "https://github.com/zed-industries/notify", rev = "d842f16b2716bd60f09caf3ae3a894237ab38f54" }
 notify-types = { git = "https://github.com/zed-industries/notify", rev = "d842f16b2716bd60f09caf3ae3a894237ab38f54" }
