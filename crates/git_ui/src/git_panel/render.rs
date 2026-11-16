@@ -1685,7 +1685,8 @@ impl GitPanel {
             .bg(base_bg)
             .hover(|s| s.bg(hover_bg))
             .active(|s| s.bg(active_bg))
-            .child(name_row)
+            // Shrinks the name instead of letting it push the stats and checkbox out.
+            .child(h_flex().min_w_0().flex_1().overflow_hidden().child(name_row))
             .when_some(entry.diff_stat, move |this, stat| {
                 let id = format!("diff-stat-{}", id_for_diff_stat);
                 this.child(ui::DiffStat::new(id, stat.added as usize, stat.deleted as usize))
