@@ -624,6 +624,10 @@ where
 /// 4. For non-numeric characters, using case-insensitive comparison
 /// 5. If everything is equal case-insensitively, using case-sensitive comparison as final tie-breaker
 pub fn natural_sort(a: &str, b: &str) -> Ordering {
+    if a == b {
+        return Ordering::Equal;
+    }
+
     let mut a_iter = a.chars().peekable();
     let mut b_iter = b.chars().peekable();
 
@@ -884,7 +888,17 @@ pub fn compare_paths((path_a, a_is_file): (&Path, bool), (path_b, b_is_file): (&
 #[cfg(test)]
 mod tests {
 
+    use std::cmp::Ordering;
+
     use super::PathWithPosition;
+    use super::natural_sort;
+
+    #[test]
+    fn natural_sort_orders_numbers_and_case() {
+        assert_eq!(natural_sort("file10", "file10"), Ordering::Equal);
+        assert_eq!(natural_sort("file2", "file10"), Ordering::Less);
+        assert_ne!(natural_sort("File", "file"), Ordering::Equal);
+    }
 
     #[test]
     fn path_with_position_parse_str() {
