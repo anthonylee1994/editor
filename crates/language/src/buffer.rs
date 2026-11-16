@@ -4189,6 +4189,7 @@ impl<'a> BufferChunks<'a> {
             self.error_depth = 0;
             self.warning_depth = 0;
             self.information_depth = 0;
+            self.unnecessary_depth = 0;
         }
     }
 
