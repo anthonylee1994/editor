@@ -1114,15 +1114,15 @@ fn snippet_completions(
                             buffer_window.chars().next().into_iter().flat_map(|c| c.to_lowercase()),
                         )
                     })
-                    .map(|(ix, prefix)| StringMatchCandidate::new(ix, prefix))
+                    .map(|(ix, prefix)| StringMatchCandidate::new(ix, prefix.as_str()))
                     .collect::<Vec<StringMatchCandidate>>();
 
                 matches.extend(
-                    fuzzy::match_strings(
+                    fuzzy::match_strings_async(
                         &candidates,
                         buffer_window,
-                        buffer_window.chars().any(|c| c.is_uppercase()),
-                        true,
+                        fuzzy::Case::smart_if_uppercase_in(buffer_window),
+                        fuzzy::LengthPenalty::On,
                         MAX_RESULTS - matches.len(), // always prioritize longer snippets
                         &AtomicBool::default(),
                         executor.clone(),

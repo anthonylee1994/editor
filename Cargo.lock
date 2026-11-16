@@ -482,7 +482,7 @@ version = "0.1.0"
 dependencies = [
  "async-channel",
  "ed_actions",
- "fuzzy_nucleo",
+ "fuzzy",
  "gpui",
  "menu",
  "picker",
@@ -1023,7 +1023,7 @@ dependencies = [
  "editor",
  "file_icons",
  "futures",
- "fuzzy_nucleo",
+ "fuzzy",
  "gpui",
  "language",
  "menu",
@@ -1279,18 +1279,6 @@ name = "fuzzy"
 version = "0.1.0"
 dependencies = [
  "gpui",
- "gpui_util",
- "log",
- "path",
-]
-
-[[package]]
-name = "fuzzy_nucleo"
-version = "0.1.0"
-dependencies = [
- "fuzzy",
- "gpui",
- "gpui_util",
  "nucleo-matcher",
  "path",
 ]
@@ -1367,7 +1355,6 @@ dependencies = [
  "file_icons",
  "futures",
  "fuzzy",
- "fuzzy_nucleo",
  "git",
  "git_ui_core",
  "gpui",
@@ -2024,7 +2011,7 @@ dependencies = [
  "file_content",
  "fs",
  "futures",
- "fuzzy_nucleo",
+ "fuzzy",
  "globset",
  "gpui",
  "imara-diff",
@@ -3116,7 +3103,6 @@ dependencies = [
  "fs",
  "futures",
  "fuzzy",
- "fuzzy_nucleo",
  "git",
  "globset",
  "gpui",
@@ -3299,7 +3285,7 @@ version = "0.1.0"
 dependencies = [
  "ed_actions",
  "fs",
- "fuzzy_nucleo",
+ "fuzzy",
  "gpui",
  "menu",
  "picker",
@@ -3971,7 +3957,7 @@ name = "tab_switcher"
 version = "0.1.0"
 dependencies = [
  "editor",
- "fuzzy_nucleo",
+ "fuzzy",
  "gpui",
  "menu",
  "picker",

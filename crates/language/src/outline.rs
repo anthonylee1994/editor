@@ -2,10 +2,10 @@ use std::ops::Range;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
-use fuzzy_nucleo::Case;
-use fuzzy_nucleo::LengthPenalty;
-use fuzzy_nucleo::StringMatch;
-use fuzzy_nucleo::StringMatchCandidate;
+use fuzzy::Case;
+use fuzzy::LengthPenalty;
+use fuzzy::StringMatch;
+use fuzzy::StringMatchCandidate;
 use gpui::BackgroundExecutor;
 use gpui::HighlightStyle;
 use gpui::SharedString;
@@ -169,7 +169,7 @@ impl<T> Outline<T> {
         if query.is_empty() {
             return Vec::new();
         }
-        let mut matches = fuzzy_nucleo::match_strings_async(
+        let mut matches = fuzzy::match_strings_async(
             &self.candidates,
             query,
             Case::Smart,

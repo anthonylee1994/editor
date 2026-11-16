@@ -1,38 +1,40 @@
 use std::borrow::Borrow;
 use std::cmp::Ordering;
-use std::cmp::{self};
 use std::iter;
 use std::ops::Range;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::{self};
 
 use gpui::BackgroundExecutor;
+use gpui::SharedString;
+use nucleo::Utf32Str;
 
+use crate::Cancelled;
+use crate::Case;
 use crate::CharBag;
-use crate::char_bag::simple_lowercase;
-use crate::matcher::MatchCandidate;
-use crate::matcher::Matcher;
+use crate::LengthPenalty;
+use crate::Query;
+use crate::case_penalty;
+use crate::count_case_mismatches;
+use crate::matcher::LENGTH_PENALTY;
+use crate::matcher::{self};
+use crate::positions_from_sorted;
 
 #[derive(Clone, Debug)]
 pub struct StringMatchCandidate {
     pub id: usize,
-    pub string: String,
-    pub char_bag: CharBag,
+    pub string: SharedString,
+    char_bag: CharBag,
 }
 
 impl StringMatchCandidate {
-    pub fn new(id: usize, string: &str) -> Self {
-        Self { id, string: string.into(), char_bag: string.into() }
-    }
-}
-
-impl MatchCandidate for &StringMatchCandidate {
-    fn has_chars(&self, bag: CharBag) -> bool {
-        self.char_bag.is_superset(bag)
+    pub fn new(id: usize, string: impl Into<SharedString>) -> Self {
+        Self::from_shared(id, string.into())
     }
 
-    fn candidate_chars(&self) -> impl Iterator<Item = char> {
-        self.string.chars()
+    pub fn from_shared(id: usize, string: SharedString) -> Self {
+        let char_bag = CharBag::from(string.as_ref());
+        Self { id, string, char_bag }
     }
 }
 
@@ -41,48 +43,33 @@ pub struct StringMatch {
     pub candidate_id: usize,
     pub score: f64,
     pub positions: Vec<usize>,
-    pub string: String,
+    pub string: SharedString,
 }
 
 impl StringMatch {
     pub fn ranges(&self) -> impl '_ + Iterator<Item = Range<usize>> {
         let mut positions = self.positions.iter().peekable();
         iter::from_fn(move || {
-            if let Some(start) = positions.next().copied() {
-                let Some(char_len) = self.char_len_at_index(start) else {
-                    log::error!(
-                        "Invariant violation: Index {start} out of range or not on a utf-8 boundary in string {:?}",
-                        self.string
-                    );
-                    return None;
-                };
-                let mut end = start + char_len;
-                while let Some(next_start) = positions.peek() {
-                    if end == **next_start {
-                        let Some(char_len) = self.char_len_at_index(end) else {
-                            log::error!(
-                                "Invariant violation: Index {end} out of range or not on a utf-8 boundary in string {:?}",
-                                self.string
-                            );
-                            return None;
-                        };
-                        end += char_len;
-                        positions.next();
-                    } else {
+            let start = *positions.next()?;
+            let char_len = self.char_len_at_index(start)?;
+            let mut end = start + char_len;
+            while let Some(next_start) = positions.peek() {
+                if end == **next_start {
+                    let Some(char_len) = self.char_len_at_index(end) else {
                         break;
-                    }
+                    };
+                    end += char_len;
+                    positions.next();
+                } else {
+                    break;
                 }
-
-                return Some(start..end);
             }
-            None
+            Some(start..end)
         })
     }
 
-    /// Gets the byte length of the utf-8 character at a byte offset. If the index is out of range
-    /// or not on a utf-8 boundary then None is returned.
     fn char_len_at_index(&self, ix: usize) -> Option<usize> {
-        self.string.get(ix..).and_then(|slice| slice.chars().next().map(|char| char.len_utf8()))
+        self.string.get(ix..).and_then(|slice| slice.chars().next().map(|c| c.len_utf8()))
     }
 }
 
@@ -102,18 +89,15 @@ impl PartialOrd for StringMatch {
 
 impl Ord for StringMatch {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.score
-            .partial_cmp(&other.score)
-            .unwrap_or(Ordering::Equal)
-            .then_with(|| self.candidate_id.cmp(&other.candidate_id))
+        self.score.total_cmp(&other.score).then_with(|| self.candidate_id.cmp(&other.candidate_id))
     }
 }
 
-pub async fn match_strings<T>(
+pub async fn match_strings_async<T>(
     candidates: &[T],
     query: &str,
-    smart_case: bool,
-    penalize_length: bool,
+    case: Case,
+    length_penalty: LengthPenalty,
     max_results: usize,
     cancel_flag: &AtomicBool,
     executor: BackgroundExecutor,
@@ -122,70 +106,185 @@ where
     T: Borrow<StringMatchCandidate> + Sync,
 {
     if candidates.is_empty() || max_results == 0 {
-        return Vec::default();
+        return Vec::new();
     }
 
-    if query.is_empty() {
-        return candidates
-            .iter()
-            .map(|candidate| StringMatch {
-                candidate_id: candidate.borrow().id,
-                score: 0.,
-                positions: Vec::default(),
-                string: candidate.borrow().string.clone(),
-            })
-            .collect();
-    }
-
-    let lowercase_query = query.chars().map(simple_lowercase).collect::<Vec<_>>();
-    let query = query.chars().collect::<Vec<_>>();
-
-    let lowercase_query = &lowercase_query;
-    let query = &query;
-    let query_char_bag = CharBag::from(&lowercase_query[..]);
+    let Some(query) = Query::build(query, case) else {
+        return empty_query_results(candidates, max_results);
+    };
 
     let num_cpus = executor.num_cpus().min(candidates.len());
-    let segment_size = candidates.len().div_ceil(num_cpus);
+    let base_size = candidates.len() / num_cpus;
+    let remainder = candidates.len() % num_cpus;
     let mut segment_results =
         (0..num_cpus).map(|_| Vec::with_capacity(max_results.min(candidates.len()))).collect::<Vec<_>>();
 
+    let config = nucleo::Config::DEFAULT;
+    let mut matchers = matcher::get_matchers(num_cpus, config);
+
     executor
         .scoped(|scope| {
-            for (segment_idx, results) in segment_results.iter_mut().enumerate() {
-                let cancel_flag = &cancel_flag;
+            for (segment_idx, (results, matcher)) in segment_results.iter_mut().zip(matchers.iter_mut()).enumerate() {
+                let query = &query;
                 scope.spawn(async move {
-                    let segment_start = cmp::min(segment_idx * segment_size, candidates.len());
-                    let segment_end = cmp::min(segment_start + segment_size, candidates.len());
-                    let mut matcher = Matcher::new(query, lowercase_query, query_char_bag, smart_case, penalize_length);
+                    let segment_start = segment_idx * base_size + segment_idx.min(remainder);
+                    let segment_end = (segment_idx + 1) * base_size + (segment_idx + 1).min(remainder);
 
-                    matcher.match_candidates(
-                        &[],
-                        &[],
-                        candidates[segment_start..segment_end].iter().map(|c| c.borrow()),
+                    match_string_helper(
+                        &candidates[segment_start..segment_end],
+                        query,
+                        matcher,
+                        length_penalty,
                         results,
                         cancel_flag,
-                        |candidate: &&StringMatchCandidate, score, positions| StringMatch {
-                            candidate_id: candidate.id,
-                            score,
-                            positions: positions.clone(),
-                            string: candidate.string.to_string(),
-                        },
-                    );
+                    )
+                    .ok();
                 });
             }
         })
         .await;
+
+    matcher::return_matchers(matchers);
 
     if cancel_flag.load(atomic::Ordering::Acquire) {
         return Vec::new();
     }
 
     let mut results = segment_results.concat();
-    rank_matches(&mut results, max_results);
+    crate::truncate_to_bottom_n_sorted_by(&mut results, max_results, &|a, b| b.cmp(a));
     results
 }
 
-#[inline(never)]
-fn rank_matches(results: &mut Vec<StringMatch>, max_results: usize) {
-    gpui_util::truncate_to_bottom_n_sorted_by(results, max_results, &|a, b| b.cmp(a));
+pub fn match_strings<T>(
+    candidates: &[T],
+    query: &str,
+    case: Case,
+    length_penalty: LengthPenalty,
+    max_results: usize,
+) -> Vec<StringMatch>
+where
+    T: Borrow<StringMatchCandidate>,
+{
+    if candidates.is_empty() || max_results == 0 {
+        return Vec::new();
+    }
+
+    let Some(query) = Query::build(query, case) else {
+        return empty_query_results(candidates, max_results);
+    };
+
+    let config = nucleo::Config::DEFAULT;
+    let mut matcher = matcher::get_matcher(config);
+    let mut results = Vec::with_capacity(max_results.min(candidates.len()));
+
+    match_string_helper(candidates, &query, &mut matcher, length_penalty, &mut results, &AtomicBool::new(false)).ok();
+
+    matcher::return_matcher(matcher);
+    crate::truncate_to_bottom_n_sorted_by(&mut results, max_results, &|a, b| b.cmp(a));
+    results
+}
+
+fn empty_query_results<T: Borrow<StringMatchCandidate>>(candidates: &[T], max_results: usize) -> Vec<StringMatch> {
+    candidates
+        .iter()
+        .take(max_results)
+        .map(|candidate| {
+            let borrowed = candidate.borrow();
+            StringMatch { candidate_id: borrowed.id, score: 0., positions: Vec::new(), string: borrowed.string.clone() }
+        })
+        .collect()
+}
+
+fn match_string_helper<T>(
+    candidates: &[T],
+    query: &Query,
+    matcher: &mut nucleo::Matcher,
+    length_penalty: LengthPenalty,
+    results: &mut Vec<StringMatch>,
+    cancel_flag: &AtomicBool,
+) -> Result<(), Cancelled>
+where
+    T: Borrow<StringMatchCandidate>,
+{
+    let mut buf = Vec::new();
+    let mut matched_chars: Vec<u32> = Vec::new();
+    let mut candidate_chars: Vec<char> = Vec::new();
+
+    for candidate in candidates {
+        buf.clear();
+        matched_chars.clear();
+        if cancel_flag.load(atomic::Ordering::Relaxed) {
+            return Err(Cancelled);
+        }
+
+        let borrowed = candidate.borrow();
+
+        if !borrowed.char_bag.is_superset(query.char_bag) {
+            continue;
+        }
+
+        let haystack: Utf32Str = Utf32Str::new(borrowed.string.as_ref(), &mut buf);
+
+        let Some(score) = query.pattern.indices(haystack, matcher, &mut matched_chars) else {
+            continue;
+        };
+
+        let case_mismatches = count_case_mismatches(
+            query.query_chars.as_deref(),
+            &matched_chars,
+            borrowed.string.as_ref(),
+            &mut candidate_chars,
+        );
+
+        matched_chars.sort_unstable();
+        matched_chars.dedup();
+
+        let positive = score as f64 * case_penalty(case_mismatches);
+        let adjusted_score = positive - length_penalty_for(borrowed.string.as_ref(), length_penalty);
+        let positions = positions_from_sorted(borrowed.string.as_ref(), &matched_chars);
+
+        results.push(StringMatch {
+            candidate_id: borrowed.id,
+            score: adjusted_score,
+            positions,
+            string: borrowed.string.clone(),
+        });
+    }
+    Ok(())
+}
+
+#[inline]
+fn length_penalty_for(s: &str, length_penalty: LengthPenalty) -> f64 {
+    if length_penalty.is_on() { s.len() as f64 * LENGTH_PENALTY } else { 0.0 }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn matched(candidates: &[&str], query: &str, case: Case) -> Vec<String> {
+        let candidates =
+            candidates.iter().enumerate().map(|(id, s)| StringMatchCandidate::new(id, *s)).collect::<Vec<_>>();
+        match_strings(&candidates, query, case, LengthPenalty::On, 100)
+            .into_iter()
+            .map(|m| m.string.to_string())
+            .collect()
+    }
+
+    #[test]
+    fn match_strings_filters_and_ranks() {
+        assert_eq!(matched(&["foo_bar", "barn", "fob"], "fb", Case::Ignore), ["foo_bar", "fob"]);
+        assert_eq!(matched(&["zzz", "abc"], "", Case::Ignore), ["zzz", "abc"]);
+    }
+
+    #[test]
+    fn match_strings_words_match_in_any_order() {
+        assert_eq!(matched(&["foo bar", "foo"], "bar foo", Case::Ignore), ["foo bar"]);
+    }
+
+    #[test]
+    fn match_strings_smart_case_downranks_mismatch() {
+        assert_eq!(matched(&["foo", "Foo"], "Fo", Case::Smart), ["Foo", "foo"]);
+        assert_eq!(matched(&["foo", "Foo"], "fo", Case::Ignore), ["Foo", "foo"]);
+    }
 }

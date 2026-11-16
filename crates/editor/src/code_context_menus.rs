@@ -9,6 +9,8 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 
+use fuzzy::Case;
+use fuzzy::LengthPenalty;
 use fuzzy::StringMatch;
 use fuzzy::StringMatchCandidate;
 use gpui::AnyElement;
@@ -437,7 +439,7 @@ impl CompletionsMenu {
                     candidate_id: id,
                     score: 1.,
                     positions: vec![],
-                    string: completion.clone(),
+                    string: completion.into(),
                 })
             })
             .collect();
@@ -1170,12 +1172,12 @@ impl CompletionsMenu {
             let mut filter_match_results = vec![];
             let mut label_match_results = iter::repeat_n(None, label_match_candidates.len()).collect::<Box<[_]>>();
             for (query, match_candidates) in queries_and_candidates {
-                let smart_case = query.chars().any(|character| character.is_uppercase());
-                let filter_matches = fuzzy::match_strings(
+                let case = Case::smart_if_uppercase_in(&query);
+                let filter_matches = fuzzy::match_strings_async(
                     match_candidates,
                     &query,
-                    smart_case,
-                    false,
+                    case,
+                    LengthPenalty::Off,
                     1000,
                     &cancel_filter,
                     background_executor.clone(),
@@ -1202,11 +1204,11 @@ impl CompletionsMenu {
                     filter_match_results.extend(filter_matches);
                     continue;
                 }
-                let label_matches = fuzzy::match_strings(
+                let label_matches = fuzzy::match_strings_async(
                     &matching_label_candidates,
                     &query,
-                    smart_case,
-                    false,
+                    case,
+                    LengthPenalty::Off,
                     matching_label_candidates.len(),
                     &cancel_filter,
                     background_executor.clone(),

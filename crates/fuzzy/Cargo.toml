@@ -8,8 +8,7 @@ path = "src/fuzzy.rs"
 
 [dependencies]
 gpui.workspace = true
-gpui_util.workspace = true
-log.workspace = true
+nucleo = { package = "nucleo-matcher", version = "0.3" }
 path.workspace = true
 
 [lints]

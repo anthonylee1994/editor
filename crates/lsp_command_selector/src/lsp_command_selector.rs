@@ -5,7 +5,6 @@ use std::sync::atomic::AtomicBool;
 use editor::Editor;
 use fuzzy::StringMatch;
 use fuzzy::StringMatchCandidate;
-use fuzzy::match_strings;
 use gpui::AnyElement;
 use gpui::App;
 use gpui::AppContext as _;
@@ -290,7 +289,16 @@ impl PickerDelegate for LspCommandSelectorDelegate {
                     })
                     .collect()
             } else {
-                match_strings(&candidates, &query, false, true, 100, &AtomicBool::new(false), background).await
+                fuzzy::match_strings_async(
+                    &candidates,
+                    &query,
+                    fuzzy::Case::Ignore,
+                    fuzzy::LengthPenalty::On,
+                    100,
+                    &AtomicBool::new(false),
+                    background,
+                )
+                .await
             };
 
             picker

@@ -9,7 +9,7 @@ path = "src/command_palette.rs"
 [dependencies]
 async-channel.workspace = true
 ed_actions.workspace = true
-fuzzy_nucleo.workspace = true
+fuzzy.workspace = true
 gpui.workspace = true
 menu.workspace = true
 picker.workspace = true

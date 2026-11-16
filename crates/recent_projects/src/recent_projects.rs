@@ -7,9 +7,9 @@ use std::sync::Arc;
 use ed_actions::OpenRecent;
 use ed_actions::git_graph::Open;
 use fs::Fs;
-use fuzzy_nucleo::StringMatch;
-use fuzzy_nucleo::StringMatchCandidate;
-use fuzzy_nucleo::match_strings;
+use fuzzy::StringMatch;
+use fuzzy::StringMatchCandidate;
+use fuzzy::match_strings;
 use gpui::Action;
 use gpui::AnyElement;
 use gpui::App;
@@ -502,7 +502,7 @@ impl PickerDelegate for RecentProjectsDelegate {
 
     fn update_matches(&mut self, query: String, _: &mut Window, cx: &mut Context<Picker<Self>>) -> gpui::Task<()> {
         let query = query.trim_start();
-        let case = fuzzy_nucleo::Case::smart_if_uppercase_in(query);
+        let case = fuzzy::Case::smart_if_uppercase_in(query);
         let is_empty_query = query.is_empty();
 
         let folder_matches = if self.open_folders.is_empty() {
@@ -515,7 +515,7 @@ impl PickerDelegate for RecentProjectsDelegate {
                 .map(|(id, folder)| StringMatchCandidate::new(id, folder.name.as_ref()))
                 .collect();
 
-            match_strings(&candidates, query, case, fuzzy_nucleo::LengthPenalty::On, 100)
+            match_strings(&candidates, query, case, fuzzy::LengthPenalty::On, 100)
         };
 
         // Build candidates for recent projects (not current, not sibling, not open folder)
@@ -535,7 +535,7 @@ impl PickerDelegate for RecentProjectsDelegate {
             })
             .collect();
 
-        let recent_matches = match_strings(&recent_candidates, query, case, fuzzy_nucleo::LengthPenalty::On, 100);
+        let recent_matches = match_strings(&recent_candidates, query, case, fuzzy::LengthPenalty::On, 100);
 
         let mut entries = Vec::new();
 

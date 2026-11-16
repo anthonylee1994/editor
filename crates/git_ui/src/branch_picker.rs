@@ -4,7 +4,7 @@ use std::sync::atomic::AtomicBool;
 
 use anyhow::Context as _;
 use editor::Editor;
-use fuzzy_nucleo::StringMatchCandidate;
+use fuzzy::StringMatchCandidate;
 use git::repository::Branch;
 use git::repository::delete_branch_flag;
 use git_ui_core::notifications::show_error_toast;
@@ -1190,11 +1190,11 @@ impl PickerDelegate for BranchListDelegate {
                     .enumerate()
                     .map(|(ix, branch)| StringMatchCandidate::new(ix, branch.name()))
                     .collect::<Vec<StringMatchCandidate>>();
-                let mut matches: Vec<Entry> = fuzzy_nucleo::match_strings_async(
+                let mut matches: Vec<Entry> = fuzzy::match_strings_async(
                     &candidates,
                     &query,
-                    fuzzy_nucleo::Case::Smart,
-                    fuzzy_nucleo::LengthPenalty::On,
+                    fuzzy::Case::Smart,
+                    fuzzy::LengthPenalty::On,
                     10000,
                     &AtomicBool::default(),
                     cx.background_executor().clone(),

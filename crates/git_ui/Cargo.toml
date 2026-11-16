@@ -17,7 +17,6 @@ editor.workspace = true
 file_icons.workspace = true
 futures.workspace = true
 fuzzy.workspace = true
-fuzzy_nucleo.workspace = true
 git.workspace = true
 git_ui_core.workspace = true
 gpui.workspace = true

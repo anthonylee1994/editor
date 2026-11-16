@@ -10,7 +10,6 @@ use anyhow::Context as _;
 use editor::Editor;
 use fuzzy::StringMatch;
 use fuzzy::StringMatchCandidate;
-use fuzzy::match_strings;
 use gpui::App;
 use gpui::AppContext as _;
 use gpui::Context;
@@ -160,7 +159,7 @@ impl LanguageSelectorDelegate {
     }
 
     fn language_data_for_match(&self, mat: &StringMatch, cx: &App) -> (String, Option<Icon>) {
-        let mut label = mat.string.clone();
+        let mut label = mat.string.to_string();
         let buffer_language = self.buffer.read(cx).language();
 
         if let Some(buffer_language) =
@@ -249,7 +248,16 @@ impl PickerDelegate for LanguageSelectorDelegate {
                     })
                     .collect()
             } else {
-                match_strings(&candidates, &query, false, true, 100, &AtomicBool::default(), background).await
+                fuzzy::match_strings_async(
+                    &candidates,
+                    &query,
+                    fuzzy::Case::Ignore,
+                    fuzzy::LengthPenalty::On,
+                    100,
+                    &AtomicBool::default(),
+                    background,
+                )
+                .await
             };
 
             this.update_in(cx, |this, window, cx| {

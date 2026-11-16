@@ -6,7 +6,8 @@ use std::sync::atomic::{self};
 
 use file_icons::FileIcons;
 use futures::channel::oneshot;
-use fuzzy::CharBag;
+use fuzzy::Case;
+use fuzzy::LengthPenalty;
 use fuzzy::StringMatch;
 use fuzzy::StringMatchCandidate;
 use gpui::HighlightStyle;
@@ -207,7 +208,9 @@ impl PickerDelegate for OpenPathDelegate {
                 }
             }
             DirectoryState::Create { parent_path, user_input, .. } => {
-                if parent_path == &dir && user_input.as_ref().map(|input| &input.file.string) == Some(&suffix) {
+                if parent_path == &dir
+                    && user_input.as_ref().map(|input| input.file.string.as_ref()) == Some(suffix.as_str())
+                {
                     None
                 } else {
                     Some(lister.list_directory(dir.clone(), cx))
@@ -322,11 +325,7 @@ impl PickerDelegate for OpenPathDelegate {
                     new_entries.insert(
                         0,
                         CandidateInfo {
-                            path: StringMatchCandidate {
-                                id: max_id + 1,
-                                string: current_dir.to_string(),
-                                char_bag: CharBag::from(current_dir),
-                            },
+                            path: StringMatchCandidate::new(max_id + 1, current_dir.to_string()),
                             is_dir: true,
                         },
                     );
@@ -368,7 +367,7 @@ impl PickerDelegate for OpenPathDelegate {
             let candidates = new_entries
                 .iter()
                 .filter_map(|entry| {
-                    if (is_create_state && !entry.is_dir && Some(&suffix) == Some(&entry.path.string))
+                    if (is_create_state && !entry.is_dir && suffix.as_str() == entry.path.string.as_ref())
                         || (!suffix.is_empty() && entry.path.string == current_dir)
                     {
                         None
@@ -378,11 +377,11 @@ impl PickerDelegate for OpenPathDelegate {
                 })
                 .collect::<Vec<_>>();
 
-            let matches = fuzzy::match_strings(
+            let matches = fuzzy::match_strings_async(
                 candidates.as_slice(),
                 &suffix,
-                false,
-                true,
+                Case::Ignore,
+                LengthPenalty::On,
                 100,
                 &cancel_flag,
                 cx.background_executor().clone(),
@@ -497,7 +496,7 @@ impl PickerDelegate for OpenPathDelegate {
                 } else {
                     let Some(confirmed_path) = path::join_path_preserving_components(
                         Path::new(self.lister.resolve_tilde(parent_path).as_ref()),
-                        &candidate.path.string,
+                        candidate.path.string.as_str(),
                     )
                     .log_err() else {
                         return;
@@ -519,7 +518,7 @@ impl PickerDelegate for OpenPathDelegate {
                     } else {
                         let Some(prompted_path) = path::join_path_preserving_components(
                             Path::new(self.lister.resolve_tilde(parent_path).as_ref()),
-                            &user_input.file.string,
+                            user_input.file.string.as_str(),
                         )
                         .log_err() else {
                             return;
@@ -611,7 +610,7 @@ impl PickerDelegate for OpenPathDelegate {
         let is_current_dir_candidate = candidate.path.string == self.current_dir();
 
         let file_icon = (|| {
-            let path = Path::new(&candidate.path.string);
+            let path = Path::new(candidate.path.string.as_str());
             let icon = if candidate.is_dir {
                 if is_current_dir_candidate {
                     return Some(Icon::new(IconName::ReplyArrowRight).color(Color::Muted));
@@ -634,7 +633,7 @@ impl PickerDelegate for OpenPathDelegate {
                     });
                     (format!("{}{}", self.prompt_root, candidate.path.string), match_positions)
                 } else {
-                    (candidate.path.string, match_positions)
+                    (candidate.path.string.to_string(), match_positions)
                 };
                 Some(
                     ListItem::new(ix)
@@ -652,7 +651,7 @@ impl PickerDelegate for OpenPathDelegate {
                     });
                     (format!("{}{}", self.prompt_root, candidate.path.string), self.prompt_root.len())
                 } else {
-                    (candidate.path.string.clone(), 0)
+                    (candidate.path.string.to_string(), 0)
                 };
 
                 let label_with_highlights = match user_input {
@@ -732,7 +731,7 @@ fn path_candidates(parent_path_is_root: bool, mut children: Vec<DirectoryItem>) 
         .iter()
         .enumerate()
         .map(|(ix, item)| CandidateInfo {
-            path: StringMatchCandidate::new(ix, &item.path.to_string_lossy()),
+            path: StringMatchCandidate::new(ix, item.path.to_string_lossy().into_owned()),
             is_dir: item.is_dir,
         })
         .collect()

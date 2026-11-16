@@ -168,11 +168,11 @@ impl PickerDelegate for PickerPromptDelegate {
                     })
                     .collect()
             } else {
-                fuzzy::match_strings(
+                fuzzy::match_strings_async(
                     &candidates,
                     &query,
-                    true,
-                    true,
+                    fuzzy::Case::Smart,
+                    fuzzy::LengthPenalty::On,
                     10000,
                     &AtomicBool::default(),
                     cx.background_executor().clone(),

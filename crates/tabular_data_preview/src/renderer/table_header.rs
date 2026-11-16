@@ -7,14 +7,12 @@ use std::sync::atomic::Ordering;
 
 use fuzzy::StringMatch;
 use fuzzy::StringMatchCandidate;
-use fuzzy::match_strings;
 use gpui::AppContext as _;
 use gpui::BackgroundExecutor;
 use gpui::DismissEvent;
 use gpui::ElementId;
 use gpui::Entity;
 use gpui::Focusable;
-use gpui::ForegroundExecutor;
 use gpui::Task;
 use picker::Picker;
 use picker::PickerDelegate;
@@ -117,7 +115,6 @@ struct ColumnFilterDelegate {
     filtered: Vec<ColumnFilterListEntry>,
     selected_index: usize,
     query: String,
-    foreground: ForegroundExecutor,
     background: BackgroundExecutor,
     cancel: Option<Arc<AtomicBool>>,
 }
@@ -171,7 +168,7 @@ impl ColumnFilterDelegate {
         let string_candidates = Arc::new(
             rows.iter()
                 .enumerate()
-                .map(|(index, row)| StringMatchCandidate::new(index, &Self::display_text(&row.entry)))
+                .map(|(index, row)| StringMatchCandidate::new(index, Self::display_text(&row.entry)))
                 .collect::<Vec<_>>(),
         );
 
@@ -187,7 +184,6 @@ impl ColumnFilterDelegate {
             filtered,
             selected_index: 0,
             query: String::new(),
-            foreground: cx.foreground_executor().clone(),
             background: cx.background_executor().clone(),
             cancel: None,
         }
@@ -232,16 +228,13 @@ impl ColumnFilterDelegate {
             return self.rows.iter().enumerate().map(|(index, _)| (index, Vec::new())).collect();
         }
 
-        let cancel_flag = AtomicBool::new(false);
-        let mut matches: Vec<StringMatch> = self.foreground.block_on(match_strings(
+        let mut matches: Vec<StringMatch> = fuzzy::match_strings(
             self.string_candidates.as_ref(),
             query,
-            false,
-            true,
+            fuzzy::Case::Ignore,
+            fuzzy::LengthPenalty::On,
             usize::MAX,
-            &cancel_flag,
-            self.background.clone(),
-        ));
+        );
         matches.sort_by_key(|m| m.candidate_id);
         matches.into_iter().map(|m| (m.candidate_id, m.positions)).collect()
     }
@@ -337,9 +330,16 @@ impl PickerDelegate for ColumnFilterDelegate {
         let background = self.background.clone();
 
         cx.spawn_in(window, async move |this, cx| {
-            let mut matches =
-                match_strings(string_candidates.as_ref(), &query, false, true, usize::MAX, cancel.as_ref(), background)
-                    .await;
+            let mut matches = fuzzy::match_strings_async(
+                string_candidates.as_ref(),
+                &query,
+                fuzzy::Case::Ignore,
+                fuzzy::LengthPenalty::On,
+                usize::MAX,
+                cancel.as_ref(),
+                background,
+            )
+            .await;
             matches.sort_by_key(|m| m.candidate_id);
 
             this.update_in(cx, |this, _, cx| {

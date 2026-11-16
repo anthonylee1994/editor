@@ -379,7 +379,7 @@ impl LspLocationsDelegate {
             .map(|(index, location_match)| {
                 StringMatchCandidate::new(
                     index,
-                    &format!("{} {}", location_match.display_text, location_match.path.path.as_unix_str()),
+                    format!("{} {}", location_match.display_text, location_match.path.path.as_unix_str()),
                 )
             })
             .collect();
@@ -564,11 +564,11 @@ impl PickerDelegate for LspLocationsDelegate {
             let matches = if query.is_empty() {
                 (0..candidates.len()).collect()
             } else {
-                let string_matches = fuzzy::match_strings(
+                let string_matches = fuzzy::match_strings_async(
                     &candidates,
                     &query,
-                    false,
-                    true,
+                    fuzzy::Case::Ignore,
+                    fuzzy::LengthPenalty::On,
                     candidates.len(),
                     &AtomicBool::default(),
                     cx.background_executor().clone(),

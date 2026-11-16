@@ -2,7 +2,7 @@ use std::cmp::Reverse;
 use std::sync::Arc;
 
 use editor::items::entry_git_aware_label_color;
-use fuzzy_nucleo::StringMatchCandidate;
+use fuzzy::StringMatchCandidate;
 use gpui::Action;
 use gpui::AnyElement;
 use gpui::App;
@@ -363,16 +363,10 @@ impl TabSwitcherDelegate {
                 .enumerate()
                 .map(|(ix, tab_match)| StringMatchCandidate::new(ix, tab_match.item.tab_content_text(0, cx)))
                 .collect::<Vec<_>>();
-            fuzzy_nucleo::match_strings(
-                &candidates,
-                &query,
-                fuzzy_nucleo::Case::Smart,
-                fuzzy_nucleo::LengthPenalty::On,
-                10000,
-            )
-            .into_iter()
-            .map(|m| all_items[m.candidate_id].clone())
-            .collect()
+            fuzzy::match_strings(&candidates, &query, fuzzy::Case::Smart, fuzzy::LengthPenalty::On, 10000)
+                .into_iter()
+                .map(|m| all_items[m.candidate_id].clone())
+                .collect()
         };
 
         if self.open_in_active_pane {

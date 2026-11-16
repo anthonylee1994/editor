@@ -8,7 +8,7 @@ path = "src/tab_switcher.rs"
 
 [dependencies]
 editor.workspace = true
-fuzzy_nucleo.workspace = true
+fuzzy.workspace = true
 gpui.workspace = true
 menu.workspace = true
 picker.workspace = true

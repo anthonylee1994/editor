@@ -1,6 +1,5 @@
 use std::cmp::Reverse;
 use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
 
 use editor::Bias;
 use editor::Editor;
@@ -84,24 +83,20 @@ impl ProjectSymbolsDelegate {
 
     fn filter(&mut self, query: &str, window: &mut Window, cx: &mut Context<Picker<Self>>) {
         const MAX_MATCHES: usize = 100;
-        let mut visible_matches = cx.foreground_executor().block_on(fuzzy::match_strings(
+        let mut visible_matches = fuzzy::match_strings(
             &self.visible_match_candidates,
             query,
-            false,
-            true,
+            fuzzy::Case::Ignore,
+            fuzzy::LengthPenalty::On,
             MAX_MATCHES,
-            &AtomicBool::default(),
-            cx.background_executor().clone(),
-        ));
-        let mut external_matches = cx.foreground_executor().block_on(fuzzy::match_strings(
+        );
+        let mut external_matches = fuzzy::match_strings(
             &self.external_match_candidates,
             query,
-            false,
-            true,
+            fuzzy::Case::Ignore,
+            fuzzy::LengthPenalty::On,
             MAX_MATCHES - visible_matches.len().min(MAX_MATCHES),
-            &AtomicBool::default(),
-            cx.background_executor().clone(),
-        ));
+        );
         let sort_key_for_match = |mat: &StringMatch| {
             let symbol = &self.symbols[mat.candidate_id];
             (Reverse(OrderedFloat(mat.score)), symbol.label.filter_text())

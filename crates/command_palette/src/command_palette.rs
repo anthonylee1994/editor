@@ -7,8 +7,8 @@ use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 
 use ed_actions::command_palette::Toggle;
-use fuzzy_nucleo::StringMatch;
-use fuzzy_nucleo::StringMatchCandidate;
+use fuzzy::StringMatch;
+use fuzzy::StringMatchCandidate;
 use gpui::Action;
 use gpui::App;
 use gpui::AppContext as _;
@@ -261,11 +261,11 @@ impl PickerDelegate for CommandPaletteDelegate {
                     .map(|(ix, command)| StringMatchCandidate::new(ix, &command.name))
                     .collect::<Vec<_>>();
 
-                let matches = fuzzy_nucleo::match_strings_async(
+                let matches = fuzzy::match_strings_async(
                     &candidates,
                     &query,
-                    fuzzy_nucleo::Case::Smart,
-                    fuzzy_nucleo::LengthPenalty::On,
+                    fuzzy::Case::Smart,
+                    fuzzy::LengthPenalty::On,
                     10000,
                     &AtomicBool::default(),
                     executor,

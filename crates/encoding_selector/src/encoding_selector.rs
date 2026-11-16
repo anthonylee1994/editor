@@ -7,7 +7,6 @@ use editor::Editor;
 use encoding_rs::Encoding;
 use fuzzy::StringMatch;
 use fuzzy::StringMatchCandidate;
-use fuzzy::match_strings;
 use gpui::App;
 use gpui::AppContext;
 use gpui::Context;
@@ -232,7 +231,16 @@ impl PickerDelegate for EncodingSelectorDelegate {
                     })
                     .collect()
             } else {
-                match_strings(&candidates, &query, false, true, 100, &AtomicBool::default(), background).await
+                fuzzy::match_strings_async(
+                    &candidates,
+                    &query,
+                    fuzzy::Case::Ignore,
+                    fuzzy::LengthPenalty::On,
+                    100,
+                    &AtomicBool::default(),
+                    background,
+                )
+                .await
             };
 
             this.update(cx, |this, cx| {

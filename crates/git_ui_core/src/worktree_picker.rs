@@ -691,14 +691,23 @@ impl PickerDelegate for WorktreePickerDelegate {
             .iter()
             .enumerate()
             .map(|(ix, worktree)| {
-                StringMatchCandidate::new(ix, &worktree.directory_name(worktree_name_anchor.as_deref()))
+                StringMatchCandidate::new(ix, worktree.directory_name(worktree_name_anchor.as_deref()))
             })
             .collect();
 
         let executor = cx.background_executor().clone();
 
         let task = cx.background_executor().spawn(async move {
-            fuzzy::match_strings(&candidates, &query, true, true, 10000, &AtomicBool::default(), executor).await
+            fuzzy::match_strings_async(
+                &candidates,
+                &query,
+                fuzzy::Case::Smart,
+                fuzzy::LengthPenalty::On,
+                10000,
+                &AtomicBool::default(),
+                executor,
+            )
+            .await
         });
 
         let repo_worktrees_clone = repo_worktrees;

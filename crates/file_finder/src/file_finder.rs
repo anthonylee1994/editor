@@ -15,8 +15,8 @@ use ed_actions::search::ToggleIncludeIgnored;
 use editor::Editor;
 use file_icons::FileIcons;
 use futures::future::join_all;
-use fuzzy_nucleo::PathMatch;
-use fuzzy_nucleo::PathMatchCandidate;
+use fuzzy::PathMatch;
+use fuzzy::PathMatchCandidate;
 use gpui::Action;
 use gpui::AnyElement;
 use gpui::App;
@@ -615,12 +615,12 @@ fn matching_history_items<'a>(
         let worktree_root_name = worktree_name_by_id.as_ref().and_then(|w| w.get(&worktree).cloned());
 
         matching_history_paths.extend(
-            fuzzy_nucleo::match_fixed_path_set(
+            fuzzy::match_fixed_path_set(
                 candidates,
                 worktree.to_usize(),
                 worktree_root_name,
                 query.path_query(),
-                fuzzy_nucleo::Case::Ignore,
+                fuzzy::Case::Ignore,
                 max_results,
             )
             .into_iter()
@@ -636,7 +636,7 @@ fn matching_history_items<'a>(
             .filter_map(|path_match| {
                 let worktree_id = WorktreeId::from_usize(path_match.worktree_id);
                 let project_path = ProjectPath { worktree_id, path: Arc::clone(&path_match.path) };
-                // For single-file worktrees, fuzzy_nucleo moves the worktree root name
+                // For single-file worktrees, fuzzy moves the worktree root name
                 // into path_match.path (root_is_file handling), so the stored key of ""
                 // won't match. Fall back to an empty-path lookup for those entries.
                 let (_, found_path) = candidates_paths.remove_entry(&project_path).or_else(|| {
@@ -954,11 +954,11 @@ impl FileFinderDelegate {
         self.cancel_flag = Arc::new(AtomicBool::new(false));
         let cancel_flag = self.cancel_flag.clone();
         cx.spawn_in(window, async move |picker, cx| {
-            let matches = fuzzy_nucleo::match_path_sets(
+            let matches = fuzzy::match_path_sets(
                 candidate_sets.as_slice(),
                 query.path_query(),
                 &relative_to,
-                fuzzy_nucleo::Case::Ignore,
+                fuzzy::Case::Ignore,
                 100,
                 &cancel_flag,
                 cx.background_executor().clone(),

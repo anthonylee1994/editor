@@ -32,7 +32,6 @@ use editor::scroll::ScrollAnchor;
 use file_icons::FileIcons;
 use fuzzy::StringMatch;
 use fuzzy::StringMatchCandidate;
-use fuzzy::match_strings;
 use git::status::FileStatus;
 use git::status::GitSummary;
 use gpui::Action;
@@ -3560,11 +3559,11 @@ impl OutlinePanel {
                 );
             };
 
-            let mut matched_ids = match_strings(
+            let mut matched_ids = fuzzy::match_strings_async(
                 &generation_state.match_candidates,
                 &query,
-                true,
-                true,
+                fuzzy::Case::Smart,
+                fuzzy::LengthPenalty::On,
                 usize::MAX,
                 &AtomicBool::default(),
                 cx.background_executor().clone(),

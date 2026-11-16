@@ -402,15 +402,13 @@ impl PickerDelegate for StashListDelegate {
                 let candidates = all_stash_entries
                     .iter()
                     .enumerate()
-                    .map(|(ix, entry)| {
-                        StringMatchCandidate::new(ix, &Self::format_message(entry.index, &entry.message))
-                    })
+                    .map(|(ix, entry)| StringMatchCandidate::new(ix, Self::format_message(entry.index, &entry.message)))
                     .collect::<Vec<StringMatchCandidate>>();
-                fuzzy::match_strings(
+                fuzzy::match_strings_async(
                     &candidates,
                     &query,
-                    false,
-                    true,
+                    fuzzy::Case::Ignore,
+                    fuzzy::LengthPenalty::On,
                     10000,
                     &AtomicBool::default(),
                     cx.background_executor().clone(),

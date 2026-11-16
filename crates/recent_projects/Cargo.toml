@@ -9,7 +9,7 @@ path = "src/recent_projects.rs"
 [dependencies]
 ed_actions.workspace = true
 fs.workspace = true
-fuzzy_nucleo.workspace = true
+fuzzy.workspace = true
 gpui.workspace = true
 menu.workspace = true
 picker.workspace = true
