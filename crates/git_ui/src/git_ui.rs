@@ -427,7 +427,7 @@ impl RenameBranchModal {
     }
 
     fn confirm(&mut self, _: &Confirm, window: &mut Window, cx: &mut Context<Self>) {
-        let new_name = self.editor.read(cx).text(cx);
+        let new_name = branch_picker::normalize_branch_name(&self.editor.read(cx).text(cx));
         if new_name.is_empty() || new_name == self.current_branch.as_ref() {
             cx.emit(DismissEvent);
             return;
