@@ -40,7 +40,6 @@ rope.workspace = true
 rustc-hash.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-settings.workspace = true
 smallvec.workspace = true
 snippet.workspace = true
 spell_check.workspace = true

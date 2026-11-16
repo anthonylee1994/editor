@@ -73,7 +73,7 @@ migrator, or Vim/Helix mode.
 - There is one settings layer and no merging anywhere, so settings types have
   no merge trait or derive macros (`settings_macros` is removed). Lists and maps
   are plain values; there is no `"..."` splicing or extend-only list type.
-  The `settings` crate has no store or registry: each remaining settings type
+  There is no `settings` crate, store, or registry: each remaining settings type
   (`WorktreeSettings`, `TerminalSettings`) exposes `Type::get()`, a lazily
   built `&'static` value. Settings never change at runtime, so nothing
   observes settings changes (no `SettingsStore` global, no `settings_changed`
@@ -169,15 +169,22 @@ migrator, or Vim/Helix mode.
   project-local settings layer.
   Settings lookups are global only (`Type::get()`); there is no
   per-file/worktree location argument.
+- The built-in keymap lives in `ed` (`keymap.rs`) and is written
+  directly as `KeyBinding`s, with no intermediate spec type: each group sets a
+  context, then binds keystrokes to action names (optionally with JSON input).
+  There are no override or disabled bindings: a deeper context wins, and at the
+  same depth the later binding wins, so each key is bound once per context. Invalid actions, contexts, or keystrokes
+  panic at startup and fail the keymap unit tests.
 - The built-in keymap retains contexts and binding order. Only the US/ABC QWERTY
   layout is supported: macOS has no per-layout key-equivalent remapping, so
   shortcuts always bind to the literal key. The keymap, menu bar, and dock menu
   are built once at startup.
 - Keybindings should be simple single keystrokes. There is no UI for pending
   multi-stroke input (no which-key popup or status bar indicator).
-- Personal bindings are applied last: global `cmd-[`/`cmd-]` navigate backward/
-  forward, Editor `f1` opens documentation and `cmd-shift-u` toggles case, and
-  Terminal `shift-enter` sends Escape followed by carriage return.
+- Personal bindings sit in their normal context groups: global `cmd-[`/`cmd-]`
+  navigate backward/forward (Editor `cmd-[`/`cmd-]` still outdent/indent),
+  Editor `f1` opens documentation and `cmd-shift-u` toggles case, and Terminal
+  `shift-enter` sends Escape followed by carriage return.
 - JSON schemas are not generated: nothing derives `JsonSchema` and `schemars`
   is not a dependency. Actions still derive `Deserialize`, because the built-in
   keymap builds actions from a name plus JSON input. Bindings may omit input,

@@ -24,6 +24,7 @@ mod runnable;
 mod syntax_map;
 mod task_context;
 mod text_diff;
+mod worktree_id;
 
 use std::ffi::OsStr;
 use std::fmt::Debug;
@@ -131,7 +132,6 @@ pub use runnable::RunnableResolver;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use serde_json::Value;
-use settings::WorktreeId;
 pub use syntax_map::OwnedSyntaxLayer;
 use syntax_map::QueryCursorHandle;
 pub use syntax_map::SyntaxLayer;
@@ -158,6 +158,7 @@ use tree_sitter::StreamingIterator as _;
 pub use tree_sitter::Tree;
 use tree_sitter::{self};
 use util::rel_path::RelPath;
+pub use worktree_id::WorktreeId;
 
 pub use crate::language_settings::IndentGuideSettings;
 

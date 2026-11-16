@@ -19,7 +19,6 @@ path.workspace = true
 project.workspace = true
 rustc-hash.workspace = true
 serde_json.workspace = true
-settings.workspace = true
 sysinfo.workspace = true
 theme.workspace = true
 tree-sitter.workspace = true

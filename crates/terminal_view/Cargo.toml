@@ -22,7 +22,6 @@ rustc-hash.workspace = true
 task.workspace = true
 
 serde.workspace = true
-settings.workspace = true
 shellexpand.workspace = true
 shlex.workspace = true
 terminal.workspace = true

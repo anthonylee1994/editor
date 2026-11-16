@@ -7,6 +7,7 @@ use ui::utils::TRAFFIC_LIGHT_POSITION;
 mod app_menus;
 pub(crate) mod control_server;
 pub(crate) mod cpu_usage;
+mod keymap;
 
 pub(crate) mod mac_only_instance;
 
@@ -708,7 +709,7 @@ fn init_app_appearance(cx: &App) {
 /// The keymap and menus are built-in and static: they're built once at startup, against the
 /// keyboard layout active at launch.
 pub fn initialize_keymap(cx: &mut App) {
-    let bindings = settings::built_in_key_bindings(cx);
+    let bindings = keymap::keymap(cx);
     cx.bind_keys(bindings);
     let menus = app_menus(cx);
     cx.set_menus(menus);

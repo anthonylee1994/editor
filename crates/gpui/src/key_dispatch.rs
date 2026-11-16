@@ -4,7 +4,7 @@
 //! (`.on_action(cx.listener(Editor::undo))`) on its root element. The keybindings
 //! themselves are managed independently by calling cx.bind_keys().
 //! (Though mostly when developing ed itself, you just need to add a new line to
-//!  crates/settings/src/built_in_keymap.rs).
+//!  crates/ed/src/ed/keymap.rs).
 //!
 //! With `cmd-z` bound to `Undo` in the "Editor" context, GPUI will ensure that if
 //! you have an Editor that contains the focus, hitting cmd-z will Undo.

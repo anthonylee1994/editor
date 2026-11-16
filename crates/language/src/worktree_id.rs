@@ -1,12 +1,4 @@
-use std::fmt::Display;
-mod built_in_keymap;
-mod keymap;
-
 use std::fmt;
-
-pub use built_in_keymap::keymap as built_in_keymap;
-pub use keymap::KeyBindingSpec;
-pub use keymap::built_in_key_bindings;
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Hash, PartialOrd, Ord, serde::Serialize)]
 pub struct WorktreeId(usize);
@@ -29,6 +21,19 @@ impl WorktreeId {
 
 impl fmt::Display for WorktreeId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Display::fmt(&self.0, f)
+        fmt::Display::fmt(&self.0, f)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::WorktreeId;
+
+    #[test]
+    fn test_worktree_id_round_trips_and_displays() {
+        let id = WorktreeId::from_usize(7);
+        assert_eq!(id.to_usize(), 7);
+        assert_eq!(usize::from(id), 7);
+        assert_eq!(id.to_string(), "7");
     }
 }

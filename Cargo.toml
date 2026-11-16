@@ -65,12 +65,10 @@ refineable = { path = "crates/refineable" }
 rope = { path = "crates/rope" }
 scheduler = { path = "crates/scheduler" }
 search = { path = "crates/search" }
-settings = { path = "crates/settings" }
 snippet = { path = "crates/snippet" }
 spell_check = { path = "crates/spell_check" }
 sum_tree = { path = "crates/sum_tree" }
 svg_preview = { path = "crates/svg_preview" }
-syntax_theme = { path = "crates/syntax_theme" }
 tab_switcher = { path = "crates/tab_switcher" }
 tabular_data_preview = { path = "crates/tabular_data_preview" }
 task = { path = "crates/task" }

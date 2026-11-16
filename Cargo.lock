@@ -799,7 +799,6 @@ dependencies = [
  "rustc-hash",
  "search",
  "serde_json",
- "settings",
  "svg_preview",
  "tab_switcher",
  "tabular_data_preview",
@@ -860,7 +859,6 @@ dependencies = [
  "rustc-hash",
  "serde",
  "serde_json",
- "settings",
  "smallvec",
  "snippet",
  "spell_check",
@@ -1031,7 +1029,6 @@ dependencies = [
  "picker",
  "project",
  "rustc-hash",
- "settings",
  "ui",
  "util",
  "workspace",
@@ -1372,7 +1369,6 @@ dependencies = [
  "rustc-hash",
  "serde",
  "serde_json",
- "settings",
  "smallvec",
  "strum",
  "theme",
@@ -1983,7 +1979,6 @@ dependencies = [
  "rustc-hash",
  "serde",
  "serde_json",
- "settings",
  "smallvec",
  "sum_tree",
  "syntect",
@@ -2049,7 +2044,6 @@ dependencies = [
  "project",
  "rustc-hash",
  "serde_json",
- "settings",
  "sysinfo",
  "theme",
  "tree-sitter",
@@ -2079,7 +2073,6 @@ dependencies = [
  "rustc-hash",
  "serde",
  "serde_json",
- "settings",
  "smallvec",
  "snippet",
  "task",
@@ -2358,7 +2351,6 @@ dependencies = [
  "rustc-hash",
  "serde",
  "serde_json",
- "settings",
  "theme",
  "ui",
  "urlencoding",
@@ -3028,7 +3020,6 @@ dependencies = [
  "rustc-hash",
  "serde",
  "serde_json",
- "settings",
  "sha2 0.10.9",
  "shellexpand",
  "snippet",
@@ -3069,7 +3060,6 @@ dependencies = [
  "rayon",
  "rustc-hash",
  "serde",
- "settings",
  "smallvec",
  "svg_preview",
  "ui",
@@ -3198,7 +3188,6 @@ dependencies = [
  "menu",
  "picker",
  "project",
- "settings",
  "ui",
  "util",
  "workspace",
@@ -3455,7 +3444,6 @@ dependencies = [
  "project",
  "regex",
  "rustc-hash",
- "settings",
  "text",
  "ui",
  "util",
@@ -3520,16 +3508,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c187e0a369471c550af028cba56d4f4fa2a489ad28151ae95a4d340a2a8b782"
 dependencies = [
  "serde_core",
-]
-
-[[package]]
-name = "settings"
-version = "0.1.0"
-dependencies = [
- "gpui",
- "rustc-hash",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -3811,13 +3789,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "syntax_theme"
-version = "0.1.0"
-dependencies = [
- "gpui",
-]
-
-[[package]]
 name = "syntect"
 version = "5.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3980,7 +3951,6 @@ dependencies = [
  "regex",
  "rustc-hash",
  "serde",
- "settings",
  "shellexpand",
  "shlex",
  "task",
@@ -4012,7 +3982,6 @@ version = "0.1.0"
 dependencies = [
  "gpui",
  "strum",
- "syntax_theme",
 ]
 
 [[package]]
@@ -4886,7 +4855,6 @@ dependencies = [
  "rustc-hash",
  "serde",
  "serde_json",
- "settings",
  "smallvec",
  "strum",
  "task",
@@ -4918,7 +4886,6 @@ dependencies = [
  "log",
  "paths",
  "rustc-hash",
- "settings",
  "smallvec",
  "sum_tree",
  "text",

@@ -1,14 +1,15 @@
 pub mod built_in;
 mod styles;
+mod syntax_theme;
 
 use gpui::App;
 use gpui::Hsla;
 use gpui::SharedString;
 use gpui::WindowBackgroundAppearance;
-pub use syntax_theme::SyntaxTheme;
 
 #[allow(clippy::wildcard_imports)]
 pub use crate::styles::*;
+pub use crate::syntax_theme::SyntaxTheme;
 
 /// The appearance of the theme.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

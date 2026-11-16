@@ -20,8 +20,8 @@ use language::LanguageName;
 use language::LanguageRegistry;
 use language::ManifestDelegate;
 use language::ManifestName;
+use language::WorktreeId;
 use lsp::LanguageServerName;
-use settings::WorktreeId;
 use util::rel_path::RelPath;
 
 use super::ManifestTree;

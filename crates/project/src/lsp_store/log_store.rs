@@ -18,6 +18,7 @@ use gpui::Global;
 use gpui::Subscription;
 use gpui::TaskExt;
 use gpui::WeakEntity;
+use language::WorktreeId;
 use lsp::IoKind;
 use lsp::LanguageServer;
 use lsp::LanguageServerId;
@@ -28,7 +29,6 @@ use lsp::RequestId;
 use lsp::TraceValue;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
-use settings::WorktreeId;
 
 use crate::Project;
 use crate::ProjectItem as _;
