@@ -115,7 +115,8 @@ or UNC prefixes. There is no path-style abstraction; code uses
   `paths::APP_NAME` must equal the binary name (compile-time assert).
 - The About window is compact: app icon, `ed <version>` headline, and a
   single centered OK button (Enter/Escape close it). No separate version
-  label and no Copy button.
+  label and no Copy button. It opens centered on the display the user is
+  working on (`cx.main_display()`), not always the primary one.
 - User directories follow the XDG layout; nothing is written under
   `~/Library`. Each base honours its `XDG_*_HOME` variable when absolute:
   - data (`projects.json`) `~/.local/share/ed`

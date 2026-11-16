@@ -35,6 +35,7 @@ use git_ui::unstaged_diff::UnstagedDiffToolbar;
 use git_ui_core::file_diff_view::FileDiffStyleToolbar;
 use gpui::App;
 use gpui::AppContext as _;
+use gpui::Bounds;
 use gpui::Context;
 use gpui::Entity;
 use gpui::FocusHandle;
@@ -558,6 +559,8 @@ fn open_about_window(cx: &mut App) {
     }
 
     let window_size = Size { width: px(280.), height: px(200.) };
+    // Open on the display the user is working on rather than the primary one.
+    let display_id = cx.main_display().map(|display| display.id());
 
     cx.open_window(
         WindowOptions {
@@ -566,7 +569,8 @@ fn open_about_window(cx: &mut App) {
                 appears_transparent: true,
                 traffic_light_position: Some(point(px(12.), px(12.))),
             }),
-            window_bounds: Some(WindowBounds::centered(window_size, cx)),
+            window_bounds: Some(WindowBounds::Windowed(Bounds::centered(display_id, window_size, cx))),
+            display_id,
             is_resizable: false,
             is_minimizable: false,
             kind: WindowKind::Floating,
