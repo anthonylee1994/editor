@@ -4,13 +4,13 @@ members = ["crates/*", "xtask"]
 default-members = ["crates/ed"]
 
 [workspace.package]
-version = "2.0.2"
+version = "2.0.3"
 edition = "2024"
 
 [workspace.dependencies]
-async_macos = { path = "crates/async_macos" }
 activity_indicator = { path = "crates/activity_indicator" }
 assets = { path = "crates/assets" }
+async_macos = { path = "crates/async_macos" }
 buffer_diff = { path = "crates/buffer_diff" }
 clock = { path = "crates/clock" }
 command_palette = { path = "crates/command_palette" }
@@ -257,7 +257,3 @@ strip = true
 lto = "thin"
 panic = "abort"  # The panic hook logs and exits anyway, so unwinding buys nothing.
 codegen-units = 1
-
-[patch.crates-io]
-notify = { git = "https://github.com/zed-industries/notify", rev = "d842f16b2716bd60f09caf3ae3a894237ab38f54" }
-notify-types = { git = "https://github.com/zed-industries/notify", rev = "d842f16b2716bd60f09caf3ae3a894237ab38f54" }

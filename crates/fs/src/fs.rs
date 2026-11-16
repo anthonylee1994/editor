@@ -11,6 +11,7 @@ use futures::channel::mpsc::UnboundedReceiver;
 use futures::channel::mpsc::UnboundedSender;
 use futures::channel::oneshot;
 pub mod fs_watcher;
+mod fsevents;
 mod git_clone_progress;
 
 use std::ffi::CString;
@@ -129,12 +130,6 @@ pub trait Fs: Send + Sync {
     async fn metadata(&self, path: &Path) -> Result<Option<Metadata>>;
     async fn read_link(&self, path: &Path) -> Result<PathBuf>;
     async fn read_dir(&self, path: &Path) -> Result<Pin<Box<dyn Send + Stream<Item = Result<PathBuf>>>>>;
-
-    /// Creates the native file watcher now rather than on the first `watch`, so a
-    /// failure to start it can be reported at startup.
-    fn start_native_watcher(&self) -> Result<()> {
-        Ok(())
-    }
 
     /// Whether `path` exists, without following a final symlink. Synchronous
     /// because watches are registered synchronously by the worktree scanner.
@@ -717,10 +712,6 @@ impl Fs for RealFs {
         let path = path.to_owned();
         let entries = self.executor.spawn(async move { read_dir_entries(path) }).await?;
         Ok(Box::pin(iter(entries)))
-    }
-
-    fn start_native_watcher(&self) -> Result<()> {
-        self.native_watcher.ensure_backend()
     }
 
     fn path_exists(&self, path: &Path) -> bool {

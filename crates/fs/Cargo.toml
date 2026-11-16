@@ -11,12 +11,13 @@ async_macos.workspace = true
 anyhow.workspace = true
 async-channel.workspace = true
 async-trait.workspace = true
+dispatch2.workspace = true
 futures.workspace = true
 git.workspace = true
 gpui.workspace = true
 libc.workspace = true
 log.workspace = true
-notify = "9.0.0-rc.4"
+objc2-core-foundation = { workspace = true, features = ["CFArray", "CFString", "std"] }
 parking_lot.workspace = true
 paths.workspace = true
 rope.workspace = true

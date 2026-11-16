@@ -162,6 +162,18 @@ or UNC prefixes. There is no path-style abstraction; code uses
     Removing that ancestor first installs replacement watches for the surviving
     descendants (shallowest first); if a replacement fails, the ancestor's watch
     is kept until the descendants it still serves are removed.
+  - The backend is an in-tree FSEvents binding (`fs::fsevents`), not the
+    `notify` crate: each backend watch is its own file-level stream on its own
+    serial dispatch queue, so adding or removing a watch never restarts another
+    watch's stream (no event gap) and needs no run-loop thread. Streams start
+    from "now", with no latency and no root watching.
+  - Event paths are reported under the watched path as registered, even where
+    it traverses symlinks (FSEvents itself reports canonical paths).
+  - FSEvents coalesces changes per path; an event maps to created, changed
+    (rename, content, metadata) and/or removed, and one pending event per path
+    is kept per batch (removed, then created, then changed). A
+    `MustScanSubDirs` event is sent to every registration: it rescans that
+    subtree where it lies under the registration's root, else the whole root.
   - Only FSEvents is used, always recursive; the upstream poll watcher,
     inotify handling (stale-watch tracking, watch-limit cooldown),
     filesystem-type detection, and `*_FILE_WATCHER_*` env overrides are removed. Mounts whose native watcher misses changes made elsewhere

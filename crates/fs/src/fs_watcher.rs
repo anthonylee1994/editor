@@ -1,7 +1,6 @@
 use std::collections::BTreeSet;
 use std::collections::HashMap;
 use std::collections::VecDeque;
-use std::iter;
 use std::mem;
 use std::path::Path;
 use std::path::PathBuf;
@@ -14,8 +13,6 @@ use futures::Stream;
 use futures::StreamExt as _;
 use gpui::BackgroundExecutor;
 use gpui::Task;
-use notify::Event;
-use notify::EventKind;
 use parking_lot::Mutex;
 use util::ResultExt;
 use util::paths::SanitizedPath;
@@ -24,6 +21,7 @@ use crate::Fs;
 use crate::PathEvent;
 use crate::PathEventKind;
 use crate::Watcher;
+use crate::fsevents;
 
 /// How often a watch on a not-yet-existing path is retried.
 const PENDING_PATH_RETRY_INTERVAL: Duration = Duration::from_secs(2);
@@ -235,9 +233,9 @@ fn register_existing_path(
 ) -> anyhow::Result<FsWatcherRegistration> {
     let root_path = SanitizedPath::new_arc(path.as_ref());
     let path_for_callback = path.clone();
-    let registration_id = native_watcher.add(path, case_insensitive, move |event: &notify::Event| {
+    let registration_id = native_watcher.add(path, case_insensitive, move |event: &fsevents::Event| {
         log::trace!("watcher received event: {event:?}");
-        push_notify_event(&tx, &pending_path_events, &root_path, case_insensitive, path_for_callback.as_ref(), event);
+        push_fs_event(&tx, &pending_path_events, &root_path, case_insensitive, path_for_callback.as_ref(), event);
     })?;
     Ok(FsWatcherRegistration { id: registration_id, os_watcher: native_watcher.clone() })
 }
@@ -402,41 +400,25 @@ fn enqueue_path_events(
     util::extend_sorted(&mut *pending_paths, path_events, usize::MAX, |a, b| a.path.cmp(&b.path));
 }
 
-fn push_notify_event(
+fn push_fs_event(
     tx: &Sender<()>,
     pending_path_events: &Arc<Mutex<Vec<PathEvent>>>,
     root_path: &SanitizedPath,
     case_insensitive: bool,
     watched_root: &Path,
-    event: &notify::Event,
+    event: &fsevents::Event,
 ) {
-    let kind = match event.kind {
-        EventKind::Create(_) => Some(PathEventKind::Created),
-        EventKind::Modify(_) => Some(PathEventKind::Changed),
-        EventKind::Remove(_) => Some(PathEventKind::Removed),
-        _ => None,
-    };
-    let mut path_events = event
-        .paths
-        .iter()
-        .filter_map(|event_path| {
-            let event_path = SanitizedPath::new(event_path);
-            path_is_under(event_path, root_path, case_insensitive)
-                .then(|| PathEvent { path: event_path.as_path().to_path_buf(), kind })
-        })
-        .collect::<Vec<_>>();
-
-    if event.need_rescan() {
-        // A rescan event names the subtrees that lost sync (FSEvents
-        // `MustScanSubDirs`); a pathless one means the whole watched root is
-        // suspect.
-        if path_events.is_empty() {
-            path_events.push(PathEvent { path: watched_root.to_path_buf(), kind: Some(PathEventKind::Rescan) });
-        } else {
-            for path_event in &mut path_events {
-                path_event.kind = Some(PathEventKind::Rescan);
-            }
-        }
+    let event_path = SanitizedPath::new(&event.path);
+    let under_root = path_is_under(event_path, root_path, case_insensitive);
+    let mut path_events = Vec::new();
+    if event.must_rescan() {
+        // A rescan names the subtree that lost sync; one outside this root
+        // (rescans go to every watcher) makes the whole watched root suspect.
+        let path = if under_root { event_path.as_path() } else { watched_root };
+        path_events.push(PathEvent { path: path.to_path_buf(), kind: Some(PathEventKind::Rescan) });
+    } else if under_root {
+        path_events
+            .extend(event.kinds().map(|kind| PathEvent { path: event_path.as_path().to_path_buf(), kind: Some(kind) }));
     }
     log::trace!("path_events: {:?}", path_events);
     enqueue_path_events(tx, pending_path_events, path_events);
@@ -486,7 +468,7 @@ fn is_covered_rescan(kind: Option<PathEventKind>, path: &Path, ancestor: &Path) 
 pub struct WatcherRegistrationId(u32);
 
 struct WatcherRegistrationState {
-    callback: Arc<dyn Fn(&notify::Event) + Send + Sync>,
+    callback: Arc<dyn Fn(&fsevents::Event) + Send + Sync>,
     key: WatchKey,
 }
 
@@ -559,28 +541,13 @@ struct WatcherState {
     last_registration: WatcherRegistrationId,
 }
 
-pub(crate) trait WatchBackend: Send {
-    fn watch(&mut self, path: &Path, mode: notify::RecursiveMode) -> notify::Result<()>;
-    fn unwatch(&mut self, path: &Path) -> notify::Result<()>;
-}
-
-impl<T: notify::Watcher + Send> WatchBackend for T {
-    fn watch(&mut self, path: &Path, mode: notify::RecursiveMode) -> notify::Result<()> {
-        notify::Watcher::watch(self, path, mode)
-    }
-
-    fn unwatch(&mut self, path: &Path) -> notify::Result<()> {
-        notify::Watcher::unwatch(self, path)
-    }
-}
-
 pub struct OsWatcher {
     state: Arc<Mutex<WatcherState>>,
 
-    // Hold state across backend mutations. Callbacks don't acquire state or
-    // invert the lock order.
-    backend: Mutex<Option<Box<dyn WatchBackend>>>,
-    event_tx: async_channel::Sender<notify::Result<notify::Event>>,
+    // One FSEvents stream per backend watch. Locked while holding `state`;
+    // stream callbacks take neither lock.
+    streams: Mutex<HashMap<PathBuf, fsevents::Stream>>,
+    event_tx: async_channel::Sender<fsevents::Event>,
     _dispatch_task: Task<()>,
     // Closing the event channel can wake the dispatch task. Keep its scheduler
     // alive through channel and task teardown, even when our owner drops first.
@@ -588,53 +555,41 @@ pub struct OsWatcher {
 }
 
 impl OsWatcher {
-    /// Watches with notify's native backend, created lazily on first use so
-    /// that a failure to start it can be reported by `ensure_backend`.
     pub fn new(executor: BackgroundExecutor) -> Arc<Self> {
-        Self::with_backend(executor, None)
-    }
-
-    /// Watches with the given backend in place of notify's; `event_sink` is how
-    /// that backend reports events, standing in for notify's `EventHandler`.
-    pub(crate) fn with_backend(executor: BackgroundExecutor, backend: Option<Box<dyn WatchBackend>>) -> Arc<Self> {
         let (event_tx, event_rx) = async_channel::unbounded();
         let state = Arc::new(Mutex::new(WatcherState {
             watchers: HashMap::default(),
             paths: WatchPaths::default(),
             last_registration: WatcherRegistrationId::default(),
         }));
+        // Dispatch (and its logging, which can block) runs here rather than on
+        // the FSEvents queues.
         let dispatch_task = executor.spawn({
             let state = state.clone();
             async move {
                 let mut rescan_history = RescanHistory::default();
-                while let Ok(first) = event_rx.recv().await {
-                    dispatch_batch(&state, &mut rescan_history, first, &event_rx);
+                while let Ok(event) = event_rx.recv().await {
+                    if let Some(report) = rescan_history.record(&event) {
+                        log::error!("filesystem watcher requested rescan: {report}");
+                    }
+                    dispatch(&state, &event);
                 }
             }
         });
         Arc::new(Self {
             state,
-            backend: Mutex::new(backend),
+            streams: Mutex::default(),
             event_tx,
             _dispatch_task: dispatch_task,
             _executor: executor,
         })
     }
 
-    /// The callback a substitute backend uses to report events, standing
-    /// in for the `EventHandler` notify would have been constructed with.
-    pub(crate) fn event_sink(&self) -> impl Fn(notify::Result<notify::Event>) + Send + Sync + 'static {
-        let event_tx = self.event_tx.clone();
-        move |event| {
-            enqueue(&event_tx, event);
-        }
-    }
-
     fn add(
         &self,
         path: Arc<Path>,
         case_insensitive: bool,
-        cb: impl Fn(&notify::Event) + Send + Sync + 'static,
+        cb: impl Fn(&fsevents::Event) + Send + Sync + 'static,
     ) -> anyhow::Result<WatcherRegistrationId> {
         let path = SanitizedPath::from_arc(path);
         let key = WatchKey::for_registration(&path, case_insensitive);
@@ -753,10 +708,7 @@ impl OsWatcher {
             }
         }
 
-        // Forget the watch even if unwatching fails: notify can report failure
-        // after dropping the watch (FSEvents restarts its stream afterwards), so
-        // a later registration of this path must install a fresh watch.
-        self.unwatch(released.path.as_path()).log_err();
+        self.streams.lock().remove(released.path.as_path());
     }
 
     fn watch_replacement(&self, path: &SanitizedPath) -> bool {
@@ -770,64 +722,22 @@ impl OsWatcher {
     }
 
     fn watch(&self, path: &Path) -> anyhow::Result<()> {
-        self.ensure_backend()?;
-        self.backend
-            .lock()
-            .as_mut()
-            .expect("watcher backend initialized")
-            .watch(path, notify::RecursiveMode::Recursive)?;
-        Ok(())
-    }
-
-    fn unwatch(&self, path: &Path) -> anyhow::Result<()> {
-        let watcher = self.backend.lock().as_mut().map(|watcher| watcher.unwatch(path));
-
-        match watcher {
-            // A watch may already be gone (e.g. its directory was deleted); either
-            // way the path is no longer watched, which is all we wanted.
-            Some(Err(error)) if !matches!(error.kind, notify::ErrorKind::WatchNotFound) => Err(error.into()),
-            _ => Ok(()),
-        }
-    }
-
-    pub(crate) fn ensure_backend(&self) -> anyhow::Result<()> {
-        // The lock is held across creation: with a check-then-insert under two
-        // separate lock acquisitions, concurrent callers could each create a
-        // watcher and the loser's insert would silently drop the winner's
-        // watcher along with every path registered on it.
-        let mut backend = self.backend.lock();
-        if backend.is_none() {
-            // CORE excludes Access events, which ed discards anyway.
-            let config = notify::Config::default().with_event_kinds(notify::EventKindMask::CORE);
-            *backend = Some(Box::new(<notify::RecommendedWatcher as notify::Watcher>::new(self.event_sink(), config)?));
-        }
+        let stream = fsevents::Stream::new(path, self.event_tx.clone())?;
+        self.streams.lock().insert(path.to_path_buf(), stream);
         Ok(())
     }
 }
 
-fn dispatch(state: &Mutex<WatcherState>, event: notify::Result<notify::Event>) {
-    let event = match event {
-        Ok(event) => event,
-        Err(error) => {
-            log::warn!("file watcher error: {error}");
-            return;
-        }
-    };
-
+fn dispatch(state: &Mutex<WatcherState>, event: &fsevents::Event) {
     log::trace!("handle file watcher event: {event:?}");
 
     let callbacks = {
         let state = state.lock();
-        if event.need_rescan() {
+        if event.must_rescan() {
             state.watchers.values().map(|registration| registration.callback.clone()).collect::<Vec<_>>()
         } else {
             let mut ids = Vec::new();
-            for path in &event.paths {
-                let sanitized = SanitizedPath::new(path);
-                state.paths.watcher_ids_covering(sanitized, &mut ids);
-            }
-            ids.sort_unstable_by_key(|id| id.0);
-            ids.dedup();
+            state.paths.watcher_ids_covering(SanitizedPath::new(&event.path), &mut ids);
             ids.into_iter()
                 .filter_map(|id| state.watchers.get(&id))
                 .map(|registration| registration.callback.clone())
@@ -836,7 +746,7 @@ fn dispatch(state: &Mutex<WatcherState>, event: notify::Result<notify::Event>) {
     };
 
     for callback in callbacks {
-        callback(&event);
+        callback(event);
     }
 }
 
@@ -848,64 +758,121 @@ struct RescanHistory {
 }
 
 impl RescanHistory {
-    fn record(&mut self, event: &notify::Event) -> Option<String> {
-        let report = event.need_rescan().then(|| {
-            // Capture before inserting the rescan so the report includes all ten
-            // preceding paths, even when this is the start of an overflow burst.
-            format!(
-                "reason={:?}, paths={:?}, recent_paths={:?}",
-                event.info().unwrap_or("unspecified"),
-                event.paths,
-                self.paths,
-            )
+    fn record(&mut self, event: &fsevents::Event) -> Option<String> {
+        // Capture before inserting the rescan so the report includes all ten
+        // preceding paths.
+        let report = event.must_rescan().then(|| {
+            format!("reason={:?}, path={:?}, recent_paths={:?}", event.rescan_reason(), event.path, self.paths)
         });
-        let first_path = event.paths.len().saturating_sub(RESCAN_PATH_HISTORY_CAPACITY);
-        for path in event.paths.iter().skip(first_path) {
-            if self.paths.len() == RESCAN_PATH_HISTORY_CAPACITY {
-                self.paths.pop_front();
-            }
-            self.paths.push_back(path.clone());
+        if self.paths.len() == RESCAN_PATH_HISTORY_CAPACITY {
+            self.paths.pop_front();
         }
+        self.paths.push_back(event.path.clone());
         report
     }
 }
 
-fn dispatch_batch(
-    state: &Mutex<WatcherState>,
-    rescan_history: &mut RescanHistory,
-    first: notify::Result<notify::Event>,
-    event_rx: &async_channel::Receiver<notify::Result<notify::Event>>,
-) {
-    // A single backend overflow can enqueue many pathless rescan markers, each
-    // of which rescans every watched root, so one covers the entire
-    // drained batch. Rescans that name paths only cover those subtrees and are
-    // all dispatched; ordinary events still run.
-    let mut rescan_dispatched = false;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::fsevents::ITEM_CREATED;
+    use crate::fsevents::ITEM_MODIFIED;
+    use crate::fsevents::ITEM_REMOVED;
+    use crate::fsevents::MUST_SCAN_SUBDIRS;
 
-    for event in iter::once(first).chain(iter::from_fn(|| event_rx.try_recv().ok())) {
-        if event.as_ref().is_ok_and(|event| event.need_rescan() && event.paths.is_empty()) {
-            if rescan_dispatched {
-                continue;
-            }
-            rescan_dispatched = true;
-        }
-
-        // Log writes can block, so keep them off the native watcher reader.
-        if let Ok(event) = &event
-            && let Some(report) = rescan_history.record(event)
-        {
-            log::error!("filesystem watcher requested rescan: {report}");
-        }
-        dispatch(state, event);
-    }
-}
-
-fn enqueue(event_tx: &async_channel::Sender<notify::Result<notify::Event>>, event: notify::Result<notify::Event>) {
-    if matches!(event, Ok(Event { kind: EventKind::Access(_), .. })) {
-        return;
+    fn event(path: &str, flags: u32) -> fsevents::Event {
+        fsevents::Event { path: PathBuf::from(path), flags }
     }
 
-    // A failed send only happens once the dispatch thread has shut down, at
-    // which point there's nothing left to dispatch to.
-    event_tx.try_send(event).ok();
+    fn path_event(path: &str, kind: PathEventKind) -> PathEvent {
+        PathEvent { path: PathBuf::from(path), kind: Some(kind) }
+    }
+
+    /// Runs `push_fs_event` for a watch on `/root`, returning the pending events
+    /// and whether the stream was signalled.
+    fn push(event: &fsevents::Event) -> (Vec<PathEvent>, bool) {
+        let (tx, rx) = async_channel::unbounded();
+        let pending = Arc::default();
+        push_fs_event(&tx, &pending, SanitizedPath::new("/root"), false, Path::new("/root"), event);
+        let events = mem::take(&mut *pending.lock());
+        (events, rx.try_recv().is_ok())
+    }
+
+    #[test]
+    fn push_fs_event_maps_kinds_under_the_root() {
+        assert_eq!(push(&event("/root/a", ITEM_MODIFIED)), (vec![path_event("/root/a", PathEventKind::Changed)], true));
+        // Coalesced flags collapse to one pending event per path; removal wins.
+        assert_eq!(
+            push(&event("/root/a", ITEM_CREATED | ITEM_MODIFIED | ITEM_REMOVED)),
+            (vec![path_event("/root/a", PathEventKind::Removed)], true)
+        );
+        assert_eq!(push(&event("/other/a", ITEM_MODIFIED)), (vec![], false));
+    }
+
+    #[test]
+    fn push_fs_event_rescans_the_subtree_or_the_whole_root() {
+        assert_eq!(
+            push(&event("/root/a", MUST_SCAN_SUBDIRS | ITEM_MODIFIED)),
+            (vec![path_event("/root/a", PathEventKind::Rescan)], true)
+        );
+        assert_eq!(
+            push(&event("/other", MUST_SCAN_SUBDIRS | ITEM_MODIFIED)),
+            (vec![path_event("/root", PathEventKind::Rescan)], true)
+        );
+    }
+
+    #[test]
+    fn dispatch_routes_by_ancestor_and_broadcasts_rescans() {
+        let called: Arc<Mutex<Vec<u32>>> = Arc::default();
+        let mut state = WatcherState {
+            watchers: HashMap::default(),
+            paths: WatchPaths::default(),
+            last_registration: WatcherRegistrationId::default(),
+        };
+        for (id, path) in ["/a", "/a/b", "/c"].into_iter().enumerate() {
+            let id = WatcherRegistrationId(id as u32);
+            let path = SanitizedPath::new_arc(path);
+            let key = WatchKey::exact(&path);
+            let called = called.clone();
+            state.watchers.insert(
+                id,
+                WatcherRegistrationState { callback: Arc::new(move |_| called.lock().push(id.0)), key: key.clone() },
+            );
+            state.paths.0.insert(
+                key,
+                PathRegistrationState {
+                    path,
+                    watcher_ids: vec![id],
+                    coverage: Coverage::Watched { covered: BTreeSet::new() },
+                },
+            );
+        }
+        let state = Mutex::new(state);
+        let dispatched = |event: fsevents::Event| {
+            dispatch(&state, &event);
+            let mut ids = mem::take(&mut *called.lock());
+            ids.sort_unstable();
+            ids
+        };
+
+        assert_eq!(dispatched(event("/a/b/file", ITEM_MODIFIED)), [0, 1]);
+        assert_eq!(dispatched(event("/a/file", ITEM_MODIFIED)), [0]);
+        assert_eq!(dispatched(event("/elsewhere", ITEM_MODIFIED)), [] as [u32; 0]);
+        assert_eq!(dispatched(event("/c", MUST_SCAN_SUBDIRS)), [0, 1, 2]);
+    }
+
+    #[test]
+    fn rescan_history_reports_recent_paths() {
+        let mut history = RescanHistory::default();
+        for i in 0..RESCAN_PATH_HISTORY_CAPACITY + 2 {
+            assert_eq!(history.record(&event(&format!("/root/{i}"), ITEM_MODIFIED)), None);
+        }
+        assert_eq!(history.paths.len(), RESCAN_PATH_HISTORY_CAPACITY);
+        assert_eq!(history.paths.front(), Some(&PathBuf::from("/root/2")));
+
+        let report = history.record(&event("/root", MUST_SCAN_SUBDIRS)).unwrap();
+        assert!(report.contains("reason=\"unspecified\""), "{report}");
+        assert!(report.contains("path=\"/root\""), "{report}");
+        assert!(report.contains("/root/11") && !report.contains("/root/1\""), "{report}");
+    }
 }
