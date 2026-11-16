@@ -6,7 +6,11 @@
 set -l root (path dirname (status filename))
 cd $root; or exit 1
 
-set -l app_version (string match -rg '^version = "(.+)"' < crates/ed/Cargo.toml)[1]
+set -l app_version (string match -rg '^version = "(.+)"' < Cargo.toml)[1]
+test -n "$app_version"; or begin
+    echo "Could not read workspace version from Cargo.toml" >&2
+    exit 1
+end
 set -l resources crates/ed/resources
 set -l app target/release/ed.app
 set -l identity ed-local
