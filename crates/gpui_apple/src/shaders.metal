@@ -386,11 +386,10 @@ fragment float4 quad_fragment(QuadFragmentInput input [[stage_in]],
       }
     }
 
-    // Blend the border on top of the background and then linearly interpolate
-    // between the two as we slide inside the background.
-    float4 blended_border = over(background_color, border_color);
-    color = mix(background_color, blended_border,
-                saturate(antialias_threshold - inner_sdf));
+    // Fade the border's coverage, then composite it over the background, so a
+    // transparent background doesn't darken the antialiased edge.
+    border_color.a *= saturate(antialias_threshold - inner_sdf);
+    color = over(background_color, border_color);
   }
 
   return color * float4(1.0, 1.0, 1.0, saturate(antialias_threshold - outer_sdf));
@@ -1089,12 +1088,10 @@ float4 distance_from_clip_rect_transformed(float2 unit_vertex, Bounds_ScaledPixe
 }
 
 float4 over(float4 below, float4 above) {
-  float4 result;
   float alpha = above.a + below.a * (1.0 - above.a);
-  result.rgb =
-      (above.rgb * above.a + below.rgb * below.a * (1.0 - above.a)) / alpha;
-  result.a = alpha;
-  return result;
+  float3 premultiplied =
+      above.rgb * above.a + below.rgb * below.a * (1.0 - above.a);
+  return float4(premultiplied / (alpha == 0.0 ? 1.0 : alpha), alpha);
 }
 
 GradientColor prepare_fill_color(uint tag, uint color_space, Hsla solid,
