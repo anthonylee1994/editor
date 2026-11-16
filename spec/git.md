@@ -47,6 +47,10 @@ repository's `$PATH`; if none is found, the repository is not opened.
   that it stays parsed. Every open buffer has a HEAD diff (gutter, project
   search results), so unchanged files would otherwise hold a second syntax
   tree each.
+- File changes refresh git status for just the changed paths (coalesced to
+  their common ancestors), but above 64 paths the whole repository is scanned
+  instead: git matches every pathspec against every index entry, so many
+  pathspecs cost more than one full scan on large repositories.
 - There are no `git` settings; the former defaults are hardcoded: git status
   and diffs always on; gutter hunks in tracked files, recalculated without
   debounce; unstaged hunks filled, staged hollow; stage/restore hunk buttons

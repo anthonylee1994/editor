@@ -65,9 +65,18 @@ Directions the fork deliberately doesn't follow, even in kept crates:
 
 ## Status
 
-- Last reviewed upstream commit: `b5cd310b3b` (2026-11-07). The next pass
-  starts at `git log --reverse b5cd310b3b..upstream/main`.
-- Open candidates from earlier passes, worth taking if wanted: #64624
+- Last reviewed upstream commit: `a57e2fdc` (2026-11-16). The next pass
+  starts at `git log --reverse a57e2fdc..upstream/main`.
+- Renderer series, partly taken: #66806 and #66807 are ported. Still open:
+  #66809 (path rendering without MSAA or an intermediate texture) with
+  #66811 (depth buffer to cut overdraw), the main Metal win; they trade
+  2–8× stroke tessellation CPU and some ordering risk. #66810 (batching) and
+  #66812 (shadow approximation) are optional on top.
+- Open candidates from earlier passes, worth taking if wanted: #66896
+  (animate SVG transforms without re-rendering views; the fork's spinners
+  re-render their parent every frame), #66227 (open absolute paths in the
+  file finder), #66103 (open single files in the same window), #65161
+  (tabular preview range selection; needs #64916 first), #64624
   (UAX #14 line breaking), #53089 (git auto fetch), #66284 (no worktree hooks
   in restricted mode), #66423 (drag git panel files to the terminal), #66296
   (mouse-wheel zoom in terminals and diffs), #66450 (hide the edit prediction
