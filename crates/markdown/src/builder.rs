@@ -70,6 +70,8 @@ pub(crate) struct MarkdownElementBuilder {
     rendered_image_links: Vec<RenderedImageLink>,
     rendered_footnote_refs: Vec<RenderedFootnoteRef>,
     current_source_index: usize,
+    /// The source offset of the first rendered block, whose top margin is removed.
+    first_block_start: usize,
     pub(crate) html_comment: bool,
     pub(crate) rendered_footnote_separator: bool,
     base_text_style: TextStyle,
@@ -167,6 +169,7 @@ impl MarkdownElementBuilder {
         base_text_style: TextStyle,
         syntax_theme: &'static SyntaxTheme,
         highlights: MarkdownHighlights,
+        first_block_start: usize,
     ) -> Self {
         Self {
             div_stack: vec![{
@@ -181,6 +184,7 @@ impl MarkdownElementBuilder {
             rendered_image_links: Vec::new(),
             rendered_footnote_refs: Vec::new(),
             current_source_index: 0,
+            first_block_start,
             html_comment: false,
             rendered_footnote_separator: false,
             base_text_style,
@@ -234,7 +238,7 @@ impl MarkdownElementBuilder {
         }
         let mut div = div.into();
 
-        if range.start == 0 {
+        if range.start == self.first_block_start {
             // Remove the top margin on the first element.
             div.style().refine(&StyleRefinement {
                 margin: gpui::EdgesRefinement {

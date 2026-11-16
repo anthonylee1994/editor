@@ -866,6 +866,29 @@ impl ParsedMarkdown {
         })
     }
 
+    /// The source offset of the first block that renders anything. Leading blank lines and
+    /// HTML comment blocks come before it, so this is the block at the top of the rendered
+    /// markdown, whose top margin is removed.
+    pub(crate) fn first_rendered_block_start(&self) -> usize {
+        let mut in_comment_block = false;
+        for (range, event) in self.events.iter() {
+            match event {
+                MarkdownEvent::RootStart | MarkdownEvent::RootEnd(_) => {}
+                MarkdownEvent::Start(MarkdownTag::HtmlBlock) => {
+                    let html = self.source[range.clone()].trim();
+                    in_comment_block = html.starts_with("<!--") && html.ends_with("-->");
+                    if !in_comment_block {
+                        return range.start;
+                    }
+                }
+                MarkdownEvent::End(MarkdownTagEnd::HtmlBlock) if in_comment_block => in_comment_block = false,
+                _ if in_comment_block => {}
+                _ => return range.start,
+            }
+        }
+        0
+    }
+
     fn non_rendered_source_ranges(&self) -> Vec<Range<usize>> {
         let mut ranges = Vec::new();
         let mut active_link = None;
@@ -1161,6 +1184,16 @@ mod tests {
         let parsed = parse("text[^a]\n\n[^a]: one\n\n[^b]: two\n");
         let after_footnote = parsed.blocks.iter().map(|block| block.after_footnote_definition).collect::<Vec<_>>();
         assert_eq!(after_footnote, [false, false, true]);
+    }
+
+    #[test]
+    fn first_rendered_block_skips_blank_lines_and_comments() {
+        let start = |source: &str| parse(source).first_rendered_block_start();
+        assert_eq!(start("# Title\n"), 0);
+        assert_eq!(start("\n\n# Title\n"), 2);
+        let commented = "<!-- note -->\n\n# Title\n";
+        assert_eq!(start(commented), commented.find('#').unwrap());
+        assert_eq!(start("<div>\nhi\n</div>\n"), 0);
     }
 
     #[test]

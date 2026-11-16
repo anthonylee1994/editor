@@ -1020,6 +1020,7 @@ impl BlockRenderer {
             self.style.base_text_style.clone(),
             self.style.syntax,
             self.highlights(cx),
+            frame.parsed.first_rendered_block_start(),
         );
         builder.rendered_footnote_separator = footnote_separator_rendered;
         let parsed = &frame.parsed;
