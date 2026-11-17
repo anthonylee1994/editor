@@ -2,74 +2,93 @@
 
 Question: what takes up space in the release `ed` binary?
 
-Snapshot: Nov 2026, `cargo bloat --release -p ed --crates`, arm64 macOS,
-release profile (`lto = "thin"`, `codegen-units = 1`).
+Snapshot: 17 Nov 2026 (commit `2c4c2e28a1`), arm64 macOS, release profile
+(`lto = "thin"`, `codegen-units = 1`, `panic = "abort"`, `strip = true`).
+Per-crate numbers from `cargo bloat --release -p ed --crates`, section sizes
+from `size -m target/release/ed`.
+
+`cargo bloat` builds the binary unstripped (72.8 MiB) and can leave that in
+`target/release/ed`. Run `cargo build --release -p ed` afterwards to make sure
+the shipped binary is back.
 
 ## Whole binary
 
-Update: with `panic = "abort"` and the `ed` package override removed (it
-silently stopped cargo from passing `-C strip`), the shipped binary went from
-117.6 MiB (unstripped) to 64.9 MiB: `.text` 49.4 MiB, unwind / exception
-tables under 0.3 MiB, symbol table gone. The table below is the snapshot before
-those changes, sized as if stripped (about 83 MiB):
+The shipped binary is 52.4 MiB.
 
 | Part | Size | What it is |
 |---|---|---|
-| `__TEXT,__text` | 59.3 MiB | machine code (broken down by crate below) |
-| `__TEXT,__const` | 10.9 MiB | read-only data: tree-sitter parse tables, embedded assets (icons, themes, spell dictionary ~0.9 MiB), string literals |
-| unwind / exception tables | 8.0 MiB | `__gcc_except_tab` 3.8, `__eh_frame` 3.1, `__unwind_info` 1.1. `panic = "abort"` would remove most of `__gcc_except_tab` |
-| `__DATA_CONST` | 2.4 MiB | vtables, relocated constants |
-| symbol table | ~36 MiB | was shipped: the `ed` package override dropped `-C strip` |
+| `__TEXT,__text` | 38.3 MiB | machine code (broken down by crate below) |
+| `__TEXT,__const` | 10.2 MiB | read-only data: tree-sitter parse tables, embedded assets (icons, themes, spell dictionary), string literals |
+| `__DATA_CONST` | 2.0 MiB | vtables, relocated constants |
+| `__LINKEDIT` | 1.4 MiB | dyld binding info, code signature (symbol table is stripped; unstripped it is 21.8 MiB) |
+| unwind / exception tables | 0.2 MiB | nearly gone with `panic = "abort"` |
+| `__cstring` | 0.2 MiB | C string literals |
 
 The binary is memory-mapped, so pages that are never touched cost no RAM. The
 size mostly matters for disk usage and cold-start page-ins, not for memory
 usage while running.
 
+History:
+
+| Snapshot | Shipped binary | `.text` |
+|---|---|---|
+| early Nov 2026, unstripped, unwinding | 117.6 MiB | 59.3 MiB |
+| + `panic = "abort"`, strip fixed | 64.9 MiB | 49.4 MiB |
+| 17 Nov 2026, after trimming | 52.4 MiB | 38.3 MiB |
+
 ## `.text` by crate
 
 | Crate | Size | % of `.text` | Notes |
 |---|---|---|---|
-| gpui | 12.4 MiB | 21.0% | UI framework, generic over every view/element type |
-| std | 10.5 MiB | 17.8% | includes monomorphized std generics (`Vec`, iterators, `HashMap`) instantiated by every crate |
-| editor | 2.8 MiB | 4.7% | |
-| project | 2.7 MiB | 4.5% | |
-| mermaid | 2.5 MiB | 4.3% | largest optional feature: mermaid diagrams in markdown preview |
-| [Unknown] | 2.4 MiB | 4.0% | mostly C code: tree-sitter grammars, sqlite, zstd |
-| workspace | 2.0 MiB | 3.3% | |
-| sum_tree | 1.4 MiB | 2.3% | generic B-tree, instantiated per item type |
-| git_ui | 1.1 MiB | 1.9% | |
-| picker | 1.1 MiB | 1.8% | generic over every picker delegate |
-| async_task | 957 KiB | 1.6% | one monomorphized task per spawned future type |
-| serde_core | 673 KiB | 1.1% | |
-| scheduler | 625 KiB | 1.0% | |
-| ui | 598 KiB | 1.0% | |
-| prost | 596 KiB | 1.0% | protobuf for the remote protocol |
-| futures_util | 501 KiB | 0.8% | |
-| image_webp | 500 KiB | 0.8% | image viewer, WebP decoding |
-| language | 484 KiB | 0.8% | |
-| lsp | 479 KiB | 0.8% | |
-| serde_json | 468 KiB | 0.8% | |
-| multi_buffer | 464 KiB | 0.8% | |
-| anyhow | 406 KiB | 0.7% | |
-| regex_automata | 393 KiB | 0.6% | |
-| harfrust | 377 KiB | 0.6% | text shaping for SVG text, pulled in by gpui through usvg |
-| usvg | 350 KiB | 0.6% | SVG parsing |
-| everything else | ~13 MiB | ~22% | ~300 crates, each under 0.6% |
+| gpui | 8.7 MiB | 22.8% | UI framework, generic over every view/element type |
+| std | 5.4 MiB | 14.0% | includes monomorphized std generics (`Vec`, iterators, `HashMap`) instantiated by every crate |
+| editor | 2.4 MiB | 6.3% | |
+| project | 1.6 MiB | 4.1% | |
+| mermaid | 1.5 MiB | 4.0% | largest optional feature: mermaid diagrams in markdown preview |
+| workspace | 1.4 MiB | 3.5% | |
+| sum_tree | 1.2 MiB | 3.0% | generic B-tree, instantiated per item type |
+| [Unknown] | 1.0 MiB | 2.7% | mostly C code: tree-sitter grammars, zstd |
+| git_ui | 897 KiB | 2.3% | |
+| async_task | 579 KiB | 1.5% | one monomorphized task per spawned future type |
+| serde_core | 484 KiB | 1.2% | |
+| scheduler | 443 KiB | 1.1% | |
+| ui | 421 KiB | 1.1% | |
+| multi_buffer | 416 KiB | 1.1% | |
+| regex_automata | 382 KiB | 1.0% | |
+| harfrust | 373 KiB | 1.0% | text shaping for SVG text, pulled in by gpui through usvg |
+| language | 373 KiB | 1.0% | |
+| lsp | 359 KiB | 0.9% | |
+| picker | 358 KiB | 0.9% | generic over every picker delegate |
+| serde_json | 357 KiB | 0.9% | |
+| usvg | 333 KiB | 0.9% | SVG parsing |
+| image_webp | 333 KiB | 0.9% | image viewer, WebP decoding |
+| everything else | ~9.1 MiB | ~24% | ~240 crates, each under 0.7% |
 
-Other crates that only exist for one feature: `zune_jpeg` 202 KiB + `image`
-177 KiB (image viewer), `spellbook` 219 KiB (spell check), `syntect` 85 KiB
-(fallback highlighting), `tabular_data_preview` 138 KiB, `markdown_preview`
-137 KiB.
+Other crates that only exist for one feature: `spellbook` 216 KiB (spell
+check), `zune_jpeg` 209 KiB + `image` 178 KiB (image viewer), `clap_builder`
+162 KiB (CLI args in `ed` and `control`), `fancy_regex` 154 KiB (used only by
+`project`), `markdown_preview` 99 KiB, `syntect` 83 KiB (fallback
+highlighting), `alacritty_terminal` 69 KiB.
+
+Gone since the first snapshot: `prost` (596 KiB, remote protocol),
+`tabular_data_preview` (138 KiB), sqlite (was part of [Unknown]).
+
+Biggest drops since the first snapshot: std −5.1 MiB, gpui −3.7 MiB, [Unknown]
+−1.4 MiB, project −1.1 MiB, mermaid −1.0 MiB, picker −0.7 MiB, workspace
+−0.6 MiB. Much of the std / gpui drop is `panic = "abort"` removing landing
+pads, the rest is removed code and fewer generic instantiations.
 
 ## Takeaways
 
-- There is no single big dependency to cut. About 40% of the code is gpui
+- There is no single big dependency to cut. About 37% of the code is gpui
   plus std generics, which is the cost of using gpui at all.
-- `mermaid` (a local crate used only by `markdown_preview`) is the biggest
-  feature you could drop (2.5 MiB) if you don't use mermaid diagrams.
+- `mermaid` (a local crate used only by `markdown_preview`) is still the
+  biggest feature you could drop (1.5 MiB) if you don't use mermaid diagrams.
+- SVG support costs about 1 MiB across `usvg`, `harfrust`, `resvg`,
+  `tiny_skia`; it is needed for icons, so not optional.
 - Generic-heavy crates (`gpui`, `sum_tree`, `picker`, `async_task`) grow with
   every new view or task type. That's expected and doesn't hurt runtime.
-- Embedded data (`include_str!` / rust_embed) is a small part of the binary.
-  The spell dictionary is ~1% of the file.
+- Read-only data (10.2 MiB) barely moved while code shrank by a third, so it
+  is now a fifth of the binary. Tree-sitter parse tables are the bulk of it.
 - cargo-bloat attributes symbols by name, so numbers are approximate. With LTO,
   inlined code is counted under the caller's crate.
