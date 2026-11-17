@@ -252,5 +252,6 @@ mod tests {
         assert!(is_correct("addrs", &project_words));
         assert!(is_correct("deserializable", &project_words));
         assert!(is_correct("deserializer", &project_words));
+        assert!(is_correct("deserializes", &project_words));
     }
 }

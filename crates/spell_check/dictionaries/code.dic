@@ -1053,6 +1053,7 @@ logopts
 longblob
 longhands
 longtext
+lossy
 lpad
 lru
 lseg
@@ -1588,8 +1589,7 @@ sendmsg
 sendto
 sendv
 seo
-serializable/C
-serialize/CR
+serialize/CRSB
 serialversionuid
 servlet
 servletexception
