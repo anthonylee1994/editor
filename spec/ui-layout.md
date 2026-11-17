@@ -146,6 +146,16 @@ because it hurt readability; an opaque window is also cheaper to composite.
   for this, instead of the blank strip.
 - The status bar has no worktree or branch pickers; they are in the window
   header.
+- Each pane's tab bar (with the window header inside it) is its own cached
+  view, apart from the pane, which re-renders with every frame of its active
+  item. The tab bar re-renders when the pane notifies, when something inside
+  it notifies, and when git statuses change (tab labels are coloured by
+  them). Anything else a tab shows must reach it through a pane notification
+  (`ItemEvent::UpdateTab`), as it already had to for inactive panes.
+- The status bar is a cached view, so frames that only change the editor
+  don't re-render it. A cached view isn't measured from its content, so its
+  height is fixed: a default-sized button plus the even gap above and below.
+  Status items must not be taller than a default button.
 - Modes are strictly isolated for rendering. Only the window header and status bar
   (plus notifications, toasts and modals) are drawn outside the modes; everything between them
   belongs to one mode, rendered by that mode's own cached view, and only the

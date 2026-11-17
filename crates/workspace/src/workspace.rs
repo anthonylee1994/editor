@@ -2638,7 +2638,13 @@ impl Render for Workspace {
                             .child(self.mode_view(self.mode).clone().cached(StyleRefinement::default().size_full()))
                             .children(self.render_notifications(window, cx)),
                     )
-                    .when(self.status_bar_visible(cx), |parent| parent.child(self.status_bar.clone()))
+                    .when(self.status_bar_visible(cx), |parent| {
+                        // Cached, so editor frames don't re-render it; a cached view needs a definite size.
+                        let height = StatusBar::height(window);
+                        parent.child(
+                            self.status_bar.clone().cached(StyleRefinement::default().flex_none().w_full().h(height)),
+                        )
+                    })
                     .child(self.toast_layer.clone()),
             );
 

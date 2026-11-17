@@ -42,6 +42,12 @@
   over the final layout rather than sizes that invalidate cached views (their
   cache key includes bounds). Dragging is never animated. A dock or pane
   animation frame costs about one cursor-move frame (~3–5 ms, no shaping).
+- Cached views nest: when a cached view re-renders, a clean cached view
+  inside it is still reused (upstream re-renders everything inside). A view's
+  recorded output is only replayed in the frame right after the one that
+  recorded it (`ViewElementState::frame_number`), because a view inside a
+  reused view isn't visited and its recorded ranges go stale; it then renders
+  once and is cacheable again. `Window::refresh` still redraws every view.
 - Rotating spinners (`CommonAnimationExt::with_rotate_animation`,
   `Svg::with_rotation_period`) never re-render a view. The SVG is painted once
   as a sprite tagged with a scene animation (kept across cached-view replay);

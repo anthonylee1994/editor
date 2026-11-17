@@ -1,7 +1,6 @@
 use std::any::TypeId;
 use std::any::type_name;
 use std::fmt;
-use std::mem;
 use std::ops::Range;
 
 use anyhow::Result;
@@ -281,6 +280,10 @@ struct ViewElementState {
     prepaint_range: Range<PrepaintStateIndex>,
     paint_range: Range<PaintIndex>,
     cache_key: ViewElementCacheKey,
+    /// The frame the ranges index into. They can only be replayed in the frame
+    /// right after it: a view inside a reused view isn't visited, so its ranges
+    /// go stale while its state is carried along.
+    frame_number: u64,
     /// The entities the view accessed while it was last drawn, in any phase,
     /// restored when its prepaint is reused so the window stays subscribed.
     accessed_entities: FxHashSet<EntityId>,
@@ -438,17 +441,18 @@ fn prepaint_view(
                 && element_state.cache_key.opacity.to_bits() == opacity.to_bits()
                 && !window.dirty_views.contains(&entity_id)
                 && !window.refreshing
+                && ranges_are_current(element_state.frame_number, window.frame_number)
             {
                 let prepaint_start = window.prepaint_index();
                 window.reuse_prepaint(element_state.prepaint_range.clone());
                 cx.entities.extend_accessed(element_state.accessed_entities.iter().copied());
                 let prepaint_end = window.prepaint_index();
                 element_state.prepaint_range = prepaint_start..prepaint_end;
+                element_state.frame_number = window.frame_number;
 
                 return (None, element_state);
             }
 
-            let refreshing = mem::replace(&mut window.refreshing, true);
             let prepaint_start = window.prepaint_index();
             let (element, accessed_entities) = cx.detect_accessed_entities(|cx| {
                 let mut element = render(window, cx);
@@ -458,7 +462,6 @@ fn prepaint_view(
             });
 
             let prepaint_end = window.prepaint_index();
-            window.refreshing = refreshing;
 
             (
                 Some(element),
@@ -467,10 +470,16 @@ fn prepaint_view(
                     prepaint_range: prepaint_start..prepaint_end,
                     paint_range: PaintIndex::default()..PaintIndex::default(),
                     cache_key: ViewElementCacheKey { bounds, content_mask, text_style, opacity },
+                    frame_number: window.frame_number,
                 },
             )
         })
     })
+}
+
+/// Whether ranges recorded in frame `recorded` index the frame before `current`.
+const fn ranges_are_current(recorded: u64, current: u64) -> bool {
+    recorded + 1 == current
 }
 
 #[inline(never)]
@@ -509,10 +518,8 @@ fn paint_view(
                 // actually painted, and output replayed under a different opacity is
                 // redrawn on the next frame.
                 if let Some(element) = element {
-                    let refreshing = mem::replace(&mut window.refreshing, true);
                     let ((), accessed_entities) = cx.detect_accessed_entities(|cx| element.paint(window, cx));
                     element_state.accessed_entities.extend(accessed_entities);
-                    window.refreshing = refreshing;
                     element_state.cache_key.opacity = opacity;
                 } else {
                     window.reuse_paint(element_state.paint_range.clone());
@@ -537,4 +544,18 @@ fn paint_component(name: &'static str, element: &mut Option<AnyElement>, window:
     window.with_id(ElementId::Name(name.into()), |window| {
         element.as_mut().unwrap().paint(window, cx);
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ranges_are_current_only_in_the_next_frame() {
+        assert!(ranges_are_current(4, 5));
+        // Drawn again in the same frame (a discarded prepaint).
+        assert!(!ranges_are_current(5, 5));
+        // Skipped a frame inside a reused view.
+        assert!(!ranges_are_current(3, 5));
+    }
 }

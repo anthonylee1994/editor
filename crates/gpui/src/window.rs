@@ -709,6 +709,8 @@ pub struct Window {
     pub(crate) input_rate_tracker: Rc<RefCell<InputRateTracker>>,
     last_input_modality: InputModality,
     pub(crate) refreshing: bool,
+    /// The number of the frame being drawn, or of the last one drawn.
+    pub(crate) frame_number: u64,
     pub(crate) activation_observers: SingleSubscriberSet<AnyObserver>,
     pub(crate) focus: Option<FocusId>,
     /// Incremented every time focus moves. Used to invalidate a
@@ -1170,6 +1172,7 @@ impl Window {
             input_rate_tracker,
             last_input_modality: InputModality::Mouse,
             refreshing: false,
+            frame_number: 0,
             activation_observers: SingleSubscriberSet::new(),
             focus: None,
             focus_generation: 0,
@@ -1882,6 +1885,7 @@ impl Window {
         }
         self.invalidate_entities();
         cx.entities.clear_accessed();
+        self.frame_number += 1;
         self.invalidator.set_dirty(false);
         self.requested_autoscroll = None;
 

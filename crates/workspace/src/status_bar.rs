@@ -6,10 +6,12 @@ use gpui::FocusHandle;
 use gpui::Focusable;
 use gpui::IntoElement;
 use gpui::ParentElement;
+use gpui::Pixels;
 use gpui::Render;
 use gpui::Styled;
 use gpui::Subscription;
 use gpui::Window;
+use ui::ButtonSize;
 use ui::prelude::ActiveTheme;
 use ui::prelude::Color;
 use ui::prelude::DynamicSpacing;
@@ -81,19 +83,33 @@ impl Render for StatusBar {
                     _ => {}
                 }
             }))
-            .w_full()
+            .size_full()
             .justify_between()
             .gap(DynamicSpacing::Base08.rems())
-            // Even gap above and below, matching the floating card gap.
             .px(crate::CARD_GAP)
-            .py(crate::CARD_GAP - px(2.))
+            .py(vertical_padding())
             .bg(cx.theme().colors().status_bar_background)
             .child(self.render_left_tools())
             .child(self.render_right_tools())
     }
 }
 
+/// The even gap above and below the items, matching the floating card gap.
+fn vertical_padding() -> Pixels {
+    crate::CARD_GAP - px(2.)
+}
+
+/// The bar's height when its items are `item_height` tall.
+fn bar_height(item_height: Pixels) -> Pixels {
+    item_height + vertical_padding() * 2.
+}
+
 impl StatusBar {
+    /// The bar is as tall as its items, which are all default-sized buttons.
+    pub(crate) fn height(window: &Window) -> Pixels {
+        bar_height(ButtonSize::Default.rems().to_pixels(window.rem_size()))
+    }
+
     fn render_left_tools(&self) -> impl IntoElement {
         h_flex().gap_1().min_w_0().overflow_x_hidden().children(self.left_items.iter().map(|item| item.to_any()))
     }
@@ -206,11 +222,19 @@ impl From<&dyn StatusItemViewHandle> for AnyView {
 mod tests {
     use ui::Color;
 
+    use super::bar_height;
     use super::status_item_color;
+    use super::vertical_padding;
 
     #[test]
     fn test_status_item_color() {
         assert_eq!(status_item_color(true), Color::Accent);
         assert_eq!(status_item_color(false), Color::Default);
+    }
+
+    #[test]
+    fn test_bar_height_pads_items_evenly() {
+        assert_eq!(bar_height(gpui::px(22.)), gpui::px(34.));
+        assert_eq!(bar_height(gpui::px(0.)), vertical_padding() * 2.);
     }
 }

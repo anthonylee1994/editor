@@ -42,6 +42,7 @@ use gpui::PromptLevel;
 use gpui::Render;
 use gpui::ScrollHandle;
 use gpui::Stateful;
+use gpui::StyleRefinement;
 use gpui::Subscription;
 use gpui::Task;
 use gpui::TaskExt;
@@ -64,6 +65,8 @@ use project::Project;
 use project::ProjectEntryId;
 use project::ProjectPath;
 use project::WorktreeId;
+use project::git_store::GitStoreEvent;
+use project::git_store::RepositoryEvent;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
@@ -486,6 +489,7 @@ pub struct Pane {
     /// that overhangs a narrow sidebar, so tabs never slide under it.
     tab_bar_header_room: Pixels,
     _subscriptions: Vec<Subscription>,
+    tab_bar: Entity<TabBarView>,
     tab_bar_scroll_handle: ScrollHandle,
     /// This is set to true if a user scroll has occurred more recently than a system scroll
     /// We want to suppress certain system scrolls when the user has intentionally scrolled
@@ -605,8 +609,11 @@ impl Pane {
         let focus_handle = cx.focus_handle();
 
         let toolbar = cx.new(|_| Toolbar::new());
+        let pane = cx.weak_entity();
+        let tab_bar = cx.new(|cx| TabBarView::new(pane, &project, cx));
         let subscriptions = vec![
             cx.observe(&toolbar, |_, _, cx| cx.notify()),
+            cx.observe_self(|pane, cx| pane.tab_bar.update(cx, |_, cx| cx.notify())),
             cx.on_focus(&focus_handle, window, Pane::focus_in),
             cx.on_focus_in(&focus_handle, window, Pane::focus_in),
             cx.on_focus_out(&focus_handle, window, Pane::focus_out),
@@ -625,6 +632,7 @@ impl Pane {
             last_focus_handle_by_item: FxHashMap::default(),
             nav_history: NavHistory::new(workspace.clone(), next_timestamp),
             toolbar,
+            tab_bar,
             tab_bar_scroll_handle: ScrollHandle::new(),
             suppress_scroll: false,
             drag_split_direction: None,
@@ -760,6 +768,12 @@ impl Pane {
             self.tab_bar_header_room = header_room;
             cx.notify();
         }
+    }
+
+    /// The tab bar, re-rendered only when the pane or the tab bar itself notifies
+    /// rather than with every frame of the active item.
+    fn cached_tab_bar(&self, cx: &App) -> impl IntoElement + use<> {
+        self.tab_bar.clone().cached(StyleRefinement::default().flex_none().w_full().h(Tab::container_height(cx)))
     }
 
     /// Puts the header room before `tab_bar`. The room moves the window like
@@ -3182,8 +3196,48 @@ impl Focusable for Pane {
     }
 }
 
-impl Render for Pane {
+/// A pane's tab bar. It is a view of its own so it can be cached apart from
+/// the pane, which re-renders with every frame of its active item.
+struct TabBarView {
+    pane: WeakEntity<Pane>,
+    _git_subscription: Subscription,
+}
+
+impl TabBarView {
+    fn new(pane: WeakEntity<Pane>, project: &Entity<Project>, cx: &mut Context<Self>) -> Self {
+        // Tab labels are coloured by git status, which changes without the pane hearing of it.
+        let git_store = project.read(cx).git_store().clone();
+        let git_subscription = cx.subscribe(&git_store, |_, _, event, cx| {
+            if git_event_recolors_tabs(event) {
+                cx.notify();
+            }
+        });
+        Self { pane, _git_subscription: git_subscription }
+    }
+}
+
+const fn git_event_recolors_tabs(event: &GitStoreEvent) -> bool {
+    matches!(
+        event,
+        GitStoreEvent::RepositoryUpdated(_, RepositoryEvent::StatusesChanged, _)
+            | GitStoreEvent::RepositoryAdded
+            | GitStoreEvent::RepositoryRemoved(_)
+    )
+}
+
+impl Render for TabBarView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.pane
+            .update(cx, |pane, cx| {
+                let tab_bar = (pane.render_tab_bar.clone())(pane, window, cx);
+                pane.with_tab_bar_header_room(tab_bar)
+            })
+            .unwrap_or_else(|_| gpui::Empty.into_any())
+    }
+}
+
+impl Render for Pane {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let mut key_context = KeyContext::new_with_defaults();
         key_context.add("Pane");
         if self.active_item().is_none() {
@@ -3316,8 +3370,7 @@ impl Render for Pane {
             })
             .when(!pill_tabs, |pane| {
                 if self.active_item().is_some() {
-                    let tab_bar = (self.render_tab_bar.clone())(self, window, cx);
-                    pane.child(self.with_tab_bar_header_room(tab_bar))
+                    pane.child(self.cached_tab_bar(cx))
                 } else if self.tab_bar_header.is_some() || self.tab_bar_is_titlebar {
                     // Still window chrome: keep the header and the space that moves the window.
                     let tab_bar = TabBar::new("tab_bar")
@@ -3405,9 +3458,7 @@ impl Render for Pane {
                         .flex_1()
                         .min_h_0()
                         .map(Self::card_style(cx))
-                        .when(self.active_item().is_some(), |card| {
-                            card.child((self.render_tab_bar.clone())(self, window, cx))
-                        })
+                        .when(self.active_item().is_some(), |card| card.child(self.cached_tab_bar(cx)))
                         .child(content)
                         .child(div().map(Self::card_corner_mask_style(cx.theme().colors())))
                         .into_any_element()
@@ -3910,5 +3961,21 @@ mod tests {
         assert_eq!(style.border_widths.top, Some(px(1.).into()));
         assert_eq!(style.border_widths.left, Some(px(1.).into()));
         assert_eq!(style.corner_radii.top_left, Some(px(8.).into()));
+    }
+
+    #[test]
+    fn test_git_event_recolors_tabs_on_status_changes_only() {
+        use project::git_store::GitStoreEvent;
+        use project::git_store::RepositoryEvent;
+        use project::git_store::RepositoryId;
+
+        use super::git_event_recolors_tabs;
+
+        let id = RepositoryId(1);
+        assert!(git_event_recolors_tabs(&GitStoreEvent::RepositoryUpdated(id, RepositoryEvent::StatusesChanged, true)));
+        assert!(git_event_recolors_tabs(&GitStoreEvent::RepositoryAdded));
+        assert!(git_event_recolors_tabs(&GitStoreEvent::RepositoryRemoved(id)));
+        assert!(!git_event_recolors_tabs(&GitStoreEvent::JobsUpdated));
+        assert!(!git_event_recolors_tabs(&GitStoreEvent::ActiveWorktreeChanged));
     }
 }
