@@ -447,6 +447,7 @@ impl DerefMut for LocalSnapshot {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 enum ScanState {
     Started,
     Updated {

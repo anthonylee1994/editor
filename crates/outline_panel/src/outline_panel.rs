@@ -746,6 +746,7 @@ impl Eq for PanelEntry {}
 const SEARCH_MATCH_CONTEXT_SIZE: u32 = 40;
 const TRUNCATED_CONTEXT_MARK: &str = "…";
 
+#[allow(clippy::single_range_in_vec_init)]
 impl SearchData {
     fn new(match_range: &Range<editor::Anchor>, multi_buffer_snapshot: &MultiBufferSnapshot) -> Self {
         let match_point_range = match_range.to_point(multi_buffer_snapshot);
@@ -806,6 +807,7 @@ impl SearchData {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum OutlineEntry {
     Excerpt(ExcerptRange<Anchor>),

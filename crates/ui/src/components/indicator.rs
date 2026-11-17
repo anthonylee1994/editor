@@ -9,6 +9,7 @@ use crate::prelude::Window;
 use crate::prelude::div;
 use crate::prelude::rems_from_px;
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Default)]
 enum IndicatorKind {
     #[default]

@@ -1567,7 +1567,6 @@ fn align_labels(
 /// Where the end of segment `e` on node `v` should be, from the middle of its side. The edge
 /// is followed up (side 0) or down past bends in ranks that hold nothing else, to where it next
 /// comes to a held point or another node's side.
-#[expect(clippy::too_many_arguments, reason = "mirrors Pele's closure, which reads these from its scope")]
 fn wanted(
     g: &Graph,
     nodes: &[LNode],

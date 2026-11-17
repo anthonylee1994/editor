@@ -82,7 +82,6 @@ pub(crate) fn title_crossed(c: &CNode, width: f64, x: f64, crossings: &Crossings
 /// of the cluster behind it, so only the line is seen to stop short of the letters. `nodes` and
 /// `index` find how many clusters deep the title is, each of which tints the background. `id` is
 /// written as given.
-#[expect(clippy::too_many_arguments, reason = "mirrors Pele's struckTitle")]
 pub(crate) fn struck_title(
     label: &Label,
     x: f64,

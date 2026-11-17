@@ -692,7 +692,6 @@ fn level_index(level_of: &[Option<usize>], parent: Option<usize>) -> Option<usiz
 /// node for each crossing on the start or end side. `dummies` gives each port's node. Without
 /// `sized`, every node is a point, which is enough to rank them. With `flat`, every node starts
 /// from its place in the flat layout, and a port from the place of the edge's other end there.
-#[expect(clippy::too_many_arguments, reason = "mirrors Pele's closure, which reads these from its scope")]
 fn build(
     levels: &[Level],
     level_of: &[Option<usize>],

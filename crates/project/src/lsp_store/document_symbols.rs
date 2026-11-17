@@ -218,6 +218,7 @@ impl LspStore {
     }
 }
 
+#[allow(clippy::single_range_in_vec_init)]
 fn flatten_document_symbols(
     symbols: &[DocumentSymbol],
     snapshot: &BufferSnapshot,
@@ -262,6 +263,7 @@ fn flatten_document_symbols(
 /// Tries to build an enriched label by including buffer text from the symbol
 /// range start to the selection range end (e.g., "struct Foo" instead of just "Foo").
 /// Only uses same-line prefix to avoid pulling in attributes/decorators.
+#[allow(clippy::single_range_in_vec_init)]
 fn enriched_symbol_text(
     name: &str,
     range_start: PointUtf16,

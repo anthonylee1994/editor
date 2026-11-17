@@ -70,7 +70,6 @@ pub(super) enum ActionButtonState {
 /// A button that runs `handler` on the search bar that rendered it. Dispatching
 /// the action instead would reach workspace-level handlers, which resolve the
 /// active pane before a click in another pane has activated it.
-#[expect(clippy::too_many_arguments, reason = "mirrors the button's parts")]
 pub(super) fn render_local_action_button<T: 'static, A: Action>(
     id_prefix: &'static str,
     icon: ui::IconName,

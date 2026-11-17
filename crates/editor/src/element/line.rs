@@ -52,6 +52,7 @@ pub(crate) struct LineWithInvisibles {
     pub(super) font_size: Pixels,
 }
 
+#[allow(clippy::large_enum_variant)]
 pub(super) enum LineFragment {
     Text(ShapedLine),
     Element { id: ChunkRendererId, element: Option<AnyElement>, size: Size<Pixels>, len: usize },

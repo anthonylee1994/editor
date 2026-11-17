@@ -2853,6 +2853,7 @@ pub struct LanguageServerProgress {
     pub last_update_at: Instant,
 }
 
+#[allow(clippy::large_enum_variant)]
 pub enum ResolvedHint {
     Resolved(InlayHint),
     Resolving(Shared<Task<Option<InlayHint>>>),

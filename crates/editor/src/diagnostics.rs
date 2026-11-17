@@ -93,6 +93,7 @@ pub(super) struct ActiveDiagnosticGroup {
     blocks: FxHashSet<CustomBlockId>,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, PartialEq, Eq)]
 pub(super) enum ActiveDiagnostic {
     None,

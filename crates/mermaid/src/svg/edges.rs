@@ -466,7 +466,7 @@ pub(crate) fn edge_label_svg(
 /// flow and back in. `k` counts the loops already on the node, so each one reaches a little
 /// further than `base`. `trim` leaves room for the end marker. Also places the edge's label
 /// beyond the loop.
-#[expect(clippy::too_many_arguments, clippy::many_single_char_names, reason = "mirrors Pele's loopPath")]
+#[expect(clippy::many_single_char_names, reason = "mirrors Pele's loopPath")]
 pub(crate) fn loop_path(
     c: &CNode,
     w: f64,

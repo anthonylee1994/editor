@@ -805,6 +805,7 @@ fn init_command_startup_marker_command(marker_id: u64) -> String {
 /// sender and receiver remain paired.
 pub struct TerminalMode(TerminalModeKind);
 
+#[allow(clippy::large_enum_variant)]
 enum TerminalModeKind {
     Interactive,
     Task { state: TaskState, completion_tx: Sender<Option<ExitStatus>> },

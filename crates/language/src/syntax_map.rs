@@ -603,6 +603,7 @@ impl SyntaxSnapshot {
         Ok(())
     }
 
+    #[allow(clippy::single_range_in_vec_init)]
     fn reparse_with_ranges(
         &mut self,
         text: &BufferSnapshot,

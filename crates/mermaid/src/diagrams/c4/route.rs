@@ -163,7 +163,6 @@ pub(crate) fn queue_rx(h: f64) -> f64 {
 
 /// How far along the segment from (`px`, `py`) by (`dx`, `dy`) it first meets the rectangle.
 /// Infinity when it misses.
-#[expect(clippy::too_many_arguments, reason = "mirrors Pele's hitRect")]
 fn hit_rect(x0: f64, y0: f64, x1: f64, y1: f64, px: f64, py: f64, dx: f64, dy: f64) -> f64 {
     let mut enter = 0.0_f64;
     let mut leave = 1.0_f64;
@@ -190,7 +189,6 @@ fn hit_rect(x0: f64, y0: f64, x1: f64, y1: f64, px: f64, py: f64, dx: f64, dy: f
     if enter <= leave { enter } else { f64::INFINITY }
 }
 
-#[expect(clippy::too_many_arguments, reason = "mirrors Pele's hitEllipse")]
 fn hit_ellipse(cx: f64, cy: f64, rx: f64, ry: f64, px: f64, py: f64, dx: f64, dy: f64) -> f64 {
     let ux = dx / rx;
     let uy = dy / ry;
@@ -548,7 +546,6 @@ struct Best {
 
 /// Considers `points` as an elbow from `a` to `b`, keeping it when it is clear and cheaper.
 /// Returns whether it was kept.
-#[expect(clippy::too_many_arguments, reason = "the state of Pele's elbow closure")]
 fn consider(
     best: &mut Option<Best>,
     points: Vec<f64>,

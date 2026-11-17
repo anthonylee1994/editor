@@ -1,4 +1,3 @@
-gpui::actions!(activity_indicator, [DismissMessage]);
 use std::cmp::Reverse;
 use std::collections::HashSet;
 use std::fmt::Write;
@@ -62,7 +61,8 @@ actions!(
     activity_indicator,
     [
         /// Displays error messages from language servers in the status bar.
-        ShowErrorMessage
+        ShowErrorMessage,
+        DismissMessage
     ]
 );
 
