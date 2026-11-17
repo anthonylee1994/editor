@@ -152,12 +152,9 @@ impl Keystroke {
             if component.len() == 1 && component.as_bytes()[0].is_ascii_uppercase() {
                 // Convert to shift + lowercase char
                 modifiers.shift = true;
-                key_str.make_ascii_lowercase();
-            } else {
-                // convert ascii chars to lowercase so that named keys like "tab" and "enter"
-                // are accepted case insensitively and stored how we expect so they are matched properly
-                key_str.make_ascii_lowercase()
             }
+            // Named keys like "tab" and "enter" are matched case insensitively
+            key_str.make_ascii_lowercase();
             key = Some(key_str);
         }
 
@@ -188,7 +185,7 @@ impl Keystroke {
 
     /// Produces a representation of this key that Parse can understand.
     pub fn unparse(&self) -> String {
-        unparse(&self.modifiers, &self.key)
+        unparse(self.modifiers, &self.key)
     }
 
     /// Returns a new keystroke with the key_char filled.
@@ -256,7 +253,7 @@ impl KeybindingKeystroke {
 
     /// Produces a representation of this key that Parse can understand.
     pub fn unparse(&self) -> String {
-        unparse(&self.inner.modifiers, &self.inner.key)
+        unparse(self.inner.modifiers, &self.inner.key)
     }
 }
 
@@ -316,14 +313,14 @@ fn is_printable_key(key: &str) -> bool {
 
 impl Display for Keystroke {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        display_modifiers(&self.modifiers, f)?;
+        display_modifiers(self.modifiers, f)?;
         display_key(&self.key, f)
     }
 }
 
 impl Display for KeybindingKeystroke {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        display_modifiers(self.modifiers(), f)?;
+        display_modifiers(*self.modifiers(), f)?;
         display_key(self.key(), f)
     }
 }
@@ -503,7 +500,7 @@ impl<T: AsKeystroke + ?Sized> AsKeystroke for &T {
     }
 }
 
-fn display_modifiers(modifiers: &Modifiers, f: &mut Formatter<'_>) -> fmt::Result {
+fn display_modifiers(modifiers: Modifiers, f: &mut Formatter<'_>) -> fmt::Result {
     if modifiers.control {
         f.write_char('^')?;
     }
@@ -540,7 +537,7 @@ fn display_key(key: &str, f: &mut Formatter<'_>) -> fmt::Result {
 }
 
 #[inline]
-fn unparse(modifiers: &Modifiers, key: &str) -> String {
+fn unparse(modifiers: Modifiers, key: &str) -> String {
     let mut result = String::new();
     if modifiers.function {
         result.push_str("fn-");

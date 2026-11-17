@@ -300,7 +300,7 @@ impl SemanticsProvider for RevisionSemanticsProvider {
     }
 
     fn invalidate_inlay_hints(&self, for_buffers: &FxHashSet<BufferId>, cx: &mut App) {
-        self.project.invalidate_inlay_hints(for_buffers, cx)
+        self.project.invalidate_inlay_hints(for_buffers, cx);
     }
 
     fn inlay_hints(

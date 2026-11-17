@@ -395,7 +395,7 @@ impl LanguageRegistry {
     }
 
     pub fn to_vec(&self) -> Vec<Arc<Language>> {
-        self.state.read().languages.to_vec()
+        self.state.read().languages.clone()
     }
 
     pub fn lsp_adapters(&self, language_name: &LanguageName) -> Vec<Arc<CachedLspAdapter>> {

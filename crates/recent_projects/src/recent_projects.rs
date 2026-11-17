@@ -221,7 +221,7 @@ pub fn init(cx: &mut App) {
                             };
 
                             recent_projects.update(cx, |recent_projects, cx| {
-                                recent_projects.picker.update(cx, |picker, cx| picker.cycle_selection(window, cx))
+                                recent_projects.picker.update(cx, |picker, cx| picker.cycle_selection(window, cx));
                             });
                         })
                         .log_err();
@@ -236,7 +236,7 @@ pub fn init(cx: &mut App) {
                     };
 
                     recent_projects.update(cx, |recent_projects, cx| {
-                        recent_projects.picker.update(cx, |picker, cx| picker.cycle_selection(window, cx))
+                        recent_projects.picker.update(cx, |picker, cx| picker.cycle_selection(window, cx));
                     });
                 });
             }
@@ -296,8 +296,8 @@ impl RecentProjects {
             this.update_in(cx, move |this, window, cx| {
                 this.picker.update(cx, move |picker, cx| {
                     picker.delegate.set_workspaces(workspaces);
-                    picker.update_matches(picker.query(cx), window, cx)
-                })
+                    picker.update_matches(picker.query(cx), window, cx);
+                });
             })
             .ok();
         })
@@ -328,7 +328,7 @@ impl RecentProjects {
             );
 
             Self::new(delegate, fs, 42., window, cx)
-        })
+        });
     }
 
     pub fn popover(
@@ -338,13 +338,13 @@ impl RecentProjects {
         window: &mut Window,
         cx: &mut App,
     ) -> Entity<Self> {
-        let (open_folders, fs) = workspace
-            .upgrade()
-            .map(|workspace| {
+        let (open_folders, fs) = workspace.upgrade().map_or_else(
+            || (Vec::new(), None),
+            |workspace| {
                 let workspace = workspace.read(cx);
                 (get_open_folders(workspace, cx), Some(workspace.app_state().fs.clone()))
-            })
-            .unwrap_or_else(|| (Vec::new(), None));
+            },
+        );
 
         let create_new_window = create_new_window.unwrap_or(false);
 
@@ -697,7 +697,7 @@ impl PickerDelegate for RecentProjectsDelegate {
                                 .w_full()
                                 .min_w_0()
                                 .gap_2p5()
-                                .when(is_nested, |this| this.pl_5())
+                                .when(is_nested, gpui::Styled::pl_5)
                                 .when(is_nested, |this| this.child(Icon::new(IconName::FileGit).color(Color::Muted)))
                                 .child(
                                     v_flex()
@@ -732,7 +732,7 @@ impl PickerDelegate for RecentProjectsDelegate {
                                     this.tooltip(move |_, cx| {
                                         if let Some(branch) = tooltip_branch.clone() {
                                             Tooltip::with_meta(
-                                                format!("{}/{}", name, branch),
+                                                format!("{name}/{branch}"),
                                                 None,
                                                 tooltip_path.clone(),
                                                 cx,
@@ -850,7 +850,7 @@ impl PickerDelegate for RecentProjectsDelegate {
                             .on_click(cx.listener(move |this, _event, window, cx| {
                                 cx.stop_propagation();
                                 window.prevent_default();
-                                this.delegate.delete_recent_project(ix, window, cx)
+                                this.delegate.delete_recent_project(ix, window, cx);
                             })),
                     )
                     .into_any_element();
@@ -955,7 +955,7 @@ impl PickerDelegate for RecentProjectsDelegate {
                 .justify_end()
                 .border_t_1()
                 .border_color(cx.theme().colors().border_variant)
-                .when_some(secondary_footer_actions, |this, actions| this.child(actions))
+                .when_some(secondary_footer_actions, gpui::ParentElement::child)
                 .map(|this| {
                     if is_already_open_entry {
                         this.child(
@@ -968,7 +968,7 @@ impl PickerDelegate for RecentProjectsDelegate {
                             Button::new("open_here", "This Window")
                                 .key_binding(KeyBinding::for_action_in(&menu::SecondaryConfirm, &focus_handle, cx))
                                 .on_click(|_, window, cx| {
-                                    window.dispatch_action(menu::SecondaryConfirm.boxed_clone(), cx)
+                                    window.dispatch_action(menu::SecondaryConfirm.boxed_clone(), cx);
                                 }),
                         )
                         .child(
@@ -981,7 +981,7 @@ impl PickerDelegate for RecentProjectsDelegate {
                             Button::new("open_new_window", "New Window")
                                 .key_binding(KeyBinding::for_action_in(&menu::SecondaryConfirm, &focus_handle, cx))
                                 .on_click(|_, window, cx| {
-                                    window.dispatch_action(menu::SecondaryConfirm.boxed_clone(), cx)
+                                    window.dispatch_action(menu::SecondaryConfirm.boxed_clone(), cx);
                                 }),
                         )
                         .child(

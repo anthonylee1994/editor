@@ -28,13 +28,13 @@ impl ProcessIdGetter {
         ProcessIdGetter { handle, fallback_pid }
     }
 
-    pub fn fallback_pid(&self) -> Pid {
+    pub fn fallback_pid(self) -> Pid {
         Pid::from_u32(self.fallback_pid)
     }
 }
 
 impl ProcessIdGetter {
-    fn pid(&self) -> Option<Pid> {
+    fn pid(self) -> Option<Pid> {
         // Negative pid means error.
         // Zero pid means no foreground process group is set on the PTY yet.
         // Avoid killing the current process by returning a zero pid.
@@ -144,7 +144,7 @@ impl PtyProcessInfo {
 
     fn load(&self) -> Option<ProcessInfo> {
         let process = self.refresh()?;
-        let cwd = process.cwd().map_or(PathBuf::new(), |p| p.to_owned());
+        let cwd = process.cwd().map_or(PathBuf::new(), ToOwned::to_owned);
 
         let info = ProcessInfo {
             name: process.name().to_str()?.to_owned(),

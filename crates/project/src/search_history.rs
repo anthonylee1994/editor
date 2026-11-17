@@ -79,7 +79,7 @@ impl SearchHistory {
     }
 
     pub fn current(&self, cursor: &SearchHistoryCursor) -> Option<&str> {
-        cursor.selection.and_then(|selected_ix| self.history.get(selected_ix).map(|s| s.as_str()))
+        cursor.selection.and_then(|selected_ix| self.history.get(selected_ix).map(String::as_str))
     }
 
     /// Get the previous history entry using the given `SearchHistoryCursor`.
@@ -107,6 +107,6 @@ impl SearchHistory {
 
     /// Iterate over history entries from newest to oldest.
     pub fn iter(&self) -> impl Iterator<Item = &str> {
-        self.history.iter().rev().map(|s| s.as_str())
+        self.history.iter().rev().map(String::as_str)
     }
 }

@@ -579,10 +579,7 @@ impl<T: 'static> Future for FallibleTask<T> {
                     };
                 }
                 FallibleTaskState::Rendezvous(receiver) => match receiver.poll_take(cx) {
-                    Poll::Ready(task) => {
-                        this.0 = task.fallible().0;
-                        continue;
-                    }
+                    Poll::Ready(task) => this.0 = task.fallible().0,
                     Poll::Pending => return Poll::Pending,
                 },
             }
@@ -619,10 +616,7 @@ impl<T: 'static> Future for Task<T> {
                     };
                 }
                 TaskState::Rendezvous(receiver) => match receiver.poll_take(cx) {
-                    Poll::Ready(task) => {
-                        this.0 = task.0;
-                        continue;
-                    }
+                    Poll::Ready(task) => this.0 = task.0,
                     Poll::Pending => return Poll::Pending,
                 },
             }

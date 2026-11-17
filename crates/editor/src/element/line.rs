@@ -137,7 +137,7 @@ impl LineWithInvisibles {
                 }
 
                 if !line.is_empty() {
-                    let segments = bg_segments_per_row.get(row).map(|v| &v[..]).unwrap_or(&[]);
+                    let segments = bg_segments_per_row.get(row).map_or(&[][..], |v| &v[..]);
                     let text_runs: &[TextRun] = if segments.is_empty() {
                         &styles
                     } else {
@@ -217,13 +217,13 @@ impl LineWithInvisibles {
                         width += line_layout.width;
                         len += highlighted_chunk.text.len();
                         line_byte_offset += highlighted_chunk.text.len();
-                        fragments.push(LineFragment::Text(line_layout))
+                        fragments.push(LineFragment::Text(line_layout));
                     }
                 }
             } else {
                 for (ix, mut line_chunk) in highlighted_chunk.text.split('\n').enumerate() {
                     if ix > 0 {
-                        let segments = bg_segments_per_row.get(row).map(|v| &v[..]).unwrap_or(&[]);
+                        let segments = bg_segments_per_row.get(row).map_or(&[][..], |v| &v[..]);
                         let text_runs = if segments.is_empty() {
                             &styles
                         } else {
@@ -314,7 +314,7 @@ impl LineWithInvisibles {
                                     } else {
                                         None
                                     }
-                                }))
+                                }));
                             }
                         }
 

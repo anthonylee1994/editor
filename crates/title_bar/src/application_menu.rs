@@ -107,7 +107,7 @@ impl ApplicationMenu {
     fn build_menu_from_items(entry: MenuEntry, window: &mut Window, cx: &mut App) -> Entity<ContextMenu> {
         ContextMenu::build(window, cx, |menu, window, cx| {
             // Grab current focus handle so menu can shown items in context with the focused element
-            let menu = menu.when_some(window.focused(cx), |menu, focused| menu.context(focused));
+            let menu = menu.when_some(window.focused(cx), ui::ContextMenu::context);
             let sanitized_items = Self::sanitize_menu_items(entry.menu.items);
 
             sanitized_items.into_iter().fold(menu, |menu, item| match item {
@@ -143,11 +143,11 @@ impl ApplicationMenu {
         let entry = entry.clone();
 
         // Application menu must have same ids as first menu item in standard menu
-        div().id(format!("{}-menu-item", menu_name)).occlude().child(
-            PopoverMenu::new(format!("{}-menu-popover", menu_name))
+        div().id(format!("{menu_name}-menu-item")).occlude().child(
+            PopoverMenu::new(format!("{menu_name}-menu-popover"))
                 .menu(move |window, cx| Self::build_menu_from_items(entry.clone(), window, cx).into())
                 .trigger_with_tooltip(
-                    IconButton::new(SharedString::from(format!("{}-menu-trigger", menu_name)), ui::IconName::Menu)
+                    IconButton::new(SharedString::from(format!("{menu_name}-menu-trigger")), ui::IconName::Menu)
                         .style(ButtonStyle::Subtle)
                         .icon_size(IconSize::Small)
                         .tab_index(0isize),
@@ -166,13 +166,13 @@ impl ApplicationMenu {
         let all_handles: Vec<_> = self.entries.iter().map(|entry| entry.handle.clone()).collect();
 
         div()
-            .id(format!("{}-menu-item", menu_name))
+            .id(format!("{menu_name}-menu-item"))
             .occlude()
             .child(
-                PopoverMenu::new(format!("{}-menu-popover", menu_name))
+                PopoverMenu::new(format!("{menu_name}-menu-popover"))
                     .menu(move |window, cx| Self::build_menu_from_items(entry.clone(), window, cx).into())
                     .trigger(
-                        Button::new(SharedString::from(format!("{}-menu-trigger", menu_name)), menu_name)
+                        Button::new(SharedString::from(format!("{menu_name}-menu-trigger")), menu_name)
                             .style(ButtonStyle::Subtle)
                             .label_size(LabelSize::Small)
                             .tab_index(0isize),
@@ -182,9 +182,11 @@ impl ApplicationMenu {
             .on_hover(move |hover_enter, window, cx| {
                 if *hover_enter
                     && !current_handle.is_deployed()
-                    && all_handles.iter().any(|handle| handle.is_deployed())
+                    && all_handles.iter().any(ui::PopoverMenuHandle::is_deployed)
                 {
-                    all_handles.iter().for_each(|h| h.hide(cx));
+                    for h in &all_handles {
+                        h.hide(cx);
+                    }
 
                     // We need to defer this so that this menu handle can take focus from the previous menu
                     let handle = current_handle.clone();
@@ -218,12 +220,16 @@ impl Render for ApplicationMenu {
                 // We need to wait for the next frame to show all menus first,
                 // before we can handle show/hide operations
                 window.on_next_frame(move |window, cx| {
-                    handles_to_hide.iter().for_each(|handle| handle.hide(cx));
+                    for handle in &handles_to_hide {
+                        handle.hide(cx);
+                    }
                     window.defer(cx, move |window, cx| handle_to_show.show(window, cx));
                 });
             } else {
                 // Since menus are already shown, we can directly handle show/hide operations
-                handles_to_hide.iter().for_each(|handle| handle.hide(cx));
+                for handle in &handles_to_hide {
+                    handle.hide(cx);
+                }
                 cx.defer_in(window, move |_, window, cx| handle_to_show.show(window, cx));
             }
         }

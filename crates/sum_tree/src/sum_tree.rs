@@ -24,7 +24,7 @@ trait CapacityResultExt {
 
 impl<T> CapacityResultExt for Result<(), T> {
     fn unwrap_oob(self) {
-        self.unwrap_or_else(|_| panic!("item should fit into fixed size ArrayVec"))
+        self.unwrap_or_else(|_| panic!("item should fit into fixed size ArrayVec"));
     }
 }
 
@@ -67,7 +67,7 @@ impl<T: ContextLessSummary> Summary for T {
     }
 
     fn add_summary<'a>(&mut self, summary: &Self, (): ()) {
-        T::add_summary(self, summary)
+        T::add_summary(self, summary);
     }
 }
 
@@ -677,7 +677,7 @@ impl<T: Item> SumTree<T> {
                     let left_trees;
                     let right_trees;
 
-                    let midpoint = (child_count + child_count % 2) / 2;
+                    let midpoint = usize::midpoint(child_count, child_count % 2);
                     {
                         let mut all_summaries = child_summaries.iter().chain(summaries_to_append.iter()).cloned();
                         left_summaries = all_summaries.by_ref().take(midpoint).collect();
@@ -712,7 +712,7 @@ impl<T: Item> SumTree<T> {
                     let left_summaries;
                     let right_summaries: ArrayVec<T::Summary, { 2 * TREE_BASE }, u8>;
 
-                    let midpoint = (child_count + child_count % 2) / 2;
+                    let midpoint = usize::midpoint(child_count, child_count % 2);
                     {
                         let mut all_items = items.iter().chain(other_node.items().iter()).cloned();
                         left_items = all_items.by_ref().take(midpoint).collect();
@@ -743,7 +743,7 @@ impl<T: Item> SumTree<T> {
     // appends the `large` tree to a `small` tree, assumes small.height() <= large.height()
     fn append_large(small: Self, large: &mut Self, cx: <T::Summary as Summary>::Context<'_>) -> Option<Self> {
         if small.0.height() == large.0.height() {
-            if !small.0.is_underflowing() { Some(small) } else { Self::merge_into_right(small, large, cx) }
+            if small.0.is_underflowing() { Self::merge_into_right(small, large, cx) } else { Some(small) }
         } else {
             let Node::Internal { height, summary, child_summaries, child_trees } = Arc::make_mut(&mut large.0) else {
                 unreachable!();
@@ -939,7 +939,7 @@ impl<T: KeyedItem> SumTree<T> {
             new_tree.push(item, cx);
             new_tree.append(cursor.suffix(), cx);
             drop(cursor);
-            *self = new_tree
+            *self = new_tree;
         };
         replaced
     }
@@ -967,7 +967,7 @@ impl<T: KeyedItem> SumTree<T> {
         }
 
         let mut removed = Vec::new();
-        edits.sort_unstable_by_key(|item| item.key());
+        edits.sort_unstable_by_key(Edit::key);
 
         *self = {
             let mut cursor = self.cursor::<T::Key>(cx);

@@ -171,7 +171,7 @@ async fn handle_request(
                 if available {
                     window.available_actions(cx).iter().map(|action| action.name().to_string()).collect()
                 } else {
-                    cx.all_action_names().iter().map(|name| name.to_string()).collect()
+                    cx.all_action_names().iter().map(ToString::to_string).collect()
                 }
             })?;
             names.sort();
@@ -257,7 +257,7 @@ async fn handle_request(
             let start = perf_start.get().context("call perf_reset first")?;
             let cpu = CpuSample::now().since(&start);
             let frames = window.update(cx, |_, window, _| {
-                window.frame_stats().map(|stats| frame_times(&stats.summary())).unwrap_or_default()
+                window.frame_stats().map_or_default(|stats| frame_times(&stats.summary()))
             })?;
             serde_json::to_value(control::Perf { cpu, frames })?
         }

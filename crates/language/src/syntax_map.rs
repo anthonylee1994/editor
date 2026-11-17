@@ -468,10 +468,10 @@ impl SyntaxSnapshot {
                 );
                 layers.append(slice, text);
                 continue;
-            };
+            }
 
             let Some(layer) = cursor.item() else { break };
-            let Dimensions(start_byte, start_point, _) = layer.range.start.summary::<Dimensions<usize, Point>>(text);
+            let Dimensions(start_byte, start_point, ()) = layer.range.start.summary::<Dimensions<usize, Point>>(text);
 
             // Ignore edits that end before the start of this layer, and don't consider them
             // for any subsequent layers at this same depth.
@@ -574,7 +574,7 @@ impl SyntaxSnapshot {
                 if registry
                     .language_for_name_or_extension(language_name)
                     .now_or_never()
-                    .and_then(|language| language.ok())
+                    .and_then(Result::ok)
                     .is_some_and(|language| language.grammar().is_some())
                 {
                     let range = layer.range.to_offset(text);
@@ -703,7 +703,7 @@ impl SyntaxSnapshot {
             }
 
             let Some(step) = step else { break };
-            let Dimensions(step_start_byte, step_start_point, _) =
+            let Dimensions(step_start_byte, step_start_point, ()) =
                 step.range.start.summary::<Dimensions<usize, Point>>(text);
             let step_end_byte = step.range.end.to_offset(text);
 
@@ -800,7 +800,7 @@ impl SyntaxSnapshot {
                                 log::error!("error parsing text: {e:?}");
                                 continue;
                             }
-                        };
+                        }
 
                         changed_ranges = join_ranges(
                             invalidated_ranges
@@ -849,7 +849,7 @@ impl SyntaxSnapshot {
                                 log::error!("error parsing text: {e:?}");
                                 continue;
                             }
-                        };
+                        }
                         changed_ranges = vec![step_start_byte..step_end_byte];
                     }
 
@@ -944,7 +944,7 @@ impl SyntaxSnapshot {
         let out_of_order = |reason: &str| -> ! {
             let file_path = file.map_or_else(|| "<untitled>".to_owned(), |file| format!("{:?}", file.path()));
             let mut dump =
-                format!("layers out of order: {reason}\nbuffer: {:?}\nfile: {file_path}\nlayers:\n", text.buffer_id(),);
+                format!("layers out of order: {reason}\nbuffer: {:?}\nfile: {file_path}\nlayers:\n", text.buffer_id());
             for layer in self.layers.iter() {
                 util::write_str!(
                     dump,
@@ -1147,13 +1147,11 @@ impl<'a> SyntaxMapCaptures<'a> {
     ) -> Self {
         let mut result = Self { layers: Vec::new(), grammars: Vec::new(), active_layer_count: 0 };
         for layer in layers {
-            let grammar = match &layer.language.grammar {
-                Some(grammar) => grammar,
-                None => continue,
+            let Some(grammar) = &layer.language.grammar else {
+                continue;
             };
-            let query = match query(grammar) {
-                Some(query) => query,
-                None => continue,
+            let Some(query) = query(grammar) else {
+                continue;
             };
 
             let mut query_cursor = QueryCursorHandle::new();
@@ -1181,7 +1179,7 @@ impl<'a> SyntaxMapCaptures<'a> {
             if layer.next_capture.is_some() {
                 let key = layer.sort_key();
                 let ix = match result.layers[..result.active_layer_count]
-                    .binary_search_by_key(&key, |layer| layer.sort_key())
+                    .binary_search_by_key(&key, SyntaxMapCapturesLayer::sort_key)
                 {
                     Ok(ix) | Err(ix) => ix,
                 };
@@ -1206,9 +1204,7 @@ impl<'a> SyntaxMapCaptures<'a> {
     }
 
     pub fn advance(&mut self) -> bool {
-        let layer = if let Some(layer) = self.layers[..self.active_layer_count].first_mut() {
-            layer
-        } else {
+        let Some(layer) = self.layers[..self.active_layer_count].first_mut() else {
             return false;
         };
 
@@ -1238,7 +1234,7 @@ impl<'a> SyntaxMapCaptures<'a> {
             }
             layer.advance();
         }
-        self.layers.sort_unstable_by_key(|layer| layer.sort_key());
+        self.layers.sort_unstable_by_key(SyntaxMapCapturesLayer::sort_key);
         self.active_layer_count =
             self.layers.iter().position(|layer| layer.next_capture.is_none()).unwrap_or(self.layers.len());
     }
@@ -1260,13 +1256,11 @@ impl<'a> SyntaxMapMatches<'a> {
     ) -> Self {
         let mut result = Self::default();
         for layer in layers {
-            let grammar = match &layer.language.grammar {
-                Some(grammar) => grammar,
-                None => continue,
+            let Some(grammar) = &layer.language.grammar else {
+                continue;
             };
-            let query = match query(grammar) {
-                Some(query) => query,
-                None => continue,
+            let Some(query) = query(grammar) else {
+                continue;
             };
 
             let mut query_cursor = QueryCursorHandle::new();
@@ -1278,7 +1272,7 @@ impl<'a> SyntaxMapMatches<'a> {
             cursor.set_max_start_depth(options.max_start_depth);
 
             if let Some(max_bytes_to_query) = options.max_bytes_to_query {
-                let midpoint = (range.start + range.end) / 2;
+                let midpoint = usize::midpoint(range.start, range.end);
                 let containing_range_start = midpoint.saturating_sub(max_bytes_to_query / 2);
                 let containing_range_end = containing_range_start.saturating_add(max_bytes_to_query);
                 cursor.set_containing_byte_range(containing_range_start..containing_range_end);
@@ -1306,7 +1300,7 @@ impl<'a> SyntaxMapMatches<'a> {
             if layer.has_next {
                 let key = layer.sort_key();
                 let ix = match result.layers[..result.active_layer_count]
-                    .binary_search_by_key(&key, |layer| layer.sort_key())
+                    .binary_search_by_key(&key, SyntaxMapMatchesLayer::sort_key)
                 {
                     Ok(ix) | Err(ix) => ix,
                 };
@@ -1340,9 +1334,7 @@ impl<'a> SyntaxMapMatches<'a> {
     }
 
     pub fn advance(&mut self) -> bool {
-        let layer = if let Some(layer) = self.layers.first_mut() {
-            layer
-        } else {
+        let Some(layer) = self.layers.first_mut() else {
             return false;
         };
 
@@ -1542,10 +1534,7 @@ fn parse_text(
                     *parse_budget = parse_budget.saturating_sub(now.elapsed());
                 }
             })
-            .ok_or_else(|| match timed_out {
-                true => anyhow::anyhow!(ParseTimeout),
-                false => anyhow::anyhow!("parsing failed"),
-            })
+            .ok_or_else(|| if timed_out { anyhow::anyhow!(ParseTimeout) } else { anyhow::anyhow!("parsing failed") })
     })
 }
 
@@ -1568,10 +1557,8 @@ fn get_injections(
     injection_groups.clear();
     for pattern in &config.patterns {
         if let (Some(language_name), true) = (pattern.language.as_ref(), pattern.combined)
-            && let Some(language) = language_registry
-                .language_for_name_or_extension(language_name)
-                .now_or_never()
-                .and_then(|language| language.ok())
+            && let Some(language) =
+                language_registry.language_for_name_or_extension(language_name).now_or_never().and_then(Result::ok)
         {
             injection_groups.insert(InjectionGroupKey::Combined(language.id), (language, Vec::new()));
         }
@@ -1631,7 +1618,7 @@ fn get_injections(
                 let language = language_registry
                     .language_for_name_or_extension(&language_name)
                     .now_or_never()
-                    .and_then(|language| language.ok())
+                    .and_then(Result::ok)
                     .filter(|language| language.grammar().is_some());
                 let range = text.anchor_before(step_range.start)..text.anchor_after(step_range.end);
 
@@ -1693,7 +1680,7 @@ fn get_injections(
             }
         };
 
-        queue.push(ParseStep { depth, language: ParseStepLanguage::Loaded { language }, range, included_ranges, mode })
+        queue.push(ParseStep { depth, language: ParseStepLanguage::Loaded { language }, range, included_ranges, mode });
     }
 }
 
@@ -1826,7 +1813,7 @@ fn insert_newlines_between_ranges(
                         start_point: (line_end - start_point).to_ts_point(),
                         end_point: ((line_end - start_point) + Point::new(1, 0)).to_ts_point(),
                     },
-                )
+                );
             }
         }
     }
@@ -1879,7 +1866,7 @@ impl<'a> SyntaxLayer<'a> {
 
                 if let Some((_, smallest_range)) = &smallest_match {
                     if range.len() < smallest_range.len() {
-                        smallest_match = Some((capture.index, range))
+                        smallest_match = Some((capture.index, range));
                     }
                     continue;
                 }
@@ -2112,7 +2099,7 @@ impl Drop for QueryCursorHandle {
         cursor.set_containing_byte_range(0..usize::MAX);
         cursor.set_containing_point_range(Point::zero().to_ts_point()..Point::MAX.to_ts_point());
         cursor.set_max_start_depth(None);
-        QUERY_CURSORS.lock().push(cursor)
+        QUERY_CURSORS.lock().push(cursor);
     }
 }
 

@@ -403,7 +403,7 @@ pub(crate) fn render(model: &XyChartDb, config: &Value, options: &Options) -> Re
         }
         if show_values && horizontal && plot.bar {
             for &(_, value) in &plot.data {
-                let written = finite(value).map(number_text).unwrap_or_default();
+                let written = finite(value).map_or_default(number_text);
                 value_width = max(value_width, measure::width(&written, tiny, 0));
             }
         }

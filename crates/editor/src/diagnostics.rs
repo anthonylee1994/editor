@@ -212,7 +212,7 @@ impl Editor {
             self.unfold_ranges(slice::from_ref(&diagnostic.range), true, false, cx);
         }
         self.change_selections(SelectionEffects::default(), window, cx, |s| {
-            s.select_ranges(vec![diagnostic.range.start..diagnostic.range.start])
+            s.select_ranges(vec![diagnostic.range.start..diagnostic.range.start]);
         });
         self.activate_diagnostics(buffer_id, diagnostic, window, cx);
     }
@@ -404,7 +404,7 @@ impl Editor {
     pub(super) fn dismiss_diagnostics(&mut self, cx: &mut Context<Self>) {
         if matches!(self.active_diagnostics, ActiveDiagnostic::All) {
             return;
-        };
+        }
 
         let prev = mem::replace(&mut self.active_diagnostics, ActiveDiagnostic::None);
         if let ActiveDiagnostic::Group(group) = prev {
@@ -444,8 +444,10 @@ impl Editor {
                             .as_str()
                             .split_once('\n')
                             .map(|(line, _)| line)
-                            .map(SharedString::new)
-                            .unwrap_or_else(|| diagnostic_entry.diagnostic.message.as_shared_string().clone());
+                            .map_or_else(
+                                || diagnostic_entry.diagnostic.message.as_shared_string().clone(),
+                                SharedString::new,
+                            );
                         let start_anchor = snapshot.anchor_before(diagnostic_entry.range.start);
                         let (Ok(i) | Err(i)) =
                             inline_diagnostics.binary_search_by(|(probe, _)| probe.cmp(&start_anchor, &snapshot));
@@ -528,7 +530,7 @@ impl Editor {
                     .update(cx, |project, cx| {
                         project.lsp_store().update(cx, |lsp_store, cx| {
                             lsp_store.pull_document_diagnostics_for_buffer_edit(buffer_id, cx);
-                        })
+                        });
                     })
                     .log_err();
             })

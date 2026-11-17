@@ -580,7 +580,7 @@ impl Hash for HighlightStyle {
         self.background_color.hash(state);
         self.underline.hash(state);
         self.strikethrough.hash(state);
-        state.write_u32(u32::from_be_bytes(self.fade_out.map(|f| f.to_be_bytes()).unwrap_or_default()));
+        state.write_u32(u32::from_be_bytes(self.fade_out.map_or_default(f32::to_be_bytes)));
     }
 }
 
@@ -593,36 +593,35 @@ impl Style {
     /// Get the content mask for this element style, based on the given bounds.
     /// If the element does not hide its overflow, this will return `None`.
     pub fn overflow_mask(&self, bounds: Bounds<Pixels>, rem_size: Pixels) -> Option<ContentMask<Pixels>> {
-        match self.overflow {
-            Point { x: Overflow::Visible, y: Overflow::Visible } => None,
-            _ => {
-                let mut min = bounds.origin;
-                let mut max = bounds.bottom_right();
+        if self.overflow == (Point { x: Overflow::Visible, y: Overflow::Visible }) {
+            None
+        } else {
+            let mut min = bounds.origin;
+            let mut max = bounds.bottom_right();
 
-                if self.border_color.is_some_and(|color| !color.is_transparent()) {
-                    min.x += self.border_widths.left.to_pixels(rem_size);
-                    max.x -= self.border_widths.right.to_pixels(rem_size);
-                    min.y += self.border_widths.top.to_pixels(rem_size);
-                    max.y -= self.border_widths.bottom.to_pixels(rem_size);
-                }
-
-                let bounds = match (self.overflow.x == Overflow::Visible, self.overflow.y == Overflow::Visible) {
-                    // x and y both visible
-                    (true, true) => return None,
-                    // x visible, y hidden
-                    (true, false) => {
-                        Bounds::from_corners(point(min.x, bounds.origin.y), point(max.x, bounds.bottom_right().y))
-                    }
-                    // x hidden, y visible
-                    (false, true) => {
-                        Bounds::from_corners(point(bounds.origin.x, min.y), point(bounds.bottom_right().x, max.y))
-                    }
-                    // both hidden
-                    (false, false) => Bounds::from_corners(min, max),
-                };
-
-                Some(ContentMask { bounds })
+            if self.border_color.is_some_and(|color| !color.is_transparent()) {
+                min.x += self.border_widths.left.to_pixels(rem_size);
+                max.x -= self.border_widths.right.to_pixels(rem_size);
+                min.y += self.border_widths.top.to_pixels(rem_size);
+                max.y -= self.border_widths.bottom.to_pixels(rem_size);
             }
+
+            let bounds = match (self.overflow.x == Overflow::Visible, self.overflow.y == Overflow::Visible) {
+                // x and y both visible
+                (true, true) => return None,
+                // x visible, y hidden
+                (true, false) => {
+                    Bounds::from_corners(point(min.x, bounds.origin.y), point(max.x, bounds.bottom_right().y))
+                }
+                // x hidden, y visible
+                (false, true) => {
+                    Bounds::from_corners(point(bounds.origin.x, min.y), point(bounds.bottom_right().x, max.y))
+                }
+                // both hidden
+                (false, false) => Bounds::from_corners(min, max),
+            };
+
+            Some(ContentMask { bounds })
         }
     }
 
@@ -645,7 +644,7 @@ impl Style {
                 Some(color) => match color.tag {
                     BackgroundTag::Solid | BackgroundTag::PatternSlash | BackgroundTag::Checkerboard => color.solid,
 
-                    BackgroundTag::LinearGradient => color.colors.first().map(|stop| stop.color).unwrap_or_default(),
+                    BackgroundTag::LinearGradient => color.colors.first().map_or_default(|stop| stop.color),
                 },
                 None => Hsla::default(),
             };
@@ -837,7 +836,7 @@ impl HighlightStyle {
             fade_out: other
                 .fade_out
                 .map(|source_fade| {
-                    self.fade_out.map(|dest_fade| (dest_fade * (1. + source_fade)).clamp(0., 1.)).unwrap_or(source_fade)
+                    self.fade_out.map_or(source_fade, |dest_fade| (dest_fade * (1. + source_fade)).clamp(0., 1.))
                 })
                 .or(self.fade_out),
         }

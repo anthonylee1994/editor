@@ -65,21 +65,20 @@ impl CodeLensData {
     }
 
     fn evict(&mut self, for_server: Option<LanguageServerId>) {
-        match for_server {
-            Some(server_id) => self.remove_server_data(server_id),
-            None => {
-                self.lens.clear();
-                self.fetched_servers.clear();
-                self.resolving.clear();
-                self.update = None;
-            }
+        if let Some(server_id) = for_server {
+            self.remove_server_data(server_id);
+        } else {
+            self.lens.clear();
+            self.fetched_servers.clear();
+            self.resolving.clear();
+            self.update = None;
         }
     }
 }
 
 fn flatten_cache(lens: &FxHashMap<LanguageServerId, CodeLensActions>) -> CodeLensActions {
     let mut out = CodeLensActions::default();
-    out.reserve(lens.values().map(|per_server| per_server.len()).sum());
+    out.reserve(lens.values().map(|x| x.len()).sum());
     for per_server in lens.values() {
         for (id, action) in per_server {
             out.insert(*id, action.clone());

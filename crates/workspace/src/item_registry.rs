@@ -51,7 +51,7 @@ impl ProjectItemRegistry {
         });
         self.build_project_item_for_path_fns.push(|project, project_path, window, cx| {
             let project_path = project_path.clone();
-            let is_file = project.read(cx).entry_for_path(&project_path, cx).is_some_and(|entry| entry.is_file());
+            let is_file = project.read(cx).entry_for_path(&project_path, cx).is_some_and(project::Entry::is_file);
             let entry_abs_path = project.read(cx).absolute_path(&project_path, cx);
             let project_item = <T::Item as project::ProjectItem>::try_open(project, &project_path, cx)?;
             let project = project.clone();
@@ -155,7 +155,7 @@ impl SerializableItemRegistry {
         cx: &mut Context<Pane>,
     ) -> Task<Result<Box<dyn ItemHandle>>> {
         let Some(descriptor) = Self::descriptor(item_kind, cx) else {
-            return Task::ready(Err(anyhow!("cannot deserialize {}, descriptor not found", item_kind)));
+            return Task::ready(Err(anyhow!("cannot deserialize {item_kind}, descriptor not found")));
         };
 
         (descriptor.deserialize)(project, workspace, state, window, cx)

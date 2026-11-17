@@ -34,7 +34,7 @@ pub struct SpinnerLabel {
 }
 
 impl SpinnerVariant {
-    fn frames(&self) -> Vec<&'static str> {
+    fn frames(self) -> Vec<&'static str> {
         match self {
             SpinnerVariant::Dots => vec!["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"],
             SpinnerVariant::DotsVariant => vec!["⣼", "⣹", "⢻", "⠿", "⡟", "⣏", "⣧", "⣶"],
@@ -45,7 +45,7 @@ impl SpinnerVariant {
         }
     }
 
-    const fn duration(&self) -> Duration {
+    const fn duration(self) -> Duration {
         match self {
             SpinnerVariant::Dots => Duration::from_millis(1000),
             SpinnerVariant::DotsVariant => Duration::from_millis(1000),
@@ -53,7 +53,7 @@ impl SpinnerVariant {
         }
     }
 
-    const fn animation_id(&self) -> &'static str {
+    const fn animation_id(self) -> &'static str {
         match self {
             SpinnerVariant::Dots => "spinner_label_dots",
             SpinnerVariant::DotsVariant => "spinner_label_dots_variant",

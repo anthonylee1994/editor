@@ -582,7 +582,7 @@ impl DisplayMap {
 
     fn with_synced_companion_mut<R>(
         display_map_id: EntityId,
-        companion: &Option<(WeakEntity<DisplayMap>, Entity<Companion>)>,
+        companion: Option<&(WeakEntity<DisplayMap>, Entity<Companion>)>,
         cx: &mut App,
         callback: impl FnOnce(Option<CompanionViewMut<'_>>, &mut App) -> R,
     ) -> R {
@@ -815,13 +815,13 @@ impl DisplayMap {
 
         let (self_wrap_snapshot, self_wrap_edits) = self.sync_through_wrap(cx);
 
-        Self::with_synced_companion_mut(self.entity_id, &self.companion, cx, |companion_view, cx| {
+        Self::with_synced_companion_mut(self.entity_id, self.companion.as_ref(), cx, |companion_view, cx| {
             self.block_map.write(self_wrap_snapshot.clone(), self_wrap_edits.clone(), companion_view).fold_buffers(
                 buffer_ids.iter().copied(),
                 self.buffer.read(cx),
                 cx,
             );
-        })
+        });
     }
 
     pub fn unfold_buffers(&mut self, buffer_ids: impl IntoIterator<Item = language::BufferId>, cx: &mut Context<Self>) {
@@ -829,13 +829,13 @@ impl DisplayMap {
 
         let (self_wrap_snapshot, self_wrap_edits) = self.sync_through_wrap(cx);
 
-        Self::with_synced_companion_mut(self.entity_id, &self.companion, cx, |companion_view, cx| {
+        Self::with_synced_companion_mut(self.entity_id, self.companion.as_ref(), cx, |companion_view, cx| {
             self.block_map.write(self_wrap_snapshot.clone(), self_wrap_edits.clone(), companion_view).unfold_buffers(
                 buffer_ids.iter().copied(),
                 self.buffer.read(cx),
                 cx,
             );
-        })
+        });
     }
 
     pub(crate) fn is_buffer_folded(&self, buffer_id: language::BufferId) -> bool {
@@ -910,7 +910,7 @@ impl DisplayMap {
         cx: &mut Context<Self>,
     ) -> Vec<CustomBlockId> {
         let (self_wrap_snapshot, self_wrap_edits) = self.sync_through_wrap(cx);
-        Self::with_synced_companion_mut(self.entity_id, &self.companion, cx, |companion_view, _cx| {
+        Self::with_synced_companion_mut(self.entity_id, self.companion.as_ref(), cx, |companion_view, _cx| {
             self.block_map.write(self_wrap_snapshot.clone(), self_wrap_edits.clone(), companion_view).insert(blocks)
         })
     }
@@ -918,9 +918,9 @@ impl DisplayMap {
     pub fn resize_blocks(&mut self, heights: FxHashMap<CustomBlockId, u32>, cx: &mut Context<Self>) {
         let (self_wrap_snapshot, self_wrap_edits) = self.sync_through_wrap(cx);
 
-        Self::with_synced_companion_mut(self.entity_id, &self.companion, cx, |companion_view, _cx| {
+        Self::with_synced_companion_mut(self.entity_id, self.companion.as_ref(), cx, |companion_view, _cx| {
             self.block_map.write(self_wrap_snapshot.clone(), self_wrap_edits.clone(), companion_view).resize(heights);
-        })
+        });
     }
 
     pub fn replace_blocks(&mut self, renderers: FxHashMap<CustomBlockId, RenderBlock>) {
@@ -930,9 +930,9 @@ impl DisplayMap {
     pub fn remove_blocks(&mut self, ids: FxHashSet<CustomBlockId>, cx: &mut Context<Self>) {
         let (self_wrap_snapshot, self_wrap_edits) = self.sync_through_wrap(cx);
 
-        Self::with_synced_companion_mut(self.entity_id, &self.companion, cx, |companion_view, _cx| {
+        Self::with_synced_companion_mut(self.entity_id, self.companion.as_ref(), cx, |companion_view, _cx| {
             self.block_map.write(self_wrap_snapshot.clone(), self_wrap_edits.clone(), companion_view).remove(ids);
-        })
+        });
     }
 
     pub fn row_for_block(&mut self, block_id: CustomBlockId, cx: &mut Context<Self>) -> Option<DisplayRow> {
@@ -1744,7 +1744,7 @@ impl DisplaySnapshot {
                 Cow::Borrowed(&editor_style.text)
             };
 
-            runs.push(text_style.to_run(chunk.text.len()))
+            runs.push(text_style.to_run(chunk.text.len()));
         }
 
         if line.ends_with('\n') {
@@ -1818,7 +1818,7 @@ impl DisplaySnapshot {
     pub fn clip_point(&self, point: DisplayPoint, bias: Bias) -> DisplayPoint {
         let mut clipped = self.block_snapshot.clip_point(point.0, bias);
         if self.clip_at_line_ends {
-            clipped = self.clip_at_line_end(DisplayPoint(clipped)).0
+            clipped = self.clip_at_line_end(DisplayPoint(clipped)).0;
         }
         DisplayPoint(clipped)
     }
@@ -1894,9 +1894,8 @@ impl DisplaySnapshot {
             if let Some(ix) = chunk.find('\n') {
                 result.push_str(&chunk[0..ix]);
                 break;
-            } else {
-                result.push_str(chunk);
             }
+            result.push_str(chunk);
         }
         result
     }
@@ -2001,10 +2000,7 @@ impl DisplaySnapshot {
                 if !line_indent.is_line_blank() && line_indent.raw_len() <= start_line_indent.raw_len() {
                     let in_string_or_comment_scope =
                         snapshot.language_scope_at(Point::new(row, 0)).is_some_and(|scope| {
-                            matches!(
-                                scope.override_name(),
-                                Some("string") | Some("comment") | Some("comment.inclusive")
-                            )
+                            matches!(scope.override_name(), Some("string" | "comment" | "comment.inclusive"))
                         });
                     if in_string_or_comment_scope
                         && let Some(end) = foldable_node_end
@@ -2128,8 +2124,8 @@ impl Sub for DisplayPoint {
 pub struct DisplayRow(pub u32);
 
 impl DisplayRow {
-    pub(crate) const fn as_display_point(&self) -> DisplayPoint {
-        DisplayPoint::new(*self, 0)
+    pub(crate) const fn as_display_point(self) -> DisplayPoint {
+        DisplayPoint::new(self, 0)
     }
 }
 

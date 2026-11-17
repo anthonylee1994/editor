@@ -153,7 +153,7 @@ impl Editor {
                 s.move_with(&mut |_, sel| {
                     sel.collapse_to(sel.head(), SelectionGoal::None);
                 });
-            })
+            });
         }
         self.selection_mark_mode = true;
         cx.notify();
@@ -163,7 +163,7 @@ impl Editor {
         self.change_selections(SelectionEffects::no_scroll(), window, cx, |s| {
             s.move_with(&mut |_, sel| {
                 if sel.start != sel.end {
-                    sel.reversed = !sel.reversed
+                    sel.reversed = !sel.reversed;
                 }
             });
         });
@@ -319,7 +319,7 @@ impl Editor {
         select_next_state.done = true;
         self.unfold_ranges(&new_selections, false, false, cx);
         self.change_selections(SelectionEffects::no_scroll(), window, cx, |selections| {
-            selections.select_ranges(new_selections)
+            selections.select_ranges(new_selections);
         });
 
         Ok(())
@@ -701,7 +701,7 @@ impl Editor {
                         };
                         vec![(BufferOffset(node.byte_range().start)..BufferOffset(node.byte_range().end), ())]
                     })
-                    && let [(new_range, _)] = results.as_slice()
+                    && let [(new_range, ())] = results.as_slice()
                 {
                     selected_sibling = true;
                     let new_range = buffer.anchor_after(new_range.start)..buffer.anchor_before(new_range.end);
@@ -748,7 +748,7 @@ impl Editor {
                         };
                         vec![(BufferOffset(node.byte_range().start)..BufferOffset(node.byte_range().end), ())]
                     })
-                    && let [(new_range, _)] = results.as_slice()
+                    && let [(new_range, ())] = results.as_slice()
                 {
                     selected_sibling = true;
                     let new_range = multibuffer_snapshot.anchor_after(new_range.start)
@@ -858,7 +858,7 @@ impl Editor {
                 if let Some(range) = best {
                     selection.set_head_tail(range.end, range.start, SelectionGoal::None);
                 }
-            })
+            });
         });
     }
 
@@ -911,7 +911,7 @@ impl Editor {
                 if let Some(destination) = best_destination {
                     selection.collapse_to(destination, SelectionGoal::None);
                 }
-            })
+            });
         });
     }
 
@@ -921,7 +921,7 @@ impl Editor {
             self.with_selection_effects_deferred(window, cx, |this, window, cx| {
                 this.end_selection(window, cx);
                 this.change_selections(SelectionEffects::scroll(Autoscroll::newest()), window, cx, |s| {
-                    s.select_anchors_unexpanded(entry.selections.to_vec())
+                    s.select_anchors_unexpanded(entry.selections.to_vec());
                 });
             });
             self.selection_history.mode = SelectionHistoryMode::Normal;
@@ -938,7 +938,7 @@ impl Editor {
             self.with_selection_effects_deferred(window, cx, |this, window, cx| {
                 this.end_selection(window, cx);
                 this.change_selections(SelectionEffects::scroll(Autoscroll::newest()), window, cx, |s| {
-                    s.select_anchors_unexpanded(entry.selections.to_vec())
+                    s.select_anchors_unexpanded(entry.selections.to_vec());
                 });
             });
             self.selection_history.mode = SelectionHistoryMode::Normal;
@@ -954,14 +954,14 @@ impl Editor {
 
         match phase {
             SelectPhase::Begin { position, add, click_count } => {
-                self.begin_selection(position, add, click_count, window, cx)
+                self.begin_selection(position, add, click_count, window, cx);
             }
             SelectPhase::BeginColumnar { position, goal_column, reset, mode } => {
-                self.begin_columnar_selection(position, goal_column, reset, mode, window, cx)
+                self.begin_columnar_selection(position, goal_column, reset, mode, window, cx);
             }
             SelectPhase::Extend { position, click_count } => self.extend_selection(position, click_count, window, cx),
             SelectPhase::Update { position, goal_column, scroll_delta } => {
-                self.update_selection(position, goal_column, scroll_delta, window, cx)
+                self.update_selection(position, goal_column, scroll_delta, window, cx);
             }
             SelectPhase::End => self.end_selection(window, cx),
         }
@@ -1149,9 +1149,9 @@ impl Editor {
                         buffer.clip_point(display_map.next_line_boundary(position).0 + Point::new(1, 0), Bias::Left);
 
                     if line_start < original_range.start {
-                        head = line_start
+                        head = line_start;
                     } else {
-                        head = next_line_start
+                        head = next_line_start;
                     }
 
                     if head <= original_range.start {
@@ -1163,7 +1163,7 @@ impl Editor {
                 SelectMode::All => {
                     return;
                 }
-            };
+            }
 
             if head < tail {
                 pending.start = buffer.anchor_before(head);
@@ -1229,7 +1229,7 @@ impl Editor {
                 s.clear_disjoint();
                 s.set_pending_anchor_range(pointer_position..pointer_position, SelectMode::Character);
             });
-        };
+        }
 
         let tail = self.selections.newest::<Point>(&display_map).tail();
         let selection_anchor = display_map.buffer_snapshot().anchor_before(tail);
@@ -1237,10 +1237,10 @@ impl Editor {
             ColumnarMode::FromMouse => Some(ColumnarSelectionState::FromMouse {
                 selection_tail: selection_anchor,
                 display_point: if reset {
-                    if position.column() != goal_column {
-                        Some(DisplayPoint::new(position.row(), goal_column))
-                    } else {
+                    if position.column() == goal_column {
                         None
+                    } else {
+                        Some(DisplayPoint::new(position.row(), goal_column))
                     }
                 } else {
                     None
@@ -1539,7 +1539,7 @@ impl Editor {
                     .peekable();
                 if non_empty_ranges.peek().is_some() { non_empty_ranges.cloned().collect() } else { selection_ranges }
             }
-            _ => selection_ranges,
+            ColumnarSelectionState::FromSelection { .. } => selection_ranges,
         };
 
         self.change_selections(SelectionEffects::no_scroll(), window, cx, |s| {
@@ -1809,7 +1809,9 @@ impl Editor {
                     stack.push(selection.id);
                     columnar_selections.push(selection);
                 }
-                if !stack.is_empty() {
+                if stack.is_empty() {
+                    columnar_selections.push(selection);
+                } else {
                     if above {
                         stack.reverse();
                     }
@@ -1819,8 +1821,6 @@ impl Editor {
                         goal_columns_by_selection_id.insert(*last_id, columns);
                     }
                     state.groups.push(AddSelectionsGroup { above, stack, goal_source });
-                } else {
-                    columnar_selections.push(selection);
                 }
                 continue;
             }
@@ -1849,13 +1849,13 @@ impl Editor {
                     }
                 }
             }
-            if !stack.is_empty() {
+            if stack.is_empty() {
+                columnar_selections.push(selection);
+            } else {
                 if above {
                     stack.reverse();
                 }
                 state.groups.push(AddSelectionsGroup { above, stack, goal_source: None });
-            } else {
-                columnar_selections.push(selection);
             }
         }
 
@@ -1948,7 +1948,7 @@ impl Editor {
 
         let unmerged_selections = final_selections.clone();
         self.change_selections_with_history(SelectionEffects::default(), history_entry, window, cx, |selections| {
-            selections.select(final_selections)
+            selections.select(final_selections);
         });
 
         let current = self.selections.all_unexpanded::<Point>(&display_map);

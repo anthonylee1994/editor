@@ -564,11 +564,11 @@ impl WindowTextSystem {
     }
 
     pub(crate) fn reuse_layouts(&self, index: Range<LineLayoutIndex>) {
-        self.line_layout_cache.reuse_layouts(index)
+        self.line_layout_cache.reuse_layouts(index);
     }
 
     pub(crate) fn truncate_layouts(&self, index: LineLayoutIndex) {
-        self.line_layout_cache.truncate_layouts(index)
+        self.line_layout_cache.truncate_layouts(index);
     }
 
     /// Shape the given line, at the given font_size, for painting to the screen.
@@ -720,7 +720,7 @@ impl WindowTextSystem {
     }
 
     pub(crate) fn finish_frame(&self) {
-        self.line_layout_cache.finish_frame()
+        self.line_layout_cache.finish_frame();
     }
 
     pub(crate) const fn shaped_line_count(&self) -> usize {

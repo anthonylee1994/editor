@@ -144,22 +144,22 @@ impl Editor {
                 let cursor = if selection.is_empty() { movement::left(map, selection.start) } else { selection.start };
                 selection.collapse_to(cursor, SelectionGoal::None);
             });
-        })
+        });
     }
 
     pub fn select_left(&mut self, _: &SelectLeft, window: &mut Window, cx: &mut Context<Self>) {
         self.change_selections(SelectionEffects::default(), window, cx, |s| {
             s.move_heads_with(&mut |map, head, _| (movement::left(map, head), SelectionGoal::None));
-        })
+        });
     }
 
     pub fn move_right(&mut self, _: &MoveRight, window: &mut Window, cx: &mut Context<Self>) {
         self.change_selections(SelectionEffects::default(), window, cx, |s| {
             s.move_with(&mut |map, selection| {
                 let cursor = if selection.is_empty() { movement::right(map, selection.end) } else { selection.end };
-                selection.collapse_to(cursor, SelectionGoal::None)
+                selection.collapse_to(cursor, SelectionGoal::None);
             });
-        })
+        });
     }
 
     pub fn select_right(&mut self, _: &SelectRight, window: &mut Window, cx: &mut Context<Self>) {
@@ -224,7 +224,7 @@ impl Editor {
                 );
                 selection.collapse_to(cursor, goal);
             });
-        })
+        });
     }
 
     pub fn move_down_by_lines(&mut self, action: &MoveDownByLines, window: &mut Window, cx: &mut Context<Self>) {
@@ -254,7 +254,7 @@ impl Editor {
                 );
                 selection.collapse_to(cursor, goal);
             });
-        })
+        });
     }
 
     pub fn select_down_by_lines(&mut self, action: &SelectDownByLines, window: &mut Window, cx: &mut Context<Self>) {
@@ -262,8 +262,8 @@ impl Editor {
         self.change_selections(SelectionEffects::default(), window, cx, |s| {
             s.move_heads_with(&mut |map, head, goal| {
                 movement::down_by_rows(map, head, action.lines, goal, false, text_layout_details)
-            })
-        })
+            });
+        });
     }
 
     pub fn select_up_by_lines(&mut self, action: &SelectUpByLines, window: &mut Window, cx: &mut Context<Self>) {
@@ -271,8 +271,8 @@ impl Editor {
         self.change_selections(SelectionEffects::default(), window, cx, |s| {
             s.move_heads_with(&mut |map, head, goal| {
                 movement::up_by_rows(map, head, action.lines, goal, false, text_layout_details)
-            })
-        })
+            });
+        });
     }
 
     pub fn select_page_up(&mut self, _: &SelectPageUp, window: &mut Window, cx: &mut Context<Self>) {
@@ -285,8 +285,8 @@ impl Editor {
         self.change_selections(SelectionEffects::default(), window, cx, |s| {
             s.move_heads_with(&mut |map, head, goal| {
                 movement::up_by_rows(map, head, row_count, goal, false, text_layout_details)
-            })
-        })
+            });
+        });
     }
 
     pub fn move_page_up(&mut self, action: &MovePageUp, window: &mut Window, cx: &mut Context<Self>) {
@@ -298,8 +298,7 @@ impl Editor {
             .context_menu
             .borrow_mut()
             .as_mut()
-            .map(|menu| menu.select_first(self.completion_provider.as_deref(), cx))
-            .unwrap_or(false)
+            .is_some_and(|menu| menu.select_first(self.completion_provider.as_deref(), cx))
         {
             return;
         }
@@ -336,8 +335,8 @@ impl Editor {
     pub fn select_up(&mut self, _: &SelectUp, window: &mut Window, cx: &mut Context<Self>) {
         let text_layout_details = &self.text_layout_details(window, cx);
         self.change_selections(SelectionEffects::default(), window, cx, |s| {
-            s.move_heads_with(&mut |map, head, goal| movement::up(map, head, goal, false, text_layout_details))
-        })
+            s.move_heads_with(&mut |map, head, goal| movement::up(map, head, goal, false, text_layout_details));
+        });
     }
 
     pub fn move_down(&mut self, _: &MoveDown, window: &mut Window, cx: &mut Context<Self>) {
@@ -379,8 +378,8 @@ impl Editor {
         self.change_selections(SelectionEffects::default(), window, cx, |s| {
             s.move_heads_with(&mut |map, head, goal| {
                 movement::down_by_rows(map, head, row_count, goal, false, text_layout_details)
-            })
-        })
+            });
+        });
     }
 
     pub fn move_page_down(&mut self, action: &MovePageDown, window: &mut Window, cx: &mut Context<Self>) {
@@ -392,8 +391,7 @@ impl Editor {
             .context_menu
             .borrow_mut()
             .as_mut()
-            .map(|menu| menu.select_last(self.completion_provider.as_deref(), cx))
-            .unwrap_or(false)
+            .is_some_and(|menu| menu.select_last(self.completion_provider.as_deref(), cx))
         {
             return;
         }
@@ -429,7 +427,7 @@ impl Editor {
     pub fn select_down(&mut self, _: &SelectDown, window: &mut Window, cx: &mut Context<Self>) {
         let text_layout_details = &self.text_layout_details(window, cx);
         self.change_selections(SelectionEffects::default(), window, cx, |s| {
-            s.move_heads_with(&mut |map, head, goal| movement::down(map, head, goal, false, text_layout_details))
+            s.move_heads_with(&mut |map, head, goal| movement::down(map, head, goal, false, text_layout_details));
         });
     }
 
@@ -443,7 +441,7 @@ impl Editor {
             s.move_cursors_with(&mut |map, head, _| {
                 (movement::previous_word_start(map, head, false), SelectionGoal::None)
             });
-        })
+        });
     }
 
     pub fn move_to_previous_subword_start(
@@ -454,7 +452,7 @@ impl Editor {
     ) {
         self.change_selections(SelectionEffects::default(), window, cx, |s| {
             s.move_cursors_with(&mut |map, head, _| (movement::previous_subword_start(map, head), SelectionGoal::None));
-        })
+        });
     }
 
     pub fn select_to_previous_word_start(
@@ -467,7 +465,7 @@ impl Editor {
             s.move_heads_with(&mut |map, head, _| {
                 (movement::previous_word_start(map, head, false), SelectionGoal::None)
             });
-        })
+        });
     }
 
     pub fn select_to_previous_subword_start(
@@ -478,25 +476,25 @@ impl Editor {
     ) {
         self.change_selections(SelectionEffects::default(), window, cx, |s| {
             s.move_heads_with(&mut |map, head, _| (movement::previous_subword_start(map, head), SelectionGoal::None));
-        })
+        });
     }
 
     pub fn move_to_next_word_end(&mut self, _: &MoveToNextWordEnd, window: &mut Window, cx: &mut Context<Self>) {
         self.change_selections(SelectionEffects::default(), window, cx, |s| {
             s.move_cursors_with(&mut |map, head, _| (movement::next_word_end(map, head, false), SelectionGoal::None));
-        })
+        });
     }
 
     pub fn move_to_next_subword_end(&mut self, _: &MoveToNextSubwordEnd, window: &mut Window, cx: &mut Context<Self>) {
         self.change_selections(SelectionEffects::default(), window, cx, |s| {
             s.move_cursors_with(&mut |map, head, _| (movement::next_subword_end(map, head), SelectionGoal::None));
-        })
+        });
     }
 
     pub fn select_to_next_word_end(&mut self, _: &SelectToNextWordEnd, window: &mut Window, cx: &mut Context<Self>) {
         self.change_selections(SelectionEffects::default(), window, cx, |s| {
             s.move_heads_with(&mut |map, head, _| (movement::next_word_end(map, head, false), SelectionGoal::None));
-        })
+        });
     }
 
     pub fn select_to_next_subword_end(
@@ -507,7 +505,7 @@ impl Editor {
     ) {
         self.change_selections(SelectionEffects::default(), window, cx, |s| {
             s.move_heads_with(&mut |map, head, _| (movement::next_subword_end(map, head), SelectionGoal::None));
-        })
+        });
     }
 
     pub fn move_to_beginning_of_line(
@@ -524,7 +522,7 @@ impl Editor {
                     SelectionGoal::None,
                 )
             });
-        })
+        });
     }
 
     pub fn select_to_beginning_of_line(
@@ -549,7 +547,7 @@ impl Editor {
             s.move_cursors_with(&mut |map, head, _| {
                 (movement::line_end(map, head, action.stop_at_soft_wraps), SelectionGoal::None)
             });
-        })
+        });
     }
 
     pub fn select_to_end_of_line(&mut self, action: &SelectToEndOfLine, window: &mut Window, cx: &mut Context<Self>) {
@@ -557,7 +555,7 @@ impl Editor {
             s.move_heads_with(&mut |map, head, _| {
                 (movement::line_end(map, head, action.stop_at_soft_wraps), SelectionGoal::None)
             });
-        })
+        });
     }
 
     pub fn move_to_start_of_paragraph(
@@ -572,9 +570,9 @@ impl Editor {
         }
         self.change_selections(SelectionEffects::default(), window, cx, |s| {
             s.move_with(&mut |map, selection| {
-                selection.collapse_to(movement::start_of_paragraph(map, selection.head(), 1), SelectionGoal::None)
+                selection.collapse_to(movement::start_of_paragraph(map, selection.head(), 1), SelectionGoal::None);
             });
-        })
+        });
     }
 
     pub fn move_to_end_of_paragraph(&mut self, _: &MoveToEndOfParagraph, window: &mut Window, cx: &mut Context<Self>) {
@@ -584,9 +582,9 @@ impl Editor {
         }
         self.change_selections(SelectionEffects::default(), window, cx, |s| {
             s.move_with(&mut |map, selection| {
-                selection.collapse_to(movement::end_of_paragraph(map, selection.head(), 1), SelectionGoal::None)
+                selection.collapse_to(movement::end_of_paragraph(map, selection.head(), 1), SelectionGoal::None);
             });
-        })
+        });
     }
 
     pub fn move_to_next_comment_paragraph(
@@ -606,9 +604,9 @@ impl Editor {
                 selection.collapse_to(
                     movement::comment_paragraph(map, selection.head(), Direction::Next),
                     SelectionGoal::None,
-                )
+                );
             });
-        })
+        });
     }
 
     pub fn move_to_previous_comment_paragraph(
@@ -628,9 +626,9 @@ impl Editor {
                 selection.collapse_to(
                     movement::comment_paragraph(map, selection.head(), Direction::Prev),
                     SelectionGoal::None,
-                )
+                );
             });
-        })
+        });
     }
 
     pub fn select_to_start_of_paragraph(
@@ -645,7 +643,7 @@ impl Editor {
         }
         self.change_selections(SelectionEffects::default(), window, cx, |s| {
             s.move_heads_with(&mut |map, head, _| (movement::start_of_paragraph(map, head, 1), SelectionGoal::None));
-        })
+        });
     }
 
     pub fn select_to_end_of_paragraph(
@@ -660,7 +658,7 @@ impl Editor {
         }
         self.change_selections(SelectionEffects::default(), window, cx, |s| {
             s.move_heads_with(&mut |map, head, _| (movement::end_of_paragraph(map, head, 1), SelectionGoal::None));
-        })
+        });
     }
 
     pub fn move_to_start_of_excerpt(&mut self, _: &MoveToStartOfExcerpt, window: &mut Window, cx: &mut Context<Self>) {
@@ -673,9 +671,9 @@ impl Editor {
                 selection.collapse_to(
                     movement::start_of_excerpt(map, selection.head(), Direction::Prev),
                     SelectionGoal::None,
-                )
+                );
             });
-        })
+        });
     }
 
     pub fn move_to_start_of_next_excerpt(
@@ -694,9 +692,9 @@ impl Editor {
                 selection.collapse_to(
                     movement::start_of_excerpt(map, selection.head(), Direction::Next),
                     SelectionGoal::None,
-                )
+                );
             });
-        })
+        });
     }
 
     pub fn move_to_end_of_excerpt(&mut self, _: &MoveToEndOfExcerpt, window: &mut Window, cx: &mut Context<Self>) {
@@ -707,9 +705,9 @@ impl Editor {
         self.change_selections(SelectionEffects::default(), window, cx, |s| {
             s.move_with(&mut |map, selection| {
                 selection
-                    .collapse_to(movement::end_of_excerpt(map, selection.head(), Direction::Next), SelectionGoal::None)
+                    .collapse_to(movement::end_of_excerpt(map, selection.head(), Direction::Next), SelectionGoal::None);
             });
-        })
+        });
     }
 
     pub fn move_to_end_of_previous_excerpt(
@@ -725,9 +723,9 @@ impl Editor {
         self.change_selections(SelectionEffects::default(), window, cx, |s| {
             s.move_with(&mut |map, selection| {
                 selection
-                    .collapse_to(movement::end_of_excerpt(map, selection.head(), Direction::Prev), SelectionGoal::None)
+                    .collapse_to(movement::end_of_excerpt(map, selection.head(), Direction::Prev), SelectionGoal::None);
             });
-        })
+        });
     }
 
     pub fn select_to_start_of_excerpt(
@@ -744,7 +742,7 @@ impl Editor {
             s.move_heads_with(&mut |map, head, _| {
                 (movement::start_of_excerpt(map, head, Direction::Prev), SelectionGoal::None)
             });
-        })
+        });
     }
 
     pub fn select_to_start_of_next_excerpt(
@@ -761,7 +759,7 @@ impl Editor {
             s.move_heads_with(&mut |map, head, _| {
                 (movement::start_of_excerpt(map, head, Direction::Next), SelectionGoal::None)
             });
-        })
+        });
     }
 
     pub fn select_to_end_of_excerpt(&mut self, _: &SelectToEndOfExcerpt, window: &mut Window, cx: &mut Context<Self>) {
@@ -773,7 +771,7 @@ impl Editor {
             s.move_heads_with(&mut |map, head, _| {
                 (movement::end_of_excerpt(map, head, Direction::Next), SelectionGoal::None)
             });
-        })
+        });
     }
 
     pub fn select_to_end_of_previous_excerpt(
@@ -790,7 +788,7 @@ impl Editor {
             s.move_heads_with(&mut |map, head, _| {
                 (movement::end_of_excerpt(map, head, Direction::Prev), SelectionGoal::None)
             });
-        })
+        });
     }
 
     pub fn move_to_beginning(&mut self, _: &MoveToBeginning, window: &mut Window, cx: &mut Context<Self>) {
@@ -833,15 +831,15 @@ impl Editor {
     }
 
     pub fn expand_excerpts(&mut self, action: &ExpandExcerpts, _: &mut Window, cx: &mut Context<Self>) {
-        self.expand_excerpts_for_direction(action.lines, ExpandExcerptDirection::UpAndDown, cx)
+        self.expand_excerpts_for_direction(action.lines, ExpandExcerptDirection::UpAndDown, cx);
     }
 
     pub fn expand_excerpts_down(&mut self, action: &ExpandExcerptsDown, _: &mut Window, cx: &mut Context<Self>) {
-        self.expand_excerpts_for_direction(action.lines, ExpandExcerptDirection::Down, cx)
+        self.expand_excerpts_for_direction(action.lines, ExpandExcerptDirection::Down, cx);
     }
 
     pub fn expand_excerpts_up(&mut self, action: &ExpandExcerptsUp, _: &mut Window, cx: &mut Context<Self>) {
-        self.expand_excerpts_for_direction(action.lines, ExpandExcerptDirection::Up, cx)
+        self.expand_excerpts_for_direction(action.lines, ExpandExcerptDirection::Up, cx);
     }
 
     pub fn go_to_singleton_buffer_point(&mut self, point: Point, window: &mut Window, cx: &mut Context<Self>) {
@@ -969,13 +967,13 @@ impl Editor {
             return;
         };
 
-        let end_position = if head != tail {
+        let end_position = if head == tail {
+            None
+        } else {
             let Some((_, pos)) = self.buffer.read(cx).text_anchor_for_position(tail, cx) else {
                 return;
             };
             Some(pos)
-        } else {
-            None
         };
 
         let url_finder = cx.spawn_in(window, async move |_editor, cx| {
@@ -1334,7 +1332,7 @@ impl Editor {
 
             let cursor_row = data.cursor_position.row;
             nav_history.push(Some(data), Some(cursor_row), cx);
-            cx.emit(EditorEvent::PushedToNavHistory { anchor: cursor_anchor, is_deactivate })
+            cx.emit(EditorEvent::PushedToNavHistory { anchor: cursor_anchor, is_deactivate });
         }
     }
 
@@ -1392,8 +1390,8 @@ impl Editor {
                 s.select_display_ranges(selections.iter().map(|a| {
                     let point = a.to_display_point(&map);
                     point..point
-                }))
-            })
+                }));
+            });
         }
     }
 
@@ -1409,8 +1407,8 @@ impl Editor {
                 s.select_display_ranges(selections.iter().map(|a| {
                     let point = a.to_display_point(&map);
                     point..point
-                }))
-            })
+                }));
+            });
         }
     }
 
@@ -1536,7 +1534,7 @@ impl Editor {
                                         .navigation_entry(Some(Arc::new(nav_data) as Arc<dyn Any + Send + Sync>)),
                                 );
                                 nav_history.push_tag(origin, target);
-                            })
+                            });
                         }
                     })
                     .is_ok();
@@ -1689,7 +1687,7 @@ impl Editor {
         let task = self.go_to_reference_before_or_after_position(Direction::Next, 1, window, cx);
         if let Some(task) = task {
             task.detach();
-        };
+        }
     }
 
     pub(super) fn go_to_prev_reference(
@@ -1701,7 +1699,7 @@ impl Editor {
         let task = self.go_to_reference_before_or_after_position(Direction::Prev, 1, window, cx);
         if let Some(task) = task {
             task.detach();
-        };
+        }
     }
 
     pub(super) fn go_to_symbol_by_offset(&self, window: &Window, cx: &Context<Self>, offset: i8) -> Task<Result<()>> {
@@ -1853,7 +1851,7 @@ impl Editor {
                     let start = snapshot.anchor_in_buffer(text_range.start)?;
                     let end = snapshot.anchor_in_buffer(text_range.end)?;
                     Some(start..end)
-                }))
+                }));
             }
 
             let final_snapshot = multibuffer.snapshot(cx);
@@ -1951,7 +1949,7 @@ impl Editor {
             return;
         }
 
-        self.buffer.update(cx, |buffer, cx| buffer.expand_excerpts(excerpt_anchors, lines, direction, cx))
+        self.buffer.update(cx, |buffer, cx| buffer.expand_excerpts(excerpt_anchors, lines, direction, cx));
     }
 
     /// The buffer position that definitions and references are asked for at

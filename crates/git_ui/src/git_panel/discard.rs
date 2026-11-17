@@ -327,8 +327,7 @@ impl GitPanel {
     ) {
         let entries = self
             .directory_context_descendants()
-            .map(Self::staged_tracked_entries)
-            .unwrap_or_else(|| Self::staged_tracked_entries(self.change_entries_by_path()));
+            .map_or_else(|| Self::staged_tracked_entries(self.change_entries_by_path()), Self::staged_tracked_entries);
 
         match entries.len() {
             0 => return,
@@ -382,11 +381,11 @@ impl GitPanel {
                 return self.revert_entries(to_delete, false, window, cx);
             }
             _ => {}
-        };
+        }
 
         let mut details = to_delete
             .iter()
-            .map(|entry| entry.repo_path.as_ref().file_name().map(|f| f.to_string()).unwrap_or_default())
+            .map(|entry| entry.repo_path.as_ref().file_name().map_or_default(|f| f.to_string()))
             .take(5)
             .join("\n");
 

@@ -233,7 +233,7 @@ impl<F: FnOnce()> Deferred<F> {
 impl<F: FnOnce()> Drop for Deferred<F> {
     fn drop(&mut self) {
         if let Some(f) = self.0.take() {
-            f()
+            f();
         }
     }
 }
@@ -265,10 +265,10 @@ impl Hasher for TypeIdHasher {
     fn write(&mut self, bytes: &[u8]) {
         // TypeId should only hash its first 8 bytes
         if let Some(bytes) = bytes.get(..8) {
-            bytes
-                .as_array()
-                .map(|&array| self.value = u64::from_ne_bytes(array))
-                .unwrap_or_else(|| unreachable!("slice was sliced to 8 bytes"));
+            bytes.as_array().map_or_else(
+                || unreachable!("slice was sliced to 8 bytes"),
+                |&array| self.value = u64::from_ne_bytes(array),
+            );
         } else {
             log::error!("expected a 64-bit value, did you use this hasher with something other than a TypeId?");
         }

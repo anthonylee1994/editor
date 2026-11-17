@@ -530,8 +530,7 @@ impl CursorMotionState {
         let elapsed_seconds = elapsed.as_secs_f32();
         let max_trail_distance = self
             .target_geometry
-            .map(|geometry| geometry.width.max(geometry.height) * MAX_TRAIL_DISTANCE_FACTOR)
-            .unwrap_or_default();
+            .map_or_default(|geometry| geometry.width.max(geometry.height) * MAX_TRAIL_DISTANCE_FACTOR);
         // Every corner must advance each frame, so don't short-circuit with `any`.
         let mut active = false;
         for corner in &mut self.corners {

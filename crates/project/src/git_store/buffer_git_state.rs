@@ -303,7 +303,7 @@ impl BufferGitState {
     ) -> oneshot::Receiver<()> {
         let (tx, rx) = oneshot::channel();
 
-        let Some(conflict_set) = self.conflict_set.as_ref().and_then(|conflict_set| conflict_set.upgrade()) else {
+        let Some(conflict_set) = self.conflict_set.as_ref().and_then(gpui::WeakEntity::upgrade) else {
             return rx;
         };
 
@@ -341,7 +341,7 @@ impl BufferGitState {
     }
 
     pub(super) fn unstaged_diff(&self) -> Option<Entity<BufferDiff>> {
-        self.unstaged_diff.as_ref().and_then(|set| set.upgrade())
+        self.unstaged_diff.as_ref().and_then(gpui::WeakEntity::upgrade)
     }
 
     fn staged_diff(&self) -> Option<Entity<BufferDiff>> {
@@ -354,11 +354,11 @@ impl BufferGitState {
     }
 
     fn uncommitted_diff(&self) -> Option<Entity<BufferDiff>> {
-        self.uncommitted_diff.as_ref().and_then(|set| set.upgrade())
+        self.uncommitted_diff.as_ref().and_then(gpui::WeakEntity::upgrade)
     }
 
     pub(super) fn oid_diff(&self, oid: Option<git::Oid>) -> Option<Entity<BufferDiff>> {
-        self.oid_diffs.get(&oid).and_then(|weak| weak.upgrade())
+        self.oid_diffs.get(&oid).and_then(gpui::WeakEntity::upgrade)
     }
 
     /// Whether the index text is known to match the committed text, without
@@ -415,7 +415,7 @@ impl BufferGitState {
 
     pub(super) fn clear_pending_hunks(&self, cx: &mut Context<Self>) {
         for diff in [self.uncommitted_diff(), self.unstaged_diff(), self.staged_diff()].into_iter().flatten() {
-            diff.update(cx, |diff, cx| diff.clear_pending_hunks(cx));
+            diff.update(cx, buffer_diff::BufferDiff::clear_pending_hunks);
         }
     }
 
@@ -507,7 +507,7 @@ impl BufferGitState {
             None => {}
         }
 
-        self.recalculate_diffs(buffer, cx)
+        self.recalculate_diffs(buffer, cx);
     }
 
     pub(super) fn recalculate_diffs(&mut self, buffer: text::BufferSnapshot, cx: &Context<Self>) {
@@ -760,7 +760,7 @@ impl BufferGitState {
                             && let Some(index_text_buffer) = &index_text_buffer
                         {
                             index_text_buffer.update(cx, |index_text_buffer, cx| {
-                                index_text_buffer.fast_forward(edited_base_text, cx)
+                                index_text_buffer.fast_forward(edited_base_text, cx);
                             });
                         }
                         if let Some(edited_head_text) = edited_head_text.take()
@@ -781,7 +781,7 @@ impl BufferGitState {
                             && let Some(index_text_buffer) = &index_text_buffer
                         {
                             index_text_buffer.update(cx, |index_text_buffer, cx| {
-                                index_text_buffer.fast_forward(edited_index_text, cx)
+                                index_text_buffer.fast_forward(edited_index_text, cx);
                             });
                         }
                         diff.set_snapshot_with_secondary(new_unstaged_diff, None, true, cx)

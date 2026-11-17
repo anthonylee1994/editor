@@ -114,19 +114,19 @@ fn label_for_python_symbol(symbol: &Symbol, language: &Arc<language::Language>) 
     let name = &symbol.name;
     let (text, filter_range, display_range) = match symbol.kind {
         language::SymbolKind::Method | language::SymbolKind::Function => {
-            let text = format!("def {}():\n", name);
+            let text = format!("def {name}():\n");
             let filter_range = 4..4 + name.len();
             let display_range = 0..filter_range.end;
             (text, filter_range, display_range)
         }
         language::SymbolKind::Class => {
-            let text = format!("class {}:", name);
+            let text = format!("class {name}:");
             let filter_range = 6..6 + name.len();
             let display_range = 0..filter_range.end;
             (text, filter_range, display_range)
         }
         language::SymbolKind::Constant => {
-            let text = format!("{} = 0", name);
+            let text = format!("{name} = 0");
             let filter_range = 0..name.len();
             let display_range = 0..filter_range.end;
             (text, filter_range, display_range)
@@ -140,20 +140,14 @@ fn label_for_python_symbol(symbol: &Symbol, language: &Arc<language::Language>) 
     ))
 }
 
-/// Returns the highlight ID for the given completion item kind, if it is supported.
-///
-/// The outer `Option` is `None` if the item kind returned by the language server is not covered.
-/// The inner `Option` is `None` if the item kind is covered, but the highlight name is not present in the grammar.
-fn highlight_id_for_completion(
-    item_kind: CompletionItemKind,
-    grammar: &Arc<language::Grammar>,
-) -> Option<Option<language::HighlightId>> {
+/// Returns the highlight name for the given completion item kind, or `None` if the kind is not covered.
+const fn highlight_name_for_completion(item_kind: CompletionItemKind) -> Option<&'static str> {
     match item_kind {
-        CompletionItemKind::METHOD => Some(grammar.highlight_id_for_name("function.method.call")),
-        CompletionItemKind::FUNCTION => Some(grammar.highlight_id_for_name("function.call")),
-        CompletionItemKind::CLASS => Some(grammar.highlight_id_for_name("type")),
-        CompletionItemKind::CONSTANT => Some(grammar.highlight_id_for_name("constant")),
-        CompletionItemKind::VARIABLE => Some(grammar.highlight_id_for_name("variable")),
+        CompletionItemKind::METHOD => Some("function.method.call"),
+        CompletionItemKind::FUNCTION => Some("function.call"),
+        CompletionItemKind::CLASS => Some("type"),
+        CompletionItemKind::CONSTANT => Some("constant"),
+        CompletionItemKind::VARIABLE => Some("variable"),
         _ => None,
     }
 }
@@ -178,11 +172,11 @@ impl LspAdapter for TyLspAdapter {
         let label = &item.label;
         let label_len = label.len();
         let grammar = language.grammar()?;
-        let highlight_id = highlight_id_for_completion(item.kind?, grammar)?;
+        let highlight_id = grammar.highlight_id_for_name(highlight_name_for_completion(item.kind?)?);
 
         let mut text = label.clone();
         if let Some(completion_details) = item.label_details.as_ref().and_then(|details| details.detail.as_ref()) {
-            write!(&mut text, " {}", completion_details).ok();
+            write!(&mut text, " {completion_details}").ok();
         }
 
         Some(language::CodeLabel::filtered(

@@ -269,7 +269,7 @@ impl Item for StagedDiff {
     }
 
     fn to_item_events(event: &EditorEvent, f: &mut dyn FnMut(ItemEvent)) {
-        Editor::to_item_events(event, f)
+        Editor::to_item_events(event, f);
     }
 
     fn deactivated(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -414,7 +414,7 @@ impl StagedDiffToolbar {
         let action = action.boxed_clone();
         cx.defer(move |cx| {
             cx.dispatch_action(action.as_ref());
-        })
+        });
     }
 
     fn unstage_selected_staged_hunks(&self, move_to_next: bool, window: &mut Window, cx: &mut Context<Self>) {
@@ -511,7 +511,7 @@ impl Render for StagedDiffToolbar {
                                 .disabled(!button_states.unstage)
                                 .tooltip(Tooltip::text("Unstage Selected Hunks"))
                                 .on_click(cx.listener(|this, _, window, cx| {
-                                    this.unstage_selected_staged_hunks(false, window, cx)
+                                    this.unstage_selected_staged_hunks(false, window, cx);
                                 })),
                         )
                     })
@@ -525,7 +525,7 @@ impl Render for StagedDiffToolbar {
                                     &focus_handle,
                                 ))
                                 .on_click(cx.listener(|this, _, window, cx| {
-                                    this.unstage_selected_staged_hunks(true, window, cx)
+                                    this.unstage_selected_staged_hunks(true, window, cx);
                                 })),
                         )
                     }),

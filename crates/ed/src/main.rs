@@ -112,9 +112,9 @@ fn files_not_created_on_launch(errors: FxHashMap<io::ErrorKind, Vec<&Path>>) {
                 })
                 .log_err();
         } else {
-            fail_to_open_window(anyhow::anyhow!("{message}: {error_details}"), cx)
+            fail_to_open_window(anyhow::anyhow!("{message}: {error_details}"), cx);
         }
-    })
+    });
 }
 
 fn fail_to_open_window_async(e: anyhow::Error, cx: &AsyncApp) {
@@ -155,9 +155,9 @@ fn main() {
     } else {
         let result = logger::init_output_file(paths::log_file(), paths::old_log_file());
         if let Err(err) = result {
-            eprintln!("Could not open log file: {}... Defaulting to stdout", err);
+            eprintln!("Could not open log file: {err}... Defaulting to stdout");
             logger::init_output_stdout();
-        };
+        }
     }
     install_panic_hook();
 
@@ -201,7 +201,7 @@ fn main() {
             cx.spawn({
                 async move |cx| {
                     if let Err(e) = restore_or_create_workspace(app_state, cx).await {
-                        fail_to_open_window_async(e, cx)
+                        fail_to_open_window_async(e, cx);
                     }
                 }
             })
@@ -284,10 +284,10 @@ fn main() {
             args.diff.chunks(2).map(|chunk| [chunk[0].clone(), chunk[1].clone()]).collect();
 
         if !urls.is_empty() || !diff_paths.is_empty() {
-            open_listener.open(RawOpenRequest { urls, diff_paths, diff_all: diff_all_mode })
+            open_listener.open(RawOpenRequest { urls, diff_paths, diff_all: diff_all_mode });
         }
 
-        let restore_task = match open_rx.try_recv().ok().and_then(|request| OpenRequest::parse(request).log_err()) {
+        let restore_task = match open_rx.try_recv().ok().map(OpenRequest::parse) {
             Some(request) => {
                 handle_open_request(request, app_state.clone(), cx);
                 Task::ready(())
@@ -296,7 +296,7 @@ fn main() {
                 let app_state = app_state.clone();
                 async move |cx| {
                     if let Err(e) = restore_or_create_workspace(app_state, cx).await {
-                        fail_to_open_window_async(e, cx)
+                        fail_to_open_window_async(e, cx);
                     }
                 }
             }),
@@ -322,13 +322,11 @@ fn main() {
                 // began restoring the session, so wait for a restored window to exist before
                 // matching. Otherwise this open sees no windows and spawns a redundant one (#61346).
                 futures::select_biased! {
-                    _ = restore_finished.clone() => {}
+                    () = restore_finished.clone() => {}
                     _ = first_window_placed.clone() => {}
                 }
                 cx.update(|cx| {
-                    if let Some(request) = OpenRequest::parse(urls).log_err() {
-                        handle_open_request(request, app_state.clone(), cx);
-                    }
+                    handle_open_request(OpenRequest::parse(urls), app_state.clone(), cx);
                 });
             }
         })
@@ -386,7 +384,7 @@ pub(crate) async fn restore_or_create_workspace(app_state: Arc<AppState>, cx: &m
             let message = if error_count == 1 {
                 "Failed to restore 1 workspace. Check logs for details.".to_string()
             } else {
-                format!("Failed to restore {} workspaces. Check logs for details.", error_count)
+                format!("Failed to restore {error_count} workspaces. Check logs for details.")
             };
 
             // Try to find an active workspace to show the toast
@@ -396,7 +394,7 @@ pub(crate) async fn restore_or_create_workspace(app_state: Arc<AppState>, cx: &m
                 {
                     workspace
                         .update(cx, |workspace, _, cx| {
-                            workspace.show_toast(Toast::new(NotificationId::unique::<()>(), message.clone()), cx)
+                            workspace.show_toast(Toast::new(NotificationId::unique::<()>(), message.clone()), cx);
                         })
                         .ok();
                     return true;
@@ -424,7 +422,7 @@ pub(crate) async fn restore_or_create_workspace(app_state: Arc<AppState>, cx: &m
     } else {
         cx.update(|cx| {
             workspace::open_new(workspace::OpenOptions::default(), app_state, cx, |workspace, window, cx| {
-                Editor::new_file(workspace, &workspace::NewFile, window, cx)
+                Editor::new_file(workspace, &workspace::NewFile, window, cx);
             })
         })
         .await?;
@@ -449,7 +447,7 @@ fn install_panic_hook() {
     panic::set_hook(Box::new(move |info| {
         let backtrace = Backtrace::force_capture();
         let message = info.payload_as_str().unwrap_or("Box<Any>");
-        let location = info.location().map_or_else(|| "<unknown>".to_owned(), |location| location.to_string());
+        let location = info.location().map_or_else(|| "<unknown>".to_owned(), ToString::to_string);
         let thread = thread::current();
         let thread_name = thread.name().unwrap_or("<unnamed>");
         log::error!("thread '{thread_name}' panicked at {location}:\n{message}\n{backtrace}");

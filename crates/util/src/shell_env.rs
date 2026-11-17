@@ -26,10 +26,10 @@ fn parse_env_map_from_noisy_output(output: &str) -> Result<rustc_hash::FxHashMap
 pub fn print_env() {
     let env_vars: FxHashMap<String, String> = env::vars().collect();
     let json = serde_json::to_string_pretty(&env_vars).unwrap_or_else(|err| {
-        eprintln!("Error serializing environment variables: {}", err);
+        eprintln!("Error serializing environment variables: {err}");
         process::exit(1);
     });
-    println!("{}", json);
+    println!("{json}");
 }
 
 /// Capture all environment variables from the login shell in the given directory.
@@ -48,7 +48,7 @@ pub async fn capture(
 /// produced valid output on its separate fd.
 fn parse_env_output(
     env_output: &str,
-    status: &process::ExitStatus,
+    status: process::ExitStatus,
     successful_capture_warning: impl FnOnce() -> String,
     failed_capture_error: impl FnOnce() -> String,
 ) -> Result<rustc_hash::FxHashMap<String, String>> {
@@ -114,7 +114,7 @@ async fn capture_unix(
 
     parse_env_output(
         &env_output,
-        &process_output.status,
+        process_output.status,
         || {
             format!(
                 "login shell exited with {} but environment was captured successfully. stderr: {:?}",

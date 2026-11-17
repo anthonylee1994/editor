@@ -7,9 +7,9 @@ use lsp::Documentation;
 use regex::Regex;
 use regex::RegexBuilder;
 
-const HEX: &str = r#"(#(?:[\da-fA-F]{3}){1,2})"#;
+const HEX: &str = r"(#(?:[\da-fA-F]{3}){1,2})";
 const RGB_OR_HSL: &str =
-    r#"(rgba?|hsla?)\(\s*(\d{1,3}%?)\s*,\s*(\d{1,3}%?)\s*,\s*(\d{1,3}%?)\s*(?:,\s*(1|0?\.\d+))?\s*\)"#;
+    r"(rgba?|hsla?)\(\s*(\d{1,3}%?)\s*,\s*(\d{1,3}%?)\s*,\s*(\d{1,3}%?)\s*(?:,\s*(1|0?\.\d+))?\s*\)";
 
 static RELAXED_HEX_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     RegexBuilder::new(HEX).case_insensitive(false).build().expect("Failed to create RELAXED_HEX_REGEX")

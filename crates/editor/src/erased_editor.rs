@@ -43,7 +43,7 @@ impl ui_input::ErasedEditor for ErasedEditorImpl {
     fn set_text(&self, text: &str, window: &mut Window, cx: &mut App) {
         self.0.update(cx, |this, cx| {
             this.set_text(text, window, cx);
-        })
+        });
     }
 
     fn clear(&self, window: &mut Window, cx: &mut App) {
@@ -91,7 +91,7 @@ impl ui_input::ErasedEditor for ErasedEditorImpl {
         self.0.update(cx, |editor, cx| {
             let editor_offset = editor.buffer().read(cx).len(cx);
             editor.change_selections(SelectionEffects::scroll(Autoscroll::Next), window, cx, |s| {
-                s.select_ranges(Some(editor_offset..editor_offset))
+                s.select_ranges(Some(editor_offset..editor_offset));
             });
         });
     }

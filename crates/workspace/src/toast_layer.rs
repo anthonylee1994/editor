@@ -193,7 +193,7 @@ impl ToastLayer {
             cx.background_executor().timer(duration).await;
 
             if let Some(this) = this.upgrade() {
-                this.update(cx, |this, cx| this.hide_toast(cx));
+                this.update(cx, ToastLayer::hide_toast);
             }
         });
 

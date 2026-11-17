@@ -194,7 +194,7 @@ impl<T> Future for Changed<'_, T> {
     type Output = Result<(), NoSenderError>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let receiver = &mut self.get_mut().receiver;
+        let receiver = &mut *self.get_mut().receiver;
         // Register before checking so a racing publication cannot go unnoticed.
         receiver.waker.register(cx.waker());
         // Observing closure must precede loading the value, so closure cannot

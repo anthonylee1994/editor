@@ -69,7 +69,7 @@ impl LspCommand for ExpandMacro {
     type Response = ExpandedMacro;
     type LspRequest = LspExtExpandMacro;
 
-    fn display_name(&self) -> &str {
+    fn display_name(&self) -> &'static str {
         "Expand macro"
     }
 
@@ -138,7 +138,7 @@ impl LspCommand for OpenDocs {
     type Response = DocsUrls;
     type LspRequest = LspOpenDocs;
 
-    fn display_name(&self) -> &str {
+    fn display_name(&self) -> &'static str {
         "Open docs"
     }
 
@@ -185,7 +185,7 @@ impl LspCommand for GoToParentModule {
     type Response = Vec<LocationLink>;
     type LspRequest = LspGoToParentModule;
 
-    fn display_name(&self) -> &str {
+    fn display_name(&self) -> &'static str {
         "Go to parent module"
     }
 
@@ -339,12 +339,12 @@ pub fn runnable_to_task_template(label: String, args: RunnableArgs) -> TaskTempl
         RunnableArgs::Cargo(cargo) => {
             match cargo.override_cargo {
                 Some(override_cargo) => {
-                    let mut override_parts = override_cargo.split(" ").map(|s| s.to_string());
+                    let mut override_parts = override_cargo.split(' ').map(ToString::to_string);
                     task_template.command = override_parts.next().unwrap_or_else(|| override_cargo.clone());
                     task_template.args.extend(override_parts);
                 }
                 None => task_template.command = "cargo".to_string(),
-            };
+            }
             task_template.env = cargo.environment;
             task_template.cwd = Some(cargo.workspace_root.unwrap_or(cargo.cwd).to_string_lossy().to_string());
             task_template.args.extend(cargo.cargo_args);
@@ -376,7 +376,7 @@ impl LspCommand for GetLspRunnables {
     type Response = LspRunnables;
     type LspRequest = Runnables;
 
-    fn display_name(&self) -> &str {
+    fn display_name(&self) -> &'static str {
         "LSP Runnables"
     }
 

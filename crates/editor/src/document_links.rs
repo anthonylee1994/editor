@@ -108,7 +108,7 @@ impl Editor {
                         }
                     }
                 }
-            })
+            });
         });
 
         if pending.is_empty() {

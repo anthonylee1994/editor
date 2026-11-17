@@ -412,8 +412,8 @@ impl CompletionsMenu {
             .iter()
             .map(|choice| Completion {
                 replace_range: selection.clone(),
-                new_text: choice.to_string(),
-                label: CodeLabel::plain(choice.to_string(), None),
+                new_text: choice.clone(),
+                label: CodeLabel::plain(choice.clone(), None),
                 match_start: None,
                 snippet_deduplication_key: None,
                 icon_path: None,
@@ -663,7 +663,7 @@ impl CompletionsMenu {
                         cx.notify();
                         editor.with_completions_menu_matching_id(completion_id, |menu| {
                             if let Some(menu) = menu {
-                                menu.start_markdown_parse_for_nearby_entries(cx)
+                                menu.start_markdown_parse_for_nearby_entries(cx);
                             }
                         });
                     })
@@ -939,23 +939,22 @@ impl CompletionsMenu {
                         let main_label = StyledText::new(main_text.to_string())
                             .with_default_highlights(&style.text, main_highlights);
 
-                        let suffix_label = if !suffix_text.is_empty() {
+                        let suffix_label = if suffix_text.is_empty() {
+                            None
+                        } else {
                             let suffix_text_style =
                                 gpui::TextStyle { color: cx.theme().colors().text_muted, ..style.text.clone() };
                             Some(
                                 StyledText::new(suffix_text.to_string())
                                     .with_default_highlights(&suffix_text_style, suffix_highlights),
                             )
-                        } else {
-                            None
                         };
 
                         let documentation_label = match documentation {
-                            Some(CompletionDocumentation::SingleLine(text))
-                            | Some(CompletionDocumentation::SingleLineAndMultiLinePlainText {
-                                single_line: text,
-                                ..
-                            }) => {
+                            Some(
+                                CompletionDocumentation::SingleLine(text)
+                                | CompletionDocumentation::SingleLineAndMultiLinePlainText { single_line: text, .. },
+                            ) => {
                                 if text.trim().is_empty() {
                                     None
                                 } else {
@@ -1004,7 +1003,7 @@ impl CompletionsMenu {
                                             window,
                                             cx,
                                         ) {
-                                            task.detach_and_log_err(cx)
+                                            task.detach_and_log_err(cx);
                                         }
                                     }))
                                     .start_slot::<AnyElement>(start_slot)
@@ -1111,7 +1110,7 @@ impl CompletionsMenu {
                         link,
                         window,
                         cx,
-                    )
+                    );
                 }),
         )
     }
@@ -1326,12 +1325,10 @@ impl CompletionsMenu {
             // Snippets do their own first-letter matching logic elsewhere.
             let is_snippet = completion.is_snippet_kind();
             let query_start_doesnt_match_split_words = !is_snippet
-                && query_start_lower
-                    .map(|query_char| {
-                        !split_words(&string_match.string)
-                            .any(|word| word.chars().next().and_then(|c| c.to_lowercase().next()) == Some(query_char))
-                    })
-                    .unwrap_or(false);
+                && query_start_lower.is_some_and(|query_char| {
+                    !split_words(&string_match.string)
+                        .any(|word| word.chars().next().and_then(|c| c.to_lowercase().next()) == Some(query_char))
+                });
 
             if query_start_doesnt_match_split_words {
                 MatchTier::OtherMatch { sort_score }
@@ -1608,9 +1605,8 @@ impl CodeActionContents {
         if let Some(tasks) = &self.tasks {
             if let Some((kind, task)) = tasks.templates.get(index) {
                 return Some(CodeActionsItem::Task(kind.clone(), task.clone()));
-            } else {
-                index -= tasks.templates.len();
             }
+            index -= tasks.templates.len();
         }
         if let Some(actions) = &self.actions
             && let Some(available) = actions.get(index)
@@ -1641,8 +1637,8 @@ impl CodeActionsItem {
 
     pub fn menu_label(&self) -> String {
         match self {
-            Self::CodeAction { action, .. } => action.lsp_action.title().replace("\n", ""),
-            Self::Task(_, task) => task.resolved_label.replace("\n", ""),
+            Self::CodeAction { action, .. } => action.lsp_action.title().replace('\n', ""),
+            Self::Task(_, task) => task.resolved_label.replace('\n', ""),
         }
     }
 }
@@ -1659,13 +1655,13 @@ impl CodeActionsMenu {
     fn select_first(&mut self, cx: &mut Context<Editor>) {
         self.selected_item = if self.scroll_handle.y_flipped() { self.actions.len() - 1 } else { 0 };
         self.scroll_handle.scroll_to_item(self.selected_item, ScrollStrategy::Top);
-        cx.notify()
+        cx.notify();
     }
 
     fn select_last(&mut self, cx: &mut Context<Editor>) {
         self.selected_item = if self.scroll_handle.y_flipped() { 0 } else { self.actions.len() - 1 };
         self.scroll_handle.scroll_to_item(self.selected_item, ScrollStrategy::Top);
-        cx.notify()
+        cx.notify();
     }
 
     fn select_prev(&mut self, cx: &mut Context<Editor>) {
@@ -1696,7 +1692,7 @@ impl CodeActionsMenu {
 
     const fn origin(&self) -> ContextMenuOrigin {
         match &self.deployed_from {
-            Some(CodeActionSource::Indicator(row)) | Some(CodeActionSource::RunMenu(row)) => {
+            Some(CodeActionSource::Indicator(row) | CodeActionSource::RunMenu(row)) => {
                 ContextMenuOrigin::GutterIndicator(*row)
             }
             None => ContextMenuOrigin::Cursor,
@@ -1747,7 +1743,7 @@ impl CodeActionsMenu {
                                     window,
                                     cx,
                                 ) {
-                                    task.detach_and_log_err(cx)
+                                    task.detach_and_log_err(cx);
                                 }
                             }))
                     })

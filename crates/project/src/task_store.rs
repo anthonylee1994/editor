@@ -33,7 +33,7 @@ impl TaskStore {
         environment: Entity<ProjectEnvironment>,
         git_store: Entity<GitStore>,
     ) -> Self {
-        Self { environment, git_store, worktree_store }
+        Self { environment, worktree_store, git_store }
     }
 
     pub fn task_context_for_location(

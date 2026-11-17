@@ -76,7 +76,7 @@ async fn get_messages_impl(git: &GitBinary, shas: &[Oid]) -> Result<Vec<String>>
     let output = git
         .build_command(&["show"])
         .arg("-s")
-        .arg(format!("--format=%B{}", MARKER))
+        .arg(format!("--format=%B{MARKER}"))
         .args(shas.iter().map(ToString::to_string))
         .output()
         .await
@@ -89,7 +89,7 @@ async fn get_messages_impl(git: &GitBinary, shas: &[Oid]) -> Result<Vec<String>>
     Ok(String::from_utf8_lossy(&output.stdout)
         .trim()
         .split_terminator(MARKER)
-        .map(|str| str.trim().replace("<", "&lt;").replace(">", "&gt;"))
+        .map(|str| str.trim().replace('<', "&lt;").replace('>', "&gt;"))
         .collect::<Vec<_>>())
 }
 
@@ -124,9 +124,8 @@ pub(crate) fn parse_git_diff_raw(content: &str) -> impl Iterator<Item = Result<C
             return None;
         }
 
-        let path = match parts.next() {
-            Some(path) => path,
-            None => return Some(Err(anyhow::anyhow!("raw diff is missing the path"))),
+        let Some(path) = parts.next() else {
+            return Some(Err(anyhow::anyhow!("raw diff is missing the path")));
         };
         Some(parse_git_diff_raw_entry(metadata, path))
     })

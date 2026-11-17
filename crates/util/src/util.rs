@@ -195,21 +195,19 @@ fn load_shell_from_passwd() -> Result<()> {
         n if n < 0 => 1024,
         n => n as usize,
     };
-    let mut buffer = Vec::with_capacity(buflen);
+    let mut buffer = Vec::<libc::c_char>::with_capacity(buflen);
 
     let mut pwd: MaybeUninit<libc::passwd> = MaybeUninit::uninit();
     let mut result: *mut libc::passwd = ptr::null_mut();
 
     let uid = unsafe { libc::getuid() };
-    let status = unsafe {
-        libc::getpwuid_r(uid, pwd.as_mut_ptr(), buffer.as_mut_ptr() as *mut libc::c_char, buflen, &raw mut result)
-    };
-    anyhow::ensure!(!result.is_null(), "passwd entry for uid {} not found", uid);
+    let status = unsafe { libc::getpwuid_r(uid, pwd.as_mut_ptr(), buffer.as_mut_ptr(), buflen, &raw mut result) };
+    anyhow::ensure!(!result.is_null(), "passwd entry for uid {uid} not found");
 
     // SAFETY: If `getpwuid_r` doesn't error, we have the entry here.
     let entry = unsafe { pwd.assume_init() };
 
-    anyhow::ensure!(status == 0, "call to getpwuid_r failed. uid: {}, status: {}", uid, status);
+    anyhow::ensure!(status == 0, "call to getpwuid_r failed. uid: {uid}, status: {status}");
     anyhow::ensure!(
         entry.pw_uid == uid,
         "passwd entry has different uid ({}) than getuid ({}) returned",
@@ -222,7 +220,7 @@ fn load_shell_from_passwd() -> Result<()> {
         env::var("SHELL").map_or(true, |shell_env| shell_env != shell && !Path::new(&shell_env).exists());
 
     if should_set_shell {
-        log::info!("updating SHELL environment variable to value from passwd entry: {:?}", shell,);
+        log::info!("updating SHELL environment variable to value from passwd entry: {shell:?}");
         unsafe { env::set_var("SHELL", shell) };
     }
 

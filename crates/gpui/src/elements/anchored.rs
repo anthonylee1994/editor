@@ -87,7 +87,7 @@ impl Anchored {
 
 impl ParentElement for Anchored {
     fn extend(&mut self, elements: impl IntoIterator<Item = AnyElement>) {
-        self.children.extend(elements)
+        self.children.extend(elements);
     }
 }
 
@@ -155,7 +155,7 @@ impl Element for Anchored {
                 );
                 if !(switched.left() < limits.left() || switched.right() > limits.right()) {
                     anchor = anchor.other_side_along(Axis::Horizontal);
-                    desired = switched
+                    desired = switched;
                 }
             }
 
@@ -198,7 +198,7 @@ impl Element for Anchored {
             for child in &mut self.children {
                 child.prepaint(window, cx);
             }
-        })
+        });
     }
 
     fn paint(
@@ -246,7 +246,7 @@ pub enum AnchoredPositionMode {
 
 impl AnchoredPositionMode {
     fn get_position_and_bounds(
-        &self,
+        self,
         anchor_position: Option<Point<Pixels>>,
         anchor: Anchor,
         size: Size<Pixels>,

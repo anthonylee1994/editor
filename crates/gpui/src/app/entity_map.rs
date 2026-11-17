@@ -271,9 +271,7 @@ impl<T: 'static> ops::DerefMut for Lease<T> {
 
 impl Drop for LeaseInner {
     fn drop(&mut self) {
-        if self.entity.is_some() && !panicking() {
-            panic!("Leases must be ended with EntityMap::end_lease")
-        }
+        assert!(!(self.entity.is_some() && !panicking()), "Leases must be ended with EntityMap::end_lease");
     }
 }
 
@@ -464,7 +462,7 @@ impl<T: 'static> Entity<T> {
         self.update(cx, |entity, cx| {
             *entity = value;
             cx.notify();
-        })
+        });
     }
 
     /// Updates the entity referenced by this handle with the given function if

@@ -92,22 +92,20 @@ impl Workspace {
         cx: &mut Context<Self>,
     ) {
         let panes = self.center.panes();
-        let destination = match panes.get(action.destination) {
-            Some(&destination) => destination.clone(),
-            None => {
-                if self.active_pane.read(cx).items_len() < 2 {
-                    return;
-                }
-                let direction = SplitDirection::Right;
-                let split_off_pane =
-                    self.find_pane_in_direction(direction, cx).unwrap_or_else(|| self.active_pane.clone());
-                let new_pane = self.add_pane(window, cx);
-                self.center.split(&split_off_pane, &new_pane, direction, cx);
-                new_pane
+        let destination = if let Some(&destination) = panes.get(action.destination) {
+            destination.clone()
+        } else {
+            if self.active_pane.read(cx).items_len() < 2 {
+                return;
             }
+            let direction = SplitDirection::Right;
+            let split_off_pane = self.find_pane_in_direction(direction, cx).unwrap_or_else(|| self.active_pane.clone());
+            let new_pane = self.add_pane(window, cx);
+            self.center.split(&split_off_pane, &new_pane, direction, cx);
+            new_pane
         };
 
-        move_active_item(&self.active_pane, &destination, action.focus, true, window, cx)
+        move_active_item(&self.active_pane, &destination, action.focus, true, window, cx);
     }
 
     pub fn activate_next_pane(&mut self, window: &mut Window, cx: &mut App) {
@@ -192,9 +190,7 @@ impl Workspace {
                 }
             }
 
-            (Origin::LeftDock, SplitDirection::Down) | (Origin::RightDock, SplitDirection::Down) => {
-                try_dock(&self.bottom_dock)
-            }
+            (Origin::LeftDock | Origin::RightDock, SplitDirection::Down) => try_dock(&self.bottom_dock),
 
             (Origin::BottomDock, SplitDirection::Up) => get_last_active_pane().map(Target::Pane),
             (Origin::BottomDock, SplitDirection::Left) => try_dock(&self.left_dock),
@@ -231,7 +227,7 @@ impl Workspace {
                     } else {
                         log::error!("Could not find a focus target when in switching focus in {direction} direction for a {:?} dock", dock.position());
                     }
-                })
+                });
             }
             None => {}
         }
@@ -243,16 +239,15 @@ impl Workspace {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let destination = match self.find_pane_in_direction(action.direction, cx) {
-            Some(destination) => destination,
-            None => {
-                if self.active_pane.read(cx).items_len() < 2 {
-                    return;
-                }
-                let new_pane = self.add_pane(window, cx);
-                self.center.split(&self.active_pane, &new_pane, action.direction, cx);
-                new_pane
+        let destination = if let Some(destination) = self.find_pane_in_direction(action.direction, cx) {
+            destination
+        } else {
+            if self.active_pane.read(cx).items_len() < 2 {
+                return;
             }
+            let new_pane = self.add_pane(window, cx);
+            self.center.split(&self.active_pane, &new_pane, action.direction, cx);
+            new_pane
         };
 
         move_active_item(&self.active_pane, &destination, action.focus, true, window, cx);
@@ -358,16 +353,14 @@ impl Workspace {
                 item.added_to_pane(self, pane.clone(), window, cx);
                 cx.emit(Event::ItemAdded { item: item.boxed_clone() });
             }
-            pane::Event::Split { direction, mode } => {
-                match mode {
-                    SplitMode::EmptyPane => {
-                        self.split_pane(pane.clone(), *direction, window, cx);
-                    }
-                    SplitMode::MovePane => {
-                        self.split_and_move(pane.clone(), *direction, window, cx);
-                    }
-                };
-            }
+            pane::Event::Split { direction, mode } => match mode {
+                SplitMode::EmptyPane => {
+                    self.split_pane(pane.clone(), *direction, window, cx);
+                }
+                SplitMode::MovePane => {
+                    self.split_and_move(pane.clone(), *direction, window, cx);
+                }
+            },
             pane::Event::JoinIntoNext => {
                 self.join_pane_into_next(pane.clone(), window, cx);
             }
@@ -537,10 +530,10 @@ impl Workspace {
         cx: &mut Context<Self>,
     ) {
         if self.center.remove(&pane, cx).unwrap() {
-            if self.maximized_pane.as_ref().and_then(|weak| weak.upgrade()).as_ref() == Some(&pane) {
+            if self.maximized_pane.as_ref().and_then(gpui::WeakEntity::upgrade).as_ref() == Some(&pane) {
                 self.maximized_pane = None;
             }
-            self.force_remove_pane(&pane, &focus_on, window, cx);
+            self.force_remove_pane(&pane, focus_on.as_ref(), window, cx);
 
             for removed_item in pane.read(cx).items() {
                 self.panes_by_item.remove(&removed_item.item_id());
@@ -614,11 +607,11 @@ impl Workspace {
         match member {
             Member::Axis(PaneAxis { members, .. }) => {
                 for child in &members {
-                    self.remove_panes(child.clone(), window, cx)
+                    self.remove_panes(child.clone(), window, cx);
                 }
             }
             Member::Pane(pane) => {
-                self.force_remove_pane(&pane, &None, window, cx);
+                self.force_remove_pane(&pane, None, window, cx);
             }
         }
     }
@@ -626,7 +619,7 @@ impl Workspace {
     pub(super) fn force_remove_pane(
         &mut self,
         pane: &Entity<Pane>,
-        focus_on: &Option<Entity<Pane>>,
+        focus_on: Option<&Entity<Pane>>,
         window: &mut Window,
         cx: &mut Context<Workspace>,
     ) {
@@ -662,7 +655,7 @@ fn join_pane_into_active(active_pane: &Entity<Pane>, pane: &Entity<Pane>, window
     } else if pane.read(cx).items_len() == 0 {
         pane.update(cx, |_, cx| {
             cx.emit(pane::Event::Remove { focus_on_pane: None });
-        })
+        });
     } else {
         move_all_items(pane, active_pane, window, cx);
     }
@@ -686,7 +679,7 @@ fn move_all_items(from_pane: &Entity<Pane>, to_pane: &Entity<Pane>, window: &mut
         // This automatically removes duplicate items in the pane
         to_pane.update(cx, |destination, cx| {
             destination.add_item(item_handle, true, true, None, window, cx);
-            window.focus(&destination.focus_handle(cx), cx)
+            window.focus(&destination.focus_handle(cx), cx);
         });
     }
 }
@@ -722,7 +715,7 @@ pub fn move_item(
     destination.update(cx, |destination, cx| {
         destination.add_item_inner(item_handle, activate, activate, activate, Some(destination_index), window, cx);
         if activate {
-            window.focus(&destination.focus_handle(cx), cx)
+            window.focus(&destination.focus_handle(cx), cx);
         }
     });
 }

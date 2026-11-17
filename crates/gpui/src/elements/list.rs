@@ -156,11 +156,11 @@ enum FollowState {
 }
 
 impl FollowState {
-    const fn is_following(&self) -> bool {
+    const fn is_following(self) -> bool {
         matches!(self, FollowState::Tail { is_following: true })
     }
 
-    const fn has_stopped_following(&self) -> bool {
+    const fn has_stopped_following(self) -> bool {
         matches!(self, FollowState::Tail { is_following: false })
     }
 
@@ -500,7 +500,7 @@ impl ListState {
     /// Inform the list state that the items in `old_range` have been replaced
     /// by `count` new items that must be recalculated.
     pub fn splice(&self, old_range: Range<usize>, count: usize) {
-        self.splice_focusable(old_range, (0..count).map(|_| None))
+        self.splice_focusable(old_range, (0..count).map(|_| None));
     }
 
     /// Register with the list state that the items in `old_range` have been replaced
@@ -656,7 +656,7 @@ impl ListState {
 
         cursor.seek_forward(&Count(ix), Bias::Right);
         if let Some(&ListItem::Measured { size, .. }) = cursor.item() {
-            let &Dimensions(Count(count), Height(top), _) = cursor.start();
+            let &Dimensions(Count(count), Height(top), ()) = cursor.start();
             if count == ix {
                 let top = bounds.top() + top - scroll_top;
                 return Some(Bounds::from_corners(
@@ -781,7 +781,7 @@ impl StateInner {
             PendingScroll::Proportional(_) => {
                 let mut cursor = self.items.cursor::<Count>(());
                 cursor.seek(&Count(scroll_top.item_ix), Bias::Right);
-                cursor.item().and_then(|item| item.size_hint()).filter(|size| size.height.0 > 0.0).map(|size| {
+                cursor.item().and_then(ListItem::size_hint).filter(|size| size.height.0 > 0.0).map(|size| {
                     PendingScroll::Proportional(PendingScrollFraction {
                         item_ix: scroll_top.item_ix,
                         fraction: (scroll_top.offset_in_item.0 / size.height.0).clamp(0.0, 1.0),
@@ -1025,7 +1025,7 @@ impl StateInner {
                         ListOffset { item_ix: cursor.start().0, offset_in_item: rendered_height - available_height };
                     self.logical_scroll_top = None;
                 }
-            };
+            }
         }
 
         // Measure items in the leading overdraw
@@ -1315,7 +1315,7 @@ impl Element for List {
         &mut self,
         _id: Option<&GlobalElementId>,
         bounds: Bounds<Pixels>,
-        _: &mut Self::RequestLayoutState,
+        (): &mut Self::RequestLayoutState,
         window: &mut Window,
         cx: &mut App,
     ) -> ListPrepaintState {
@@ -1364,7 +1364,7 @@ impl Element for List {
         &mut self,
         _id: Option<&GlobalElementId>,
         bounds: Bounds<crate::Pixels>,
-        _: &mut Self::RequestLayoutState,
+        (): &mut Self::RequestLayoutState,
         prepaint: &mut Self::PrepaintState,
         window: &mut Window,
         cx: &mut App,
@@ -1385,7 +1385,7 @@ impl Element for List {
             if phase == DispatchPhase::Bubble && hitbox_id.should_handle_scroll(window) {
                 accumulated_scroll_delta = accumulated_scroll_delta.coalesce(event.delta);
                 let pixel_delta = accumulated_scroll_delta.pixel_delta(px(20.));
-                list_state.0.borrow_mut().scroll(&scroll_top, height, pixel_delta, current_view, window, cx)
+                list_state.0.borrow_mut().scroll(&scroll_top, height, pixel_delta, current_view, window, cx);
             }
         });
 
@@ -1430,7 +1430,7 @@ impl Styled for List {
 impl sum_tree::Item for ListItem {
     type Summary = ListItemSummary;
 
-    fn summary(&self, _: ()) -> Self::Summary {
+    fn summary(&self, (): ()) -> Self::Summary {
         match self {
             ListItem::Unmeasured { size_hint, focus_handle } => ListItemSummary {
                 count: 1,
@@ -1472,7 +1472,7 @@ impl<'a> sum_tree::Dimension<'a, ListItemSummary> for Count {
         Count::default()
     }
 
-    fn add_summary(&mut self, summary: &'a ListItemSummary, _: ()) {
+    fn add_summary(&mut self, summary: &'a ListItemSummary, (): ()) {
         self.0 += summary.count;
     }
 }
@@ -1482,19 +1482,19 @@ impl<'a> sum_tree::Dimension<'a, ListItemSummary> for Height {
         Height::default()
     }
 
-    fn add_summary(&mut self, summary: &'a ListItemSummary, _: ()) {
+    fn add_summary(&mut self, summary: &'a ListItemSummary, (): ()) {
         self.0 += summary.height;
     }
 }
 
 impl sum_tree::SeekTarget<'_, ListItemSummary, ListItemSummary> for Count {
-    fn cmp(&self, other: &ListItemSummary, _: ()) -> Ordering {
+    fn cmp(&self, other: &ListItemSummary, (): ()) -> Ordering {
         self.0.partial_cmp(&other.count).unwrap()
     }
 }
 
 impl sum_tree::SeekTarget<'_, ListItemSummary, ListItemSummary> for Height {
-    fn cmp(&self, other: &ListItemSummary, _: ()) -> Ordering {
+    fn cmp(&self, other: &ListItemSummary, (): ()) -> Ordering {
         self.0.partial_cmp(&other.height).unwrap()
     }
 }

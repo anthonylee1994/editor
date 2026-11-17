@@ -98,7 +98,7 @@ impl Eq for Uri {}
 
 impl Hash for Uri {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.as_str().hash(state)
+        self.as_str().hash(state);
     }
 }
 
@@ -143,22 +143,20 @@ mod tests {
             let from_str_uri = Uri::from_str(uri_str).expect("Should parse with from_str");
 
             // Create URI using deserialize
-            let json_str = format!("\"{}\"", uri_str);
+            let json_str = format!("\"{uri_str}\"");
             let deserialized_uri: Uri = serde_json::from_str(&json_str).expect("Should deserialize");
 
             // They should be equal
             assert_eq!(
                 from_str_uri, deserialized_uri,
-                "from_str and deserialize should produce the same Uri for: {}",
-                uri_str
+                "from_str and deserialize should produce the same Uri for: {uri_str}"
             );
 
             // Both should have the same underlying URL
             assert_eq!(
                 from_str_uri.as_str(),
                 deserialized_uri.as_str(),
-                "Both should have the same underlying URL string for: {}",
-                uri_str
+                "Both should have the same underlying URL string for: {uri_str}"
             );
         }
     }
@@ -282,7 +280,7 @@ mod tests {
         ];
 
         for file_path in test_cases {
-            let uri = Uri::from_str(file_path).unwrap_or_else(|_| panic!("Should parse URI: {}", file_path));
+            let uri = Uri::from_str(file_path).unwrap_or_else(|_| panic!("Should parse URI: {file_path}"));
 
             // Direct URI serialization
             let uri_serialized = serde_json::to_string(&uri).expect("Should serialize URI");
@@ -361,18 +359,13 @@ mod tests {
             // They should be equal
             assert_eq!(
                 uri_from_path, uri_from_str,
-                "URI from file path and from string should be equal for: {}",
-                path_str
+                "URI from file path and from string should be equal for: {path_str}"
             );
 
             // Both should serialize the same way (with encoded brackets if present)
             let serialized_from_path = serde_json::to_string(&uri_from_path).expect("Should serialize");
             let serialized_from_str = serde_json::to_string(&uri_from_str).expect("Should serialize");
-            assert_eq!(
-                serialized_from_path, serialized_from_str,
-                "Serialization should be identical for: {}",
-                path_str
-            );
+            assert_eq!(serialized_from_path, serialized_from_str, "Serialization should be identical for: {path_str}");
         }
     }
 
@@ -394,17 +387,14 @@ mod tests {
             let display_str = uri.to_string();
             assert!(
                 display_str.contains(expected_part),
-                "Display should contain unencoded brackets: {} should contain {}",
-                display_str,
-                expected_part
+                "Display should contain unencoded brackets: {display_str} should contain {expected_part}"
             );
 
             // Display should NOT contain encoded brackets
             if expected_part.contains('[') || expected_part.contains(']') {
                 assert!(
                     !display_str.contains("%5B") && !display_str.contains("%5D"),
-                    "Display should not contain encoded brackets: {}",
-                    display_str
+                    "Display should not contain encoded brackets: {display_str}"
                 );
             }
         }
@@ -428,7 +418,7 @@ mod tests {
 
         // They should be different for URIs with brackets
         assert_ne!(
-            format!("\"{}\"", display_str),
+            format!("\"{display_str}\""),
             serialized,
             "Display and serialization should differ for URIs with brackets"
         );

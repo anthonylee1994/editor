@@ -258,7 +258,7 @@ impl WorktreeStore {
 
     /// Iterates through all worktrees, including ones that don't appear in the project panel
     pub fn worktrees(&self) -> impl '_ + DoubleEndedIterator<Item = Entity<Worktree>> {
-        self.worktrees.iter().filter_map(move |worktree| worktree.upgrade())
+        self.worktrees.iter().filter_map(WorktreeHandle::upgrade)
     }
 
     /// Iterates through all user-visible worktrees, the ones that appear in the project panel.
@@ -410,7 +410,7 @@ impl WorktreeStore {
                 let abs_new_path = if is_root_entry {
                     let abs_path = new_worktree_ref.abs_path();
                     let Some(root_parent_path) = abs_path.parent() else {
-                        return Task::ready(Err(anyhow!("no parent for path {:?}", abs_path)));
+                        return Task::ready(Err(anyhow!("no parent for path {abs_path:?}")));
                     };
                     root_parent_path.join(new_project_path.path.as_std_path())
                 } else {
@@ -433,8 +433,8 @@ impl WorktreeStore {
                         // we want to overwrite, because otherwise we run into a file-already-exists error.
                         let overwrite = !case_sensitive
                             && abs_old_path != abs_new_path
-                            && abs_old_path.to_str().map(|p| p.to_lowercase())
-                                == abs_new_path.to_str().map(|p| p.to_lowercase());
+                            && abs_old_path.to_str().map(str::to_lowercase)
+                                == abs_new_path.to_str().map(str::to_lowercase);
 
                         // The directory we're renaming into might not exist yet
                         if let Err(e) = do_rename(fs.as_ref(), &abs_old_path, &abs_new_path, overwrite).await {
@@ -473,8 +473,7 @@ impl WorktreeStore {
                             }
                         })
                         .await?
-                        .map(CreatedEntry::Included)
-                        .unwrap_or_else(|| CreatedEntry::Excluded { abs_path: abs_new_path }))
+                        .map_or_else(|| CreatedEntry::Excluded { abs_path: abs_new_path }, CreatedEntry::Included))
                 })
             }
         }
@@ -606,7 +605,7 @@ impl WorktreeStore {
                     cx.emit(WorktreeStoreEvent::WorktreeUpdatedGitRepositories(worktree_id, set.clone()));
                 }
                 worktree::Event::DeletedEntry(id) => {
-                    cx.emit(WorktreeStoreEvent::WorktreeDeletedEntry(worktree_id, *id))
+                    cx.emit(WorktreeStoreEvent::WorktreeDeletedEntry(worktree_id, *id));
                 }
                 worktree::Event::Deleted => {
                     // The worktree root itself has been deleted (for single-file worktrees)
@@ -730,8 +729,7 @@ impl WorktreeStore {
                             || *repo_path == folder_path.as_path()
                             || !folder_path.starts_with(*repo_path)
                     })
-                    .map(Path::to_path_buf)
-                    .unwrap_or_else(|| folder_path.clone());
+                    .map_or_else(|| folder_path.clone(), Path::to_path_buf);
                 (main_path, folder_path)
             })
             .unzip();

@@ -170,12 +170,12 @@ impl BufferDiagnosticsEditor {
         let focus_handle = cx.focus_handle();
 
         cx.on_focus_in(&focus_handle, window, |buffer_diagnostics_editor, window, cx| {
-            buffer_diagnostics_editor.focus_in(window, cx)
+            buffer_diagnostics_editor.focus_in(window, cx);
         })
         .detach();
 
         cx.on_focus_out(&focus_handle, window, |buffer_diagnostics_editor, _event, window, cx| {
-            buffer_diagnostics_editor.focus_out(window, cx)
+            buffer_diagnostics_editor.focus_out(window, cx);
         })
         .detach();
 
@@ -294,7 +294,7 @@ impl BufferDiagnosticsEditor {
 
             if let Some(buffer) = buffer {
                 editor.update_in(cx, |editor, window, cx| editor.update_excerpts(buffer, window, cx))?.await?;
-            };
+            }
 
             let _ = editor.update(cx, |editor, cx| {
                 editor.update_excerpts_task = None;
@@ -342,7 +342,7 @@ impl BufferDiagnosticsEditor {
                 grouped.entry(entry.diagnostic.group_id).or_default().push(DiagnosticEntryRef {
                     range: entry.range.to_point(&buffer_snapshot),
                     diagnostic: entry.diagnostic,
-                })
+                });
             }
 
             let mut blocks: Vec<DiagnosticBlock> = Vec::new();
@@ -419,7 +419,7 @@ impl BufferDiagnosticsEditor {
 
                 let index = excerpt_ranges.binary_search_by(bin_search).unwrap_or_else(|i| i);
 
-                excerpt_ranges.insert(index, ExcerptRange { context: excerpt_range, primary: initial_range })
+                excerpt_ranges.insert(index, ExcerptRange { context: excerpt_range, primary: initial_range });
             }
 
             // Finally, update the editor's content with the new excerpt ranges
@@ -433,7 +433,7 @@ impl BufferDiagnosticsEditor {
                 buffer_diagnostics_editor.editor.update(cx, |editor, cx| {
                     editor.display_map.update(cx, |display_map, cx| {
                         display_map.remove_blocks(block_ids.into_iter().collect(), cx);
-                    })
+                    });
                 });
 
                 let excerpt_ranges: Vec<_> = excerpt_ranges
@@ -468,8 +468,8 @@ impl BufferDiagnosticsEditor {
 
                     buffer_diagnostics_editor.editor.update(cx, |editor, cx| {
                         editor.change_selections(editor::SelectionEffects::default(), window, cx, |selection| {
-                            selection.select_anchor_ranges([range_to_select])
-                        })
+                            selection.select_anchor_ranges([range_to_select]);
+                        });
                     });
 
                     // If the `BufferDiagnosticsEditor` is currently
@@ -500,7 +500,7 @@ impl BufferDiagnosticsEditor {
                 });
 
                 buffer_diagnostics_editor.blocks = block_ids;
-                cx.notify()
+                cx.notify();
             })
         })
     }
@@ -531,7 +531,7 @@ impl BufferDiagnosticsEditor {
         // not empty, focus on the editor instead, which will allow the user to
         // start interacting and editing the buffer's contents.
         if self.focus_handle.is_focused(window) && !self.multibuffer.read(cx).is_empty() {
-            self.editor.focus_handle(cx).focus(window, cx)
+            self.editor.focus_handle(cx).focus(window, cx);
         }
     }
 
@@ -635,7 +635,7 @@ impl Item for BufferDiagnosticsEditor {
     fn set_nav_history(&mut self, nav_history: ItemNavHistory, _window: &mut Window, cx: &mut Context<Self>) {
         self.editor.update(cx, |editor, _| {
             editor.set_nav_history(Some(nav_history));
-        })
+        });
     }
 
     // Builds the content to be displayed in the tab.
@@ -646,8 +646,7 @@ impl Item for BufferDiagnosticsEditor {
             self.project_path
                 .path
                 .file_name()
-                .map(|s| s.to_string())
-                .unwrap_or_else(|| self.project_path.path.display().to_string()),
+                .map_or_else(|| self.project_path.path.display().to_string(), ToString::to_string),
         );
 
         h_flex()
@@ -684,7 +683,7 @@ impl Item for BufferDiagnosticsEditor {
     }
 
     fn to_item_events(event: &EditorEvent, f: &mut dyn FnMut(ItemEvent)) {
-        Editor::to_item_events(event, f)
+        Editor::to_item_events(event, f);
     }
 }
 
@@ -714,7 +713,7 @@ impl Render for BufferDiagnosticsEditor {
                                         workspace
                                             .open_path(buffer_diagnostics.project_path.clone(), None, true, window, cx)
                                             .detach_and_log_err(cx);
-                                    })
+                                    });
                                 }
                             })),
                     ),

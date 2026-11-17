@@ -177,9 +177,7 @@ pub fn resolve_open_target(
             let normalized_path = if path_to_check.path.is_relative() {
                 relative_cwd.as_ref().and_then(|relative_cwd| {
                     let joined = relative_cwd.as_ref().as_std_path().join(&path_to_check.path);
-                    normalize_lexically(&joined)
-                        .ok()
-                        .and_then(|path| RelPath::new(&path).ok().map(std::borrow::Cow::into_owned))
+                    normalize_lexically(&joined).ok().and_then(|path| RelPath::new(&path).ok().map(|x| x.into_owned()))
                 })
             } else {
                 None
@@ -223,7 +221,7 @@ pub fn resolve_open_target(
             if let Some(fs_path_to_check) = fs.canonicalize(&path_to_check.path).await.ok()
                 && let Some(metadata) = fs.metadata(&fs_path_to_check).await.ok().flatten()
             {
-                if open_target.as_ref().map(|open_target| open_target.path().path != fs_path_to_check).unwrap_or(true) {
+                if open_target.as_ref().is_none_or(|open_target| open_target.path().path != fs_path_to_check) {
                     path_to_check.path = fs_path_to_check;
                     return Some(OpenTarget::Path(path_to_check, metadata.is_dir));
                 }

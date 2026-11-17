@@ -209,10 +209,7 @@ impl RenderOnce for SplitEditorView {
                     .with_dynamic_prepaint_order(move |_window, cx| {
                         let lhs_needs = lhs_editor_for_order.read(cx).has_autoscroll_request();
                         let rhs_needs = rhs_editor_for_order.read(cx).has_autoscroll_request();
-                        match (lhs_needs, rhs_needs) {
-                            (false, true) => smallvec![2, 1, 0],
-                            _ => smallvec![0, 1, 2],
-                        }
+                        if (lhs_needs, rhs_needs) == (false, true) { smallvec![2, 1, 0] } else { smallvec![0, 1, 2] }
                     })
                     .id("split-editor-view")
                     .size_full()
@@ -332,7 +329,7 @@ impl Element for SplitBufferHeadersElement {
             ..Default::default()
         };
 
-        window.with_rem_size(rem_size, |window| {
+        window.with_rem_size(Some(rem_size), |window| {
             window.with_text_style(Some(text_style), |window| Self::prepaint_inner(self, bounds, window, cx))
         })
     }
@@ -353,7 +350,7 @@ impl Element for SplitBufferHeadersElement {
             ..Default::default()
         };
 
-        window.with_rem_size(rem_size, |window| {
+        window.with_rem_size(Some(rem_size), |window| {
             window.with_text_style(Some(text_style), |window| {
                 window.with_content_mask(Some(ContentMask { bounds: prepaint.content_bounds }), |window| {
                     for header_layout in &mut prepaint.non_sticky_headers {
@@ -370,7 +367,7 @@ impl Element for SplitBufferHeadersElement {
 }
 
 impl SplitBufferHeadersElement {
-    fn rem_size(&self) -> Option<Pixels> {
+    fn rem_size(&self) -> Pixels {
         match self.style.text.font_size {
             AbsoluteLength::Pixels(pixels) => {
                 let rem_size_scale = {
@@ -379,9 +376,9 @@ impl SplitBufferHeadersElement {
                     1. + default_font_size_delta
                 };
 
-                Some(pixels * rem_size_scale)
+                pixels * rem_size_scale
             }
-            AbsoluteLength::Rems(rems) => Some(rems.to_pixels(ui::BASE_REM_SIZE_IN_PX.into())),
+            AbsoluteLength::Rems(rems) => rems.to_pixels(ui::BASE_REM_SIZE_IN_PX.into()),
         }
     }
 

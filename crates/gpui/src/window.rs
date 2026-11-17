@@ -268,7 +268,7 @@ impl WindowInvalidator {
     }
 
     pub fn set_phase(&self, phase: DrawPhase) {
-        self.inner.borrow_mut().draw_phase = phase
+        self.inner.borrow_mut().draw_phase = phase;
     }
 
     pub fn update_count(&self) -> usize {
@@ -380,10 +380,10 @@ impl ElementArenaScope {
         arena.borrow_mut().begin_scope();
         let previous = CURRENT_ELEMENT_ARENA.with(|current| {
             let prev = current.get();
-            current.set(Some(arena as *const RefCell<Arena>));
+            current.set(Some(std::ptr::from_ref::<RefCell<Arena>>(arena)));
             prev
         });
-        Self { entered: arena as *const RefCell<Arena>, previous, exited: false }
+        Self { entered: std::ptr::from_ref::<RefCell<Arena>>(arena), previous, exited: false }
     }
 
     /// End the scope: restores the previously-current arena and ends the
@@ -441,7 +441,7 @@ impl ArenaClearNeeded {
     /// Create a new ArenaClearNeeded token for the App whose arena was drawn
     /// into. Private: the only way to obtain one is [`ElementArenaScope::exit`].
     const fn new(arena: &RefCell<Arena>) -> Self {
-        Self { arena: arena as *const RefCell<Arena> }
+        Self { arena: std::ptr::from_ref::<RefCell<Arena>>(arena) }
     }
 
     /// Clear the element arena of the App the draw ran against. If an enclosing
@@ -625,7 +625,7 @@ impl Frame {
     }
 
     pub(crate) fn focus_path(&self) -> SmallVec<[FocusId; 8]> {
-        self.focus.map(|focus_id| self.dispatch_tree.focus_path(focus_id)).unwrap_or_default()
+        self.focus.map_or_default(|focus_id| self.dispatch_tree.focus_path(focus_id))
     }
 
     pub(crate) fn finish(&mut self, prev_frame: &mut Self) {
@@ -794,12 +794,12 @@ fn default_bounds(display_id: Option<DisplayId>, cx: &mut App) -> WindowBounds {
 
     const CASCADE_OFFSET: f32 = 25.0;
 
-    let display = display_id.map(|id| cx.find_display(id)).unwrap_or_else(|| cx.primary_display());
+    let display = display_id.map_or_else(|| cx.primary_display(), |id| cx.find_display(id));
 
     let default_placement = || Bounds::new(point(px(0.), px(0.)), DEFAULT_WINDOW_SIZE);
 
     // Use visible_bounds to exclude taskbar/dock areas
-    let display_bounds = display.as_ref().map(|d| d.visible_bounds()).unwrap_or_else(default_placement);
+    let display_bounds = display.as_ref().map_or_else(default_placement, |d| d.visible_bounds());
 
     let (Bounds { origin: base_origin, size: base_size }, window_bounds_ctor): (_, fn(Bounds<Pixels>) -> WindowBounds) =
         match active_window_bounds {
@@ -808,9 +808,7 @@ fn default_bounds(display_id: Option<DisplayId>, cx: &mut App) -> WindowBounds {
                 WindowBounds::Maximized(bounds) => (bounds, WindowBounds::Maximized),
                 WindowBounds::Fullscreen(bounds) => (bounds, WindowBounds::Fullscreen),
             },
-            None => {
-                (display.as_ref().map(|d| d.default_bounds()).unwrap_or_else(default_placement), WindowBounds::Windowed)
-            }
+            None => (display.as_ref().map_or_else(default_placement, |d| d.default_bounds()), WindowBounds::Windowed),
         };
 
     let cascade_offset = point(px(CASCADE_OFFSET), px(CASCADE_OFFSET));
@@ -1349,14 +1347,14 @@ impl Window {
     /// Move focus to next tab stop.
     pub fn focus_next(&mut self, cx: &mut App) {
         if let Some(handle) = self.rendered_frame.tab_stops.next(self.focus.as_ref()) {
-            self.focus(&handle, cx)
+            self.focus(&handle, cx);
         }
     }
 
     /// Move focus to previous tab stop.
     pub fn focus_prev(&mut self, cx: &mut App) {
         if let Some(handle) = self.rendered_frame.tab_stops.prev(self.focus.as_ref()) {
-            self.focus(&handle, cx)
+            self.focus(&handle, cx);
         }
     }
 
@@ -1409,7 +1407,7 @@ impl Window {
                     window.dispatch_action_on_node(node_id, action.as_ref(), cx);
                 })
                 .log_err();
-        })
+        });
     }
 
     pub(crate) fn dispatch_keystroke_observers(
@@ -1425,7 +1423,7 @@ impl Window {
                 &KeystrokeEvent {
                     keystroke: keystroke.clone(),
                     input_preference,
-                    action: action.map(|action| action.boxed_clone()),
+                    action: action.map(|x| x.boxed_clone()),
                     context_stack: context_stack.clone(),
                 },
                 self,
@@ -1723,7 +1721,7 @@ impl Window {
     ///
     /// Events may not be received during a move operation.
     pub fn start_window_move(&self) {
-        self.platform_window.start_window_move()
+        self.platform_window.start_window_move();
     }
 
     /// Returns whether this window is resizable.
@@ -1911,7 +1909,7 @@ impl Window {
         // paint_range indices remain valid for reuse_paint on the next frame.
         // Search backwards to find the last Some entry, since reuse_paint may
         // have copied None slots from the previous frame. (Fixes #50456)
-        if let Some(input_handler) = self.next_frame.input_handlers.iter_mut().rev().find_map(|h| h.take()) {
+        if let Some(input_handler) = self.next_frame.input_handlers.iter_mut().rev().find_map(Option::take) {
             self.platform_window.set_input_handler(input_handler);
         }
 
@@ -2244,8 +2242,8 @@ impl Window {
                             window.with_rem_size(Some(deferred_draw.rem_size), |window| {
                                 element.paint(window, cx);
                             });
-                        })
-                    })
+                        });
+                    });
                 });
                 deferred_draw.accessed_entities.extend(accessed_entities);
             } else {
@@ -2283,7 +2281,7 @@ impl Window {
         self.next_frame.tooltip_requests.extend(
             self.rendered_frame.tooltip_requests[range.start.tooltips_index..range.end.tooltips_index]
                 .iter_mut()
-                .map(|request| request.take()),
+                .map(Option::take),
         );
         self.next_frame.accessed_element_states.extend(
             self.rendered_frame.accessed_element_states
@@ -2346,12 +2344,12 @@ impl Window {
         self.next_frame.input_handlers.extend(
             self.rendered_frame.input_handlers[range.start.input_handlers_index..range.end.input_handlers_index]
                 .iter_mut()
-                .map(|handler| handler.take()),
+                .map(Option::take),
         );
         self.next_frame.mouse_listeners.extend(
             self.rendered_frame.mouse_listeners[range.start.mouse_listeners_index..range.end.mouse_listeners_index]
                 .iter_mut()
-                .map(|listener| listener.take()),
+                .map(Option::take),
         );
         self.next_frame.accessed_element_states.extend(
             self.rendered_frame.accessed_element_states
@@ -2402,7 +2400,7 @@ impl Window {
     /// `set_cursor_style`. This method should only be called during the paint
     /// phase of element drawing.
     pub fn set_window_cursor_style(&mut self, style: CursorStyle) {
-        self.next_frame.cursor_styles.push(CursorStyleRequest { hitbox_id: None, style })
+        self.next_frame.cursor_styles.push(CursorStyleRequest { hitbox_id: None, style });
     }
 
     /// Sets a tooltip to be rendered for the upcoming frame. This method should only be called
@@ -2435,7 +2433,7 @@ impl Window {
     pub fn with_element_offset<R>(&mut self, offset: Point<Pixels>, f: impl FnOnce(&mut Self) -> R) -> R {
         if offset.is_zero() {
             return f(self);
-        };
+        }
 
         let abs_offset = self.element_offset() + offset;
         self.with_absolute_element_offset(abs_offset, f)
@@ -2600,7 +2598,7 @@ impl Window {
             let mut state_box = inner
                 .downcast::<Option<S>>()
                 .map_err(|_| {
-                    anyhow::anyhow!("invalid element state type for id, requested {:?}", any::type_name::<S>(),)
+                    anyhow::anyhow!("invalid element state type for id, requested {:?}", any::type_name::<S>())
                 })
                 .unwrap();
 
@@ -2851,7 +2849,7 @@ impl Window {
         self.next_frame.mouse_listeners.push(Some(Box::new(
             move |event: &dyn Any, phase: DispatchPhase, window: &mut Window, cx: &mut App| {
                 if let Some(event) = event.downcast_ref() {
-                    listener(event, phase, window, cx)
+                    listener(event, phase, window, cx);
                 }
             },
         )));
@@ -2872,7 +2870,7 @@ impl Window {
         self.next_frame.dispatch_tree.on_key_event(Rc::new(
             move |event: &dyn Any, phase, window: &mut Window, cx: &mut App| {
                 if let Some(event) = event.downcast_ref::<Event>() {
-                    listener(event, phase, window, cx)
+                    listener(event, phase, window, cx);
                 }
             },
         ));
@@ -2926,7 +2924,7 @@ impl Window {
                 let event = FocusOutEvent {
                     blurred: WeakFocusHandle { id: blurred_id, handles: Arc::downgrade(&cx.focus_handles) },
                 };
-                listener(event, window, cx)
+                listener(event, window, cx);
             }
             true
         }));
@@ -3088,7 +3086,7 @@ impl Window {
     /// If the callback returns false, the window won't be closed.
     pub fn on_window_should_close(&self, cx: &App, f: impl Fn(&mut Window, &mut App) -> bool + 'static) {
         let mut cx = self.to_async(cx);
-        self.platform_window.on_should_close(Box::new(move || cx.update(|window, cx| f(window, cx)).unwrap_or(true)))
+        self.platform_window.on_should_close(Box::new(move || cx.update(|window, cx| f(window, cx)).unwrap_or(true)));
     }
 
     /// Register an action listener on this node for the next frame. The type of action
@@ -3147,7 +3145,7 @@ impl Window {
     /// Request the OS to play an alert sound. On some platforms this is associated
     /// with the window, for others it's just a simple global function call.
     pub fn play_system_bell(&self) {
-        self.platform_window.play_system_bell()
+        self.platform_window.play_system_bell();
     }
 
     #[inline(never)]

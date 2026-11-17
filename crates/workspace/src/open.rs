@@ -78,7 +78,7 @@ impl Workspace {
                             tx.send(path).ok();
                         }
                     }
-                };
+                }
                 anyhow::Ok(())
             })
             .detach();
@@ -99,7 +99,7 @@ impl Workspace {
             let abs_path = workspace.update(cx, |workspace, cx| {
                 let relative_to = workspace
                     .most_recent_active_path(cx)
-                    .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+                    .and_then(|p| p.parent().map(|x| x.to_path_buf()))
                     .or_else(|| {
                         let project = workspace.project.read(cx);
                         project.visible_worktrees(cx).next().map(|worktree| worktree.read(cx).abs_path().to_path_buf())
@@ -235,7 +235,7 @@ impl Workspace {
                         } else {
                             worktree.entry_for_path(&project_path.path)
                         };
-                        entry.map(|entry| entry.is_dir())
+                        entry.map(project::Entry::is_dir)
                     });
                     let is_directory = match entry_is_directory {
                         Some(is_directory) => is_directory,
@@ -424,7 +424,7 @@ impl Workspace {
         window: &mut Window,
         cx: &mut App,
     ) {
-        self.add_item(self.active_pane.clone(), item, destination_index, false, focus_item, window, cx)
+        self.add_item(self.active_pane.clone(), item, destination_index, false, focus_item, window, cx);
     }
 
     pub fn add_item(

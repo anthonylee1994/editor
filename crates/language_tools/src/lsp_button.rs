@@ -126,8 +126,7 @@ impl ProcessMemoryCache {
     }
 
     fn get_memory_usage(&mut self, process_id: u32) -> u64 {
-        let cache_expired =
-            self.last_refresh.map(|last| last.elapsed() >= PROCESS_MEMORY_CACHE_DURATION).unwrap_or(true);
+        let cache_expired = self.last_refresh.is_none_or(|last| last.elapsed() >= PROCESS_MEMORY_CACHE_DURATION);
 
         if cache_expired {
             let refresh_kind =
@@ -314,8 +313,8 @@ impl LanguageServerState {
                 continue;
             } else if let LspMenuItem::Header { header, separator } = item {
                 menu = menu
-                    .when(*separator, |menu| menu.separator())
-                    .when_some(header.as_ref(), |menu, header| menu.header(header));
+                    .when(*separator, ui::ContextMenu::separator)
+                    .when_some(header.as_ref(), ui::ContextMenu::header);
                 continue;
             }
 
@@ -585,8 +584,7 @@ fn tooltip_for_server_binary(server_binary: &lsp::LanguageServerBinary) -> Share
 
     let target_path = runtime
         .and_then(|_runtime| server_binary.arguments.iter().find(|arg| !arg.to_string_lossy().starts_with('-')))
-        .map(Path::new)
-        .unwrap_or(&server_binary.path);
+        .map_or(server_binary.path.as_path(), Path::new);
 
     let display_path = path::normalize(&target_path.compact().to_string_lossy());
 
@@ -773,7 +771,7 @@ impl LspButton {
         }
 
         let lsp_store_subscription = cx.subscribe_in(&lsp_store, window, |lsp_button, _, e, window, cx| {
-            lsp_button.on_lsp_store_event(e, window, cx)
+            lsp_button.on_lsp_store_event(e, window, cx);
         });
 
         let server_state = cx.new(|_| LanguageServerState {
@@ -858,7 +856,7 @@ impl LspButton {
                 updated = true;
             }
             _ => {}
-        };
+        }
 
         if updated {
             self.refresh_lsp_menu(false, window, cx);
@@ -889,7 +887,7 @@ impl LspButton {
             let mut server_names_to_worktrees =
                 HashMap::<LanguageServerName, FxHashSet<(Entity<Worktree>, LanguageServerId)>>::default();
             for servers_for_path in state.language_servers.servers_per_buffer_abs_path.values() {
-                if let Some(worktree) = servers_for_path.worktree.as_ref().and_then(|worktree| worktree.upgrade()) {
+                if let Some(worktree) = servers_for_path.worktree.as_ref().and_then(gpui::WeakEntity::upgrade) {
                     for (server_id, server_name) in &servers_for_path.servers {
                         server_ids_to_worktrees.insert(*server_id, worktree.clone());
                         if let Some(server_name) = server_name {
@@ -1044,7 +1042,7 @@ impl StatusItemView for LspButton {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if let Some(editor) = active_pane_item.and_then(|item| item.downcast::<Editor>()) {
+        if let Some(editor) = active_pane_item.and_then(<dyn workspace::ItemHandle + 'static>::downcast::<Editor>) {
             if Some(&editor)
                 != self
                     .server_state

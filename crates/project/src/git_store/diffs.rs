@@ -42,7 +42,7 @@ impl GitStore {
     ) -> Task<Result<Entity<BufferDiff>>> {
         let buffer_id = buffer.read(cx).buffer_id();
         if let Some(diff_state) = self.diffs.get(&buffer_id)
-            && let Some(unstaged_diff) = diff_state.read(cx).unstaged_diff.as_ref().and_then(|weak| weak.upgrade())
+            && let Some(unstaged_diff) = diff_state.read(cx).unstaged_diff.as_ref().and_then(gpui::WeakEntity::upgrade)
         {
             // If this unstaged diff was first opened as the uncommitted diff's
             // secondary, its index text wasn't highlighted. Enable it now and
@@ -209,10 +209,7 @@ impl GitStore {
             uncommitted_hunks.dedup_by(|a, b| a.buffer_range.start == b.buffer_range.start);
         }
 
-        let index_edits = if !file_exists {
-            // The worktree file is gone: staging removes it from the index.
-            None
-        } else {
+        let index_edits = if file_exists {
             Some(
                 unstaged_hunks
                     .iter()
@@ -224,6 +221,9 @@ impl GitStore {
                     })
                     .collect::<Vec<_>>(),
             )
+        } else {
+            // The worktree file is gone: staging removes it from the index.
+            None
         };
 
         let version = buffer_snapshot.version().clone();
@@ -457,7 +457,7 @@ impl GitStore {
 
         if let Some(diff_state) = self.diffs.get(&buffer_id)
             && let Some(uncommitted_diff) =
-                diff_state.read(cx).uncommitted_diff.as_ref().and_then(|weak| weak.upgrade())
+                diff_state.read(cx).uncommitted_diff.as_ref().and_then(gpui::WeakEntity::upgrade)
         {
             if let Some(task) = diff_state.update(cx, |diff_state, _| diff_state.wait_for_recalculation()) {
                 return cx.background_executor().spawn(async move {
@@ -577,7 +577,7 @@ impl GitStore {
                     }
                     DiffKind::Uncommitted => {
                         let base_text_buffer =
-                            diff_state.update(cx, |diff_state, cx| diff_state.get_or_create_head_text_buffer(cx));
+                            diff_state.update(cx, |state, cx| state.get_or_create_head_text_buffer(cx));
                         cx.new(|cx| {
                             let mut diff = BufferDiff::new_with_base_text_buffer(&text_snapshot, base_text_buffer, cx);
                             if let Some(project) = project.clone() {
@@ -631,7 +631,7 @@ impl GitStore {
                         };
 
                         diff.update(cx, |diff, _| diff.set_secondary_diff(unstaged_diff));
-                        diff_state.uncommitted_diff = Some(diff.downgrade())
+                        diff_state.uncommitted_diff = Some(diff.downgrade());
                     }
                     DiffKind::SinceOid(_) => {
                         unreachable!("open_diff_internal is not used for OID diffs")
@@ -671,7 +671,7 @@ impl GitStore {
         let buffer_id = buffer.read(cx).buffer_id();
 
         if let Some(git_state) = self.diffs.get(&buffer_id)
-            && let Some(conflict_set) = git_state.read(cx).conflict_set.as_ref().and_then(|weak| weak.upgrade())
+            && let Some(conflict_set) = git_state.read(cx).conflict_set.as_ref().and_then(gpui::WeakEntity::upgrade)
         {
             let conflict_set = conflict_set;
             let buffer_snapshot = buffer.read(cx).text_snapshot();
@@ -749,15 +749,11 @@ impl GitStore {
         let Some((repo, path)) = self.repository_and_path_for_buffer_id(buffer_id, cx) else {
             return;
         };
-        let (encoding, has_bom) = self
-            .buffer_store
-            .read(cx)
-            .get(buffer_id)
-            .map(|buffer| {
+        let (encoding, has_bom) =
+            self.buffer_store.read(cx).get(buffer_id).map_or((encoding_rs::UTF_8, false), |buffer| {
                 let buffer = buffer.read(cx);
                 (buffer.encoding(), buffer.has_bom())
-            })
-            .unwrap_or((encoding_rs::UTF_8, false));
+            });
         let recv = repo.update(cx, |repo, cx| {
             log::debug!("hunks changed for {}", path.as_unix_str());
             repo.spawn_set_index_text_job(

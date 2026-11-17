@@ -74,7 +74,7 @@ pub fn show_error_toast(workspace: Entity<Workspace>, action: impl Into<SharedSt
                     },
                 )
             });
-            workspace.toggle_status_toast(toast, cx)
+            workspace.toggle_status_toast(toast, cx);
         });
     });
 }

@@ -397,6 +397,6 @@ mod tests {
                 }),
             ],
             r#"[{"title":"title","command":"command"},{"title":"title","kind":"quickfix"}]"#,
-        )
+        );
     }
 }

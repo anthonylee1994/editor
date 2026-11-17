@@ -69,7 +69,7 @@ impl StringMatch {
     }
 
     fn char_len_at_index(&self, ix: usize) -> Option<usize> {
-        self.string.get(ix..).and_then(|slice| slice.chars().next().map(|c| c.len_utf8()))
+        self.string.get(ix..).and_then(|slice| slice.chars().next().map(char::len_utf8))
     }
 }
 

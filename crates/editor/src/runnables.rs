@@ -428,7 +428,7 @@ impl Editor {
                 .runnables
                 .get(&buffer_id)
                 .into_iter()
-                .flat_map(|(_, tasks)| tasks.range(0..starting_point.row + 1))
+                .flat_map(|(_, tasks)| tasks.range(0..=starting_point.row))
             {
                 if !tasks.context_range.contains(&crate::BufferOffset(starting_offset)) {
                     continue;
@@ -616,8 +616,7 @@ impl Editor {
                     .buffer_snapshot()
                     .buffer_line_for_row(multibuffer_row)
                     .map(|(buffer_snapshot, _)| buffer_snapshot.buffer_id())
-                    .map(|buffer_id| self.is_buffer_folded(buffer_id, cx))
-                    .unwrap_or(false);
+                    .is_some_and(|buffer_id| self.is_buffer_folded(buffer_id, cx));
                 if buffer_folded {
                     return None;
                 }

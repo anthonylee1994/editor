@@ -144,7 +144,7 @@ impl Iterator for MultiBufferRows<'_> {
                 });
             } else {
                 return None;
-            };
+            }
         }
 
         let overshoot = self.point - region.range.start;
@@ -239,18 +239,18 @@ impl<'a> MultiBufferChunks<'a> {
         loop {
             if self.excerpt_offset_range.is_empty() {
                 return None;
-            } else if let Some(chunk) = self.excerpt_chunks.as_mut()?.next() {
+            }
+            if let Some(chunk) = self.excerpt_chunks.as_mut()?.next() {
                 self.excerpt_offset_range.start += chunk.text.len();
                 return Some(chunk);
-            } else {
-                self.excerpts.next();
-                let excerpt = self.excerpts.item()?;
-                self.excerpt_chunks = Some(excerpt.chunks_in_range(
-                    0..(self.excerpt_offset_range.end - *self.excerpts.start()),
-                    self.language_aware,
-                    self.snapshot,
-                ));
             }
+            self.excerpts.next();
+            let excerpt = self.excerpts.item()?;
+            self.excerpt_chunks = Some(excerpt.chunks_in_range(
+                0..(self.excerpt_offset_range.end - *self.excerpts.start()),
+                self.language_aware,
+                self.snapshot,
+            ));
         }
     }
 }
@@ -370,7 +370,7 @@ impl MultiBufferBytes<'_> {
         self.chunk = &self.chunk[len..];
 
         if !self.range.is_empty() && self.chunk.is_empty() {
-            if let Some(chunk) = self.excerpt_bytes.as_mut().and_then(|bytes| bytes.next()) {
+            if let Some(chunk) = self.excerpt_bytes.as_mut().and_then(Iterator::next) {
                 self.chunk = chunk;
             } else if self.has_trailing_newline {
                 self.has_trailing_newline = false;

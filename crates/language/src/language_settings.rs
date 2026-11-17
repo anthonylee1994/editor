@@ -251,7 +251,8 @@ impl AllLanguageSettings {
                 builder.add(Glob::new(pattern).expect("valid built-in file type glob"));
             }
             let globs = builder.build().expect("valid built-in file type globs");
-            self.file_types.insert(name.0.as_ref().into(), (globs, file_types.iter().map(|s| s.to_string()).collect()));
+            self.file_types
+                .insert(name.0.as_ref().into(), (globs, file_types.iter().map(ToString::to_string).collect()));
         }
         self.languages.insert(name, Arc::new(settings));
     }

@@ -71,6 +71,6 @@ impl<T: Global> UpdateGlobal for T {
     where
         C: BorrowAppContext,
     {
-        cx.set_global(global)
+        cx.set_global(global);
     }
 }

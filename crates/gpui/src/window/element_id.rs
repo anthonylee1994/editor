@@ -100,16 +100,16 @@ impl ElementId {
 impl Display for ElementId {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            ElementId::View(entity_id) => write!(f, "view-{}", entity_id)?,
-            ElementId::Integer(ix) => write!(f, "{}", ix)?,
-            ElementId::Name(name) => write!(f, "{}", name)?,
+            ElementId::View(entity_id) => write!(f, "view-{entity_id}")?,
+            ElementId::Integer(ix) => write!(f, "{ix}")?,
+            ElementId::Name(name) => write!(f, "{name}")?,
             ElementId::FocusHandle(_) => write!(f, "FocusHandle")?,
-            ElementId::NamedInteger(s, i) => write!(f, "{}-{}", s, i)?,
-            ElementId::Uuid(uuid) => write!(f, "{}", uuid)?,
+            ElementId::NamedInteger(s, i) => write!(f, "{s}-{i}")?,
+            ElementId::Uuid(uuid) => write!(f, "{uuid}")?,
             ElementId::Path(path) => write!(f, "{}", path.display())?,
-            ElementId::CodeLocation(location) => write!(f, "{}", location)?,
-            ElementId::NamedChild(id, name) => write!(f, "{}-{}", id, name)?,
-            ElementId::OpaqueId(opaque_id) => write!(f, "{:x?}", opaque_id)?,
+            ElementId::CodeLocation(location) => write!(f, "{location}")?,
+            ElementId::NamedChild(id, name) => write!(f, "{id}-{name}")?,
+            ElementId::OpaqueId(opaque_id) => write!(f, "{opaque_id:x?}")?,
         }
 
         Ok(())

@@ -860,7 +860,7 @@ fn row_to_string(row: &Row<AlacCell>) -> String {
 
 fn process_line(line: String) -> Option<String> {
     let trimmed = line.trim_end().to_string();
-    if !trimmed.is_empty() { Some(trimmed) } else { None }
+    if trimmed.is_empty() { None } else { Some(trimmed) }
 }
 
 pub(super) fn search_matches(term: &AlacrittyTerm, searcher: Search) -> Vec<Range> {

@@ -477,7 +477,7 @@ impl<'a, T: 'static> Context<'a, T> {
                 if event.previous_focus_path.last() != Some(&focus_id)
                     && event.current_focus_path.last() == Some(&focus_id)
                 {
-                    listener(view, window, cx)
+                    listener(view, window, cx);
                 }
             })
             .is_ok()
@@ -500,7 +500,7 @@ impl<'a, T: 'static> Context<'a, T> {
         let (subscription, activate) = window.new_focus_listener(Box::new(move |event, window, cx| {
             view.update(cx, |view, cx| {
                 if event.is_focus_in(focus_id) {
-                    listener(view, window, cx)
+                    listener(view, window, cx);
                 }
             })
             .is_ok()
@@ -524,7 +524,7 @@ impl<'a, T: 'static> Context<'a, T> {
                 if event.previous_focus_path.last() == Some(&focus_id)
                     && event.current_focus_path.last() != Some(&focus_id)
                 {
-                    listener(view, window, cx)
+                    listener(view, window, cx);
                 }
             })
             .is_ok()
@@ -568,7 +568,7 @@ impl<'a, T: 'static> Context<'a, T> {
                     let event = FocusOutEvent {
                         blurred: WeakFocusHandle { id: blurred_id, handles: Arc::downgrade(&cx.focus_handles) },
                     };
-                    listener(view, event, window, cx)
+                    listener(view, event, window, cx);
                 }
             })
             .is_ok()
@@ -660,7 +660,7 @@ impl<'a, T: 'static> Context<'a, T> {
         T: Focusable,
     {
         let view = self.entity();
-        window.defer(self, move |window, cx| view.read(cx).focus_handle(cx).focus(window, cx))
+        window.defer(self, move |window, cx| view.read(cx).focus_handle(cx).focus(window, cx));
     }
 }
 

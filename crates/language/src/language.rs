@@ -360,7 +360,7 @@ impl CachedLspAdapter {
     }
 
     pub fn process_diagnostics(&self, params: &mut lsp::PublishDiagnosticsParams, server_id: LanguageServerId) {
-        self.adapter.process_diagnostics(params, server_id)
+        self.adapter.process_diagnostics(params, server_id);
     }
 
     pub fn diagnostic_message_to_markdown(&self, message: &str) -> Option<String> {
@@ -368,7 +368,7 @@ impl CachedLspAdapter {
     }
 
     pub async fn process_completions(&self, completion_items: &mut [lsp::CompletionItem]) {
-        self.adapter.process_completions(completion_items).await
+        self.adapter.process_completions(completion_items).await;
     }
 
     pub async fn labels_for_completions(
@@ -392,7 +392,7 @@ impl CachedLspAdapter {
     }
 
     pub fn process_prompt_response(&self, context: &PromptResponseContext, cx: &mut AsyncApp) {
-        self.adapter.process_prompt_response(context, cx)
+        self.adapter.process_prompt_response(context, cx);
     }
 }
 
@@ -734,17 +734,16 @@ impl Language {
             self.compute_resolved_highlights(grammar, &highlights_config.query, text)
         } else {
             let key = TextHighlightKey::new(text.source_chunks(), text_len);
-            match highlights_config.text_highlight_cache.get(&key, text.source_chunks()) {
-                Some(highlights) => highlights,
-                None => {
-                    let mut cached_text = String::with_capacity(text_len);
-                    cached_text.extend(text.source_chunks());
-                    highlights_config.text_highlight_cache.insert(
-                        key,
-                        cached_text,
-                        self.compute_resolved_highlights(grammar, &highlights_config.query, text),
-                    )
-                }
+            if let Some(highlights) = highlights_config.text_highlight_cache.get(&key, text.source_chunks()) {
+                highlights
+            } else {
+                let mut cached_text = String::with_capacity(text_len);
+                cached_text.extend(text.source_chunks());
+                highlights_config.text_highlight_cache.insert(
+                    key,
+                    cached_text,
+                    self.compute_resolved_highlights(grammar, &highlights_config.query, text),
+                )
             }
         };
         if range.start == 0 && range.end >= text_len {
@@ -976,7 +975,7 @@ impl LanguageScope {
 
 impl Hash for Language {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.id.hash(state)
+        self.id.hash(state);
     }
 }
 
@@ -1091,7 +1090,7 @@ impl CodeLabelExt for CodeLabel {
 
         let label = &item.label;
         let label_length = label.len();
-        let runs = highlight_id.map(|highlight_id| vec![(0..label_length, highlight_id)]).unwrap_or_default();
+        let runs = highlight_id.map_or_default(|highlight_id| vec![(0..label_length, highlight_id)]);
         let text = if let Some(detail) = item.detail.as_deref().filter(|detail| detail != label) {
             format!("{label} {detail}")
         } else if let Some(description) = item

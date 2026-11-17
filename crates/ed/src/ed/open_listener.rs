@@ -29,23 +29,23 @@ pub struct OpenRequest {
 }
 
 impl OpenRequest {
-    pub fn parse(request: RawOpenRequest) -> Result<Self> {
+    pub fn parse(request: RawOpenRequest) -> Self {
         let mut this = Self { diff_paths: request.diff_paths, diff_all: request.diff_all, ..Default::default() };
 
         for url in request.urls {
             if let Some(file) = url.strip_prefix("file://") {
-                this.parse_file_path(file)
+                this.parse_file_path(file);
             } else {
-                log::error!("unhandled url: {}", url);
+                log::error!("unhandled url: {url}");
             }
         }
 
-        Ok(this)
+        this
     }
 
     fn parse_file_path(&mut self, file: &str) {
         if let Some(decoded) = urlencoding::decode(file).log_err() {
-            self.open_paths.push(decoded.into_owned())
+            self.open_paths.push(decoded.into_owned());
         }
     }
 }
@@ -134,7 +134,7 @@ pub async fn open_paths_with_positions(
                 FileDiffView::open(old_path, new_path, target_position, workspace_weak.clone(), window, cx)
             }) && let Some(diff_view) = diff_view.await.log_err()
             {
-                items.push(Some(Ok(Box::new(diff_view))))
+                items.push(Some(Ok(Box::new(diff_view))));
             }
         }
     }

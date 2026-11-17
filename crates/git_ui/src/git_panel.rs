@@ -544,7 +544,7 @@ pub struct GitStatusEntry {
 
 impl GitStatusEntry {
     fn display_name(&self) -> String {
-        self.repo_path.file_name().map(|name| name.to_owned()).unwrap_or_else(|| self.repo_path.display().to_string())
+        self.repo_path.file_name().map_or_else(|| self.repo_path.display().to_string(), |name| name.to_owned())
     }
 
     fn parent_dir(&self) -> Option<String> {
@@ -849,7 +849,7 @@ impl GitPanel {
                 project_diff.focus_handle(cx).focus(window, cx);
                 project_diff.update(cx, |project_diff, cx| project_diff.autoscroll(cx));
                 return None;
-            };
+            }
 
             self.workspace
                 .update(cx, |workspace, cx| match target {
@@ -1579,11 +1579,11 @@ impl GitPanel {
         let Some(workspace) = self.workspace.upgrade() else {
             return;
         };
-        show_error_toast(workspace, action, e, cx)
+        show_error_toast(workspace, action, e, cx);
     }
 
-    pub async fn load(workspace: WeakEntity<Workspace>, mut cx: AsyncWindowContext) -> anyhow::Result<Entity<Self>> {
-        workspace.update_in(&mut cx, |workspace, window, cx| GitPanel::new(workspace, window, cx))
+    pub fn load(workspace: &WeakEntity<Workspace>, cx: &mut AsyncWindowContext) -> anyhow::Result<Entity<Self>> {
+        workspace.update_in(cx, |workspace, window, cx| GitPanel::new(workspace, window, cx))
     }
 }
 

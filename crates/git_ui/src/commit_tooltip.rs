@@ -164,12 +164,7 @@ impl CommitTooltip {
         cx: &mut Context<Self>,
     ) -> Self {
         let markdown = cx.new(|cx| {
-            Markdown::new(
-                commit.message.as_ref().map(|message| message.message.clone()).unwrap_or_default(),
-                None,
-                None,
-                cx,
-            )
+            Markdown::new(commit.message.as_ref().map_or_default(|message| message.message.clone()), None, None, cx)
         });
         Self { commit, repository, workspace, scroll_handle: ScrollHandle::new(), markdown, reveal_file: None }
     }
@@ -185,8 +180,7 @@ impl Render for CommitTooltip {
             .commit
             .sha
             .get(0..git::SHORT_SHA_LENGTH)
-            .map(|sha| sha.to_string().into())
-            .unwrap_or_else(|| self.commit.sha.clone());
+            .map_or_else(|| self.commit.sha.clone(), |sha| sha.to_string().into());
         let full_sha = self.commit.sha.to_string();
         let local_offset = UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC);
         let absolute_timestamp = time_format::format_localized_timestamp(
@@ -197,16 +191,14 @@ impl Render for CommitTooltip {
         );
         let markdown_style = { hover_markdown_style(window, cx) };
 
-        let message = self
-            .commit
-            .message
-            .as_ref()
-            .map(|_| {
+        let message = self.commit.message.as_ref().map_or_else(
+            || "<no commit message>".into_any(),
+            |_| {
                 MarkdownElement::new(self.markdown.clone(), markdown_style)
                     .scroll_handle(self.scroll_handle.clone())
                     .into_any()
-            })
-            .unwrap_or_else(|| "<no commit message>".into_any());
+            },
+        );
 
         let tag_names = self.commit.tag_names.clone();
 

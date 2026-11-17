@@ -61,7 +61,7 @@ pub fn prompt(
 
         workspace
             .update_in(cx, |workspace, window, cx| {
-                workspace.toggle_modal(window, cx, |window, cx| PickerPrompt::new(delegate, 34., window, cx))
+                workspace.toggle_modal(window, cx, |window, cx| PickerPrompt::new(delegate, 34., window, cx));
             })
             .ok();
 
@@ -91,7 +91,7 @@ impl Render for PickerPrompt {
         v_flex().child(self.picker.clone()).on_mouse_down_out(cx.listener(|this, _, window, cx| {
             this.picker.update(cx, |this, cx| {
                 this.cancel(&menu::Cancel, window, cx);
-            })
+            });
         }))
     }
 }

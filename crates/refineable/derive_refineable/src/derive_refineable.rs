@@ -386,7 +386,7 @@ pub fn derive_refineable(input: TokenStream) -> TokenStream {
 
     let mut derive_stream = quote! {};
     for trait_to_derive in refinement_traits_to_derive {
-        derive_stream.extend(quote! { #[derive(#trait_to_derive)] })
+        derive_stream.extend(quote! { #[derive(#trait_to_derive)] });
     }
 
     let r#gen = quote! {

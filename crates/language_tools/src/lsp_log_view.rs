@@ -123,7 +123,7 @@ pub fn open(
                 .ok();
         })
         .detach();
-    })
+    });
 }
 
 pub struct LspLogView {
@@ -337,9 +337,8 @@ impl LspLogView {
 * Configuration: {CONFIGURATION}",
             NAME = info.status.name,
             ID = info.id,
-            VERSION = info.status.server_version.as_ref().map(|version| version.as_ref()).unwrap_or("Unknown"),
-            BINARY =
-                info.status.binary.as_ref().map_or_else(|| "Unknown".to_string(), |binary| format!("{:#?}", binary)),
+            VERSION = info.status.server_version.as_ref().map_or("Unknown", AsRef::as_ref),
+            BINARY = info.status.binary.as_ref().map_or_else(|| "Unknown".to_string(), |binary| format!("{binary:#?}")),
             WORKSPACE_FOLDERS = info
                 .status
                 .workspace_folders
@@ -365,7 +364,7 @@ impl LspLogView {
         (editor, vec![editor_subscription, search_subscription])
     }
 
-    pub(crate) fn menu_items(&self, cx: &App) -> Option<Vec<LogMenuItem>> {
+    pub(crate) fn menu_items(&self, cx: &App) -> Vec<LogMenuItem> {
         let log_store = self.log_store.read(cx);
 
         let unknown_server = LanguageServerName::new_static("unknown server");
@@ -376,11 +375,11 @@ impl LspLogView {
             .iter()
             .filter(|(key, _)| key.is_for_project(&project))
             .map(|(key, state)| {
-                let worktree_root_name = state
-                    .worktree_id
-                    .and_then(|id| self.project.read(cx).worktree_for_id(id, cx))
-                    .map(|worktree| worktree.read(cx).root_name_str().to_string())
-                    .unwrap_or_else(|| "Unknown worktree".to_string());
+                let worktree_root_name =
+                    state.worktree_id.and_then(|id| self.project.read(cx).worktree_for_id(id, cx)).map_or_else(
+                        || "Unknown worktree".to_string(),
+                        |worktree| worktree.read(cx).root_name_str().to_string(),
+                    );
 
                 LogMenuItem {
                     server_id: key.server_id,
@@ -396,7 +395,7 @@ impl LspLogView {
             })
             .collect::<Vec<_>>();
         rows.sort_by_key(|row| row.server_id);
-        Some(rows)
+        rows
     }
 
     fn prune_enabled_streams(&mut self, cx: &App) {
@@ -474,7 +473,7 @@ impl LspLogView {
     }
 
     fn show_logs_for_server(&mut self, key: LanguageServerLogKey, window: &mut Window, cx: &mut Context<Self>) {
-        let typ = self.log_store.read(cx).language_servers.get(&key).map(|v| v.log_level).unwrap_or(MessageType::LOG);
+        let typ = self.log_store.read(cx).language_servers.get(&key).map_or(MessageType::LOG, |v| v.log_level);
         let log_contents = self.log_store.read(cx).server_logs(&key).map(|v| log_contents(v, typ));
         if let Some(log_contents) = log_contents {
             self.current_server_key = Some(key.clone());
@@ -591,7 +590,7 @@ impl LspLogView {
             .read(cx)
             .language_servers
             .get(&key)
-            .and_then(|state| state.server())
+            .and_then(|x| x.server())
             .or_else(|| self.project.read(cx).lsp_store().read(cx).language_server_for_id(key.server_id));
         if let Some(server) = server {
             self.log_store.update(cx, |this, _| {
@@ -606,14 +605,8 @@ impl LspLogView {
 
     fn show_server_info(&mut self, key: LanguageServerLogKey, window: &mut Window, cx: &mut Context<Self>) {
         let server_id = key.server_id;
-        let server_info = self
-            .log_store
-            .read(cx)
-            .language_servers
-            .get(&key)
-            .and_then(|state| state.server())
-            .as_deref()
-            .map(ServerInfo::new);
+        let server_info =
+            self.log_store.read(cx).language_servers.get(&key).and_then(|x| x.server()).as_deref().map(ServerInfo::new);
         let server_info = server_info.or_else(|| {
             self.project.read(cx).lsp_store().update(cx, |lsp_store, _| {
                 lsp_store
@@ -662,7 +655,7 @@ impl Item for LspLogView {
     type Event = EditorEvent;
 
     fn to_item_events(event: &Self::Event, f: &mut dyn FnMut(ItemEvent)) {
-        Editor::to_item_events(event, f)
+        Editor::to_item_events(event, f);
     }
 
     fn tab_content_text(&self, _detail: usize, _cx: &App) -> SharedString {
@@ -693,7 +686,7 @@ impl SearchableItem for LspLogView {
     type Match = <Editor as SearchableItem>::Match;
 
     fn clear_matches(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.editor.update(cx, |e, cx| e.clear_matches(window, cx))
+        self.editor.update(cx, |e, cx| e.clear_matches(window, cx));
     }
 
     fn update_matches(
@@ -704,7 +697,7 @@ impl SearchableItem for LspLogView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.editor.update(cx, |e, cx| e.update_matches(matches, active_match_index, token, window, cx))
+        self.editor.update(cx, |e, cx| e.update_matches(matches, active_match_index, token, window, cx));
     }
 
     fn query_suggestion(
@@ -724,7 +717,7 @@ impl SearchableItem for LspLogView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.editor.update(cx, |e, cx| e.activate_match(index, matches, token, window, cx))
+        self.editor.update(cx, |e, cx| e.activate_match(index, matches, token, window, cx));
     }
 
     fn select_matches(
@@ -734,7 +727,7 @@ impl SearchableItem for LspLogView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.editor.update(cx, |e, cx| e.select_matches(matches, token, window, cx))
+        self.editor.update(cx, |e, cx| e.select_matches(matches, token, window, cx));
     }
 
     fn find_matches(
@@ -811,7 +804,7 @@ impl Render for LspLogToolbarItemView {
         };
 
         let (menu_rows, current_server_key) = log_view.update(cx, |log_view, cx| {
-            let menu_rows = log_view.menu_items(cx).unwrap_or_default();
+            let menu_rows = log_view.menu_items(cx);
             let current_server_key = log_view.current_server_key.clone();
             (menu_rows, current_server_key)
         });
@@ -831,10 +824,10 @@ impl Render for LspLogToolbarItemView {
             .trigger(
                 Button::new(
                     "language_server_menu_header",
-                    current_server
-                        .as_ref()
-                        .map(|row| Cow::Owned(format!("{} ({})", row.server_name.0, row.worktree_root_name,)))
-                        .unwrap_or_else(|| "No server selected".into()),
+                    current_server.as_ref().map_or_else(
+                        || "No server selected".into(),
+                        |row| Cow::Owned(format!("{} ({})", row.server_name.0, row.worktree_root_name)),
+                    ),
                 )
                 .end_icon(Icon::new(IconName::ChevronDown).size(IconSize::Small).color(Color::Muted)),
             )
@@ -1093,7 +1086,7 @@ impl Render for LspLogToolbarItemView {
                             editor.clear(window, cx);
                             editor.set_read_only(true);
                         });
-                    })
+                    });
                 }
             })))
     }

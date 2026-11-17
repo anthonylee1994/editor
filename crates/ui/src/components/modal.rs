@@ -46,7 +46,7 @@ impl Modal {
     pub fn new(id: impl Into<SharedString>, scroll_handle: Option<ScrollHandle>) -> Self {
         let id = id.into();
 
-        let container_id = ElementId::Name(format!("{}_container", id).into());
+        let container_id = ElementId::Name(format!("{id}_container").into());
         Self {
             id: ElementId::Name(id),
             header: ModalHeader::new(),
@@ -80,7 +80,7 @@ impl Modal {
 
 impl ParentElement for Modal {
     fn extend(&mut self, elements: impl IntoIterator<Item = AnyElement>) {
-        self.children.extend(elements)
+        self.children.extend(elements);
     }
 }
 
@@ -162,7 +162,7 @@ impl ModalHeader {
 
 impl ParentElement for ModalHeader {
     fn extend(&mut self, elements: impl IntoIterator<Item = AnyElement>) {
-        self.children.extend(elements)
+        self.children.extend(elements);
     }
 }
 
@@ -239,7 +239,7 @@ impl ModalRow {
 
 impl ParentElement for ModalRow {
     fn extend(&mut self, elements: impl IntoIterator<Item = AnyElement>) {
-        self.children.extend(elements)
+        self.children.extend(elements);
     }
 }
 
@@ -334,7 +334,7 @@ impl Section {
 
 impl ParentElement for Section {
     fn extend(&mut self, elements: impl IntoIterator<Item = AnyElement>) {
-        self.children.extend(elements)
+        self.children.extend(elements);
     }
 }
 

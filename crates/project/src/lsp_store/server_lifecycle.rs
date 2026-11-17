@@ -400,7 +400,7 @@ impl LocalLspStore {
                             if let Some(lsp_store) = lsp_store.upgrade() {
                                 lsp_store.update(cx, |lsp_store, cx| {
                                     lsp_store.cleanup_lsp_data(server_id);
-                                    cx.emit(LspStoreEvent::LanguageServerRemoved(server_id))
+                                    cx.emit(LspStoreEvent::LanguageServerRemoved(server_id));
                                 });
                             }
                         })?;
@@ -574,7 +574,7 @@ impl LocalLspStore {
         language_server
             .on_request::<WorkspaceFoldersRequest, _, _>({
                 let this = lsp_store.clone();
-                move |_, cx| {
+                move |(), cx| {
                     let this = this.clone();
                     let cx = cx.clone();
                     async move {
@@ -624,7 +624,7 @@ impl LocalLspStore {
                                     Err(e) => {
                                         log::error!("Failed to register server capabilities: {e:#}");
                                     }
-                                };
+                                }
                             })
                             .ok();
                         Ok(())
@@ -739,7 +739,7 @@ impl LocalLspStore {
                 let adapter = adapter.clone();
                 move |params, cx| {
                     let lsp_store = lsp_store.clone();
-                    let name = name.to_string();
+                    let name = name.clone();
                     let adapter = adapter.clone();
                     let mut cx = cx.clone();
                     async move {
@@ -761,7 +761,7 @@ impl LocalLspStore {
                         if let Some(ref selected_action) = response {
                             let context =
                                 language::PromptResponseContext { message, selected_action: selected_action.clone() };
-                            adapter.process_prompt_response(&context, &mut cx)
+                            adapter.process_prompt_response(&context, &mut cx);
                         }
 
                         Ok(response)
@@ -801,7 +801,7 @@ impl LocalLspStore {
                 let name = name.to_string();
                 move |params, cx| {
                     let this = this.clone();
-                    let name = name.to_string();
+                    let name = name.clone();
                     let mut cx = cx.clone();
 
                     let (tx, _) = async_channel::bounded(1);
@@ -1025,7 +1025,7 @@ impl LspStore {
                     adapters.entry(worktree_id).or_insert_with(|| get_adapter(worktree_id, cx)).clone()
                 {
                     let delegate = Arc::new(ManifestQueryDelegate::new(worktree.read(cx).snapshot()));
-                    let path = file.path().parent().map(Arc::from).unwrap_or_else(|| file.path().clone());
+                    let path = file.path().parent().map_or_else(|| file.path().clone(), Arc::from);
                     let worktree_path = ProjectPath { worktree_id, path };
                     let abs_path = file.abs_path(cx);
                     let nodes = rebase
@@ -1052,7 +1052,7 @@ impl LspStore {
                                 && let Some(workspace_folder) = workspace_folder
                             {
                                 state.add_workspace_folder(workspace_folder);
-                            };
+                            }
                             Some(server_id)
                         });
 
@@ -1061,12 +1061,10 @@ impl LspStore {
                                 language_server_id,
                                 name: node.name(),
                                 buffer_id,
-                                buffer_abs_path: abs_path.to_path_buf(),
+                                buffer_abs_path: abs_path.clone(),
                             });
                         }
                     }
-                } else {
-                    continue;
                 }
             }
             rebase.finish()
@@ -1210,7 +1208,7 @@ impl LspStore {
                         report,
                         registration_id.map(SharedString::from),
                         cx,
-                    )
+                    );
                 }
             }
         }
@@ -1224,9 +1222,7 @@ impl LspStore {
         token: ProgressToken,
         cx: &mut Context<Self>,
     ) {
-        let language_server_status = if let Some(status) = self.language_server_statuses.get_mut(&language_server_id) {
-            status
-        } else {
+        let Some(language_server_status) = self.language_server_statuses.get_mut(&language_server_id) else {
             return;
         };
 
@@ -1644,7 +1640,7 @@ impl LspStore {
         let local = &mut self.local;
         // If the language server for this key doesn't match the server id, don't store the
         // server. Which will cause it to be dropped, killing the process
-        if local.language_server_ids.get(&key).map(|state| state.id != server_id).unwrap_or(false) {
+        if local.language_server_ids.get(&key).is_some_and(|state| state.id != server_id) {
             return;
         }
 
@@ -1733,13 +1729,11 @@ impl LspStore {
             let mut lsp_adapters = FxHashMap::default();
             for buffer_handle in buffer_store.buffers() {
                 let buffer = buffer_handle.read(cx);
-                let file = match File::from_dyn(buffer.file()) {
-                    Some(file) => file,
-                    None => continue,
+                let Some(file) = File::from_dyn(buffer.file()) else {
+                    continue;
                 };
-                let language = match buffer.language() {
-                    Some(language) => language,
-                    None => continue,
+                let Some(language) = buffer.language() else {
+                    continue;
                 };
                 if LocalLspStore::language_server_line_length_limit_exceeded(buffer).is_some() {
                     continue;
@@ -1760,12 +1754,9 @@ impl LspStore {
                 let buffer_id = buffer.buffer_id();
                 if local.registered_buffers.contains_key(&buffer_id) {
                     let abs_path = file.abs_path(cx);
-                    let uri = match lsp::Uri::from_file_path(&abs_path) {
-                        Ok(uri) => uri,
-                        Err(()) => {
-                            log::error!("failed to convert path to URI: {:?}", abs_path);
-                            continue;
-                        }
+                    let Ok(uri) = lsp::Uri::from_file_path(&abs_path) else {
+                        log::error!("failed to convert path to URI: {abs_path:?}");
+                        continue;
                     };
 
                     let versions = local
@@ -1803,7 +1794,7 @@ impl LspStore {
                             })
                             .unwrap_or_default(),
                         cx,
-                    )
+                    );
                 });
             }
         });

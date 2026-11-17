@@ -40,7 +40,7 @@ impl PlatformDispatcher for AppleDispatcher {
     }
 
     fn dispatch(&self, runnable: RunnableVariant, priority: Priority) {
-        let context = runnable.into_raw().as_ptr() as *mut c_void;
+        let context = runnable.into_raw().as_ptr().cast::<c_void>();
 
         let queue_priority = match priority {
             Priority::High => DispatchQueueGlobalPriority::High,
@@ -55,14 +55,14 @@ impl PlatformDispatcher for AppleDispatcher {
     }
 
     fn dispatch_on_main_thread(&self, runnable: RunnableVariant, _priority: Priority) {
-        let context = runnable.into_raw().as_ptr() as *mut c_void;
+        let context = runnable.into_raw().as_ptr().cast::<c_void>();
         unsafe {
             DispatchQueue::main().exec_async_f(context, trampoline);
         }
     }
 
     fn dispatch_after(&self, duration: Duration, runnable: RunnableVariant) {
-        let context = runnable.into_raw().as_ptr() as *mut c_void;
+        let context = runnable.into_raw().as_ptr().cast::<c_void>();
         let queue = DispatchQueue::global_queue(GlobalQueueIdentifier::Priority(DispatchQueueGlobalPriority::High));
         let when = DispatchTime::NOW.time(duration.as_nanos() as i64);
         unsafe {
@@ -99,7 +99,7 @@ impl Drop for AppleActivity {
 }
 
 extern "C" fn trampoline(context: *mut c_void) {
-    let runnable = unsafe { Runnable::<RunnableMeta>::from_raw(NonNull::new_unchecked(context as *mut ())) };
+    let runnable = unsafe { Runnable::<RunnableMeta>::from_raw(NonNull::new_unchecked(context.cast::<()>())) };
 
     runnable.run();
 }

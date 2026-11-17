@@ -439,7 +439,7 @@ impl<T: SearchableItem> SearchableItemHandle for Entity<T> {
         cx: &mut App,
     ) {
         let mat = mat.downcast_ref().unwrap();
-        self.update(cx, |this, cx| this.replace(mat, query, token, window, cx))
+        self.update(cx, |this, cx| this.replace(mat, query, token, window, cx));
     }
 
     fn replace_all(
@@ -452,7 +452,7 @@ impl<T: SearchableItem> SearchableItemHandle for Entity<T> {
     ) {
         self.update(cx, |this, cx| {
             this.replace_all(&mut matches.map(|m| m.downcast_ref().unwrap()), query, token, window, cx);
-        })
+        });
     }
 
     fn search_bar_visibility_changed(&self, visible: bool, window: &mut Window, cx: &mut App) {
@@ -518,7 +518,7 @@ impl Eq for Box<dyn WeakSearchableItemHandle> {}
 
 impl Hash for Box<dyn WeakSearchableItemHandle> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.id().hash(state)
+        self.id().hash(state);
     }
 }
 

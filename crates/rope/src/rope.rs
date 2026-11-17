@@ -50,7 +50,7 @@ impl Rope {
         }
         let (start, _, item) = self.chunks.find::<usize, _>((), &offset, Bias::Left);
         let chunk_offset = offset - start;
-        item.map(|chunk| chunk.is_char_boundary(chunk_offset)).unwrap_or(false)
+        item.is_some_and(|chunk| chunk.is_char_boundary(chunk_offset))
     }
 
     #[track_caller]
@@ -553,7 +553,7 @@ impl From<&String> for Rope {
 impl fmt::Display for Rope {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for chunk in self.chunks() {
-            write!(f, "{}", chunk)?;
+            write!(f, "{chunk}")?;
         }
         Ok(())
     }
@@ -566,7 +566,7 @@ impl fmt::Debug for Rope {
         write!(f, "\"")?;
         let mut format_string = String::new();
         for chunk in self.chunks() {
-            write!(&mut format_string, "{:?}", chunk)?;
+            write!(&mut format_string, "{chunk:?}")?;
             write!(f, "{}", &format_string[1..format_string.len() - 1])?;
             format_string.clear();
         }
@@ -720,7 +720,7 @@ impl<'a> Chunks<'a> {
             } else if offset < *self.chunks.start() {
                 self.chunks.seek(&offset, Bias::Right);
             }
-        };
+        }
 
         self.offset = offset;
     }
@@ -1300,7 +1300,7 @@ impl<'a> sum_tree::Dimension<'a, ChunkSummary> for TextSummary {
         TextSummary::default()
     }
 
-    fn add_summary(&mut self, summary: &'a ChunkSummary, _: ()) {
+    fn add_summary(&mut self, summary: &'a ChunkSummary, (): ()) {
         *self += &summary.text;
     }
 }
@@ -1324,7 +1324,7 @@ impl<'a> sum_tree::Dimension<'a, ChunkSummary> for usize {
         Default::default()
     }
 
-    fn add_summary(&mut self, summary: &'a ChunkSummary, _: ()) {
+    fn add_summary(&mut self, summary: &'a ChunkSummary, (): ()) {
         *self += summary.text.len;
     }
 }
@@ -1348,7 +1348,7 @@ impl<'a> sum_tree::Dimension<'a, ChunkSummary> for OffsetUtf16 {
         OffsetUtf16::default()
     }
 
-    fn add_summary(&mut self, summary: &'a ChunkSummary, _: ()) {
+    fn add_summary(&mut self, summary: &'a ChunkSummary, (): ()) {
         *self += summary.text.len_utf16;
     }
 }
@@ -1372,7 +1372,7 @@ impl<'a> sum_tree::Dimension<'a, ChunkSummary> for Point {
         Point::default()
     }
 
-    fn add_summary(&mut self, summary: &'a ChunkSummary, _: ()) {
+    fn add_summary(&mut self, summary: &'a ChunkSummary, (): ()) {
         *self += summary.text.lines;
     }
 }
@@ -1396,7 +1396,7 @@ impl<'a> sum_tree::Dimension<'a, ChunkSummary> for PointUtf16 {
         PointUtf16::default()
     }
 
-    fn add_summary(&mut self, summary: &'a ChunkSummary, _: ()) {
+    fn add_summary(&mut self, summary: &'a ChunkSummary, (): ()) {
         *self += summary.text.lines_utf16();
     }
 }

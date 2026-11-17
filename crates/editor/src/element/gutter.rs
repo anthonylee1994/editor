@@ -553,16 +553,7 @@ impl EditorElement {
                     // elements below transparent hunks from showing through
                     let flattened_background_color = cx.theme().colors().editor_background.blend(background_color);
 
-                    if !self.diff_hunk_hollow(status, cx) {
-                        window.paint_quad(quad(
-                            hunk_bounds,
-                            corner_radii,
-                            flattened_background_color,
-                            Edges::default(),
-                            transparent_black(),
-                            BorderStyle::default(),
-                        ));
-                    } else {
+                    if self.diff_hunk_hollow(status, cx) {
                         let flattened_unstaged_background_color =
                             cx.theme().colors().editor_background.blend(background_color.opacity(0.3));
 
@@ -573,6 +564,15 @@ impl EditorElement {
                             Edges::all(px(1.0)),
                             flattened_background_color,
                             BorderStyle::Solid,
+                        ));
+                    } else {
+                        window.paint_quad(quad(
+                            hunk_bounds,
+                            corner_radii,
+                            flattened_background_color,
+                            Edges::default(),
+                            transparent_black(),
+                            BorderStyle::default(),
                         ));
                     }
                 }
@@ -688,7 +688,7 @@ impl EditorElement {
         }
 
         if layout.position_map.snapshot.show_git_diff_gutter.unwrap_or(true) {
-            self.paint_gutter_diff_hunks(layout, self.split_side, window, cx)
+            self.paint_gutter_diff_hunks(layout, self.split_side, window, cx);
         }
 
         let highlight_width = 0.275 * layout.position_map.line_height;
@@ -734,7 +734,7 @@ impl EditorElement {
             for mut blame_element in blamed_display_rows {
                 blame_element.paint(window, cx);
             }
-        })
+        });
     }
 
     fn shape_line_number(&self, text: SharedString, color: Hsla, window: &Window) -> ShapedLine {

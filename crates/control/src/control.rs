@@ -45,7 +45,7 @@ pub fn discover_sockets() -> Vec<PathBuf> {
         return Vec::new();
     };
     let mut sockets: Vec<PathBuf> = entries
-        .filter_map(|entry| entry.ok())
+        .filter_map(Result::ok)
         .map(|entry| entry.path())
         .filter(|path| {
             path.file_name()

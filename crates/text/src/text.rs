@@ -235,15 +235,12 @@ impl History {
     }
 
     fn group_until(&mut self, transaction_id: TransactionId) {
-        let mut count = 0;
-        for entry in self.undo_stack.iter().rev() {
+        for (count, entry) in self.undo_stack.iter().rev().enumerate() {
             if entry.transaction_id() == transaction_id {
                 self.group_trailing(count);
                 break;
             } else if entry.suppress_grouping {
                 break;
-            } else {
-                count += 1;
             }
         }
     }
@@ -481,11 +478,11 @@ struct FragmentTextSummary {
 }
 
 impl<'a> sum_tree::Dimension<'a, FragmentSummary> for FragmentTextSummary {
-    fn zero(_: ()) -> Self {
+    fn zero((): ()) -> Self {
         FragmentTextSummary::default()
     }
 
-    fn add_summary(&mut self, summary: &'a FragmentSummary, _: ()) {
+    fn add_summary(&mut self, summary: &'a FragmentSummary, (): ()) {
         self.visible += summary.text.visible;
         self.deleted += summary.text.deleted;
     }
@@ -733,7 +730,7 @@ impl Buffer {
                 .insertion_slices
                 .iter_from(&insertion_slice)
                 .take_while(|slice| slice.edit_id == *edit_id);
-            insertion_slices.extend(slices)
+            insertion_slices.extend(slices);
         }
         insertion_slices.sort_unstable_by_key(|s| (s.insertion_id, s.range.0, Reverse(s.range.1)));
 
@@ -1044,9 +1041,7 @@ impl Buffer {
     }
 
     pub fn fast_forward(&mut self, edited: EditedBufferSnapshot) {
-        if self.version.changed_since(&edited.base_version) {
-            panic!("buffer cannot be fast-forwarded")
-        }
+        assert!(!self.version.changed_since(&edited.base_version), "buffer cannot be fast-forwarded");
         self.snapshot = edited.snapshot;
     }
 }
@@ -1477,14 +1472,11 @@ impl BufferSnapshot {
     ) -> impl Iterator<Item = (u32, LineIndent)> + '_ {
         let start = Point::new(row_range.start, 0).to_offset(self);
 
-        let end_point;
-        let end;
-        if row_range.end > row_range.start {
-            end_point = Point::new(row_range.end - 1, self.line_len(row_range.end - 1));
-            end = end_point.to_offset(self);
+        let (end_point, end) = if row_range.end > row_range.start {
+            let end_point = Point::new(row_range.end - 1, self.line_len(row_range.end - 1));
+            (end_point, end_point.to_offset(self))
         } else {
-            end_point = Point::new(row_range.start, 0);
-            end = start;
+            (Point::new(row_range.start, 0), start)
         };
 
         let mut chunks = self.as_rope().chunks_in_range(start..end);
@@ -1656,9 +1648,8 @@ impl BufferSnapshot {
             );
         } else if !self.version.observed(anchor.timestamp()) {
             panic!("invalid anchor - snapshot has not observed lamport: {:?}; version: {:?}", anchor, self.version);
-        } else {
-            panic!("invalid anchor {:?}. buffer id: {}, version: {:?}", anchor, self.buffer_id, self.version);
         }
+        panic!("invalid anchor {:?}. buffer id: {}, version: {:?}", anchor, self.buffer_id, self.version);
     }
 
     fn fragment_id_for_anchor(&self, anchor: &Anchor) -> &Locator {
@@ -1945,20 +1936,20 @@ impl FragmentBuilder {
         }
         Self { chunks, summary }
     }
-    fn append(&mut self, items: SumTree<Fragment>, _: ()) {
+    fn append(&mut self, items: SumTree<Fragment>, (): ()) {
         if !items.is_empty() {
             self.summary.add_summary(items.summary(), ());
             self.chunks.push(FragmentChunk::Tree(items));
         }
     }
-    fn push(&mut self, fragment: Fragment, _: ()) {
+    fn push(&mut self, fragment: Fragment, (): ()) {
         self.summary.add_summary(&sum_tree::Item::summary(&fragment, ()), ());
         match self.chunks.last_mut() {
             Some(FragmentChunk::Loose(fragments)) => fragments.push(fragment),
             _ => self.chunks.push(FragmentChunk::Loose(vec![fragment])),
         }
     }
-    fn into_sum_tree(self, _: ()) -> SumTree<Fragment> {
+    fn into_sum_tree(self, (): ()) -> SumTree<Fragment> {
         // Appending a `Tree` chunk only touches the right spine and grafts the
         // subtree by cloning `Arc`s, so the untouched regions stay shared with
         // the previous fragment tree. `Loose` runs (newly inserted or rewritten
@@ -1995,7 +1986,7 @@ impl<'a> RopeBuilder<'a> {
     }
 
     fn push_fragment(&mut self, fragment: &Fragment, was_visible: bool) {
-        self.push(fragment.len as usize, was_visible, fragment.visible)
+        self.push(fragment.len as usize, was_visible, fragment.visible);
     }
 
     fn push(&mut self, len: usize, was_visible: bool, is_visible: bool) {
@@ -2123,7 +2114,7 @@ impl Fragment {
 impl sum_tree::Item for Fragment {
     type Summary = FragmentSummary;
 
-    fn summary(&self, _: ()) -> Self::Summary {
+    fn summary(&self, (): ()) -> Self::Summary {
         let mut max_version = clock::Global::new();
         max_version.observe(self.timestamp);
         for deletion in &self.deletions {
@@ -2211,27 +2202,27 @@ impl sum_tree::ContextLessSummary for InsertionFragmentKey {
 }
 
 impl sum_tree::Dimension<'_, FragmentSummary> for usize {
-    fn zero(_: ()) -> Self {
+    fn zero((): ()) -> Self {
         Default::default()
     }
 
-    fn add_summary(&mut self, summary: &FragmentSummary, _: ()) {
+    fn add_summary(&mut self, summary: &FragmentSummary, (): ()) {
         *self += summary.text.visible;
     }
 }
 
 impl<'a> sum_tree::Dimension<'a, FragmentSummary> for Option<&'a Locator> {
-    fn zero(_: ()) -> Self {
+    fn zero((): ()) -> Self {
         Option::default()
     }
 
-    fn add_summary(&mut self, summary: &'a FragmentSummary, _: ()) {
+    fn add_summary(&mut self, summary: &'a FragmentSummary, (): ()) {
         *self = Some(&summary.max_id);
     }
 }
 
 impl sum_tree::SeekTarget<'_, FragmentSummary, FragmentTextSummary> for usize {
-    fn cmp(&self, cursor_location: &FragmentTextSummary, _: ()) -> cmp::Ordering {
+    fn cmp(&self, cursor_location: &FragmentTextSummary, (): ()) -> cmp::Ordering {
         Ord::cmp(self, &cursor_location.visible)
     }
 }
@@ -2258,10 +2249,10 @@ impl ToOffset for Point {
 impl ToOffset for usize {
     #[track_caller]
     fn to_offset(&self, snapshot: &BufferSnapshot) -> usize {
-        if !snapshot.as_rope().assert_char_boundary::<false>(*self) {
-            snapshot.as_rope().floor_char_boundary(*self)
-        } else {
+        if snapshot.as_rope().assert_char_boundary::<false>(*self) {
             *self
+        } else {
+            snapshot.as_rope().floor_char_boundary(*self)
         }
     }
 }

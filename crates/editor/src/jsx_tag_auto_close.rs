@@ -1,8 +1,6 @@
 use std::ops::Range;
 use std::sync::Arc;
 
-use anyhow::Context as _;
-use anyhow::Result;
 use anyhow::anyhow;
 use gpui::Context;
 use gpui::Entity;
@@ -47,7 +45,7 @@ pub(crate) fn should_auto_close(
     for (index, edited_range) in edited_ranges.iter().enumerate() {
         let text = buffer.text_for_range(edited_range.clone()).collect::<String>();
         let edited_range = edited_range.to_offset(buffer);
-        if !text.ends_with(">") {
+        if !text.ends_with('>') {
             continue;
         }
         let Some(layer) = buffer.smallest_syntax_layer_containing(edited_range.clone()) else {
@@ -92,7 +90,7 @@ pub(crate) fn generate_auto_close_edits(
     ranges: &[Range<Anchor>],
     config: &JsxTagAutoCloseConfig,
     state: Vec<JsxTagCompletionState>,
-) -> Result<Vec<(Range<Anchor>, String)>> {
+) -> Vec<(Range<Anchor>, String)> {
     let mut edits = Vec::with_capacity(state.len());
     for auto_edit in state {
         let edited_range = ranges[auto_edit.edit_index].clone();
@@ -112,7 +110,7 @@ pub(crate) fn generate_auto_close_edits(
                 node.kind() == config.tag_name_node_name
                     || config.tag_name_node_name_alternates.iter().any(|alternate| alternate == node.kind())
             })
-            .map_or_else(|| "".to_string(), |node| buffer.text_for_range(node.byte_range()).collect::<String>());
+            .map_or_else(String::new, |node| buffer.text_for_range(node.byte_range()).collect::<String>());
 
         /*
          * Naive check to see if the tag is already closed
@@ -278,9 +276,9 @@ pub(crate) fn generate_auto_close_edits(
         }
         let edit_anchor = buffer.anchor_after(edited_range.end);
         let edit_range = edit_anchor..edit_anchor;
-        edits.push((edit_range, format!("</{}>", tag_name)));
+        edits.push((edit_range, format!("</{tag_name}>")));
     }
-    Ok(edits)
+    edits
 }
 
 pub(crate) fn refresh_enabled_in_any_buffer(
@@ -440,8 +438,6 @@ pub(crate) fn handle_from(
                     }
                 })
                 .await;
-
-            let edits = edits.context("Auto-close Operation Failed - Failed to compute edits").log_err()?;
 
             if edits.is_empty() {
                 return Some(());

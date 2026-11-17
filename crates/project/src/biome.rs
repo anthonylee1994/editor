@@ -49,14 +49,12 @@ pub(crate) fn resolve_command(start_dir: Option<&Path>, path_env: Option<&str>) 
 /// The path passed as `--stdin-file-path`; Biome picks the language and config from it.
 /// Unsaved buffers get a synthetic name from the language's first path suffix.
 pub(crate) fn stdin_file_path(abs_path: Option<&Path>, language: Option<&Language>) -> PathBuf {
-    match abs_path {
-        Some(path) => path.to_path_buf(),
-        None => {
-            let suffix = language
-                .and_then(|language| language.config().matcher.path_suffixes.first().cloned())
-                .unwrap_or_default();
-            PathBuf::from(format!("untitled.{suffix}"))
-        }
+    if let Some(path) = abs_path {
+        path.to_path_buf()
+    } else {
+        let suffix =
+            language.and_then(|language| language.config().matcher.path_suffixes.first().cloned()).unwrap_or_default();
+        PathBuf::from(format!("untitled.{suffix}"))
     }
 }
 

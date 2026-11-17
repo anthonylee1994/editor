@@ -138,7 +138,7 @@ impl ErDb {
             return name.to_owned();
         }
         let at = self.add_entity(name, "");
-        self.entities.values.get(at).map(|entity| entity.id.clone()).unwrap_or_default()
+        self.entities.values.get(at).map_or_default(|entity| entity.id.clone())
     }
 
     /// Adds a relationship.

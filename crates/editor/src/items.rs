@@ -157,7 +157,7 @@ impl Item for Editor {
             } else {
                 self.set_scroll_anchor(scroll_anchor, window, cx);
                 self.change_selections(SelectionEffects::default().nav_history(false).unfold(), window, cx, |s| {
-                    s.select_ranges([offset..offset])
+                    s.select_ranges([offset..offset]);
                 });
                 true
             }
@@ -277,10 +277,7 @@ impl Item for Editor {
     }
 
     fn buffer_kind(&self, cx: &App) -> ItemBufferKind {
-        match self.buffer.read(cx).is_singleton() {
-            true => ItemBufferKind::Singleton,
-            false => ItemBufferKind::Multibuffer,
-        }
+        if self.buffer.read(cx).is_singleton() { ItemBufferKind::Singleton } else { ItemBufferKind::Multibuffer }
     }
 
     fn active_project_path(&self, cx: &App) -> Option<ProjectPath> {
@@ -575,7 +572,7 @@ impl ProjectItem for Editor {
             }
             let (top_row, offset) = restoration_data.scroll_position;
             let anchor = multibuffer_snapshot.anchor_before(Point::new(top_row, 0));
-            editor.set_scroll_anchor(ScrollAnchor { anchor, offset }, window, cx);
+            editor.set_scroll_anchor(ScrollAnchor { offset, anchor }, window, cx);
         }
 
         editor
@@ -632,12 +629,11 @@ impl Editor {
                         .project_item_restoration_data
                         .entry(kind)
                         .or_insert_with(|| Box::new(EditorRestorationData::default()) as Box<_>);
-                    let data = match data.downcast_mut::<EditorRestorationData>() {
-                        Some(data) => data,
-                        None => {
-                            *data = Box::new(EditorRestorationData::default());
-                            data.downcast_mut::<EditorRestorationData>().expect("just written the type downcasted to")
-                        }
+                    let data = if let Some(data) = data.downcast_mut::<EditorRestorationData>() {
+                        data
+                    } else {
+                        *data = Box::new(EditorRestorationData::default());
+                        data.downcast_mut::<EditorRestorationData>().expect("just written the type downcasted to")
                     };
 
                     let data = data.entries.entry(file_abs_path).or_default();
@@ -746,7 +742,7 @@ impl SearchableItem for Editor {
     ) {
         if self.has_filtered_search_ranges() {
             self.previous_search_ranges =
-                self.clear_background_highlights(HighlightKey::SearchWithinRange, cx).map(|(_, ranges)| ranges)
+                self.clear_background_highlights(HighlightKey::SearchWithinRange, cx).map(|(_, ranges)| ranges);
         }
 
         if let Some(range) = enabled {
@@ -828,7 +824,7 @@ impl SearchableItem for Editor {
         let range = self.range_for_match(&matches[index]);
         self.change_selections(SelectionEffects::scroll(Autoscroll::fit()), window, cx, |s| {
             s.select_ranges([range]);
-        })
+        });
     }
 
     fn select_matches(
@@ -1112,7 +1108,7 @@ pub async fn open_resolved_target(
         .context("workspace update")?
         .await;
     if opened_items.len() != 1 {
-        log::error!("Received {} items for one path {path_to_open:?}", opened_items.len(),);
+        log::error!("Received {} items for one path {path_to_open:?}", opened_items.len());
     }
     let Some(opened_item) = opened_items.pop() else {
         return Ok(false);
@@ -1145,7 +1141,7 @@ pub async fn open_resolved_target(
         workspace.update(cx, |workspace, cx| {
             workspace.project().update(cx, |_, cx| {
                 cx.emit(project::Event::ActivateProjectPanel);
-            })
+            });
         })?;
         Ok(true)
     } else {

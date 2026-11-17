@@ -200,8 +200,7 @@ impl LocalLspStore {
             let available_commands = server_capabilities
                 .execute_command_provider
                 .as_ref()
-                .map(|options| options.commands.as_slice())
-                .unwrap_or_default();
+                .map_or_default(|options| options.commands.as_slice());
             if !available_commands.contains(&command.command) {
                 log::warn!(
                     "Cannot execute a command {} not listed in the language server capabilities",
@@ -234,7 +233,7 @@ impl LocalLspStore {
                         .remove(&language_server.server_id())
                         .unwrap_or_default()
                         .0,
-                )
+                );
             })?;
         }
         Ok(())
@@ -303,8 +302,7 @@ impl LspStore {
             let available_commands = server_capabilities
                 .execute_command_provider
                 .as_ref()
-                .map(|options| options.commands.as_slice())
-                .unwrap_or_default();
+                .map_or_default(|options| options.commands.as_slice());
 
             if !available_commands.contains(&command.command) {
                 log::debug!(
@@ -349,12 +347,8 @@ impl LspStore {
         let Some(server) = self.language_server_for_id(server_id) else {
             return Task::ready(Err(anyhow!("language server {server_id} not found")));
         };
-        let available_commands = server
-            .capabilities()
-            .execute_command_provider
-            .as_ref()
-            .map(|options| options.commands.clone())
-            .unwrap_or_default();
+        let available_commands =
+            server.capabilities().execute_command_provider.as_ref().map_or_default(|options| options.commands.clone());
         if !available_commands.contains(&command) {
             return Task::ready(Err(anyhow!("command {command} is not advertised by the language server")));
         }

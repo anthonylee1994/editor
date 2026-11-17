@@ -61,7 +61,7 @@ pub(crate) fn derive_action(input: TokenStream) -> TokenStream {
                 }
                 Ok(())
             })
-            .unwrap_or_else(|e| panic!("in #[action] attribute: {}", e));
+            .unwrap_or_else(|e| panic!("in #[action] attribute: {e}"));
         } else if attr.path().is_ident("doc") {
             use syn::Expr::Lit;
             use syn::ExprLit;
@@ -80,19 +80,18 @@ pub(crate) fn derive_action(input: TokenStream) -> TokenStream {
 
     let name = name_argument.unwrap_or_else(|| struct_name.to_string());
 
-    if name.contains("::") {
-        panic!(
-            "in #[action] attribute: `name = \"{name}\"` must not contain `::`, \
-            also specify `namespace` instead"
-        );
-    }
+    assert!(
+        !name.contains("::"),
+        "in #[action] attribute: `name = \"{name}\"` must not contain `::`, \
+        also specify `namespace` instead"
+    );
 
     let full_name = if let Some(namespace) = namespace { format!("{namespace}::{name}") } else { name };
 
     let is_unit_struct = matches!(&input.data, Data::Struct(data) if data.fields.is_empty());
 
     let build_fn_body = if no_json {
-        let error_msg = format!("{} cannot be built from JSON", full_name);
+        let error_msg = format!("{full_name} cannot be built from JSON");
         quote! { Err(gpui::private::anyhow::anyhow!(#error_msg)) }
     } else if is_unit_struct {
         quote! { Ok(Box::new(Self)) }

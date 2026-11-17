@@ -740,19 +740,17 @@ pub struct TerminalError {
 
 impl TerminalError {
     fn fmt_directory(&self) -> String {
-        self.directory
-            .clone()
-            .map(|path| {
-                match path
-                    .into_os_string()
-                    .into_string()
-                    .map_err(|os_str| format!("<non-utf8 path> {}", os_str.to_string_lossy()))
-                {
-                    Ok(s) => s,
-                    Err(s) => s,
-                }
-            })
-            .unwrap_or_else(|| "<none specified>".to_string())
+        self.directory.clone().map_or_else(
+            || "<none specified>".to_string(),
+            |path| match path
+                .into_os_string()
+                .into_string()
+                .map_err(|os_str| format!("<non-utf8 path> {}", os_str.to_string_lossy()))
+            {
+                Ok(s) => s,
+                Err(s) => s,
+            },
+        )
     }
 
     fn fmt_shell(&self) -> String {
@@ -1016,15 +1014,12 @@ impl TerminalBuilder {
                 init_command_startup_tx: None,
                 event_loop_task: Task::ready(Ok(())),
                 background_executor,
-                cwd_history: working_directory
-                    .as_ref()
-                    .map(|working_directory| {
-                        vec![CwdHistoryEntry {
-                            scrollback_position: i32::MIN,
-                            working_directory: working_directory.clone(),
-                        }]
-                    })
-                    .unwrap_or_default(),
+                cwd_history: working_directory.as_ref().map_or_default(|working_directory| {
+                    vec![CwdHistoryEntry {
+                        scrollback_position: i32::MIN,
+                        working_directory: working_directory.clone(),
+                    }]
+                }),
                 pending_cwd_boundary: None,
             };
 
@@ -1050,14 +1045,14 @@ impl TerminalBuilder {
                     let mut wakeup = None;
                     loop {
                         futures::select_biased! {
-                            _ = timer => break,
+                            () = timer => break,
                             event = self.events_rx.next() => {
                                 if let Some(event) = event {
                                     match event {
                                         PtyEvent::Event(TerminalBackendEvent::Wakeup, generation) => {
                                             wakeup = Some(generation);
                                         }
-                                        event => events.push(event),
+                                        event @ PtyEvent::Event(..) => events.push(event),
                                     }
 
                                     if events.len() > 100 {
@@ -1231,11 +1226,11 @@ impl Terminal {
                         _ => format(""),
                     }
                     .into_bytes(),
-                )
+                );
             }
             TerminalBackendEvent::PtyWrite(out) => self.write_to_pty(out.into_bytes()),
             TerminalBackendEvent::TextAreaSizeRequest(format) => {
-                self.write_to_pty(format(self.last_content.terminal_bounds).into_bytes())
+                self.write_to_pty(format(self.last_content.terminal_bounds).into_bytes());
             }
             TerminalBackendEvent::CursorBlinkingChange => {}
             TerminalBackendEvent::Bell => {
@@ -1322,7 +1317,7 @@ impl Terminal {
                     update_vi_cursor_for_scroll(term, *scroll);
                     if let Some(selection_head) = update_selection_to_vi_cursor(term) {
                         self.selection_head = Some(selection_head);
-                        cx.emit(Event::SelectionsChanged)
+                        cx.emit(Event::SelectionsChanged);
                     }
                 }
             }
@@ -1333,7 +1328,7 @@ impl Terminal {
                 if let Some(selection) = selection {
                     self.selection_head = Some(selection.head);
                 }
-                cx.emit(Event::SelectionsChanged)
+                cx.emit(Event::SelectionsChanged);
             }
             InternalEvent::UpdateSelection(position) => {
                 trace!("Updating selection: position={position:?}");
@@ -1342,7 +1337,7 @@ impl Terminal {
 
                 if update_term_selection(term, point, side) {
                     self.selection_head = Some(point);
-                    cx.emit(Event::SelectionsChanged)
+                    cx.emit(Event::SelectionsChanged);
                 }
             }
 
@@ -1415,8 +1410,7 @@ impl Terminal {
 
         let target = if is_url {
             if let Some(path) = maybe_url_or_path.strip_prefix("file://") {
-                let decoded_path =
-                    urlencoding::decode(path).map(|decoded| decoded.into_owned()).unwrap_or_else(|_| path.to_owned());
+                let decoded_path = urlencoding::decode(path).map_or_else(|_| path.to_owned(), |x| x.into_owned());
 
                 MaybeNavigationTarget::PathLike(PathLikeTarget { maybe_path: decoded_path, working_directory })
             } else {
@@ -1462,7 +1456,7 @@ impl Terminal {
 
         self.last_content.last_hovered_word = Some(HoveredWord { word, word_match, id: self.next_link_id() });
         cx.emit(Event::NewNavigationTarget(Some(navigation_target)));
-        cx.notify()
+        cx.notify();
     }
 
     const fn next_link_id(&mut self) -> usize {
@@ -1582,7 +1576,7 @@ impl Terminal {
     }
 
     pub fn clear(&mut self) {
-        self.events.push_back(InternalEvent::Clear)
+        self.events.push_back(InternalEvent::Clear);
     }
 
     pub fn shrink_to_used(&mut self) {
@@ -1660,9 +1654,9 @@ impl Terminal {
         if let TerminalType::Pty { resources: PtyResources::Active(pty_tx), .. } = &self.terminal_type {
             if log::log_enabled!(log::Level::Debug) {
                 if let Ok(str) = str::from_utf8(&input) {
-                    log::debug!("Writing to PTY: {:?}", str);
+                    log::debug!("Writing to PTY: {str:?}");
                 } else {
-                    log::debug!("Writing to PTY: {:?}", input);
+                    log::debug!("Writing to PTY: {input:?}");
                 }
             }
             pty_tx.notify(input);
@@ -1895,7 +1889,7 @@ impl Terminal {
             match esc {
                 Cow::Borrowed(string) => self.input(string.as_bytes()),
                 Cow::Owned(string) => self.input(string.into_bytes()),
-            };
+            }
             true
         } else {
             false
@@ -1922,7 +1916,7 @@ impl Terminal {
         let mut terminal = term.lock_unfair();
         //Note that the ordering of events matters for event processing
         while let Some(e) = self.events.pop_front() {
-            self.process_terminal_event(&e, &mut terminal, window, cx)
+            self.process_terminal_event(&e, &mut terminal, window, cx);
         }
 
         self.last_content = make_content(&terminal, &self.last_content);
@@ -2046,11 +2040,10 @@ impl Terminal {
             if let Some(hyperlink) = &self.mouse_down_hyperlink {
                 let point = grid_point(position, self.last_content.terminal_bounds, self.last_content.display_offset);
 
-                if !hyperlink.range.contains(point) {
-                    self.mouse_down_hyperlink = None;
-                } else {
+                if hyperlink.range.contains(point) {
                     return;
                 }
+                self.mouse_down_hyperlink = None;
             }
 
             // Ignore tiny pointer movements so that a click that jitters by a
@@ -2070,9 +2063,8 @@ impl Terminal {
 
             // Doesn't make sense to scroll the alt screen
             if !self.last_content.mode.contains(Modes::ALT_SCREEN) {
-                let scroll_lines = match self.drag_line_delta(e, region) {
-                    Some(value) => value,
-                    None => return,
+                let Some(scroll_lines) = self.drag_line_delta(e, region) else {
+                    return;
                 };
 
                 self.events.push_back(InternalEvent::Scroll(Scroll::Delta(scroll_lines)));
@@ -2232,7 +2224,7 @@ impl Terminal {
                     for scroll in scrolls {
                         self.write_to_pty(scroll);
                     }
-                };
+                }
             } else if self.last_content.mode.contains(Modes::ALT_SCREEN | Modes::ALTERNATE_SCROLL) && !e.shift {
                 self.write_to_pty(alt_scroll(scroll_lines));
             } else {
@@ -2308,10 +2300,9 @@ impl Terminal {
 
     fn reset_cwd_history(&mut self) {
         self.pending_cwd_boundary = None;
-        self.cwd_history = self
-            .working_directory()
-            .map(|working_directory| vec![CwdHistoryEntry { scrollback_position: i32::MIN, working_directory }])
-            .unwrap_or_default();
+        self.cwd_history = self.working_directory().map_or_default(|working_directory| {
+            vec![CwdHistoryEntry { scrollback_position: i32::MIN, working_directory }]
+        });
     }
 
     fn cwd_at_line(&self, line: i32, history_size: usize) -> Option<PathBuf> {
@@ -2344,45 +2335,32 @@ impl Terminal {
                     task_state.spawned_task.full_label.clone()
                 }
             }
-            None => {
-                self.title_override.as_ref().map(|title_override| title_override.to_string()).unwrap_or_else(|| {
-                    match &self.terminal_type {
-                        TerminalType::Pty { info, .. } => info
-                            .current
-                            .read()
-                            .as_ref()
-                            .map(|fpi| {
-                                let process_file = fpi
-                                    .cwd
-                                    .file_name()
-                                    .map(|name| name.to_string_lossy().into_owned())
-                                    .unwrap_or_default();
+            None => self.title_override.clone().unwrap_or_else(|| match &self.terminal_type {
+                TerminalType::Pty { info, .. } => info.current.read().as_ref().map_or_else(
+                    || "Terminal".to_string(),
+                    |fpi| {
+                        let process_file =
+                            fpi.cwd.file_name().map_or_default(|name| name.to_string_lossy().into_owned());
 
-                                let argv = fpi.argv.as_slice();
-                                let process_name = format!(
-                                    "{}{}",
-                                    fpi.name,
-                                    if !argv.is_empty() {
-                                        format!(" {}", (argv[1..]).join(" "))
-                                    } else {
-                                        "".to_string()
-                                    }
-                                );
-                                let (process_file, process_name) = if truncate {
-                                    (
-                                        truncate_and_trailoff(&process_file, MAX_CHARS),
-                                        truncate_and_trailoff(&process_name, MAX_CHARS),
-                                    )
-                                } else {
-                                    (process_file, process_name)
-                                };
-                                format!("{process_file} — {process_name}")
-                            })
-                            .unwrap_or_else(|| "Terminal".to_string()),
-                        TerminalType::DisplayOnly => "Terminal".to_string(),
-                    }
-                })
-            }
+                        let argv = fpi.argv.as_slice();
+                        let process_name = format!(
+                            "{}{}",
+                            fpi.name,
+                            if argv.is_empty() { String::new() } else { format!(" {}", (argv[1..]).join(" ")) }
+                        );
+                        let (process_file, process_name) = if truncate {
+                            (
+                                truncate_and_trailoff(&process_file, MAX_CHARS),
+                                truncate_and_trailoff(&process_name, MAX_CHARS),
+                            )
+                        } else {
+                            (process_file, process_name)
+                        };
+                        format!("{process_file} — {process_name}")
+                    },
+                ),
+                TerminalType::DisplayOnly => "Terminal".to_string(),
+            }),
         }
     }
 
@@ -2481,21 +2459,18 @@ impl Terminal {
             self.child_exited = Some(e);
         }
         self.complete_init_command_startup_handshake();
-        let task = match &mut self.task {
-            Some(task) => task,
-            None => {
-                // For interactive shells (no task), we need to differentiate:
-                // 1. User-initiated exits (typed "exit", Ctrl+D, etc.) - always close,
-                //    even if the shell exits with a non-zero code (e.g. after `false`).
-                // 2. Shell spawn failures (bad $SHELL) - don't close, so the user sees
-                //    the error. Spawn failures never receive keyboard input.
-                let should_close =
-                    if self.keyboard_input_sent { true } else { self.child_exited.is_none_or(|e| e.code() == Some(0)) };
-                if should_close {
-                    cx.emit(Event::CloseTerminal);
-                }
-                return;
+        let Some(task) = &mut self.task else {
+            // For interactive shells (no task), we need to differentiate:
+            // 1. User-initiated exits (typed "exit", Ctrl+D, etc.) - always close,
+            //    even if the shell exits with a non-zero code (e.g. after `false`).
+            // 2. Shell spawn failures (bad $SHELL) - don't close, so the user sees
+            //    the error. Spawn failures never receive keyboard input.
+            let should_close =
+                if self.keyboard_input_sent { true } else { self.child_exited.is_none_or(|e| e.code() == Some(0)) };
+            if should_close {
+                cx.emit(Event::CloseTerminal);
             }
+            return;
         };
         if task.status != TaskStatus::Running {
             return;
@@ -2507,7 +2482,7 @@ impl Terminal {
             None => {
                 task.status.register_terminal_exit();
             }
-        };
+        }
     }
 
     pub const fn vi_mode_enabled(&self) -> bool {
@@ -2629,7 +2604,7 @@ fn spawn_task_subprocess(
             };
             let stdout = stdout.map(|reader| Box::new(reader) as BoxedReader);
             let stderr = stderr.map(|reader| Box::new(reader) as BoxedReader);
-            future::join(pump(stdout), pump(stderr)).await;
+            Box::pin(future::join(pump(stdout), pump(stderr))).await;
 
             // Both pipes are closed, so the child has exited or is about to.
             // Poll for its status without holding the lock across an await.

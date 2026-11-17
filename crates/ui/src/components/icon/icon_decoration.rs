@@ -52,7 +52,7 @@ pub enum IconDecorationKind {
 }
 
 impl IconDecorationKind {
-    const fn fg(&self) -> KnockoutIconName {
+    const fn fg(self) -> KnockoutIconName {
         match self {
             Self::X => KnockoutIconName::XFg,
             Self::Dot => KnockoutIconName::DotFg,
@@ -60,7 +60,7 @@ impl IconDecorationKind {
         }
     }
 
-    const fn bg(&self) -> KnockoutIconName {
+    const fn bg(self) -> KnockoutIconName {
         match self {
             Self::X => KnockoutIconName::XBg,
             Self::Dot => KnockoutIconName::DotBg,

@@ -158,7 +158,7 @@ impl MultiBuffer {
                 if let Some(new_range) = new_ranges.peek()
                     && new_range.context.start <= existing_range.context.end
                 {
-                    combined_ranges.push(existing_range)
+                    combined_ranges.push(existing_range);
                 }
             }
             combined_ranges.extend(new_ranges);
@@ -728,7 +728,7 @@ impl MultiBuffer {
             remove_diff_state(&mut snapshot.diffs, buffer_id);
             self.buffers.remove(&buffer_id);
             self.diffs.remove(&buffer_id);
-            cx.emit(Event::BuffersRemoved { removed_buffer_ids: vec![buffer_id] })
+            cx.emit(Event::BuffersRemoved { removed_buffer_ids: vec![buffer_id] });
         }
         drop(cursor);
         if changed_trailing_excerpt {
@@ -741,7 +741,7 @@ impl MultiBuffer {
                     }
                 },
                 (),
-            )
+            );
         }
 
         let edit = Edit { old: edit_start..edit_end, new: edit_start..edit_start };

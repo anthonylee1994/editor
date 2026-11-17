@@ -32,7 +32,7 @@ const fn is_inline_span_tag(tag: &MarkdownTag) -> bool {
     )
 }
 
-const fn is_inline_span_tag_end(tag: &MarkdownTagEnd) -> bool {
+const fn is_inline_span_tag_end(tag: MarkdownTagEnd) -> bool {
     matches!(
         tag,
         MarkdownTagEnd::Emphasis
@@ -69,7 +69,7 @@ fn collect_inline_spans(source: &str, events: &[(Range<usize>, MarkdownEvent)]) 
                 note_child(&mut stack, event_range);
                 stack.push((event_range.clone(), None));
             }
-            MarkdownEvent::End(tag) if is_inline_span_tag_end(tag) => {
+            MarkdownEvent::End(tag) if is_inline_span_tag_end(*tag) => {
                 if let Some((range, content)) = stack.pop() {
                     let content = content.unwrap_or_else(|| range.clone());
                     spans.push(InlineSpan { range, content, is_code: false });

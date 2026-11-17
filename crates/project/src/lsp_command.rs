@@ -321,7 +321,7 @@ impl LspCommand for PrepareRename {
     type Response = PrepareRenameResponse;
     type LspRequest = PrepareRenameRequest;
 
-    fn display_name(&self) -> &str {
+    fn display_name(&self) -> &'static str {
         "Prepare rename"
     }
 
@@ -364,8 +364,10 @@ impl LspCommand for PrepareRename {
         cx: AsyncApp,
     ) -> Result<PrepareRenameResponse> {
         buffer.read_with(&cx, |buffer, _| match message {
-            Some(lsp::PrepareRenameResponse::Range(range))
-            | Some(lsp::PrepareRenameResponse::RangeWithPlaceholder { range, .. }) => {
+            Some(
+                lsp::PrepareRenameResponse::Range(range)
+                | lsp::PrepareRenameResponse::RangeWithPlaceholder { range, .. },
+            ) => {
                 let Range { start, end } = range_from_lsp(range);
                 if buffer.clip_point_utf16(start, Bias::Left) == start.0
                     && buffer.clip_point_utf16(end, Bias::Left) == end.0
@@ -393,7 +395,7 @@ impl LspCommand for PerformRename {
     type Response = ProjectTransaction;
     type LspRequest = Rename;
 
-    fn display_name(&self) -> &str {
+    fn display_name(&self) -> &'static str {
         "Rename"
     }
 
@@ -433,7 +435,7 @@ impl LspCommand for GetDefinitions {
     type Response = Vec<LocationLink>;
     type LspRequest = GotoDefinition;
 
-    fn display_name(&self) -> &str {
+    fn display_name(&self) -> &'static str {
         "Get definition"
     }
 
@@ -468,7 +470,7 @@ impl LspCommand for GetDeclarations {
     type Response = Vec<LocationLink>;
     type LspRequest = GotoDeclaration;
 
-    fn display_name(&self) -> &str {
+    fn display_name(&self) -> &'static str {
         "Get declaration"
     }
 
@@ -504,7 +506,7 @@ impl LspCommand for GetImplementations {
     type Response = Vec<LocationLink>;
     type LspRequest = GotoImplementation;
 
-    fn display_name(&self) -> &str {
+    fn display_name(&self) -> &'static str {
         "Get implementation"
     }
 
@@ -545,7 +547,7 @@ impl LspCommand for GetTypeDefinitions {
     type Response = Vec<LocationLink>;
     type LspRequest = GotoTypeDefinition;
 
-    fn display_name(&self) -> &str {
+    fn display_name(&self) -> &'static str {
         "Get type definition"
     }
 
@@ -636,7 +638,7 @@ pub async fn location_links_from_lsp(
                 range: target_buffer.anchor_after(target_start)..target_buffer.anchor_before(target_end),
             };
 
-            definitions.push(LocationLink { origin: origin_location, target: target_location })
+            definitions.push(LocationLink { origin: origin_location, target: target_location });
         });
     }
     Ok(definitions)
@@ -715,7 +717,7 @@ impl LspCommand for GetReferences {
     type Response = Vec<Location>;
     type LspRequest = References;
 
-    fn display_name(&self) -> &str {
+    fn display_name(&self) -> &'static str {
         "Find all references"
     }
 
@@ -779,7 +781,7 @@ impl LspCommand for GetDocumentHighlights {
     type Response = Vec<DocumentHighlight>;
     type LspRequest = DocumentHighlightRequest;
 
-    fn display_name(&self) -> &str {
+    fn display_name(&self) -> &'static str {
         "Get document highlights"
     }
 
@@ -836,7 +838,7 @@ impl LspCommand for GetDocumentSymbols {
     type Response = Vec<DocumentSymbol>;
     type LspRequest = DocumentSymbolRequest;
 
-    fn display_name(&self) -> &str {
+    fn display_name(&self) -> &'static str {
         "Get document symbols"
     }
 
@@ -887,8 +889,7 @@ impl LspCommand for GetDocumentSymbols {
                         selection_range: range_from_lsp(lsp_symbol.selection_range),
                         children: lsp_symbol
                             .children
-                            .map(|children| children.into_iter().map(convert_symbol).collect::<Vec<_>>())
-                            .unwrap_or_default(),
+                            .map_or_default(|children| children.into_iter().map(convert_symbol).collect::<Vec<_>>()),
                     }
                 }
                 nested_responses.into_iter().map(convert_symbol).collect()
@@ -902,7 +903,7 @@ impl LspCommand for GetHover {
     type Response = Option<Hover>;
     type LspRequest = HoverRequest;
 
-    fn display_name(&self) -> &str {
+    fn display_name(&self) -> &'static str {
         "Get hover"
     }
 
@@ -986,7 +987,7 @@ impl LspCommand for GetCompletions {
     type Response = CoreCompletionResponse;
     type LspRequest = Completion;
 
-    fn display_name(&self) -> &str {
+    fn display_name(&self) -> &'static str {
         "Get completion"
     }
 
@@ -1058,38 +1059,36 @@ impl LspCommand for GetCompletions {
                     }
                 });
 
-                let edit = match lsp_edit {
-                    // If the language server provides a range to overwrite, then
-                    // check that the range is valid.
-                    Some(completion_text_edit) => match parse_completion_text_edit(&completion_text_edit, &snapshot) {
-                        Some(edit) => edit,
-                        None => return false,
-                    },
+                // If the language server provides a range to overwrite, then
+                // check that the range is valid.
+                let edit = if let Some(completion_text_edit) = lsp_edit {
+                    let Some(edit) = parse_completion_text_edit(&completion_text_edit, &snapshot) else {
+                        return false;
+                    };
+                    edit
+                } else {
                     // If the language server does not provide a range, then infer
                     // the range based on the syntax tree.
-                    None => {
-                        if self.position != clipped_position {
-                            log::info!("completion out of expected range ");
-                            return false;
-                        }
-
-                        let range = range_for_token
-                            .get_or_insert_with(|| {
-                                let offset = self.position.to_offset(&snapshot);
-                                let (range, kind) =
-                                    snapshot.surrounding_word(offset, Some(CharScopeContext::Completion));
-                                let range = if kind == Some(CharKind::Word) { range } else { offset..offset };
-
-                                snapshot.anchor_before(range.start)..snapshot.anchor_after(range.end)
-                            })
-                            .clone();
-
-                        // We already know text_edit is None here
-                        let text = lsp_completion.insert_text.as_ref().unwrap_or(&lsp_completion.label).clone();
-
-                        let insert_range = Some(range.start..snapshot.anchor_after(self.position));
-                        ParsedCompletionEdit { replace_range: range, insert_range, new_text: text }
+                    if self.position != clipped_position {
+                        log::info!("completion out of expected range ");
+                        return false;
                     }
+
+                    let range = range_for_token
+                        .get_or_insert_with(|| {
+                            let offset = self.position.to_offset(&snapshot);
+                            let (range, kind) = snapshot.surrounding_word(offset, Some(CharScopeContext::Completion));
+                            let range = if kind == Some(CharKind::Word) { range } else { offset..offset };
+
+                            snapshot.anchor_before(range.start)..snapshot.anchor_after(range.end)
+                        })
+                        .clone();
+
+                    // We already know text_edit is None here
+                    let text = lsp_completion.insert_text.as_ref().unwrap_or(&lsp_completion.label).clone();
+
+                    let insert_range = Some(range.start..snapshot.anchor_after(self.position));
+                    ParsedCompletionEdit { replace_range: range, insert_range, new_text: text }
                 };
 
                 completion_edits.push(edit);
@@ -1183,7 +1182,7 @@ impl LspCommand for GetCodeActions {
     type Response = Vec<CodeAction>;
     type LspRequest = CodeActionRequest;
 
-    fn display_name(&self) -> &str {
+    fn display_name(&self) -> &'static str {
         "Get code actions"
     }
 
@@ -1263,11 +1262,8 @@ impl LspCommand for GetCodeActions {
         })?;
 
         let server_capabilities = language_server.capabilities();
-        let available_commands = server_capabilities
-            .execute_command_provider
-            .as_ref()
-            .map(|options| options.commands.as_slice())
-            .unwrap_or_default();
+        let available_commands =
+            server_capabilities.execute_command_provider.as_ref().map_or_default(|options| options.commands.as_slice());
         Ok(actions
             .unwrap_or_default()
             .into_iter()
@@ -1339,7 +1335,7 @@ impl LspCommand for OnTypeFormatting {
     type Response = Option<Transaction>;
     type LspRequest = request::OnTypeFormatting;
 
-    fn display_name(&self) -> &str {
+    fn display_name(&self) -> &'static str {
         "Formatting on typing"
     }
 
@@ -1647,7 +1643,7 @@ impl LspCommand for InlayHints {
     type Response = Vec<InlayHint>;
     type LspRequest = lsp::InlayHintRequest;
 
-    fn display_name(&self) -> &str {
+    fn display_name(&self) -> &'static str {
         "Inlay hints"
     }
 
@@ -1724,7 +1720,7 @@ impl LspCommand for SemanticTokensFull {
     type Response = SemanticTokensResponse;
     type LspRequest = lsp::SemanticTokensFullRequest;
 
-    fn display_name(&self) -> &str {
+    fn display_name(&self) -> &'static str {
         "Semantic tokens full"
     }
 
@@ -1778,7 +1774,7 @@ impl LspCommand for SemanticTokensDelta {
     type Response = SemanticTokensResponse;
     type LspRequest = lsp::SemanticTokensFullDeltaRequest;
 
-    fn display_name(&self) -> &str {
+    fn display_name(&self) -> &'static str {
         "Semantic tokens delta"
     }
 
@@ -1851,7 +1847,7 @@ impl LspCommand for GetCodeLens {
     type Response = Vec<CodeAction>;
     type LspRequest = lsp::CodeLensRequest;
 
-    fn display_name(&self) -> &str {
+    fn display_name(&self) -> &'static str {
         "Code Lens"
     }
 
@@ -1905,7 +1901,7 @@ impl LspCommand for LinkedEditingRange {
     type Response = Vec<Range<Anchor>>;
     type LspRequest = request::LinkedEditingRange;
 
-    fn display_name(&self) -> &str {
+    fn display_name(&self) -> &'static str {
         "Linked editing range"
     }
 
@@ -1972,7 +1968,7 @@ impl GetDocumentDiagnostics {
                                 server_id,
                                 report,
                                 registration_id.clone(),
-                            )
+                            );
                         }
                         lsp::WorkspaceDocumentDiagnosticReport::Unchanged(report) => {
                             process_unchanged_workspace_diagnostics_report(
@@ -1980,7 +1976,7 @@ impl GetDocumentDiagnostics {
                                 server_id,
                                 report,
                                 registration_id.clone(),
-                            )
+                            );
                         }
                     }
                 }
@@ -1994,7 +1990,7 @@ impl GetDocumentDiagnostics {
                                 server_id,
                                 report,
                                 registration_id.clone(),
-                            )
+                            );
                         }
                         lsp::WorkspaceDocumentDiagnosticReport::Unchanged(report) => {
                             process_unchanged_workspace_diagnostics_report(
@@ -2002,7 +1998,7 @@ impl GetDocumentDiagnostics {
                                 server_id,
                                 report,
                                 registration_id.clone(),
-                            )
+                            );
                         }
                     }
                 }
@@ -2060,7 +2056,7 @@ impl LspCommand for GetDocumentDiagnostics {
     type Response = Vec<LspPullDiagnostics>;
     type LspRequest = request::DocumentDiagnosticRequest;
 
-    fn display_name(&self) -> &str {
+    fn display_name(&self) -> &'static str {
         "Get diagnostics"
     }
 
@@ -2162,7 +2158,7 @@ impl LspCommand for GetDocumentColor {
     type Response = Vec<DocumentColor>;
     type LspRequest = request::DocumentColor;
 
-    fn display_name(&self) -> &str {
+    fn display_name(&self) -> &'static str {
         "Document color"
     }
 
@@ -2206,7 +2202,7 @@ impl LspCommand for GetFoldingRanges {
     type Response = Vec<LspFoldingRange>;
     type LspRequest = request::FoldingRangeRequest;
 
-    fn display_name(&self) -> &str {
+    fn display_name(&self) -> &'static str {
         "Folding ranges"
     }
 
@@ -2266,7 +2262,7 @@ impl LspCommand for GetDocumentLinks {
     type Response = Vec<LspDocumentLink>;
     type LspRequest = request::DocumentLinkRequest;
 
-    fn display_name(&self) -> &str {
+    fn display_name(&self) -> &'static str {
         "Document links"
     }
 
@@ -2324,10 +2320,10 @@ fn process_related_documents(
     for (url, report_kind) in documents {
         match report_kind {
             lsp::DocumentDiagnosticReportKind::Full(report) => {
-                process_full_diagnostics_report(diagnostics, server_id, url, report, registration_id.clone())
+                process_full_diagnostics_report(diagnostics, server_id, url, report, registration_id.clone());
             }
             lsp::DocumentDiagnosticReportKind::Unchanged(report) => {
-                process_unchanged_diagnostics_report(diagnostics, server_id, url, report, registration_id.clone())
+                process_unchanged_diagnostics_report(diagnostics, server_id, url, report, registration_id.clone());
             }
         }
     }

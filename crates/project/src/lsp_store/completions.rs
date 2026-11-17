@@ -75,9 +75,7 @@ async fn populate_labels_for_completions(
 ) -> Vec<Completion> {
     let lsp_completions = new_completions
         .iter()
-        .filter_map(|new_completion| {
-            new_completion.source.lsp_completion(true).map(|lsp_completion| lsp_completion.into_owned())
-        })
+        .filter_map(|new_completion| new_completion.source.lsp_completion(true).map(|x| x.into_owned()))
         .collect::<Vec<_>>();
 
     let mut labels = if let Some((language, lsp_adapter)) = language.as_ref().zip(lsp_adapter) {
@@ -90,48 +88,45 @@ async fn populate_labels_for_completions(
 
     let mut completions = Vec::new();
     for completion in new_completions {
-        match completion.source.lsp_completion(true) {
-            Some(lsp_completion) => {
-                let documentation = lsp_completion.documentation.clone().map(|docs| docs.into());
+        if let Some(lsp_completion) = completion.source.lsp_completion(true) {
+            let documentation = lsp_completion.documentation.clone().map(Into::into);
 
-                let mut label = labels
-                    .next()
-                    .flatten()
-                    .unwrap_or_else(|| CodeLabel::fallback_for_completion(&lsp_completion, language.as_deref()));
-                ensure_uniform_list_compatible_label(&mut label);
-                completions.push(Completion {
-                    label,
-                    documentation,
-                    replace_range: completion.replace_range,
-                    new_text: completion.new_text,
-                    insert_text_mode: lsp_completion.insert_text_mode,
-                    source: completion.source,
-                    icon_path: None,
-                    icon_color: None,
-                    confirm: None,
-                    match_start: None,
-                    snippet_deduplication_key: None,
-                    group: None,
-                });
-            }
-            None => {
-                let mut label = CodeLabel::plain(completion.new_text.clone(), None);
-                ensure_uniform_list_compatible_label(&mut label);
-                completions.push(Completion {
-                    label,
-                    documentation: None,
-                    replace_range: completion.replace_range,
-                    new_text: completion.new_text,
-                    source: completion.source,
-                    insert_text_mode: None,
-                    icon_path: None,
-                    icon_color: None,
-                    confirm: None,
-                    match_start: None,
-                    snippet_deduplication_key: None,
-                    group: None,
-                });
-            }
+            let mut label = labels
+                .next()
+                .flatten()
+                .unwrap_or_else(|| CodeLabel::fallback_for_completion(&lsp_completion, language.as_deref()));
+            ensure_uniform_list_compatible_label(&mut label);
+            completions.push(Completion {
+                label,
+                documentation,
+                replace_range: completion.replace_range,
+                new_text: completion.new_text,
+                insert_text_mode: lsp_completion.insert_text_mode,
+                source: completion.source,
+                icon_path: None,
+                icon_color: None,
+                confirm: None,
+                match_start: None,
+                snippet_deduplication_key: None,
+                group: None,
+            });
+        } else {
+            let mut label = CodeLabel::plain(completion.new_text.clone(), None);
+            ensure_uniform_list_compatible_label(&mut label);
+            completions.push(Completion {
+                label,
+                documentation: None,
+                replace_range: completion.replace_range,
+                new_text: completion.new_text,
+                source: completion.source,
+                insert_text_mode: None,
+                icon_path: None,
+                icon_color: None,
+                confirm: None,
+                match_start: None,
+                snippet_deduplication_key: None,
+                group: None,
+            });
         }
     }
     completions
@@ -229,20 +224,18 @@ pub fn ensure_uniform_list_compatible_label(label: &mut CodeLabel) {
     let last_index = new_idx;
     let mut run_ranges_errors = Vec::new();
     label.runs.retain_mut(|(range, _)| {
-        match offset_map.get(range.start) {
-            Some(&start) => range.start = start,
-            None => {
-                run_ranges_errors.push(range.clone());
-                return false;
-            }
+        if let Some(&start) = offset_map.get(range.start) {
+            range.start = start;
+        } else {
+            run_ranges_errors.push(range.clone());
+            return false;
         }
 
-        match offset_map.get(range.end) {
-            Some(&end) => range.end = end,
-            None => {
-                run_ranges_errors.push(range.clone());
-                range.end = last_index;
-            }
+        if let Some(&end) = offset_map.get(range.end) {
+            range.end = end;
+        } else {
+            run_ranges_errors.push(range.clone());
+            range.end = last_index;
         }
         true
     });
@@ -255,20 +248,18 @@ pub fn ensure_uniform_list_compatible_label(label: &mut CodeLabel) {
         label.filter_range = 0..new_text.len();
     } else {
         let mut original_filter_range = Some(label.filter_range.clone());
-        match offset_map.get(label.filter_range.start) {
-            Some(&start) => label.filter_range.start = start,
-            None => {
-                wrong_filter_range = original_filter_range.take();
-                label.filter_range.start = last_index;
-            }
+        if let Some(&start) = offset_map.get(label.filter_range.start) {
+            label.filter_range.start = start;
+        } else {
+            wrong_filter_range = original_filter_range.take();
+            label.filter_range.start = last_index;
         }
 
-        match offset_map.get(label.filter_range.end) {
-            Some(&end) => label.filter_range.end = end,
-            None => {
-                wrong_filter_range = original_filter_range.take();
-                label.filter_range.end = last_index;
-            }
+        if let Some(&end) = offset_map.get(label.filter_range.end) {
+            label.filter_range.end = end;
+        } else {
+            wrong_filter_range = original_filter_range.take();
+            label.filter_range.end = last_index;
         }
     }
     if let Some(wrong_filter_range) = wrong_filter_range {
@@ -565,9 +556,7 @@ impl LspStore {
                 }
                 .pop()
                 .flatten()
-                .unwrap_or_else(|| {
-                    CodeLabel::fallback_for_completion(&completion_item, language.map(|language| language.as_ref()))
-                })
+                .unwrap_or_else(|| CodeLabel::fallback_for_completion(&completion_item, language.map(AsRef::as_ref)))
             }
             None => CodeLabel::plain(completions.borrow()[completion_index].new_text.clone(), None),
         };

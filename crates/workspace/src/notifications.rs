@@ -397,9 +397,9 @@ impl Render for LanguageServerPrompt {
                             let this_handle = this_handle.clone();
                             window
                                 .spawn(cx, async move |cx| {
-                                    LanguageServerPrompt::select_option(this_handle, ix, cx).await
+                                    LanguageServerPrompt::select_option(this_handle, ix, cx).await;
                                 })
-                                .detach()
+                                .detach();
                         })
                     })),
             )
@@ -836,7 +836,7 @@ pub mod simple_message_notification {
                 .button_style(ButtonStyle::Outlined)
                 .copy_text(primary_message)
                 .show_suppress_button(false)
-                .when_some(error.secondary_message(), |this, text| this.secondary_content(text))
+                .when_some(error.secondary_message(), MessageNotification::secondary_content)
                 .map(|this| {
                     let ErrorAction { label, icon, tooltip: _, handler } = primary_action;
 
@@ -877,17 +877,17 @@ pub mod simple_message_notification {
         }
 
         fn opacity(&self) -> f32 {
-            self.auto_hide.as_ref().map_or(1.0, |auto_hide| auto_hide.opacity())
+            self.auto_hide.as_ref().map_or(1.0, AutoHideState::opacity)
         }
 
         fn needs_animation_frame(&self) -> bool {
-            self.auto_hide.as_ref().is_some_and(|auto_hide| auto_hide.needs_animation_frame())
+            self.auto_hide.as_ref().is_some_and(AutoHideState::needs_animation_frame)
         }
     }
 
     impl Render for MessageNotification {
         fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-            if self.auto_hide.as_mut().is_some_and(|auto_hide| auto_hide.refresh_animation()) {
+            if self.auto_hide.as_mut().is_some_and(AutoHideState::refresh_animation) {
                 cx.emit(DismissEvent);
             }
 
@@ -943,13 +943,13 @@ pub mod simple_message_notification {
                 .gap_1()
                 .children(self.primary_message.iter().map(|message| {
                     Button::new(("notification-primary", cx.entity_id()), message.clone())
-                        .when_some(self.button_style, |button, style| button.style(style))
+                        .when_some(self.button_style, ui::ButtonCommon::style)
                         .label_size(LabelSize::Small)
                         .on_click(cx.listener(|this, _, window, cx| {
                             if let Some(on_click) = this.primary_on_click.as_ref() {
-                                (on_click)(window, cx)
-                            };
-                            this.dismiss(cx)
+                                (on_click)(window, cx);
+                            }
+                            this.dismiss(cx);
                         }))
                         .when_some(self.primary_icon, |button, icon| {
                             let element = Icon::new(icon.name)
@@ -963,13 +963,13 @@ pub mod simple_message_notification {
                 }))
                 .children(self.secondary_message.clone().map(|message| {
                     Button::new(("notification-secondary", cx.entity_id()), message)
-                        .when_some(self.button_style, |button, style| button.style(style))
+                        .when_some(self.button_style, ui::ButtonCommon::style)
                         .label_size(LabelSize::Small)
                         .on_click(cx.listener(|this, _, window, cx| {
                             if let Some(on_click) = this.secondary_on_click.as_ref() {
-                                (on_click)(window, cx)
-                            };
-                            this.dismiss(cx)
+                                (on_click)(window, cx);
+                            }
+                            this.dismiss(cx);
                         }))
                         .when_some(self.secondary_icon, |button, icon| {
                             let element = Icon::new(icon.name)

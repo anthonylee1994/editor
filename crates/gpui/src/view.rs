@@ -341,7 +341,7 @@ impl<V: View> Element for ViewElement<V> {
             })
         } else {
             // Stateless path: just prepaint the element.
-            prepaint_component(type_name::<V>(), element, window, cx)
+            Some(prepaint_component(type_name::<V>(), element, window, cx))
         }
     }
 
@@ -381,14 +381,13 @@ fn request_layout_view(
     cx: &mut App,
     render: &mut dyn FnMut(&mut Window, &mut App) -> AnyElement,
 ) -> (LayoutId, Option<AnyElement>) {
-    window.with_rendered_view(entity_id, |window| match cached_style {
-        Some(style) => {
+    window.with_rendered_view(entity_id, |window| {
+        if let Some(style) = cached_style {
             let mut root_style = Style::default();
             root_style.refine(style);
             let layout_id = window.request_layout(root_style, None, cx);
             (layout_id, None)
-        }
-        _ => {
+        } else {
             let mut element = render(window, cx);
             let layout_id = element.request_layout(window, cx);
             (layout_id, Some(element))
@@ -488,11 +487,11 @@ fn prepaint_component(
     element: &mut Option<AnyElement>,
     window: &mut Window,
     cx: &mut App,
-) -> Option<AnyElement> {
+) -> AnyElement {
     window.with_id(ElementId::from(name), |window| {
         element.as_mut().unwrap().prepaint(window, cx);
     });
-    Some(element.take().unwrap())
+    element.take().unwrap()
 }
 
 #[inline(never)]
@@ -532,7 +531,7 @@ fn paint_view(
                 element_state.paint_range = paint_start..paint_end;
 
                 ((), element_state)
-            })
+            });
         } else {
             element.as_mut().unwrap().paint(window, cx);
         }

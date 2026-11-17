@@ -132,7 +132,7 @@ impl Editor {
                         selection.reversed = true;
                         selection.goal = SelectionGoal::None;
                     }
-                })
+                });
             });
             let linked_edits = this.linked_edits_for_selections(Arc::from(""), cx);
             this.insert("", window, cx);
@@ -638,7 +638,7 @@ impl Editor {
             }
 
             this.change_selections(SelectionEffects::default(), window, cx, |s| {
-                s.select_anchor_ranges(cursor_positions)
+                s.select_anchor_ranges(cursor_positions);
             });
         });
     }
@@ -653,11 +653,11 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.manipulate_immutable_lines(window, cx, |lines| lines.sort())
+        self.manipulate_immutable_lines(window, cx, |lines| lines.sort_unstable());
     }
 
     pub fn sort_lines_by_length(&mut self, _: &SortLinesByLength, window: &mut Window, cx: &mut Context<Self>) {
-        self.manipulate_immutable_lines(window, cx, |lines| lines.sort_by_key(|&line| line.chars().count()))
+        self.manipulate_immutable_lines(window, cx, |lines| lines.sort_by_key(|&line| line.chars().count()));
     }
 
     pub fn sort_lines_case_insensitive(
@@ -666,7 +666,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.manipulate_immutable_lines(window, cx, |lines| lines.sort_by_key(|line| line.to_lowercase()))
+        self.manipulate_immutable_lines(window, cx, |lines| lines.sort_by_key(|line| line.to_lowercase()));
     }
 
     pub fn unique_lines_case_insensitive(
@@ -678,7 +678,7 @@ impl Editor {
         self.manipulate_immutable_lines(window, cx, |lines| {
             let mut seen = FxHashSet::default();
             lines.retain(|line| seen.insert(line.to_lowercase()));
-        })
+        });
     }
 
     pub fn unique_lines_case_sensitive(
@@ -690,15 +690,15 @@ impl Editor {
         self.manipulate_immutable_lines(window, cx, |lines| {
             let mut seen = FxHashSet::default();
             lines.retain(|line| seen.insert(*line));
-        })
+        });
     }
 
     pub fn reverse_lines(&mut self, _: &ReverseLines, window: &mut Window, cx: &mut Context<Self>) {
-        self.manipulate_immutable_lines(window, cx, |lines| lines.reverse())
+        self.manipulate_immutable_lines(window, cx, |lines| lines.reverse());
     }
 
     pub fn shuffle_lines(&mut self, _: &ShuffleLines, window: &mut Window, cx: &mut Context<Self>) {
-        self.manipulate_immutable_lines(window, cx, |lines| lines.shuffle(&mut rand::rng()))
+        self.manipulate_immutable_lines(window, cx, |lines| lines.shuffle(&mut rand::rng()));
     }
 
     fn manipulate_lines<M>(&mut self, window: &mut Window, cx: &mut Context<Self>, mut manipulate: M)
@@ -1136,7 +1136,7 @@ impl Editor {
             this.fold_creases(refold_creases, true, window, cx);
             this.change_selections(SelectionEffects::default(), window, cx, |s| {
                 s.select(new_selections);
-            })
+            });
         });
     }
 

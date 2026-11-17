@@ -346,10 +346,10 @@ impl EditorElement {
                     }
                     let position = current_position;
                     window.defer_draw(element, current_position, 1, None);
-                    if !y_flipped {
-                        current_position.y += size.height + MENU_GAP;
-                    } else {
+                    if y_flipped {
                         current_position.y -= MENU_GAP;
+                    } else {
+                        current_position.y += size.height + MENU_GAP;
                     }
                     (popover_type, Bounds::new(position, size))
                 })

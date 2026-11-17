@@ -37,8 +37,7 @@ pub fn clone_and_open(
             let repo_name = repo_url
                 .split('/')
                 .next_back()
-                .map(|name| name.strip_suffix(".git").unwrap_or(name))
-                .unwrap_or("repository")
+                .map_or("repository", |name| name.strip_suffix(".git").unwrap_or(name))
                 .to_owned();
 
             let clone_task = workspace
@@ -71,7 +70,7 @@ pub fn clone_and_open(
                 cx.update(|window, cx| {
                     window.prompt(
                         gpui::PromptLevel::Info,
-                        &format!("Git Clone: {}", repo_name),
+                        &format!("Git Clone: {repo_name}"),
                         None,
                         &["Add repo to project", "Open repo in new project"],
                         cx,

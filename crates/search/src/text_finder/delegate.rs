@@ -617,7 +617,7 @@ pub(crate) async fn matches_to_multibuffer(
     }
 
     let excerpts = project_search_view.read_with(cx, |view, cx| view.entity.read(cx).excerpts.clone());
-    excerpts.update(cx, |excerpts, cx| excerpts.clear(cx));
+    excerpts.update(cx, editor::MultiBuffer::clear);
 
     // Every await point is a place where the user could type a search
     // query in which case we gotta abort. Store the search id so we
@@ -660,7 +660,7 @@ pub(crate) async fn matches_to_multibuffer(
             view.entity.update(cx, |search, cx| {
                 search.match_ranges.extend(new_ranges);
                 cx.notify();
-            })
+            });
         });
 
         // Adding items to the multibuffer can take time. Be sure to not hold
@@ -822,14 +822,12 @@ impl PickerDelegate for Delegate {
         // Clicks (set_selected_index called immediately before confirm) require double-click.
         // Enter key proceeds immediately.
         let now = Instant::now();
-        let is_click =
-            self.last_selection_change_time.map(|t| now.duration_since(t) < CLICK_THRESHOLD).unwrap_or(false);
+        let is_click = self.last_selection_change_time.is_some_and(|t| now.duration_since(t) < CLICK_THRESHOLD);
 
         if is_click {
             let is_double_click = self
                 .last_click
-                .map(|(ix, t)| ix == self.selected_index && now.duration_since(t) < DOUBLE_CLICK_THRESHOLD)
-                .unwrap_or(false);
+                .is_some_and(|(ix, t)| ix == self.selected_index && now.duration_since(t) < DOUBLE_CLICK_THRESHOLD);
             self.last_click = Some((self.selected_index, now));
 
             if !is_double_click {
@@ -932,9 +930,8 @@ impl Delegate {
                 Some(div().py(DynamicSpacing::Base04.rems()).child(Divider::horizontal()).into_any_element())
             }
             Entry::Header(path) => {
-                let file_name = path.path.file_name().map(|name| name.to_string()).unwrap_or_default();
-                let directory =
-                    path.path.parent().map(|parent| parent.display()).map(SharedString::new).unwrap_or_default();
+                let file_name = path.path.file_name().map_or_default(ToString::to_string);
+                let directory = path.path.parent().map(|x| x.display()).map_or_default(SharedString::new);
                 let file_icon = FileIcons::get_icon(path.path.as_std_path(), cx)
                     .map(|icon| Icon::from_path(icon).color(Color::Muted).size(IconSize::Small));
                 let is_collapsed = self.collapsed_paths.contains(path);
@@ -1007,7 +1004,7 @@ impl Delegate {
                         .spacing(ListItemSpacing::Sparse)
                         .inset(true)
                         .toggle_state(selected)
-                        .when_some(checkbox, |this, checkbox| this.start_slot(checkbox))
+                        .when_some(checkbox, ui::ListItem::start_slot)
                         .child(
                             h_flex()
                                 .w_full()

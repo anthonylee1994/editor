@@ -484,8 +484,7 @@ fn parse_keystroke(native_event: &NSEvent) -> Keystroke {
     use function_keys::NSRightArrowFunctionKey;
     use function_keys::NSUpArrowFunctionKey;
 
-    let characters =
-        native_event.charactersIgnoringModifiers().map(|characters| characters.to_string()).unwrap_or_default();
+    let characters = native_event.charactersIgnoringModifiers().map_or_default(|characters| characters.to_string());
     let mut key_char = None;
     let first_char = characters.chars().next().map(|ch| ch as u16);
     let modifiers = native_event.modifierFlags();
@@ -507,7 +506,7 @@ fn parse_keystroke(native_event: &NSEvent) -> Keystroke {
             key_char = Some("\t".to_string());
             "tab".to_string()
         }
-        Some(ENTER_KEY) | Some(NUMPAD_ENTER_KEY) => {
+        Some(ENTER_KEY | NUMPAD_ENTER_KEY) => {
             key_char = Some("\n".to_string());
             "enter".to_string()
         }
@@ -651,22 +650,22 @@ fn chars_for_modified_key(code: CGKeyCode, modifiers: u32) -> String {
 
     let keyboard = unsafe { TISCopyCurrentKeyboardLayoutInputSource() };
     if keyboard.is_null() {
-        return "".to_string();
+        return String::new();
     }
     let layout_data = unsafe {
-        TISGetInputSourceProperty(keyboard, kTISPropertyUnicodeKeyLayoutData as *const c_void) as *const CFData
+        TISGetInputSourceProperty(keyboard, kTISPropertyUnicodeKeyLayoutData.cast::<c_void>()) as *const CFData
     };
     if layout_data.is_null() {
         unsafe {
             let _: () = msg_send![keyboard, release];
         }
-        return "".to_string();
+        return String::new();
     }
     let keyboard_layout = unsafe { (*layout_data).byte_ptr() };
 
     unsafe {
         UCKeyTranslate(
-            keyboard_layout as *const c_void,
+            keyboard_layout.cast::<c_void>(),
             code,
             kUCKeyActionDown,
             modifiers,
@@ -679,7 +678,7 @@ fn chars_for_modified_key(code: CGKeyCode, modifiers: u32) -> String {
         );
         if dead_key_state != 0 {
             UCKeyTranslate(
-                keyboard_layout as *const c_void,
+                keyboard_layout.cast::<c_void>(),
                 CG_SPACE_KEY,
                 kUCKeyActionDown,
                 modifiers,

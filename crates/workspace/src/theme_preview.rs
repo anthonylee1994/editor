@@ -56,7 +56,7 @@ pub fn init(cx: &App) {
     cx.observe_new(|workspace: &mut Workspace, _, _| {
         workspace.register_action(|workspace, _: &OpenThemePreview, window, cx| {
             let theme_preview = cx.new(|cx| ThemePreview::new(cx));
-            workspace.add_item_to_active_pane(Box::new(theme_preview), None, true, window, cx)
+            workspace.add_item_to_active_pane(Box::new(theme_preview), None, true, window, cx);
         });
     })
     .detach();
@@ -69,7 +69,7 @@ enum ThemePreviewPage {
 }
 
 impl ThemePreviewPage {
-    pub const fn name(&self) -> &'static str {
+    pub const fn name(self) -> &'static str {
         match self {
             ThemePreviewPage::Overview => "Overview",
             ThemePreviewPage::Typography => "Typography",
@@ -106,11 +106,11 @@ impl Focusable for ThemePreview {
 impl Item for ThemePreview {
     type Event = ();
 
-    fn to_item_events(_: &Self::Event, _: &mut dyn FnMut(ItemEvent)) {}
+    fn to_item_events((): &Self::Event, _: &mut dyn FnMut(ItemEvent)) {}
 
     fn tab_content_text(&self, _detail: usize, cx: &App) -> SharedString {
         let name = cx.theme().name.clone();
-        format!("{} Preview", name).into()
+        format!("{name} Preview").into()
     }
 }
 
@@ -124,7 +124,7 @@ impl ThemePreview {
 
         let label_with_contrast = |label: &str, fg: Hsla| {
             let contrast = calculate_contrast_ratio(fg, bg);
-            format!("{} ({:.2})", label, contrast)
+            format!("{label} ({contrast:.2})")
         };
 
         v_flex()
@@ -285,7 +285,7 @@ impl ThemePreview {
 
         v_flex().gap_1().child(Headline::new("Colors").size(HeadlineSize::Small).color(Color::Muted)).child(
             h_flex().flex_wrap().gap_1().children(all_colors.into_iter().map(|(color, name)| {
-                let id = ElementId::Name(format!("{:?}-preview", color).into());
+                let id = ElementId::Name(format!("{color:?}-preview").into());
                 div().size_8().flex_none().child(
                     ButtonLike::new(id)
                         .child(
@@ -300,7 +300,7 @@ impl ThemePreview {
                         .style(ButtonStyle::Transparent)
                         .tooltip(move |_, cx| {
                             let name = name.clone();
-                            Tooltip::with_meta(name, None, format!("{:?}", color), cx)
+                            Tooltip::with_meta(name, None, format!("{color:?}"), cx)
                         }),
                 )
             })),

@@ -479,7 +479,7 @@ impl GitPanel {
         if tree_view {
             Self::item_width_estimate(0, entry.display_name().len(), depth)
         } else {
-            Self::item_width_estimate(entry.parent_dir().map(|s| s.len()).unwrap_or(0), entry.display_name().len(), 0)
+            Self::item_width_estimate(entry.parent_dir().map_or(0, |s| s.len()), entry.display_name().len(), 0)
         }
     }
 
@@ -672,7 +672,7 @@ impl GitPanel {
                         .on_click(|_, _, cx| {
                             cx.defer(|cx| {
                                 cx.dispatch_action(&Diff);
-                            })
+                            });
                         }),
                 )
                 .child(
@@ -801,7 +801,7 @@ impl GitPanel {
                 .icon_size(IconSize::Small)
                 .tooltip(move |_window, cx| Tooltip::for_action_in(label, &git::ToggleCommitEditor, &focus_handle, cx))
                 .on_click(cx.listener(move |_, _, window, cx| {
-                    window.dispatch_action(git::ToggleCommitEditor.boxed_clone(), cx)
+                    window.dispatch_action(git::ToggleCommitEditor.boxed_clone(), cx);
                 }))
         };
 
@@ -878,10 +878,10 @@ impl GitPanel {
             .id("commit-wrapper")
             .on_hover(cx.listener(move |this, hovered, _, cx| {
                 this.show_placeholders = *hovered && !this.has_staged_changes() && !this.has_unstaged_conflicts();
-                cx.notify()
+                cx.notify();
             }))
             .child(SplitButton::new(
-                ButtonLike::new_rounded_left(format!("split-button-left-{}", title))
+                ButtonLike::new_rounded_left(format!("split-button-left-{title}"))
                     .layer(ElevationIndex::ModalSurface)
                     .size(ButtonSize::Compact)
                     .disabled(!can_commit)
@@ -919,7 +919,7 @@ impl GitPanel {
                         }
                     }),
                 self.render_git_commit_menu(
-                    ElementId::Name(format!("split-button-right-{}", title).into()),
+                    ElementId::Name(format!("split-button-right-{title}").into()),
                     Some(commit_tooltip_focus_handle),
                     false,
                     cx,
@@ -1038,7 +1038,7 @@ impl GitPanel {
                         .on_click(move |_, _, cx| {
                             cx.defer(move |cx| {
                                 cx.dispatch_action(&DeployBranchDiff);
-                            })
+                            });
                         }),
                 )
             })
@@ -1084,7 +1084,7 @@ impl GitPanel {
                             .on_click(move |_, _, cx| {
                                 cx.open_url(
                                     "https://git-scm.com/docs/git-config#Documentation/git-config.txt-safedirectory",
-                                )
+                                );
                             }),
                     ),
             )
@@ -1110,7 +1110,7 @@ impl GitPanel {
                             .on_click(move |_, _, cx| {
                                 cx.defer(move |cx| {
                                     cx.dispatch_action(&git::Init);
-                                })
+                                });
                             }),
                     )
                 })
@@ -1280,7 +1280,7 @@ impl GitPanel {
                 .on_mouse_down(
                     MouseButton::Right,
                     cx.listener(move |this, event: &MouseDownEvent, window, cx| {
-                        this.deploy_panel_context_menu(event.position, None, false, window, cx)
+                        this.deploy_panel_context_menu(event.position, None, false, window, cx);
                     }),
                 )
                 .custom_scrollbars(
@@ -1308,9 +1308,9 @@ impl GitPanel {
         _window: &Window,
         cx: &Context<Self>,
     ) -> AnyElement {
-        let id: ElementId = ElementId::Name(format!("header_{}", ix).into());
-        let checkbox_id: ElementId = ElementId::Name(format!("header_{}_checkbox", ix).into());
-        let group_name: SharedString = format!("header_{}", ix).into();
+        let id: ElementId = ElementId::Name(format!("header_{ix}").into());
+        let checkbox_id: ElementId = ElementId::Name(format!("header_{ix}_checkbox").into());
+        let group_name: SharedString = format!("header_{ix}").into();
         let section = header.header;
         let weak = cx.weak_entity();
         let checkbox_weak = weak.clone();
@@ -1606,10 +1606,10 @@ impl GitPanel {
         let label_color = Color::Default;
         let path_color = if status.is_deleted() { Color::Disabled } else { Color::Muted };
 
-        let id: ElementId = ElementId::Name(format!("entry_{}_{}", display_name, ix).into());
+        let id: ElementId = ElementId::Name(format!("entry_{display_name}_{ix}").into());
         let checkbox_wrapper_id: ElementId =
-            ElementId::Name(format!("entry_{}_{}_checkbox_wrapper", display_name, ix).into());
-        let checkbox_id: ElementId = ElementId::Name(format!("entry_{}_{}_checkbox", display_name, ix).into());
+            ElementId::Name(format!("entry_{display_name}_{ix}_checkbox_wrapper").into());
+        let checkbox_id: ElementId = ElementId::Name(format!("entry_{display_name}_{ix}_checkbox").into());
 
         let stage_status = GitPanel::stage_status_for_entry(entry, repo);
         let stage_intent = self.stage_intent_for_entry_index(ix);
@@ -1688,7 +1688,7 @@ impl GitPanel {
             // Shrinks the name instead of letting it push the stats and checkbox out.
             .child(h_flex().min_w_0().flex_1().overflow_hidden().child(name_row))
             .when_some(entry.diff_stat, move |this, stat| {
-                let id = format!("diff-stat-{}", id_for_diff_stat);
+                let id = format!("diff-stat-{id_for_diff_stat}");
                 this.child(ui::DiffStat::new(id, stat.added as usize, stat.deleted as usize))
             })
             .child(
@@ -1825,8 +1825,7 @@ impl GitPanel {
             .child(h_flex().flex_none().gap_0p5().children({
                 let render_indicator = |themed: Option<SharedString>, fallback: IconName| {
                     themed
-                        .map(Icon::from_path)
-                        .unwrap_or_else(|| Icon::new(fallback))
+                        .map_or_else(|| Icon::new(fallback), Icon::from_path)
                         .size(IconSize::Small)
                         .color(Color::Muted)
                 };
@@ -1922,7 +1921,7 @@ impl GitPanel {
         label_color: Color,
         strikethrough: bool,
     ) -> Div {
-        let file_name = format!("{} ", file_name);
+        let file_name = format!("{file_name} ");
 
         h_flex()
             .min_w_0()

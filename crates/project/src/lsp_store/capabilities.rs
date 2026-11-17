@@ -234,7 +234,7 @@ impl LspStore {
             .flatten()
             .filter_map(|server_id| match local.language_servers.get(server_id)? {
                 LanguageServerState::Running { adapter, server, .. } => Some((adapter, server)),
-                _ => None,
+                LanguageServerState::Starting { .. } => None,
             })
             .any(|(adapter, server)| {
                 let server_name = server.name();

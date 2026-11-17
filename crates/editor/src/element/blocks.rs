@@ -78,7 +78,7 @@ impl EditorElement {
         em_width: Pixels,
         text_hitbox: &Hitbox,
         editor_width: Pixels,
-        scroll_width: &Pixels,
+        scroll_width: Pixels,
         resized_blocks: &mut FxHashMap<CustomBlockId, u32>,
         row_block_types: &mut FxHashMap<DisplayRow, bool>,
         selections: &[Selection<Point>],
@@ -86,7 +86,7 @@ impl EditorElement {
         latest_selection_anchors: &FxHashMap<BufferId, Anchor>,
         is_row_soft_wrapped: impl Copy + Fn(usize) -> bool,
         sticky_header_excerpt_id: Option<BufferId>,
-        indent_guides: &Option<Vec<IndentGuideLayout>>,
+        indent_guides: Option<&[IndentGuideLayout]>,
         block_resize_offset: &mut i32,
         window: &mut Window,
         cx: &mut App,
@@ -136,25 +136,22 @@ impl EditorElement {
 
                 div()
                     .size_full()
-                    .child(
-                        custom.render(&mut BlockContext {
-                            window,
-                            app: cx,
-                            anchor_x,
-                            margins: editor_margins,
-                            line_height,
-                            em_width,
-                            block_id,
-                            height: custom.height.unwrap_or(1),
-                            selected,
-                            max_width: text_hitbox.size.width.max(*scroll_width),
-                            editor_style: &self.style,
-                            indent_guide_padding: indent_guides
-                                .as_ref()
-                                .map(|guides| Self::depth_zero_indent_guide_padding_for_row(guides, block_row_start))
-                                .unwrap_or(px(0.0)),
+                    .child(custom.render(&mut BlockContext {
+                        window,
+                        app: cx,
+                        anchor_x,
+                        margins: editor_margins,
+                        line_height,
+                        em_width,
+                        block_id,
+                        height: custom.height.unwrap_or(1),
+                        selected,
+                        max_width: text_hitbox.size.width.max(scroll_width),
+                        editor_style: &self.style,
+                        indent_guide_padding: indent_guides.map_or(px(0.0), |guides| {
+                            Self::depth_zero_indent_guide_padding_for_row(guides, block_row_start)
                         }),
-                    )
+                    }))
                     .into_any()
             }
 
@@ -207,7 +204,9 @@ impl EditorElement {
                     let jump_data =
                         header::header_jump_data(snapshot, block_row_start, *height, excerpt, latest_selection_anchors);
 
-                    if sticky_header_excerpt_id != Some(excerpt.buffer_id()) {
+                    if sticky_header_excerpt_id == Some(excerpt.buffer_id()) {
+                        result = result.child(div().h(FILE_HEADER_HEIGHT as f32 * window.line_height()));
+                    } else {
                         let selected = selected_buffer_ids.contains(&excerpt.buffer_id());
 
                         result = result.child(div().pr(editor_margins.right).child(header::render_buffer_header(
@@ -220,8 +219,6 @@ impl EditorElement {
                             window,
                             cx,
                         )));
-                    } else {
-                        result = result.child(div().h(FILE_HEADER_HEIGHT as f32 * window.line_height()));
                     }
                 } else {
                     result = result.child(div().h(FILE_HEADER_HEIGHT as f32 * window.line_height()));
@@ -232,9 +229,7 @@ impl EditorElement {
 
             Block::Spacer { height, .. } => {
                 let indent_guide_padding = indent_guides
-                    .as_ref()
-                    .map(|guides| Self::depth_zero_indent_guide_padding_for_row(guides, block_row_start))
-                    .unwrap_or(px(0.0));
+                    .map_or(px(0.0), |guides| Self::depth_zero_indent_guide_padding_for_row(guides, block_row_start));
                 Self::render_spacer_block(block_id, *height, line_height, indent_guide_padding, window, cx)
             }
         };
@@ -277,7 +272,7 @@ impl EditorElement {
                     let min_offset = (x_target + em_width - final_size.width).max(editor_margins.gutter.full_width());
                     x_offset = x_target.min(max_offset).max(min_offset);
                 }
-            };
+            }
             if element_height_in_lines != block.height() {
                 *block_resize_offset += element_height_in_lines.cast_signed() - block.height().cast_signed();
                 resized_blocks.insert(custom_block_id, element_height_in_lines);
@@ -358,7 +353,7 @@ impl EditorElement {
         latest_selection_anchors: &FxHashMap<BufferId, Anchor>,
         is_row_soft_wrapped: impl Copy + Fn(usize) -> bool,
         sticky_header_excerpt_id: Option<BufferId>,
-        indent_guides: &Option<Vec<IndentGuideLayout>>,
+        indent_guides: Option<&[IndentGuideLayout]>,
         window: &mut Window,
         cx: &mut App,
     ) -> RenderBlocksOutput {
@@ -395,7 +390,7 @@ impl EditorElement {
                 em_width,
                 text_hitbox,
                 editor_width,
-                scroll_width,
+                *scroll_width,
                 &mut resized_blocks,
                 &mut row_block_types,
                 selections,
@@ -461,7 +456,7 @@ impl EditorElement {
                 em_width,
                 text_hitbox,
                 editor_width,
-                scroll_width,
+                *scroll_width,
                 &mut resized_blocks,
                 &mut row_block_types,
                 selections,
@@ -527,7 +522,7 @@ impl EditorElement {
                 em_width,
                 text_hitbox,
                 editor_width,
-                scroll_width,
+                *scroll_width,
                 &mut resized_blocks,
                 &mut row_block_types,
                 selections,
@@ -613,7 +608,7 @@ impl EditorElement {
             bounds.origin.x += layout.gutter_hitbox.bounds.size.width;
             window.with_content_mask(Some(ContentMask { bounds }), |window| {
                 block.element.paint(window, cx);
-            })
+            });
         }
     }
 
@@ -626,7 +621,7 @@ impl EditorElement {
                 bounds.origin.x += layout.gutter_hitbox.bounds.size.width;
                 window.with_content_mask(Some(ContentMask { bounds }), |window| {
                     block.element.paint(window, cx);
-                })
+                });
             }
         }
     }

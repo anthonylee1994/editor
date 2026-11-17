@@ -78,7 +78,7 @@ impl<Label: Ord + Clone> RootPathTrie<Label> {
         for key in path.0.iter() {
             if !current.labels.is_empty() && (callback)(&current.worktree_relative_path, &current.labels).is_break() {
                 return;
-            };
+            }
             current = match current.children.get(key) {
                 Some(child) => child,
                 None => return,
@@ -115,7 +115,7 @@ pub struct TriePath(Arc<[Arc<str>]>);
 
 impl TriePath {
     pub fn new(value: &RelPath) -> Self {
-        TriePath(value.components().map(|component| component.into()).collect())
+        TriePath(value.components().map(Into::into).collect())
     }
 }
 

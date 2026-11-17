@@ -185,7 +185,7 @@ impl MultiBuffer {
                 }
             } else {
                 new_excerpts.append(cursor.slice(&path, Bias::Right), ());
-            };
+            }
         }
         new_excerpts.append(cursor.suffix(), ());
 
@@ -456,7 +456,7 @@ impl MultiBuffer {
 
                         if should_expand_hunk {
                             did_expand_hunks = true;
-                            log::trace!("expanding hunk {:?}", hunk_excerpt_start..hunk_excerpt_end,);
+                            log::trace!("expanding hunk {:?}", hunk_excerpt_start..hunk_excerpt_end);
 
                             if !hunk.diff_base_byte_range.is_empty()
                                 && hunk_buffer_range.start >= edit_buffer_start
@@ -544,7 +544,7 @@ impl MultiBuffer {
                 old_snapshot.text_summary_for_excerpt_offset_range::<MBTextSummary>(start_offset..end_offset);
 
             if !Self::extend_last_buffer_content_transform(new_transforms, inserted_hunk_info, summary_to_add) {
-                new_transforms.push(DiffTransform::BufferContent { summary: summary_to_add, inserted_hunk_info }, ())
+                new_transforms.push(DiffTransform::BufferContent { summary: summary_to_add, inserted_hunk_info }, ());
             }
         }
     }

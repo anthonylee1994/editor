@@ -65,7 +65,7 @@ impl List {
 
 impl ParentElement for List {
     fn extend(&mut self, elements: impl IntoIterator<Item = AnyElement>) {
-        self.children.extend(elements)
+        self.children.extend(elements);
     }
 }
 

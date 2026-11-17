@@ -317,7 +317,7 @@ fn occlude(mut pieces: SmallVec<[Bounds<Pixels>; 4]>, above: &[&Track]) -> Small
 /// Records the pane `id`'s laid-out bounds and tab strip height; place it
 /// absolutely over the pane.
 pub(crate) fn record_bounds(motion: Rc<RefCell<PaneMotion>>, id: EntityId, strip: Pixels) -> impl IntoElement {
-    canvas(move |bounds, _, _| motion.borrow_mut().record(id, bounds, strip), |_, _, _, _| {})
+    canvas(move |bounds, _, _| motion.borrow_mut().record(id, bounds, strip), |_, (), _, _| {})
         .absolute()
         .top_0()
         .left_0()

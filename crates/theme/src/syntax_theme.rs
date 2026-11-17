@@ -42,7 +42,7 @@ impl SyntaxTheme {
     pub fn highlight_id(&self, capture_name: &str) -> Option<u32> {
         self.capture_name_map
             .range::<str, _>((
-                capture_name.split(".").next().map_or(Bound::Included(capture_name), Bound::Included),
+                capture_name.split('.').next().map_or(Bound::Included(capture_name), Bound::Included),
                 Bound::Included(capture_name),
             ))
             .rfind(|(prefix, _)| {

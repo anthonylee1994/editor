@@ -131,7 +131,7 @@ impl BlameRenderer for GitBlameRenderer {
                                     blamed_repo_path(&blame_entry),
                                     window,
                                     cx,
-                                )
+                                );
                             }
                         })
                         .when(!editor.read(cx).has_mouse_context_menu(), |el| {
@@ -170,7 +170,7 @@ impl BlameRenderer for GitBlameRenderer {
             reveal_file,
             window,
             cx,
-        )
+        );
     }
 
     fn open_blame_revision(
@@ -260,8 +260,7 @@ fn open_buffer_blame_at_revision(
                 })?;
                 let worktree_id = worktree_id.context("project has no worktrees")?;
 
-                let file_name =
-                    path.file_name().map(|name| name.to_string()).unwrap_or_else(|| path.display().to_string());
+                let file_name = path.file_name().map_or_else(|| path.display().to_string(), |name| name.to_string());
                 let display_name = format!("{file_name} @ {}", revision.display_short());
 
                 let activated_existing = workspace.update_in(cx, |workspace, window, cx| {

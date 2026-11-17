@@ -665,7 +665,7 @@ impl VisibleOnHover for ButtonLike {
 
 impl ParentElement for ButtonLike {
     fn extend(&mut self, elements: impl IntoIterator<Item = AnyElement>) {
-        self.children.extend(elements)
+        self.children.extend(elements);
     }
 }
 
@@ -752,14 +752,14 @@ impl RenderOnce for ButtonLike {
                             click_count: 1,
                         },
                     });
-                    (on_right_click)(&click_event, window, cx)
+                    (on_right_click)(&click_event, window, cx);
                 })
             })
             .when_some(self.on_click.filter(|_| !self.disabled), |this, on_click| {
                 this.on_mouse_down(MouseButton::Left, |_, window, _| window.prevent_default()).on_click(
                     move |event, window, cx| {
                         cx.stop_propagation();
-                        (on_click)(event, window, cx)
+                        (on_click)(event, window, cx);
                     },
                 )
             })

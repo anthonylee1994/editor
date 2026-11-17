@@ -300,14 +300,14 @@ mod tests {
             let mut expected = self.expected.iter().map(|(_, id)| *id).collect_vec();
 
             // Check next order
-            let forward_found = self.traverse_tab_map(|tab_map, prev| tab_map.next(prev));
+            let forward_found = self.traverse_tab_map(TabStopMap::next);
             assert_eq!(forward_found, expected);
 
             // Test overflow. Last to first
             assert_eq!(self.tab_map.next(forward_found.last()).map(|handle| handle.id), expected.first().copied());
 
             // Check previous order
-            let reversed_found = self.traverse_tab_map(|tab_map, prev| tab_map.prev(prev));
+            let reversed_found = self.traverse_tab_map(TabStopMap::prev);
             expected.reverse();
             assert_eq!(reversed_found, expected);
 
@@ -350,7 +350,7 @@ mod tests {
             .tab_group(2, |t| t.tab_stop(0, 2).tab_stop(1, 3))
             .tab_stop(3, 4)
             .tab_stop(4, 5)
-            .assert()
+            .assert();
     }
 
     #[test]

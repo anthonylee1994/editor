@@ -72,9 +72,8 @@ impl CreaseSnapshot {
                 Ordering::Equal => {
                     if item.crease.range().start.is_valid(snapshot) {
                         return Some(&item.crease);
-                    } else {
-                        cursor.next();
                     }
+                    cursor.next();
                 }
                 Ordering::Greater => break,
             }
@@ -236,7 +235,7 @@ impl CreaseMap {
                 let id = self.next_id;
                 self.next_id.0 += 1;
                 self.id_to_range.insert(id, crease_range);
-                new_creases.push(CreaseItem { crease, id }, snapshot);
+                new_creases.push(CreaseItem { id, crease }, snapshot);
                 new_ids.push(id);
             }
             new_creases.append(cursor.suffix(), snapshot);

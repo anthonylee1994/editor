@@ -38,11 +38,9 @@ impl SearchActionsRegistrar for PaneDivRegistrar {
         self.div = self.div.take().map(|div| {
             div.on_action(move |action: &A, window: &mut Window, cx: &mut App| {
                 let search_bar = pane.read(cx).toolbar().read(cx).item_of_type::<BufferSearchBar>();
-                let should_notify = search_bar
-                    .map(|search_bar| {
-                        search_bar.update(cx, |search_bar, cx| callback.execute(search_bar, action, window, cx))
-                    })
-                    .unwrap_or(false);
+                let should_notify = search_bar.is_some_and(|search_bar| {
+                    search_bar.update(cx, |search_bar, cx| callback.execute(search_bar, action, window, cx))
+                });
                 if should_notify {
                     pane.update(cx, |_, cx| cx.notify());
                 } else {
@@ -81,7 +79,7 @@ impl SearchActionsRegistrar for Workspace {
                             cx.propagate();
                         }
                     }
-                })
+                });
             });
         });
     }

@@ -96,9 +96,8 @@ impl LineLayout {
                 if glyph.position.x >= x {
                     if glyph.position.x - x < x - prev_x {
                         return glyph.index;
-                    } else {
-                        return prev_index;
                     }
+                    return prev_index;
                 }
                 prev_index = glyph.index;
                 prev_x = glyph.position.x;
@@ -108,9 +107,8 @@ impl LineLayout {
         if self.len == 1 {
             if x > self.width / 2. {
                 return 1;
-            } else {
-                return 0;
             }
+            return 0;
         }
 
         self.len
@@ -338,10 +336,15 @@ impl WrappedLineLayout {
     ///
     /// See also [`Self::closest_index_for_position`].
     pub fn index_for_position(&self, position: Point<Pixels>, line_height: Pixels) -> Result<usize, usize> {
-        self._index_for_position(position, line_height, false)
+        self.index_for_position_inner(position, line_height, false)
     }
 
-    fn _index_for_position(&self, position: Point<Pixels>, line_height: Pixels, closest: bool) -> Result<usize, usize> {
+    fn index_for_position_inner(
+        &self,
+        position: Point<Pixels>,
+        line_height: Pixels,
+        closest: bool,
+    ) -> Result<usize, usize> {
         let wrapped_line_ix = (position.y / line_height) as usize;
 
         let (wrapped_line_start_index, wrapped_line_start_x) = if wrapped_line_ix > 0 {
@@ -399,7 +402,6 @@ impl WrappedLineLayout {
                 break;
             } else if index > line_end_ix {
                 line_start_ix = line_end_ix;
-                continue;
             } else {
                 let line_start_x = self.unwrapped_layout.x_for_index(line_start_ix);
                 let x = self.unwrapped_layout.x_for_index(index) - line_start_x;
@@ -743,7 +745,7 @@ impl Eq for dyn AsCacheKeyRef + '_ {}
 
 impl Hash for dyn AsCacheKeyRef + '_ {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.as_cache_key_ref().hash(state)
+        self.as_cache_key_ref().hash(state);
     }
 }
 

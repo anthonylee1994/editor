@@ -96,7 +96,7 @@ fn parse_stash_index(input: &str) -> Result<usize> {
         .and_then(|s| s.strip_suffix('}'))
         .ok_or_else(|| anyhow!("Failed to extract index from stash reference"))?;
 
-    index_str.parse::<usize>().with_context(|| format!("Invalid stash index number: '{}'", index_str))
+    index_str.parse::<usize>().with_context(|| format!("Invalid stash index number: '{index_str}'"))
 }
 
 /// Parse stash message and extract branch information if present

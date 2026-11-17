@@ -153,25 +153,23 @@ impl Search {
         let buffers = self.buffer_store.read(cx);
         for handle in buffers.buffers() {
             let buffer = handle.read(cx);
-            if !buffers.is_searchable(&buffer.buffer_id())
+            if !buffers.is_searchable(buffer.buffer_id())
                 || buffer.file().is_some_and(|file| file.disk_state().is_deleted())
             {
                 continue;
-            } else if let Some(entry_id) = buffer.entry_id(cx) {
+            }
+            if let Some(entry_id) = buffer.entry_id(cx) {
                 open_buffers.insert(entry_id, buffer.as_rope().clone());
             } else if searches_all_unnamed_buffers {
-                match (&self.kind, buffer.file()) {
-                    (SearchKind::Local { .. }, Some(file)) => {
-                        self.limit = self.limit.saturating_sub(1);
-                        let sort_key = (file.worktree_id(cx).to_usize(), file.path().clone());
-                        entryless_file_buffers.push((sort_key, handle));
-                    }
-                    _ => {
-                        self.limit = self.limit.saturating_sub(1);
-                        unnamed_buffers.push(handle);
-                    }
+                if let (SearchKind::Local { .. }, Some(file)) = (&self.kind, buffer.file()) {
+                    self.limit = self.limit.saturating_sub(1);
+                    let sort_key = (file.worktree_id(cx).to_usize(), file.path().clone());
+                    entryless_file_buffers.push((sort_key, handle));
+                } else {
+                    self.limit = self.limit.saturating_sub(1);
+                    unnamed_buffers.push(handle);
                 }
-            };
+            }
         }
         unnamed_buffers.sort_by_cached_key(|buffer| path_key_sort_key(buffer, cx));
         entryless_file_buffers.sort_by(|(key_a, _), (key_b, _)| key_a.cmp(key_b));
@@ -367,7 +365,7 @@ impl Search {
                             for entry in snapshot.files(include_ignored, 0) {
                                 let (should_scan_tx, should_scan_rx) = oneshot::channel();
 
-                                let Ok(_) = tx
+                                let Ok(()) = tx
                                     .send(InputPath {
                                         entry: entry.clone(),
                                         snapshot: snapshot.clone(),
@@ -379,7 +377,7 @@ impl Search {
                                 };
                                 if results.send(should_scan_rx).await.is_err() {
                                     return;
-                                };
+                                }
                             }
                         })
                         .await;
@@ -404,7 +402,7 @@ impl Search {
             };
             if paths_for_full_scan.send((successful_path, line_hint)).await.is_err() {
                 return;
-            };
+            }
             matched += 1;
             if matched >= limit {
                 break;
@@ -629,7 +627,7 @@ impl RequestHandler<'_> {
                 snapshot.point_to_offset(Point::new(line_number, 0))
             }
             MatchPositionHint::ByteOffset(offset) => offset,
-            _ => 0,
+            MatchPositionHint::Line(_) => 0,
         };
 
         let subrange = (range_offset > 0).then(|| range_offset..snapshot.len());
@@ -699,13 +697,12 @@ impl RequestHandler<'_> {
         encoding: Option<&'static Encoding>,
     ) -> anyhow::Result<Option<MatchPositionHint>> {
         file.rewind()?;
-        let encoding = match encoding {
-            Some(encoding) => encoding,
-            None => {
-                let encoding = detect_encoding(file).await?;
-                file.rewind()?;
-                encoding
-            }
+        let encoding = if let Some(encoding) = encoding {
+            encoding
+        } else {
+            let encoding = detect_encoding(file).await?;
+            file.rewind()?;
+            encoding
         };
         self.query.detect(&mut DecodingReader::new(file, encoding)).await
     }
@@ -869,9 +866,8 @@ impl PathInclusionMatcher {
                     return false;
                 }
             }
-        } else {
-            false
         }
+        false
     }
 }
 
@@ -921,31 +917,28 @@ impl<T: 'static + Send> AdaptiveBatcher<T> {
             loop {
                 select_biased! {
                     item = rx.recv().fuse() => {
-                        match item {
-                            Ok(new_item) => {
-                                let is_fresh_batch = current_batch.is_empty();
-                                items_produced_so_far += 1;
-                                current_batch.push(new_item);
-                                if is_fresh_batch {
-                                    // Chosen arbitrarily based on some experimentation with plots.
-                                    let desired_duration_ms = (20 * (items_produced_so_far + 2).ilog2() as u64).min(300);
-                                    let desired_duration = Duration::from_millis(desired_duration_ms);
-                                    let _executor = executor.clone();
-                                    let _flush = flush_batch_tx.clone();
-                                    let new_timer = executor.spawn_with_priority(Priority::High, async move {
-                                        _executor.timer(desired_duration).await;
-                                        _ = _flush.send(false).await;
-                                    });
-                                    _schedule_flush_after_delay = Some(new_timer);
-                                }
+                        if let Ok(new_item) = item {
+                            let is_fresh_batch = current_batch.is_empty();
+                            items_produced_so_far += 1;
+                            current_batch.push(new_item);
+                            if is_fresh_batch {
+                                // Chosen arbitrarily based on some experimentation with plots.
+                                let desired_duration_ms = (20 * (items_produced_so_far + 2).ilog2() as u64).min(300);
+                                let desired_duration = Duration::from_millis(desired_duration_ms);
+                                let _executor = executor.clone();
+                                let _flush = flush_batch_tx.clone();
+                                let new_timer = executor.spawn_with_priority(Priority::High, async move {
+                                    _executor.timer(desired_duration).await;
+                                    _ = _flush.send(false).await;
+                                });
+                                _schedule_flush_after_delay = Some(new_timer);
                             }
-                            Err(_) => {
-                                // Items channel closed - send any remaining batch before exiting
-                                if !current_batch.is_empty() {
-                                    _ = batch_tx.send(mem::take(&mut current_batch)).await;
-                                }
-                                break;
+                        } else {
+                            // Items channel closed - send any remaining batch before exiting
+                            if !current_batch.is_empty() {
+                                _ = batch_tx.send(mem::take(&mut current_batch)).await;
                             }
+                            break;
                         }
                     }
                     should_break_afterwards = flush.next() => {
@@ -973,7 +966,7 @@ impl<T: 'static + Send> AdaptiveBatcher<T> {
                 }
             }
         });
-        let this = Self { items, _batch_task, flush_batch };
+        let this = Self { items, flush_batch, _batch_task };
         (this, batch_rx)
     }
 

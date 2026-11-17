@@ -76,7 +76,7 @@ impl Editor {
         self.completion_tasks.clear();
 
         let multibuffer_point = match &action.deployed_from {
-            Some(CodeActionSource::Indicator(row)) | Some(CodeActionSource::RunMenu(row)) => {
+            Some(CodeActionSource::Indicator(row) | CodeActionSource::RunMenu(row)) => {
                 DisplayPoint::new(*row, 0).to_point(&snapshot)
             }
             _ => self.selections.newest::<Point>(&snapshot.display_snapshot).head(),
@@ -94,32 +94,29 @@ impl Editor {
         let tasks = self.runnables.runnables((buffer_id, buffer_row)).map(|t| Arc::new(t.to_owned()));
 
         let project = self.project.clone();
-        let runnable_task = match deployed_from {
-            Some(CodeActionSource::Indicator(_)) => Task::ready(Ok(Option::default())),
-            _ => {
-                let mut task_context_task = Task::ready(Ok(None));
-                let workspace = self.workspace().map(|w| w.downgrade());
-                if let Some(tasks) = &tasks
-                    && let Some(project) = project
-                {
-                    task_context_task = Self::build_tasks_context(&project, &buffer, buffer_row, tasks, cx);
-                }
-
-                cx.spawn_in(window, async move |_, cx| {
-                    let task_context = match workspace {
-                        Some(ws) => task_context_task.await.notify_workspace_async_err(ws, cx).flatten(),
-                        None => task_context_task.await.ok().flatten(),
-                    };
-
-                    let resolved_tasks = tasks.zip(task_context).map(|(tasks, task_context)| ResolvedTasks {
-                        templates: tasks.resolve(&task_context).collect(),
-                        position: snapshot
-                            .buffer_snapshot()
-                            .anchor_before(Point::new(multibuffer_point.row, tasks.column)),
-                    });
-                    anyhow::Ok(resolved_tasks)
-                })
+        let runnable_task = if let Some(CodeActionSource::Indicator(_)) = deployed_from {
+            Task::ready(Ok(Option::default()))
+        } else {
+            let mut task_context_task = Task::ready(Ok(None));
+            let workspace = self.workspace().map(|w| w.downgrade());
+            if let Some(tasks) = &tasks
+                && let Some(project) = project
+            {
+                task_context_task = Self::build_tasks_context(&project, &buffer, buffer_row, tasks, cx);
             }
+
+            cx.spawn_in(window, async move |_, cx| {
+                let task_context = match workspace {
+                    Some(ws) => task_context_task.await.notify_workspace_async_err(ws, cx).flatten(),
+                    None => task_context_task.await.ok().flatten(),
+                };
+
+                let resolved_tasks = tasks.zip(task_context).map(|(tasks, task_context)| ResolvedTasks {
+                    templates: tasks.resolve(&task_context).collect(),
+                    position: snapshot.buffer_snapshot().anchor_before(Point::new(multibuffer_point.row, tasks.column)),
+                });
+                anyhow::Ok(resolved_tasks)
+            })
         };
 
         let toggle_task = cx.spawn_in(window, async move |editor, cx| {
@@ -187,7 +184,7 @@ impl Editor {
                 },
                 Err(e) => log::error!("failed to toggle code actions: {e:#}"),
             }
-        })
+        });
     }
 
     pub fn confirm_code_action(
@@ -200,16 +197,14 @@ impl Editor {
             return None;
         }
 
-        let actions_menu = if let CodeContextMenu::CodeActions(menu) = self.hide_context_menu(cx)? {
-            menu
-        } else {
+        let CodeContextMenu::CodeActions(actions_menu) = self.hide_context_menu(cx)? else {
             return None;
         };
 
         let action_ix = action.item_ix.unwrap_or(actions_menu.selected_item);
         let action = actions_menu.actions.get(action_ix)?;
         let title = action.label();
-        let runnable_task_key = self.runnable_task_key_for_source(&actions_menu.deployed_from, window, cx);
+        let runnable_task_key = self.runnable_task_key_for_source(actions_menu.deployed_from.as_ref(), window, cx);
         let buffer = actions_menu.buffer;
         // Editors outside a workspace (e.g. the commit message) can still apply
         // in-buffer actions such as spell check suggestions.
@@ -256,7 +251,7 @@ impl Editor {
                     let Some(workspace) = workspace else {
                         return Ok(());
                     };
-                    Self::open_project_transaction(&editor, workspace, project_transaction, title, cx).await
+                    Self::open_project_transaction(&editor, workspace, project_transaction, title, cx)
                 }))
             }
         }
@@ -264,7 +259,7 @@ impl Editor {
 
     fn runnable_task_key_for_source(
         &self,
-        source: &Option<CodeActionSource>,
+        source: Option<&CodeActionSource>,
         window: &Window,
         cx: &mut Context<Self>,
     ) -> Option<(BufferId, BufferRow)> {

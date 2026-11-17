@@ -119,7 +119,7 @@ impl Chunk {
     pub fn append(&mut self, slice: ChunkSlice) {
         if slice.is_empty() {
             return;
-        };
+        }
 
         let base_ix = self.text.len();
         self.chars |= slice.chars << base_ix;
@@ -211,10 +211,9 @@ impl Chunk {
         }
         if PANIC {
             panic_char_boundary(&self.text, offset);
-        } else {
-            log_err_char_boundary(&self.text, offset);
-            false
         }
+        log_err_char_boundary(&self.text, offset);
+        false
     }
 }
 
@@ -420,10 +419,9 @@ impl<'a> ChunkSlice<'a> {
         }
         if PANIC {
             panic_char_boundary(self.text, offset);
-        } else {
-            log_err_char_boundary(self.text, offset);
-            false
         }
+        log_err_char_boundary(self.text, offset);
+        false
     }
 
     pub const fn floor_char_boundary(&self, index: usize) -> usize {
@@ -505,7 +503,7 @@ impl<'a> ChunkSlice<'a> {
                     offset -= 1;
                 }
                 if !clip {
-                    log::error!("point {:?} is within character in chunk {:?}", point, self.text,);
+                    log::error!("point {:?} is within character in chunk {:?}", point, self.text);
                 }
             }
         }
@@ -672,15 +670,13 @@ const fn nth_set_bit(v: u128, n: usize) -> usize {
 #[inline(never)]
 #[track_caller]
 fn panic_char_boundary(text: &str, offset: usize) -> ! {
-    if offset > text.len() {
-        panic!("byte index {} is out of bounds of `{:?}` (length: {})", offset, text, text.len());
-    }
+    assert!(offset <= text.len(), "byte index {} is out of bounds of `{:?}` (length: {})", offset, text, text.len());
     // find the character
     let char_start = text.floor_char_boundary(offset);
     // `char_start` must be less than len and a char boundary
     let ch = text.get(char_start..).unwrap().chars().next().unwrap();
     let char_range = char_start..char_start + ch.len_utf8();
-    panic!("byte index {} is not a char boundary; it is inside {:?} (bytes {:?})", offset, ch, char_range,);
+    panic!("byte index {offset} is not a char boundary; it is inside {ch:?} (bytes {char_range:?})");
 }
 
 #[cold]
@@ -696,7 +692,7 @@ fn log_err_char_boundary(text: &str, offset: usize) {
     // `char_start` must be less than len and a char boundary
     let ch = text.get(char_start..).unwrap().chars().next().unwrap();
     let char_range = char_start..char_start + ch.len_utf8();
-    log::error!("byte index {} is not a char boundary; it is inside {:?} (bytes {:?})", offset, ch, char_range,);
+    log::error!("byte index {offset} is not a char boundary; it is inside {ch:?} (bytes {char_range:?})");
 }
 
 #[inline(always)]

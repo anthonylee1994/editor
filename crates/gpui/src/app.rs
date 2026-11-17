@@ -722,7 +722,7 @@ impl App {
                 .map(|(location, _)| location.to_string())
                 .collect::<Vec<_>>();
             log::error!("timed out after {SHUTDOWN_TIMEOUT:?} waiting on app_will_quit handlers: {}", stuck.join(", "));
-        };
+        }
 
         self.quitting = false;
     }
@@ -1152,7 +1152,7 @@ impl App {
 
     /// Writes data to the platform clipboard.
     pub fn write_to_clipboard(&self, item: ClipboardItem) {
-        self.platform.write_to_clipboard(item)
+        self.platform.write_to_clipboard(item);
     }
 
     /// Reads data from macOS's "Find" pasteboard.
@@ -1170,7 +1170,7 @@ impl App {
     ///
     /// <https://developer.apple.com/documentation/appkit/nspasteboard/name-swift.struct/find>
     pub fn write_to_find_pasteboard(&self, item: ClipboardItem) {
-        self.platform.write_to_find_pasteboard(item)
+        self.platform.write_to_find_pasteboard(item);
     }
 
     /// Directs the platform's default browser to open the given URL.
@@ -1208,12 +1208,12 @@ impl App {
 
     /// Reveals the specified path at the platform level, such as in Finder on macOS.
     pub fn reveal_path(&self, path: &Path) {
-        self.platform.reveal_path(path)
+        self.platform.reveal_path(path);
     }
 
     /// Opens the specified path with the system's default application.
     pub fn open_with_system(&self, path: &Path) {
-        self.platform.open_with_system(path)
+        self.platform.open_with_system(path);
     }
 
     /// Returns whether the user has configured scrollbars to auto-hide at the platform level.
@@ -1254,7 +1254,7 @@ impl App {
                 return;
             }
             _ => {}
-        };
+        }
 
         self.pending_effects.push_back(effect);
     }
@@ -1400,7 +1400,7 @@ impl App {
                 })
                 .expect("All windows should be off the stack when flushing effects");
             } else {
-                (observer)(entity.clone(), &mut None, self)
+                (observer)(entity.clone(), &mut None, self);
             }
             true
         });
@@ -1456,9 +1456,7 @@ impl App {
 
     /// Obtains a reference to the executor, which can be used to spawn futures.
     pub fn foreground_executor(&self) -> &ForegroundExecutor {
-        if self.quitting {
-            panic!("Can't spawn on main thread after on_app_quit")
-        };
+        assert!(!self.quitting, "Can't spawn on main thread after on_app_quit");
         &self.foreground_executor
     }
 
@@ -1485,8 +1483,8 @@ impl App {
         R: 'static,
     {
         if self.quitting {
-            log::error!("Can't spawn on main thread after on_app_quit")
-        };
+            log::error!("Can't spawn on main thread after on_app_quit");
+        }
 
         let mut cx = self.to_async();
 
@@ -1550,10 +1548,10 @@ impl App {
     /// Access the global of the given type. Panics if a global for that type has not been assigned.
     #[track_caller]
     pub fn global<G: Global>(&self) -> &G {
-        self.globals_by_type
-            .get(&TypeId::of::<G>())
-            .map(|any_state| any_state.downcast_ref::<G>().unwrap())
-            .unwrap_or_else(|| panic!("no state of type {} exists", type_name::<G>()))
+        self.globals_by_type.get(&TypeId::of::<G>()).map_or_else(
+            || panic!("no state of type {} exists", type_name::<G>()),
+            |any_state| any_state.downcast_ref::<G>().unwrap(),
+        )
     }
 
     /// Access the global of the given type if a value has been assigned.
@@ -1647,7 +1645,7 @@ impl App {
                 any_entity
                     .downcast::<T>()
                     .unwrap()
-                    .update(cx, |entity_state, cx| on_new(entity_state, window.as_deref_mut(), cx))
+                    .update(cx, |entity_state, cx| on_new(entity_state, window.as_deref_mut(), cx));
             }),
         )
     }
@@ -1666,7 +1664,7 @@ impl App {
             handle.entity_id(),
             Box::new(move |entity, cx| {
                 let entity = entity.downcast_mut().expect("invalid entity type");
-                on_release(entity, cx)
+                on_release(entity, cx);
             }),
         )
     }
@@ -1760,7 +1758,7 @@ impl App {
         self.global_action_listeners.entry(TypeId::of::<A>()).or_default().push(Rc::new(move |action, phase, cx| {
             if phase == DispatchPhase::Bubble {
                 let action = action.downcast_ref().unwrap();
-                listener(action, cx)
+                listener(action, cx);
             }
         }));
         self
@@ -1865,7 +1863,7 @@ impl App {
 
     /// Sets the right click menu for the app icon in the dock
     pub fn set_dock_menu(&self, menus: Vec<MenuItem>) {
-        self.platform.set_dock_menu(menus, &self.keymap.borrow())
+        self.platform.set_dock_menu(menus, &self.keymap.borrow());
     }
 
     /// Adds given path to the bottom of the list of recent paths for the application.
@@ -2144,8 +2142,8 @@ impl App {
     #[track_caller]
     fn prepare_spawn(&self) -> AsyncApp {
         if self.quitting {
-            log::error!("Can't spawn on main thread after on_app_quit")
-        };
+            log::error!("Can't spawn on main thread after on_app_quit");
+        }
         self.to_async()
     }
 }
@@ -2280,14 +2278,14 @@ pub(crate) enum Effect {
 impl Debug for Effect {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Effect::Notify { emitter } => write!(f, "Notify({})", emitter),
-            Effect::Emit { emitter, .. } => write!(f, "Emit({:?})", emitter),
+            Effect::Notify { emitter } => write!(f, "Notify({emitter})"),
+            Effect::Emit { emitter, .. } => write!(f, "Emit({emitter:?})"),
             Effect::RefreshWindows => write!(f, "RefreshWindows"),
             Effect::NotifyGlobalObservers { global_type } => {
-                write!(f, "NotifyGlobalObservers({:?})", global_type)
+                write!(f, "NotifyGlobalObservers({global_type:?})")
             }
             Effect::Defer { .. } => write!(f, "Defer(..)"),
-            Effect::EntityCreated { entity, .. } => write!(f, "EntityCreated({:?})", entity),
+            Effect::EntityCreated { entity, .. } => write!(f, "EntityCreated({entity:?})"),
         }
     }
 }

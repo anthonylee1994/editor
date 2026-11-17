@@ -135,14 +135,13 @@ fn render_key(
     style: KeyBindingStyle,
 ) -> AnyElement {
     let key_icon = icon_for_key(key, platform_style);
-    match key_icon {
-        Some(icon) => KeyIcon::new(icon, color).size(size).into_any_element(),
-        None => {
-            let key = capitalize(key);
-            match style {
-                KeyBindingStyle::Default => Key::new(&key, color).size(size).into_any_element(),
-                KeyBindingStyle::Label => LabelKey::new(&key, color).size(size).into_any_element(),
-            }
+    if let Some(icon) = key_icon {
+        KeyIcon::new(icon, color).size(size).into_any_element()
+    } else {
+        let key = capitalize(key);
+        match style {
+            KeyBindingStyle::Default => Key::new(&key, color).size(size).into_any_element(),
+            KeyBindingStyle::Label => LabelKey::new(&key, color).size(size).into_any_element(),
         }
     }
 }
@@ -337,7 +336,7 @@ struct LabelKey {
 
 impl RenderOnce for LabelKey {
     fn render(self, window: &mut Window, _cx: &mut App) -> impl IntoElement {
-        let size = self.size.map(|size| LabelSize::Custom(size.to_rems(window.rem_size()))).unwrap_or_default();
+        let size = self.size.map_or_default(|size| LabelSize::Custom(size.to_rems(window.rem_size())));
 
         Label::new(self.key).size(size).color(self.color.unwrap_or(Color::Default))
     }
@@ -383,11 +382,11 @@ impl KeyIcon {
 }
 
 pub fn text_for_keystroke(modifiers: &Modifiers, key: &str, _cx: &App) -> String {
-    keystroke_text(modifiers, key, PlatformStyle::platform())
+    keystroke_text(*modifiers, key, PlatformStyle::platform())
 }
 
 /// Returns a textual representation of the given [`Keystroke`].
-fn keystroke_text(modifiers: &Modifiers, key: &str, platform_style: PlatformStyle) -> String {
+fn keystroke_text(modifiers: Modifiers, key: &str, platform_style: PlatformStyle) -> String {
     let mut text = String::new();
     let delimiter = '-';
 

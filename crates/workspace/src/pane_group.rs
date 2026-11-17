@@ -218,7 +218,7 @@ impl PaneGroup {
             Member::Axis(axis) => {
                 let _ = axis.resize(pane, direction, amount, bounds);
             }
-        };
+        }
         self.mark_positions(cx);
     }
 
@@ -228,7 +228,7 @@ impl PaneGroup {
             Member::Axis(axis) => {
                 axis.reset_pane_sizes();
             }
-        };
+        }
         self.mark_positions(cx);
     }
 
@@ -236,7 +236,7 @@ impl PaneGroup {
         match &mut self.root {
             Member::Pane(_) => {}
             Member::Axis(axis) => axis.swap(from, to),
-        };
+        }
         self.mark_positions(cx);
     }
 
@@ -455,7 +455,7 @@ impl Member {
                         .relative()
                         .flex_1()
                         .size_full()
-                        .when(is_maximized, |this| this.p_2())
+                        .when(is_maximized, gpui::Styled::p_2)
                         .child(pane)
                         .into_any(),
                     contains_active_pane: is_active,
@@ -635,9 +635,8 @@ impl PaneAxis {
                         return Some(true); // pane found and operations already done
                     } else if self.axis != axis {
                         return Some(false); // pane found but this is not the correct axis direction
-                    } else {
-                        found_axis_index = Some(i); // pane found and this is correct direction
                     }
+                    found_axis_index = Some(i); // pane found and this is correct direction
                 }
             }
             found_axis_index?; // no pane found
@@ -704,7 +703,7 @@ impl PaneAxis {
                     if pane == from {
                         *member = Member::Pane(to.clone());
                     } else if pane == to {
-                        *member = Member::Pane(from.clone())
+                        *member = Member::Pane(from.clone());
                     }
                 }
             }
@@ -1171,7 +1170,7 @@ mod element {
                     element: child,
                     handle: None,
                     card_bounds,
-                })
+                });
             }
 
             for (ix, child_layout) in layout.children.iter_mut().enumerate() {
@@ -1187,7 +1186,7 @@ mod element {
             &mut self,
             _id: Option<&GlobalElementId>,
             bounds: gpui::Bounds<prelude::Pixels>,
-            _: &mut Self::RequestLayoutState,
+            (): &mut Self::RequestLayoutState,
             layout: &mut Self::PrepaintState,
             window: &mut Window,
             cx: &mut App,
@@ -1258,7 +1257,7 @@ mod element {
                                     workspace.clone(),
                                     window,
                                     cx,
-                                )
+                                );
                             }
                         }
                     });
@@ -1278,7 +1277,7 @@ mod element {
 
     impl ParentElement for PaneAxisElement {
         fn extend(&mut self, elements: impl IntoIterator<Item = AnyElement>) {
-            self.children.extend(elements)
+            self.children.extend(elements);
         }
     }
 }

@@ -436,9 +436,9 @@ impl<D: PickerDelegate> Picker<D> {
             let focus_handle = this.focus_handle(cx);
             workspace::register_reopenable_picker(&focus_handle, cx);
         }
-        this.update_matches("".to_string(), window, cx);
+        this.update_matches(String::new(), window, cx);
         // give the delegate 4ms to render the first set of suggestions.
-        this.delegate.finalize_update_matches("".to_string(), Duration::from_millis(4), window, cx);
+        this.delegate.finalize_update_matches(String::new(), Duration::from_millis(4), window, cx);
         this
     }
 
@@ -706,7 +706,7 @@ impl<D: PickerDelegate> Picker<D> {
         if self.pending_update_matches.is_some()
             && !self.delegate.finalize_update_matches(self.query(cx), Duration::from_millis(16), window, cx)
         {
-            self.confirm_on_update = Some(false)
+            self.confirm_on_update = Some(false);
         } else {
             self.pending_update_matches.take();
             self.do_confirm(false, window, cx);
@@ -717,7 +717,7 @@ impl<D: PickerDelegate> Picker<D> {
         if self.pending_update_matches.is_some()
             && !self.delegate.finalize_update_matches(self.query(cx), Duration::from_millis(16), window, cx)
         {
-            self.confirm_on_update = Some(true)
+            self.confirm_on_update = Some(true);
         } else {
             self.do_confirm(true, window, cx);
         }
@@ -731,14 +731,14 @@ impl<D: PickerDelegate> Picker<D> {
         if let Some(new_query) = self.delegate.confirm_completion(self.query(cx), window, cx) {
             self.set_query(&new_query, window, cx);
         } else {
-            cx.propagate()
+            cx.propagate();
         }
     }
     fn select_child(&mut self, _: &menu::SelectChild, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(new_query) = self.delegate.select_child(window, cx) {
             self.set_query(&new_query, window, cx);
         } else {
-            cx.propagate()
+            cx.propagate();
         }
     }
 
@@ -746,7 +746,7 @@ impl<D: PickerDelegate> Picker<D> {
         if let Some(new_query) = self.delegate.select_parent(window, cx) {
             self.set_query(&new_query, window, cx);
         } else {
-            cx.propagate()
+            cx.propagate();
         }
     }
 
@@ -774,11 +774,11 @@ impl<D: PickerDelegate> Picker<D> {
             self.set_query(&update_query, window, cx);
             self.set_selected_index(0, Some(Direction::Down), false, window, cx);
         } else {
-            self.delegate.confirm(secondary, window, cx)
+            self.delegate.confirm(secondary, window, cx);
         }
     }
 
-    fn on_input_editor_event(&mut self, event: &ErasedEditorEvent, window: &mut Window, cx: &mut Context<Self>) {
+    fn on_input_editor_event(&mut self, event: ErasedEditorEvent, window: &mut Window, cx: &mut Context<Self>) {
         let Head::Editor(editor) = &self.head else {
             panic!("unexpected call");
         };
@@ -892,7 +892,7 @@ impl<D: PickerDelegate> Picker<D> {
     pub fn query(&self, cx: &App) -> String {
         match &self.head {
             Head::Editor(editor) => editor.text(cx),
-            Head::Empty(_) => "".to_string(),
+            Head::Empty(_) => String::new(),
         }
     }
 
@@ -945,7 +945,7 @@ impl<D: PickerDelegate> Picker<D> {
 
         div()
             .id(("item", ix))
-            .when(selectable, |this| this.cursor_pointer())
+            .when(selectable, gpui::Styled::cursor_pointer)
             .when(use_fallback_indicator, |this| this.hover(|s| s.bg(cx.theme().colors().ghost_element_hover)))
             .when(multi_select_active && selectable, |this| {
                 this.tooltip(Tooltip::element(move |_window, cx| {
@@ -985,7 +985,7 @@ impl<D: PickerDelegate> Picker<D> {
                 })
             })
             .on_click(cx.listener(move |this, event: &ClickEvent, window, cx| {
-                this.handle_click(ix, event.modifiers().secondary(), window, cx)
+                this.handle_click(ix, event.modifiers().secondary(), window, cx);
             }))
             // As of this writing, GPUI intercepts `ctrl-[mouse-event]`s on macOS
             // and produces right mouse button events. This matches platforms norms
@@ -996,7 +996,7 @@ impl<D: PickerDelegate> Picker<D> {
                 cx.listener(move |this, event: &MouseUpEvent, window, cx| {
                     // We specifically want to use the platform key here, as
                     // ctrl will already be held down for the tab switcher.
-                    this.handle_click(ix, event.modifiers.platform, window, cx)
+                    this.handle_click(ix, event.modifiers.platform, window, cx);
                 }),
             )
             .when(self.delegate.select_on_hover(), |this| {

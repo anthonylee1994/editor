@@ -196,10 +196,10 @@ impl Keymap {
                 continue;
             };
 
-            if !pending {
-                matched_bindings.push((depth, BindingIndex(ix), binding));
-            } else {
+            if pending {
                 pending_bindings.push((BindingIndex(ix), binding));
+            } else {
+                matched_bindings.push((depth, BindingIndex(ix), binding));
             }
         }
 

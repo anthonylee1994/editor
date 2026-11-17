@@ -47,9 +47,10 @@ fn base_dir(custom_root: Option<&PathBuf>, name: &str, xdg_env: &str, xdg_fallba
 /// Panics if called after any of those directories was resolved, or if the
 /// directory cannot be created or canonicalized.
 pub fn set_custom_root_dir(dir: &str) -> &'static PathBuf {
-    if DATA_DIR.get().is_some() || STATE_DIR.get().is_some() || TEMP_DIR.get().is_some() {
-        panic!("set_custom_root_dir called after data_dir, state_dir or temp_dir was resolved");
-    }
+    assert!(
+        !(DATA_DIR.get().is_some() || STATE_DIR.get().is_some() || TEMP_DIR.get().is_some()),
+        "set_custom_root_dir called after data_dir, state_dir or temp_dir was resolved"
+    );
     CUSTOM_ROOT_DIR.get_or_init(|| {
         let path = PathBuf::from(dir);
         fs::create_dir_all(&path).expect("failed to create custom root directory");
@@ -87,13 +88,13 @@ pub fn logs_dir() -> &'static PathBuf {
 /// Returns the path to the `ed.log` file.
 pub fn log_file() -> &'static PathBuf {
     static LOG_FILE: OnceLock<PathBuf> = OnceLock::new();
-    LOG_FILE.get_or_init(|| logs_dir().join(format!("{}.log", APP_NAME)))
+    LOG_FILE.get_or_init(|| logs_dir().join(format!("{APP_NAME}.log")))
 }
 
 /// Returns the path to the `ed.log.old` file.
 pub fn old_log_file() -> &'static PathBuf {
     static OLD_LOG_FILE: OnceLock<PathBuf> = OnceLock::new();
-    OLD_LOG_FILE.get_or_init(|| logs_dir().join(format!("{}.log.old", APP_NAME)))
+    OLD_LOG_FILE.get_or_init(|| logs_dir().join(format!("{APP_NAME}.log.old")))
 }
 
 /// Git's global config files: `~/.gitconfig` and `$XDG_CONFIG_HOME/git/config`
@@ -104,7 +105,7 @@ pub fn git_global_config_files() -> [PathBuf; 2] {
 
 fn git_global_config_files_for(home: &Path, xdg_config_home: Option<OsString>) -> [PathBuf; 2] {
     let xdg_config_home =
-        xdg_config_home.filter(|dir| !dir.is_empty()).map(PathBuf::from).unwrap_or_else(|| home.join(".config"));
+        xdg_config_home.filter(|dir| !dir.is_empty()).map_or_else(|| home.join(".config"), PathBuf::from);
     [home.join(".gitconfig"), xdg_config_home.join("git").join("config")]
 }
 

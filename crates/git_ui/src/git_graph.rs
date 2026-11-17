@@ -268,8 +268,8 @@ enum QueryState {
 impl QueryState {
     fn next_state(&mut self) {
         if let Self::Confirmed((query, _)) = self {
-            *self = Self::Pending(mem::take(query))
-        };
+            *self = Self::Pending(mem::take(query));
+        }
     }
 }
 
@@ -430,7 +430,9 @@ impl LaneState {
                     segments: {
                         match segments.last_mut() {
                             Some(CommitLineSegment::Straight { to_row }) if *to_row == usize::MAX => {
-                                if final_destination != lane_column {
+                                if final_destination == lane_column {
+                                    *to_row = ending_row;
+                                } else {
                                     *to_row = ending_row - 1;
 
                                     let curved_line = CommitLineSegment::Curve {
@@ -445,8 +447,6 @@ impl LaneState {
                                     } else {
                                         segments.push(curved_line);
                                     }
-                                } else {
-                                    *to_row = ending_row;
                                 }
                             }
                             Some(CommitLineSegment::Curve { on_row, to_column, curve_kind })
@@ -458,15 +458,15 @@ impl LaneState {
                                 if matches!(curve_kind, CurveKind::Merge) {
                                     *on_row = starting_row + 1;
                                     if *on_row < ending_row {
-                                        if *to_column != final_destination {
+                                        if *to_column == final_destination {
+                                            segments.push(CommitLineSegment::Straight { to_row: ending_row });
+                                        } else {
                                             segments.push(CommitLineSegment::Straight { to_row: ending_row - 1 });
                                             segments.push(CommitLineSegment::Curve {
                                                 to_column: final_destination,
                                                 on_row: ending_row,
                                                 curve_kind: CurveKind::Checkout,
                                             });
-                                        } else {
-                                            segments.push(CommitLineSegment::Straight { to_row: ending_row });
                                         }
                                     } else if *to_column != final_destination {
                                         segments.push(CommitLineSegment::Curve {
@@ -489,15 +489,15 @@ impl LaneState {
                             }
                             Some(CommitLineSegment::Curve { on_row, to_column, .. }) => {
                                 if *on_row < ending_row {
-                                    if *to_column != final_destination {
+                                    if *to_column == final_destination {
+                                        segments.push(CommitLineSegment::Straight { to_row: ending_row });
+                                    } else {
                                         segments.push(CommitLineSegment::Straight { to_row: ending_row - 1 });
                                         segments.push(CommitLineSegment::Curve {
                                             to_column: final_destination,
                                             on_row: ending_row,
                                             curve_kind: CurveKind::Checkout,
                                         });
-                                    } else {
-                                        segments.push(CommitLineSegment::Straight { to_row: ending_row });
                                     }
                                 } else if *to_column != final_destination {
                                     segments.push(CommitLineSegment::Curve {
@@ -1602,9 +1602,8 @@ impl GitGraph {
 
     /// Checks whether a ref name from git's `%D` decoration
     ///  format refers to the currently checked-out branch.
-    pub(crate) fn is_head_ref(ref_name: &str, head_branch_name: &Option<SharedString>) -> bool {
+    pub(crate) fn is_head_ref(ref_name: &str, head_branch_name: Option<&SharedString>) -> bool {
         head_branch_name
-            .as_ref()
             .is_some_and(|head| ref_name == head.as_ref() || ref_name.strip_prefix("HEAD -> ") == Some(head.as_ref()))
     }
 
@@ -1681,7 +1680,7 @@ impl GitGraph {
     fn render_dashed_connector(color: Hsla) -> AnyElement {
         gpui::canvas(
             move |_bounds, _window, _cx| {},
-            move |bounds: Bounds<Pixels>, _: (), window: &mut Window, _cx: &mut App| {
+            move |bounds: Bounds<Pixels>, (): (), window: &mut Window, _cx: &mut App| {
                 let y = bounds.origin.y + bounds.size.height / 2.0;
                 paint_dashed_connector(bounds.origin.x, bounds.origin.x + bounds.size.width, y, color, window);
             },
@@ -2098,7 +2097,7 @@ impl GitGraph {
             return;
         }
 
-        let mut next_selection = self.search_state.selected_index.map(|index| index + 1).unwrap_or_default();
+        let mut next_selection = self.search_state.selected_index.map_or_default(|index| index + 1);
 
         if next_selection >= self.search_state.matches.len() {
             next_selection = 0;
@@ -2474,7 +2473,7 @@ impl GitGraph {
                             .child(
                                 Label::new(format!(
                                     "{}/{}",
-                                    self.search_state.selected_index.map(|index| index + 1).unwrap_or(0),
+                                    self.search_state.selected_index.map_or(0, |index| index + 1),
                                     self.search_state.matches.len()
                                 ))
                                 .size(LabelSize::Small)
@@ -2649,8 +2648,7 @@ impl GitGraph {
             .0
             .borrow()
             .last_item_size
-            .map(|size| size.item.height)
-            .unwrap_or_else(|| window.viewport_size().height);
+            .map_or_else(|| window.viewport_size().height, |size| size.item.height);
         let loaded_commit_count = self.graph_data.commits.len();
 
         let content_height = row_height * loaded_commit_count;
@@ -2686,7 +2684,7 @@ impl GitGraph {
 
         gpui::canvas(
             move |_bounds, _window, _cx| {},
-            move |bounds: Bounds<Pixels>, _: (), window: &mut Window, cx: &mut App| {
+            move |bounds: Bounds<Pixels>, (): (), window: &mut Window, cx: &mut App| {
                 graph_canvas_bounds.set(Some(bounds));
 
                 window.paint_layer(bounds, |window| {
@@ -2890,7 +2888,7 @@ impl GitGraph {
 
                         draw_commit_circle(commit_x, row_y_center, row_color, node_background, window);
                     }
-                })
+                });
             },
         )
         .w_full()
@@ -2911,8 +2909,7 @@ impl GitGraph {
             .0
             .borrow()
             .last_item_size
-            .map(|size| size.item.height)
-            .unwrap_or_else(|| window.viewport_size().height);
+            .map_or_else(|| window.viewport_size().height, |size| size.item.height);
         let loaded_commit_count = self.graph_data.commits.len();
 
         let content_height = row_height * loaded_commit_count;
@@ -2978,7 +2975,7 @@ impl GitGraph {
             // plus a "+N" counter, so the gutter stays legible instead of
             // cramming several truncated chips together.
             let (primary_name, is_head) =
-                match ref_names.iter().find(|name| Self::is_head_ref(name.as_ref(), &head_branch_name)) {
+                match ref_names.iter().find(|name| Self::is_head_ref(name.as_ref(), head_branch_name.as_ref())) {
                     Some(head_ref) => (head_ref.clone(), true),
                     None => match ref_names.first() {
                         Some(first) => (first.clone(), false),
@@ -3137,14 +3134,11 @@ impl GitGraph {
         match self.graph_data.max_commit_count {
             AllCommitCount::FullyLoaded(count) => (count, false),
             AllCommitCount::Loading(count) => {
-                let is_loading = self
-                    .get_repository(cx)
-                    .map(|repository| {
-                        repository.update(cx, |repository, cx| {
-                            repository.graph_data(self.data_source(), self.log_order, 0..0, cx).is_loading
-                        })
+                let is_loading = self.get_repository(cx).is_some_and(|repository| {
+                    repository.update(cx, |repository, cx| {
+                        repository.graph_data(self.data_source(), self.log_order, 0..0, cx).is_loading
                     })
-                    .unwrap_or(false);
+                });
 
                 (count, is_loading)
             }
@@ -3184,7 +3178,7 @@ impl Render for GitGraph {
 
         let content = if commit_count == 0 {
             let message = if let Some(error) = &error {
-                format!("Error loading: {}", error)
+                format!("Error loading: {error}")
             } else if is_loading {
                 "Loading".to_string()
             } else {
@@ -3209,11 +3203,11 @@ impl Render for GitGraph {
             let graph_visible = is_path_history || !column_filter.get(0usize).copied().unwrap_or(false);
 
             let table_offset = if is_path_history { 0 } else { 1 };
-            let table_filter = column_filter
-                .as_slice()
-                .get(table_offset..table_offset + TABLE_COLUMN_COUNT)
-                .map(|slice| TableRow::from_vec(slice.to_vec(), TABLE_COLUMN_COUNT))
-                .unwrap_or_else(|| TableRow::from_element(false, TABLE_COLUMN_COUNT));
+            let table_filter =
+                column_filter.as_slice().get(table_offset..table_offset + TABLE_COLUMN_COUNT).map_or_else(
+                    || TableRow::from_element(false, TABLE_COLUMN_COUNT),
+                    |slice| TableRow::from_vec(slice.to_vec(), TABLE_COLUMN_COUNT),
+                );
             let header_widths =
                 redistribute_hidden_widths(&self.column_widths.read(cx).widths_to_render(), Some(&column_filter));
             let header_context = TableRenderContext::for_column_widths(Some(header_widths), true)
@@ -3245,7 +3239,17 @@ impl Render for GitGraph {
                                 }),
                             )
                             .child(render_table_header(
-                                if !is_path_history {
+                                if is_path_history {
+                                    TableRow::from_vec(
+                                        vec![
+                                            Label::new("Description").color(Color::Muted).into_any_element(),
+                                            Label::new("Date").color(Color::Muted).into_any_element(),
+                                            Label::new("Author").color(Color::Muted).into_any_element(),
+                                            Label::new("Commit").color(Color::Muted).into_any_element(),
+                                        ],
+                                        4,
+                                    )
+                                } else {
                                     TableRow::from_vec(
                                         vec![
                                             Label::new("Graph").color(Color::Muted).truncate().into_any_element(),
@@ -3255,16 +3259,6 @@ impl Render for GitGraph {
                                             Label::new("Commit").color(Color::Muted).into_any_element(),
                                         ],
                                         5,
-                                    )
-                                } else {
-                                    TableRow::from_vec(
-                                        vec![
-                                            Label::new("Description").color(Color::Muted).into_any_element(),
-                                            Label::new("Date").color(Color::Muted).into_any_element(),
-                                            Label::new("Author").color(Color::Muted).into_any_element(),
-                                            Label::new("Commit").color(Color::Muted).into_any_element(),
-                                        ],
-                                        4,
                                     )
                                 },
                                 header_context,
@@ -3565,11 +3559,10 @@ impl Item for GitGraph {
 
     fn tab_content_text(&self, _detail: usize, cx: &App) -> SharedString {
         if let LogSource::Path(path) = &self.log_source {
-            return path
-                .as_ref()
-                .file_name()
-                .map(|name| SharedString::from(name.to_string()))
-                .unwrap_or_else(|| SharedString::from(path.as_unix_str().to_string()));
+            return path.as_ref().file_name().map_or_else(
+                || SharedString::from(path.as_unix_str().to_string()),
+                |name| SharedString::from(name.to_string()),
+            );
         }
 
         self.get_repository(cx)
@@ -3584,7 +3577,7 @@ impl Item for GitGraph {
     }
 
     fn to_item_events(event: &Self::Event, f: &mut dyn FnMut(ItemEvent)) {
-        f(*event)
+        f(*event);
     }
 
     fn deactivated(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
@@ -3745,10 +3738,10 @@ mod tests {
     #[test]
     fn test_is_head_ref() {
         let head = Some(SharedString::from("main"));
-        assert!(GitGraph::is_head_ref("main", &head));
-        assert!(GitGraph::is_head_ref("HEAD -> main", &head));
-        assert!(!GitGraph::is_head_ref("origin/main", &head));
-        assert!(!GitGraph::is_head_ref("main", &None));
+        assert!(GitGraph::is_head_ref("main", head.as_ref()));
+        assert!(GitGraph::is_head_ref("HEAD -> main", head.as_ref()));
+        assert!(!GitGraph::is_head_ref("origin/main", head.as_ref()));
+        assert!(!GitGraph::is_head_ref("main", None));
     }
 
     #[test]

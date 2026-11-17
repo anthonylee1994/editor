@@ -517,7 +517,7 @@ impl Matches {
         // not have any duplicates after building the final list.
         for new_match in new_history_matches.into_values().chain(new_search_matches) {
             match self.position(&new_match, currently_opened) {
-                Ok(_duplicate) => continue,
+                Ok(_duplicate) => {}
                 Err(i) => {
                     self.matches.insert(i, new_match);
                     if self.matches.len() == 100 {
@@ -611,10 +611,7 @@ fn matching_history_items<'a>(
             let candidate = PathMatchCandidate::new(
                 &found_path.project.path,
                 false,
-                worktree_name_by_id
-                    .as_ref()
-                    .and_then(|m| m.get(&found_path.project.worktree_id))
-                    .map(|prefix| prefix.as_ref()),
+                worktree_name_by_id.as_ref().and_then(|m| m.get(&found_path.project.worktree_id)).map(AsRef::as_ref),
             );
             candidates_paths.insert(&found_path.project, found_path);
             (found_path.project.worktree_id, candidate)
@@ -852,18 +849,16 @@ impl FileFinderDelegate {
     }
 
     fn subscribe_to_updates(project: &Entity<Project>, window: &Window, cx: &mut Context<FileFinder>) {
-        cx.subscribe_in(project, window, |file_finder, _, event, window, cx| {
-            match event {
-                project::Event::WorktreeUpdatedEntries(_, _) => file_finder.picker.update(cx, |picker, cx| {
-                    picker.delegate.refresh_history(window, cx);
-                    picker.delegate.debounce_next_refresh = true;
-                    picker.refresh(window, cx);
-                }),
-                project::Event::WorktreeAdded(_) | project::Event::WorktreeRemoved(_) => {
-                    file_finder.picker.update(cx, |picker, cx| picker.refresh(window, cx))
-                }
-                _ => {}
-            };
+        cx.subscribe_in(project, window, |file_finder, _, event, window, cx| match event {
+            project::Event::WorktreeUpdatedEntries(_, _) => file_finder.picker.update(cx, |picker, cx| {
+                picker.delegate.refresh_history(window, cx);
+                picker.delegate.debounce_next_refresh = true;
+                picker.refresh(window, cx);
+            }),
+            project::Event::WorktreeAdded(_) | project::Event::WorktreeRemoved(_) => {
+                file_finder.picker.update(cx, |picker, cx| picker.refresh(window, cx));
+            }
+            _ => {}
         })
         .detach();
     }
@@ -1017,7 +1012,7 @@ impl FileFinderDelegate {
         if search_id >= self.latest_search_id {
             self.latest_search_id = search_id;
             let path_query_changed =
-                Some(query.path_query()) != self.latest_search_query.as_ref().map(|query| query.path_query());
+                Some(query.path_query()) != self.latest_search_query.as_ref().map(FileSearchQuery::path_query);
             let extend_old_matches = self.latest_search_did_cancel && !path_query_changed;
 
             // The line/column suffix doesn't affect which files match, but it
@@ -1087,14 +1082,14 @@ impl FileFinderDelegate {
 
             self.prepend_selected_matches(cx);
 
-            self.selected_index = if !self.selected_matches.is_empty() {
-                0
-            } else {
+            self.selected_index = if self.selected_matches.is_empty() {
                 let query_has_position = query.path_position.row.is_some();
                 selected_match.map_or_else(
                     || self.calculate_selected_index(query_has_position),
                     |m| self.matches.position(&m, self.currently_opened_path.as_ref()).unwrap_or(0),
                 )
+            } else {
+                0
             };
 
             self.latest_search_query = Some(query);
@@ -1133,7 +1128,7 @@ impl FileFinderDelegate {
                 (file_name, Vec::new(), parent, Vec::new())
             }
             Match::CreateNew(project_path) => {
-                (format!("Create File: {}", project_path.path.display()), vec![], String::from(""), vec![])
+                (format!("Create File: {}", project_path.path.display()), vec![], String::new(), vec![])
             }
         };
 
@@ -1149,7 +1144,7 @@ impl FileFinderDelegate {
                     } else {
                         false
                     }
-                })
+                });
             }
         }
 
@@ -1226,7 +1221,7 @@ impl FileFinderDelegate {
         let search_id = post_inc(&mut self.search_count);
         let resolve_path = project.update(cx, |project, cx| project.resolve_abs_file_path(query.path_query(), cx));
         cx.spawn_in(window, async move |picker, cx| {
-            let Some(absolute_path) = resolve_path.await.and_then(|path| path.into_abs_path()) else {
+            let Some(absolute_path) = resolve_path.await.and_then(project::ResolvedPath::into_abs_path) else {
                 return false;
             };
             let absolute_path = PathBuf::from(absolute_path);

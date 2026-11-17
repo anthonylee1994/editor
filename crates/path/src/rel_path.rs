@@ -84,7 +84,7 @@ impl RelPath {
                     other => normalized.push(RelPath::from_str(other)),
                 }
             }
-            result = Cow::Owned(normalized)
+            result = Cow::Owned(normalized);
         }
 
         Ok(result)
@@ -110,7 +110,7 @@ impl RelPath {
 
     const fn from_str(s: &str) -> &Self {
         // Safety: `RelPath` is a transparent wrapper around `str`.
-        unsafe { &*(s as *const str as *const Self) }
+        unsafe { &*(std::ptr::from_ref::<str>(s) as *const Self) }
     }
 
     pub const fn is_empty(&self) -> bool {
@@ -413,7 +413,7 @@ impl TryFrom<&str> for RelPathBuf {
     type Error = anyhow::Error;
 
     fn try_from(s: &str) -> Result<Self> {
-        RelPath::new(Path::new(s)).map(|cow| cow.into_owned())
+        RelPath::new(Path::new(s)).map(|x| x.into_owned())
     }
 }
 

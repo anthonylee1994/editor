@@ -279,7 +279,7 @@ where
     C: borrow::BorrowMut<App>,
 {
     fn set_global<G: Global>(&mut self, global: G) {
-        self.borrow_mut().set_global(global)
+        self.borrow_mut().set_global(global);
     }
 
     #[track_caller]

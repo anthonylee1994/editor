@@ -213,9 +213,7 @@ impl ActionRegistry {
 
     fn insert_action(&mut self, action: MacroActionData) {
         let name = action.name;
-        if self.by_name.contains_key(name) {
-            panic!("Action with name `{name}` already registered");
-        }
+        assert!(!self.by_name.contains_key(name), "Action with name `{name}` already registered");
         self.by_name.insert(name, ActionData { build: action.build });
         self.names_by_type_id.insert(action.type_id, name);
         self.all_names.push(name);

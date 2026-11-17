@@ -350,9 +350,8 @@ impl ContextMenu {
                 if let Some(ignore_until) = this.ignore_blur_until {
                     if Instant::now() < ignore_until {
                         return;
-                    } else {
-                        this.ignore_blur_until = None;
                     }
+                    this.ignore_blur_until = None;
                 }
 
                 if this.main_menu.is_none()
@@ -364,7 +363,7 @@ impl ContextMenu {
                     }
                 }
 
-                this.cancel(&menu::Cancel, window, cx)
+                this.cancel(&menu::Cancel, window, cx);
             });
             window.refresh();
 
@@ -430,9 +429,8 @@ impl ContextMenu {
                     if let Some(ignore_until) = this.ignore_blur_until {
                         if Instant::now() < ignore_until {
                             return;
-                        } else {
-                            this.ignore_blur_until = None;
                         }
+                        this.ignore_blur_until = None;
                     }
 
                     if this.main_menu.is_none()
@@ -444,7 +442,7 @@ impl ContextMenu {
                         }
                     }
 
-                    this.cancel(&menu::Cancel, window, cx)
+                    this.cancel(&menu::Cancel, window, cx);
                 }),
                 keep_open_on_confirm: false,
                 fixed_width: None,
@@ -920,7 +918,7 @@ impl ContextMenu {
             | ContextMenuItem::CustomEntry { handler, .. },
         ) = self.items.get(ix)
         {
-            (handler)(context, window, cx)
+            (handler)(context, window, cx);
         }
 
         if self.main_menu.is_some() && !self.keep_open_on_confirm {
@@ -960,12 +958,12 @@ impl ContextMenu {
             self.items.get(ix)
         {
             if let Some(secondary) = secondary_handler {
-                (secondary)(context, window, cx)
+                (secondary)(context, window, cx);
             } else {
-                (handler)(context, window, cx)
+                (handler)(context, window, cx);
             }
         } else if let Some(ContextMenuItem::CustomEntry { handler, .. }) = self.items.get(ix) {
-            (handler)(context, window, cx)
+            (handler)(context, window, cx);
         }
 
         if self.main_menu.is_some() && !self.keep_open_on_confirm {
@@ -1062,13 +1060,12 @@ impl ContextMenu {
             if self.items.len() <= next_index {
                 self.select_first(&SelectFirst, window, cx);
                 return;
-            } else {
-                for (ix, item) in self.items.iter().enumerate().skip(next_index) {
-                    if item.is_selectable() {
-                        self.select_index(ix, window, cx);
-                        cx.notify();
-                        return;
-                    }
+            }
+            for (ix, item) in self.items.iter().enumerate().skip(next_index) {
+                if item.is_selectable() {
+                    self.select_index(ix, window, cx);
+                    cx.notify();
+                    return;
                 }
             }
         }
@@ -1305,7 +1302,7 @@ impl ContextMenu {
             })
             .detach_and_log_err(cx);
         } else {
-            cx.propagate()
+            cx.propagate();
         }
     }
 
@@ -1326,7 +1323,7 @@ impl ContextMenu {
             ContextMenuItem::Header(header) => ListSubHeader::new(header.clone()).inset(true).into_any_element(),
             ContextMenuItem::HeaderWithLink(header, label, url) => {
                 let url = url.clone();
-                let link_id = ElementId::Name(format!("link-{}", url).into());
+                let link_id = ElementId::Name(format!("link-{url}").into());
                 ListSubHeader::new(header.clone())
                     .inset(true)
                     .end_slot(
@@ -1794,11 +1791,10 @@ impl ContextMenu {
                             .justify_between()
                             .child(label_element)
                             .children(action.as_ref().map(|action| {
-                                let binding = self
-                                    .action_context
-                                    .as_ref()
-                                    .map(|focus| KeyBinding::for_action_in(&**action, focus, cx))
-                                    .unwrap_or_else(|| KeyBinding::for_action(&**action, cx));
+                                let binding = self.action_context.as_ref().map_or_else(
+                                    || KeyBinding::for_action(&**action, cx),
+                                    |focus| KeyBinding::for_action_in(&**action, focus, cx),
+                                );
 
                                 div()
                                     .ml_4()
@@ -1824,11 +1820,9 @@ impl ContextMenu {
                                         let action_context = self.action_context.clone();
                                         let title = title.clone();
                                         let action = action.boxed_clone();
-                                        move |_window, cx| {
-                                            action_context
-                                                .as_ref()
-                                                .map(|focus| Tooltip::for_action_in(title.clone(), &*action, focus, cx))
-                                                .unwrap_or_else(|| Tooltip::for_action(title.clone(), &*action, cx))
+                                        move |_window, cx| match action_context.as_ref() {
+                                            Some(focus) => Tooltip::for_action_in(title.clone(), &*action, focus, cx),
+                                            None => Tooltip::for_action(title.clone(), &*action, cx),
                                         }
                                     })
                                     .on_click({
@@ -1878,9 +1872,8 @@ impl ContextMenu {
             if let Some(ignore_until) = context_menu.ignore_blur_until {
                 if Instant::now() < ignore_until {
                     return;
-                } else {
-                    context_menu.ignore_blur_until = None;
                 }
+                context_menu.ignore_blur_until = None;
             }
 
             if context_menu.main_menu.is_none()
@@ -1892,7 +1885,7 @@ impl ContextMenu {
                 }
             }
 
-            context_menu.cancel(&menu::Cancel, window, cx)
+            context_menu.cancel(&menu::Cancel, window, cx);
         });
         window.refresh();
 
@@ -2051,7 +2044,7 @@ impl Render for ContextMenu {
                                 }
                             }
 
-                            this.cancel(&menu::Cancel, window, cx)
+                            this.cancel(&menu::Cancel, window, cx);
                         }))
                         .when_some(self.end_slot_action.as_ref(), |el, action| {
                             el.on_boxed_action(&**action, cx.listener(ContextMenu::end_slot))

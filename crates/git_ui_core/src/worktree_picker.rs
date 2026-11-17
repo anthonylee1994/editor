@@ -485,7 +485,7 @@ impl WorktreePickerDelegate {
             let (result, attempted_force) = match initial_result {
                 Ok(()) => (Ok(()), force),
                 Err(error) => {
-                    log::error!("Failed to remove worktree: {}", error);
+                    log::error!("Failed to remove worktree: {error}");
 
                     let force_delete_prompt = (!force)
                         .then(|| force_delete_prompt_for_worktree_remove_error(&error, &display_name))
@@ -552,7 +552,7 @@ impl WorktreePickerDelegate {
 
                 if let Some(workspace) = workspace.upgrade() {
                     cx.update(|_window, cx| {
-                        show_error_toast(workspace, remove_worktree_command(&path, attempted_force), error, cx)
+                        show_error_toast(workspace, remove_worktree_command(&path, attempted_force), error, cx);
                     })?;
                 }
 
@@ -941,7 +941,7 @@ impl PickerDelegate for WorktreePickerDelegate {
                                                 .min_w_0()
                                                 .gap_1p5()
                                                 .when_some(
-                                                    worktree.branch_name().map(|b| b.to_string()),
+                                                    worktree.branch_name().map(ToString::to_string),
                                                     |this, branch| {
                                                         this.child(
                                                             Label::new(branch)
@@ -1056,10 +1056,10 @@ impl PickerDelegate for WorktreePickerDelegate {
                 )
             }
             WorktreeEntry::CreateNamed { name, from_branch, disabled_reason } => {
-                let branch_label = from_branch
-                    .as_ref()
-                    .map(RemoteBranchName::display_name)
-                    .unwrap_or_else(|| self.current_branch_name.clone().unwrap_or_else(|| "HEAD".to_string()));
+                let branch_label = from_branch.as_ref().map_or_else(
+                    || self.current_branch_name.clone().unwrap_or_else(|| "HEAD".to_string()),
+                    RemoteBranchName::display_name,
+                );
                 let label = format!("Create \"{name}\" based on {branch_label}");
                 let element_id = match from_branch {
                     Some(branch) => format!("create-named-from-{}", branch.display_name()),
@@ -1148,7 +1148,7 @@ impl PickerDelegate for WorktreePickerDelegate {
                                                 .map(|kb| kb.size(rems_from_px(12_f32))),
                                         )
                                         .on_click(|_, window, cx| {
-                                            window.dispatch_action(DeleteWorktree.boxed_clone(), cx)
+                                            window.dispatch_action(DeleteWorktree.boxed_clone(), cx);
                                         }),
                                 )
                             })
@@ -1161,7 +1161,7 @@ impl PickerDelegate for WorktreePickerDelegate {
                                                 .map(|kb| kb.size(rems_from_px(12_f32))),
                                         )
                                         .on_click(|_, window, cx| {
-                                            window.dispatch_action(menu::SecondaryConfirm.boxed_clone(), cx)
+                                            window.dispatch_action(menu::SecondaryConfirm.boxed_clone(), cx);
                                         }),
                                 )
                             })
@@ -1173,7 +1173,7 @@ impl PickerDelegate for WorktreePickerDelegate {
                                                 .map(|kb| kb.size(rems_from_px(12_f32))),
                                         )
                                         .on_click(|_, window, cx| {
-                                            window.dispatch_action(menu::Confirm.boxed_clone(), cx)
+                                            window.dispatch_action(menu::Confirm.boxed_clone(), cx);
                                         }),
                                 )
                             }),

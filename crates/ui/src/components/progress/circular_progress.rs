@@ -98,7 +98,7 @@ impl RenderOnce for CircularProgress {
 
         canvas(
             |_, _, _| {},
-            move |bounds, _, window, _cx| {
+            move |bounds, (), window, _cx| {
                 let current_value = value;
 
                 let center_x = bounds.origin.x + bounds.size.width / 2.0;

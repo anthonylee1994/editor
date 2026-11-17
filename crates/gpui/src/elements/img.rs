@@ -275,7 +275,7 @@ impl Element for Img {
                 state.unwrap_or(ImgState { frame_index: 0, last_frame_time: None, started_loading: None })
             });
 
-            let mut frame_index = state.as_ref().map(|state| state.frame_index).unwrap_or(0);
+            let mut frame_index = state.as_ref().map_or(0, |state| state.frame_index);
 
             let layout_id = self.interactivity.request_layout(global_id, window, cx, |mut style, window, cx| {
                 let mut replacement_id = None;
@@ -300,7 +300,11 @@ impl Element for Img {
 
                                         if elapsed >= frame_duration {
                                             state.frame_index = (state.frame_index + 1) % frame_count;
-                                            state.last_frame_time = Some(current_time - (elapsed - frame_duration));
+                                            state.last_frame_time = Some(
+                                                current_time
+                                                    .checked_sub(elapsed.checked_sub(frame_duration).unwrap())
+                                                    .unwrap(),
+                                            );
                                         }
                                     } else {
                                         state.last_frame_time = Some(current_time);
@@ -433,7 +437,7 @@ impl Element for Img {
             } else if let Some(replacement) = &mut layout_state.replacement {
                 replacement.paint(window, cx);
             }
-        })
+        });
     }
 }
 
@@ -546,7 +550,7 @@ impl Asset for ImageAssetLoader {
                     if let Some(data) = data {
                         data.to_vec()
                     } else {
-                        return Err(ImageCacheError::Asset(format!("Embedded resource not found: {}", path).into()));
+                        return Err(ImageCacheError::Asset(format!("Embedded resource not found: {path}").into()));
                     }
                 }
             };

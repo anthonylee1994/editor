@@ -55,8 +55,8 @@ impl FocusId {
     }
 
     /// Obtains whether this handle contains the given handle in the most recently rendered frame.
-    pub(crate) fn contains(&self, other: Self, window: &Window) -> bool {
-        window.rendered_frame.dispatch_tree.focus_contains(*self, other)
+    pub(crate) fn contains(self, other: Self, window: &Window) -> bool {
+        window.rendered_frame.dispatch_tree.focus_contains(self, other)
     }
 }
 
@@ -120,7 +120,7 @@ impl FocusHandle {
 
     /// Moves the focus to the element associated with this handle.
     pub fn focus(&self, window: &mut Window, cx: &mut App) {
-        window.focus(self, cx)
+        window.focus(self, cx);
     }
 
     /// Obtains whether the element associated with this handle is currently focused.
@@ -148,7 +148,7 @@ impl FocusHandle {
     /// Dispatch an action on the element that rendered this focus handle
     pub fn dispatch_action(&self, action: &dyn Action, window: &mut Window, cx: &mut App) {
         if let Some(node_id) = window.rendered_frame.dispatch_tree.focusable_node_id(self.id) {
-            window.dispatch_action_on_node(node_id, action, cx)
+            window.dispatch_action_on_node(node_id, action, cx);
         }
     }
 }

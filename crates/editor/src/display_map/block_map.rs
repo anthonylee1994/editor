@@ -629,8 +629,8 @@ impl<'a> CompanionViewMut<'a> {
             companion_wrap_snapshot,
             companion_wrap_edits,
             companion_multibuffer,
-            companion,
             companion_block_map,
+            companion,
         }
     }
 }
@@ -1121,10 +1121,10 @@ impl BlockMap {
                 let new_buffer_id = match (&excerpt_boundary.prev, &excerpt_boundary.next) {
                     (None, next) => Some(next.buffer_id()),
                     (Some(prev), next) => {
-                        if prev.buffer_id() != next.buffer_id() {
-                            Some(next.buffer_id())
-                        } else {
+                        if prev.buffer_id() == next.buffer_id() {
                             None
+                        } else {
+                            Some(next.buffer_id())
                         }
                     }
                 };
@@ -1466,9 +1466,10 @@ impl BlockMap {
                 })
         });
         blocks.dedup_by(|right, left| match (left.0.clone(), right.0.clone()) {
-            (BlockPlacement::Replace(range), BlockPlacement::Above(row))
-            | (BlockPlacement::Replace(range), BlockPlacement::Near(row))
-            | (BlockPlacement::Replace(range), BlockPlacement::Below(row)) => range.contains(&row),
+            (
+                BlockPlacement::Replace(range),
+                BlockPlacement::Above(row) | BlockPlacement::Near(row) | BlockPlacement::Below(row),
+            ) => range.contains(&row),
             (BlockPlacement::Replace(range_a), BlockPlacement::Replace(range_b))
                 if range_a.end() >= range_b.start() && range_a.start() <= range_b.end() =>
             {
@@ -1740,7 +1741,7 @@ impl BlockMapWriter<'_> {
                     let end = wrap_snapshot
                         .next_row_boundary(WrapPoint::new(end_wrap_row, 0))
                         .unwrap_or_else(|| wrap_snapshot.max_point().row() + WrapRow(1));
-                    edits.push(Edit { old: start..end, new: start..end })
+                    edits.push(Edit { old: start..end, new: start..end });
                 }
             }
         }
@@ -1785,7 +1786,7 @@ impl BlockMapWriter<'_> {
                         (range.start, range.end)
                     };
 
-                    edits.push(Edit { old: start_row..end_row, new: start_row..end_row })
+                    edits.push(Edit { old: start_row..end_row, new: start_row..end_row });
                 }
                 if let Some(companion) = &self.companion
                     && companion.inverse.is_some()
@@ -1999,7 +2000,7 @@ impl BlockSnapshot {
     pub(super) fn row_infos(&self, start_row: BlockRow) -> BlockRows<'_> {
         let mut cursor = self.transforms.cursor::<Dimensions<BlockRow, WrapRow>>(());
         cursor.seek(&start_row, Bias::Right);
-        let Dimensions(output_start, input_start, _) = cursor.start();
+        let Dimensions(output_start, input_start, ()) = cursor.start();
         let overshoot = if cursor.item().is_some_and(|transform| transform.block.is_none()) {
             start_row - *output_start
         } else {
@@ -2049,10 +2050,7 @@ impl BlockSnapshot {
                     return Some(StickyHeaderExcerpt { excerpt });
                 }
                 Some(block) if block.is_buffer_header() => return None,
-                _ => {
-                    cursor.prev();
-                    continue;
-                }
+                _ => cursor.prev(),
             }
         }
 
@@ -2108,7 +2106,7 @@ impl BlockSnapshot {
     pub(super) fn line_len(&self, row: BlockRow) -> u32 {
         let (start, _, item) = self.transforms.find::<Dimensions<BlockRow, WrapRow>, _>((), &row, Bias::Right);
         if let Some(transform) = item {
-            let Dimensions(output_start, input_start, _) = start;
+            let Dimensions(output_start, input_start, ()) = start;
             let overshoot = row - output_start;
             if transform.block.is_some() { 0 } else { self.wrap_snapshot.line_len(input_start + overshoot) }
         } else if row == BlockRow(0) {
@@ -2139,34 +2137,31 @@ impl BlockSnapshot {
 
         loop {
             if let Some(transform) = cursor.item() {
-                let Dimensions(output_start_row, input_start_row, _) = cursor.start();
-                let Dimensions(output_end_row, input_end_row, _) = cursor.end();
+                let Dimensions(output_start_row, input_start_row, ()) = cursor.start();
+                let Dimensions(output_end_row, input_end_row, ()) = cursor.end();
                 let output_start = Point::new(output_start_row.0, 0);
                 let input_start = Point::new(input_start_row.0, 0);
                 let input_end = Point::new(input_end_row.0, 0);
 
-                match transform.block.as_ref() {
-                    Some(block) => {
-                        if block.is_replacement()
-                            && (((bias == Bias::Left || search_left) && output_start <= point.0)
-                                || (!search_left && output_start >= point.0))
-                        {
-                            return BlockPoint(output_start);
-                        }
+                if let Some(block) = transform.block.as_ref() {
+                    if block.is_replacement()
+                        && (((bias == Bias::Left || search_left) && output_start <= point.0)
+                            || (!search_left && output_start >= point.0))
+                    {
+                        return BlockPoint(output_start);
                     }
-                    None => {
-                        let input_point = if point.row >= output_end_row.0 {
-                            let line_len = self.wrap_snapshot.line_len(input_end_row - RowDelta(1));
-                            self.wrap_snapshot.clip_point(WrapPoint::new(input_end_row - RowDelta(1), line_len), bias)
-                        } else {
-                            let output_overshoot = point.0.saturating_sub(output_start);
-                            self.wrap_snapshot.clip_point(WrapPoint(input_start + output_overshoot), bias)
-                        };
+                } else {
+                    let input_point = if point.row >= output_end_row.0 {
+                        let line_len = self.wrap_snapshot.line_len(input_end_row - RowDelta(1));
+                        self.wrap_snapshot.clip_point(WrapPoint::new(input_end_row - RowDelta(1), line_len), bias)
+                    } else {
+                        let output_overshoot = point.0.saturating_sub(output_start);
+                        self.wrap_snapshot.clip_point(WrapPoint(input_start + output_overshoot), bias)
+                    };
 
-                        if (input_start..input_end).contains(&input_point.0) {
-                            let input_overshoot = input_point.0.saturating_sub(input_start);
-                            return BlockPoint(output_start + input_overshoot);
-                        }
+                    if (input_start..input_end).contains(&input_point.0) {
+                        let input_overshoot = input_point.0.saturating_sub(input_start);
+                        return BlockPoint(output_start + input_overshoot);
                     }
                 }
 
@@ -2196,7 +2191,7 @@ impl BlockSnapshot {
             if transform.block.is_some() {
                 BlockPoint::new(start.1, 0)
             } else {
-                let Dimensions(input_start_row, output_start_row, _) = start;
+                let Dimensions(input_start_row, output_start_row, ()) = start;
                 let input_start = Point::new(input_start_row.0, 0);
                 let output_start = Point::new(output_start_row.0, 0);
                 let input_overshoot = wrap_point.0 - input_start;
@@ -2211,23 +2206,20 @@ impl BlockSnapshot {
         let (start, end, item) =
             self.transforms.find::<Dimensions<BlockRow, WrapRow>, _>((), &BlockRow(block_point.row), Bias::Right);
         if let Some(transform) = item {
-            match transform.block.as_ref() {
-                Some(block) => {
-                    if block.place_below() {
-                        let wrap_row = start.1 - RowDelta(1);
-                        WrapPoint::new(wrap_row, self.wrap_snapshot.line_len(wrap_row))
-                    } else if block.place_above() || bias == Bias::Left {
-                        WrapPoint::new(start.1, 0)
-                    } else {
-                        let wrap_row = end.1 - RowDelta(1);
-                        WrapPoint::new(wrap_row, self.wrap_snapshot.line_len(wrap_row))
-                    }
+            if let Some(block) = transform.block.as_ref() {
+                if block.place_below() {
+                    let wrap_row = start.1 - RowDelta(1);
+                    WrapPoint::new(wrap_row, self.wrap_snapshot.line_len(wrap_row))
+                } else if block.place_above() || bias == Bias::Left {
+                    WrapPoint::new(start.1, 0)
+                } else {
+                    let wrap_row = end.1 - RowDelta(1);
+                    WrapPoint::new(wrap_row, self.wrap_snapshot.line_len(wrap_row))
                 }
-                None => {
-                    let overshoot = block_point.row() - start.0;
-                    let wrap_row = start.1 + RowDelta(overshoot.0);
-                    WrapPoint::new(wrap_row, block_point.column)
-                }
+            } else {
+                let overshoot = block_point.row() - start.0;
+                let wrap_row = start.1 + RowDelta(overshoot.0);
+                WrapPoint::new(wrap_row, block_point.column)
             }
         } else {
             self.wrap_snapshot.max_point()
@@ -2426,7 +2418,7 @@ impl<'a> sum_tree::Dimension<'a, TransformSummary> for WrapRow {
         WrapRow::default()
     }
 
-    fn add_summary(&mut self, summary: &'a TransformSummary, _: ()) {
+    fn add_summary(&mut self, summary: &'a TransformSummary, (): ()) {
         *self += summary.input_rows;
     }
 }
@@ -2436,7 +2428,7 @@ impl<'a> sum_tree::Dimension<'a, TransformSummary> for BlockRow {
         BlockRow::default()
     }
 
-    fn add_summary(&mut self, summary: &'a TransformSummary, _: ()) {
+    fn add_summary(&mut self, summary: &'a TransformSummary, (): ()) {
         *self += summary.output_rows;
     }
 }

@@ -101,7 +101,7 @@ where
             .menu(move |_window, _cx| Some(picker.clone()))
             .trigger_with_tooltip(self.trigger, self.tooltip)
             .anchor(self.anchor)
-            .when_some(self.handle, |menu, handle| menu.with_handle(handle))
-            .when_some(self.offset, |menu, offset| menu.offset(offset))
+            .when_some(self.handle, ui::PopoverMenu::with_handle)
+            .when_some(self.offset, ui::PopoverMenu::offset)
     }
 }

@@ -105,7 +105,7 @@ impl KeyContext {
         let key = identifier.into();
 
         if !self.contains(&key) {
-            self.0.push(ContextEntry { key, value: None })
+            self.0.push(ContextEntry { key, value: None });
         }
     }
 
@@ -113,7 +113,7 @@ impl KeyContext {
     pub fn set<S1: Into<SharedString>, S2: Into<SharedString>>(&mut self, key: S1, value: S2) {
         let key = key.into();
         if !self.contains(&key) {
-            self.0.push(ContextEntry { key, value: Some(value.into()) })
+            self.0.push(ContextEntry { key, value: Some(value.into()) });
         }
     }
 
@@ -218,9 +218,8 @@ impl KeyBindingContextPredicate {
         let (predicate, rest) = Self::parse_expr(source, 0)?;
         if let Some(next) = rest.chars().next() {
             anyhow::bail!("unexpected character '{next:?}'");
-        } else {
-            Ok(predicate)
         }
+        Ok(predicate)
     }
 
     /// Find the deepest depth at which the predicate matches.
@@ -247,8 +246,8 @@ impl KeyBindingContextPredicate {
         };
         match self {
             Self::Identifier(name) => context.contains(name),
-            Self::Equal(left, right) => context.get(left).map(|value| value == right).unwrap_or(false),
-            Self::NotEqual(left, right) => context.get(left).map(|value| value != right).unwrap_or(true),
+            Self::Equal(left, right) => context.get(left).is_some_and(|value| value == right),
+            Self::NotEqual(left, right) => context.get(left) != Some(right),
             Self::Not(pred) => {
                 for i in 0..all_contexts.len() {
                     if pred.eval_inner(&all_contexts[..=i], all_contexts) {
@@ -365,14 +364,17 @@ impl KeyBindingContextPredicate {
         }
     }
 
+    #[allow(clippy::unnecessary_wraps)] // must match the fallible `Op` signature
     fn new_or(self, other: Self) -> Result<Self> {
         Ok(Self::Or(Box::new(self), Box::new(other)))
     }
 
+    #[allow(clippy::unnecessary_wraps)] // must match the fallible `Op` signature
     fn new_and(self, other: Self) -> Result<Self> {
         Ok(Self::And(Box::new(self), Box::new(other)))
     }
 
+    #[allow(clippy::unnecessary_wraps)] // must match the fallible `Op` signature
     fn new_child(self, other: Self) -> Result<Self> {
         Ok(Self::Descendant(Box::new(self), Box::new(other)))
     }

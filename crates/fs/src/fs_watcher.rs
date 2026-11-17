@@ -64,7 +64,7 @@ pub(crate) async fn watch(
     (
         Box::pin(rx.filter_map({
             let watcher = watcher.clone();
-            move |_| {
+            move |()| {
                 let _ = watcher.clone();
                 let pending_paths = pending_paths.clone();
                 let executor = executor.clone();
@@ -73,7 +73,7 @@ pub(crate) async fn watch(
                         executor.timer(latency).await;
                     }
                     let paths = mem::take(&mut *pending_paths.lock());
-                    log::debug!("pending path events: {:?}", paths);
+                    log::debug!("pending path events: {paths:?}");
                     (!paths.is_empty()).then_some(paths)
                 }
             }
@@ -424,7 +424,7 @@ fn push_fs_event(
         path_events
             .extend(event.kinds().map(|kind| PathEvent { path: event_path.as_path().to_path_buf(), kind: Some(kind) }));
     }
-    log::trace!("path_events: {:?}", path_events);
+    log::trace!("path_events: {path_events:?}");
     enqueue_path_events(tx, pending_path_events, path_events);
 }
 
@@ -556,7 +556,7 @@ async fn yield_now() {
         cx.waker().wake_by_ref();
         std::task::Poll::Pending
     })
-    .await
+    .await;
 }
 
 struct WatcherState {

@@ -4,6 +4,7 @@ use gpui::Entity;
 use gpui::IntoElement;
 use gpui::ParentElement;
 use gpui::Render;
+use gpui::SharedString;
 use gpui::Subscription;
 use gpui::WeakEntity;
 use gpui::Window;
@@ -24,7 +25,8 @@ use crate::LanguageSelector;
 use crate::Toggle;
 
 pub struct ActiveBufferLanguage {
-    active_language: Option<Option<LanguageName>>,
+    // `None` hides the button; `Some` holds the label to show.
+    active_language: Option<SharedString>,
     workspace: WeakEntity<Workspace>,
     _observe_active_editor: Option<Subscription>,
 }
@@ -35,7 +37,7 @@ impl ActiveBufferLanguage {
     }
 
     fn update_language(&mut self, editor: Entity<Editor>, _: &mut Window, cx: &mut Context<Self>) {
-        self.active_language = Some(None);
+        self.active_language = Some("Unknown".into());
 
         let editor = editor.read(cx);
         if let Some(buffer) = editor.active_buffer(cx) {
@@ -44,9 +46,11 @@ impl ActiveBufferLanguage {
                 buffer.language().filter(|language| **language != *PLAIN_TEXT).map(|language| language.name());
             // Files with no registered language (e.g. TOML) still show
             // the name of the syntax they are highlighted with.
-            self.active_language = Some(language.or_else(|| {
+            if let Some(name) = language.or_else(|| {
                 buffer.fallback_syntax_name().map(LanguageName::new).or_else(|| Some(buffer.language()?.name()))
-            }));
+            }) {
+                self.active_language = Some(name.0);
+            }
         }
 
         cx.notify();
@@ -55,13 +59,7 @@ impl ActiveBufferLanguage {
 
 impl Render for ActiveBufferLanguage {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        div().when_some(self.active_language.as_ref(), |el, active_language| {
-            let active_language_text = if let Some(active_language_text) = active_language {
-                active_language_text.to_string()
-            } else {
-                "Unknown".to_string()
-            };
-
+        div().when_some(self.active_language.clone(), |el, active_language_text| {
             el.child(
                 Button::new("change-language", active_language_text)
                     .label_size(LabelSize::Small)

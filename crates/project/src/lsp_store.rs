@@ -303,12 +303,11 @@ fn workspace_folder_uri(worktree: &Worktree, path: &RelPath) -> Option<Uri> {
     }
 
     let absolute_path = worktree.absolutize(path);
-    match Uri::from_file_path(&absolute_path) {
-        Ok(uri) => Some(uri),
-        Err(()) => {
-            log::error!("{absolute_path:?} is not a valid URI");
-            None
-        }
+    if let Ok(uri) = Uri::from_file_path(&absolute_path) {
+        Some(uri)
+    } else {
+        log::error!("{absolute_path:?} is not a valid URI");
+        None
     }
 }
 
@@ -345,7 +344,7 @@ impl LocalLspStore {
         if let Some((file, language)) = File::from_dyn(buffer.file()).zip(buffer.language()) {
             let worktree_id = file.worktree_id(cx);
 
-            let path: Arc<RelPath> = file.path().parent().map(Arc::from).unwrap_or_else(|| file.path().clone());
+            let path: Arc<RelPath> = file.path().parent().map_or_else(|| file.path().clone(), Arc::from);
             let worktree_path = ProjectPath { worktree_id, path };
             self.language_server_ids_for_project_path(worktree_path, language, cx)
         } else {
@@ -361,7 +360,7 @@ impl LocalLspStore {
         self.language_server_ids_for_buffer(buffer, cx).into_iter().filter_map(|server_id| {
             match self.language_servers.get(&server_id)? {
                 LanguageServerState::Running { adapter, server, .. } => Some((adapter, server)),
-                _ => None,
+                LanguageServerState::Starting { .. } => None,
             }
         })
     }
@@ -380,8 +379,7 @@ impl LocalLspStore {
 
         if let Some(diagnostics) = self.diagnostics.get(&worktree_id) {
             for (server_id, diagnostics) in diagnostics.get(file.path()).cloned().unwrap_or_default() {
-                self.update_buffer_diagnostics(buffer_handle, server_id, None, None, None, Vec::new(), diagnostics, cx)
-                    .log_err();
+                self.update_buffer_diagnostics(buffer_handle, server_id, None, Vec::new(), diagnostics, cx).log_err();
             }
         }
         let Some(language) = language else {
@@ -489,7 +487,7 @@ impl LocalLspStore {
         let Some(language) = buffer.language().cloned() else {
             return;
         };
-        let path: Arc<RelPath> = file.path().parent().map(Arc::from).unwrap_or_else(|| file.path().clone());
+        let path: Arc<RelPath> = file.path().parent().map_or_else(|| file.path().clone(), Arc::from);
         let Some(worktree) = self.worktree_store.read(cx).worktree_for_id(worktree_id, cx) else {
             return;
         };
@@ -543,7 +541,7 @@ impl LocalLspStore {
                             && let Some(workspace_folder) = workspace_folder
                         {
                             state.add_workspace_folder(workspace_folder);
-                        };
+                        }
                         Some(server_id)
                     }
                 })?;
@@ -556,7 +554,7 @@ impl LocalLspStore {
                         language_server_id: server_id,
                         name: server_node.name(),
                         buffer_id,
-                        buffer_abs_path: abs_path.to_path_buf(),
+                        buffer_abs_path: abs_path.clone(),
                     });
                     None
                 }
@@ -592,7 +590,7 @@ impl LocalLspStore {
                     language_server_id: server.server_id(),
                     name: None,
                     buffer_id,
-                    buffer_abs_path: abs_path.to_path_buf(),
+                    buffer_abs_path: abs_path.clone(),
                 });
             }
         }
@@ -638,7 +636,7 @@ impl LocalLspStore {
                 acc
             })
             .into_values()
-            .max_by_key(|servers| servers.len())?;
+            .max_by_key(Vec::len)?;
 
         let worktree_id = worktree.read(cx).id();
         let apply = move |tree: &mut LanguageServerTree| {
@@ -715,15 +713,12 @@ impl LocalLspStore {
 
         if let Some(version) = version {
             let buffer_id = buffer.read(cx).buffer_id();
-            let snapshots = if let Some(snapshots) =
-                self.buffer_snapshots.get_mut(&buffer_id).and_then(|m| m.get_mut(&server_id))
-            {
-                snapshots
-            } else if version == 0 {
+            let Some(snapshots) = self.buffer_snapshots.get_mut(&buffer_id).and_then(|m| m.get_mut(&server_id)) else {
                 // Some language servers report version 0 even if the buffer hasn't been opened yet.
                 // We detect this case and treat it as if the version was `None`.
-                return Ok(buffer.read(cx).text_snapshot());
-            } else {
+                if version == 0 {
+                    return Ok(buffer.read(cx).text_snapshot());
+                }
                 anyhow::bail!("no snapshots found for buffer {buffer_id} and server {server_id}");
             };
 
@@ -1053,7 +1048,7 @@ fn should_log_lsp_response_error(error: &anyhow::Error) -> bool {
 }
 
 fn lsp_pull_cancelled_with_retrigger(error: &anyhow::Error) -> bool {
-    error.downcast_ref::<lsp::ResponseError>().is_some_and(|response_error| response_error.should_retrigger())
+    error.downcast_ref::<lsp::ResponseError>().is_some_and(lsp::ResponseError::should_retrigger)
 }
 
 impl LspStore {
@@ -1135,7 +1130,7 @@ impl LspStore {
     fn on_buffer_store_event(&mut self, _: Entity<BufferStore>, event: &BufferStoreEvent, cx: &mut Context<Self>) {
         match event {
             BufferStoreEvent::BufferAdded(buffer) => {
-                self.on_buffer_added(buffer, cx).log_err();
+                self.on_buffer_added(buffer, cx);
             }
             BufferStoreEvent::BufferChangedFilePath { buffer, old_file } => {
                 let buffer_id = buffer.read(cx).buffer_id();
@@ -1162,7 +1157,7 @@ impl LspStore {
                     }
                 }
             }
-            _ => {}
+            BufferStoreEvent::BufferDropped(_) => {}
         }
     }
 
@@ -1217,7 +1212,7 @@ impl LspStore {
         }
     }
 
-    fn on_buffer_added(&mut self, buffer: &Entity<Buffer>, cx: &mut Context<Self>) -> Result<()> {
+    fn on_buffer_added(&mut self, buffer: &Entity<Buffer>, cx: &mut Context<Self>) {
         buffer.read(cx).set_language_registry(self.languages.clone());
 
         cx.subscribe(buffer, |this, buffer, event, cx| {
@@ -1230,8 +1225,6 @@ impl LspStore {
             let local = &mut self.local;
             local.initialize_buffer(buffer, cx);
         }
-
-        Ok(())
     }
 
     fn on_buffer_reloaded(&mut self, buffer: Entity<Buffer>, cx: &mut Context<Self>) {
@@ -1506,7 +1499,7 @@ impl LspStore {
             self.clear_path_diagnostics_for_servers(abs_path, servers_to_clear, |_, _, _| false, cx);
         }
 
-        cx.emit(LspStoreEvent::LanguageDetected { buffer: buffer_entity.clone(), new_language: Some(new_language) })
+        cx.emit(LspStoreEvent::LanguageDetected { buffer: buffer_entity.clone(), new_language: Some(new_language) });
     }
 
     pub fn buffer_store(&self) -> Entity<BufferStore> {
@@ -1591,7 +1584,7 @@ impl LspStore {
         let lsp_params = match request.to_lsp(&file.abs_path(cx), buffer.read(cx), &language_server, cx) {
             Ok(lsp_params) => lsp_params,
             Err(err) => {
-                let err = err.context(format!("{} via {} failed", request.display_name(), language_server.name(),));
+                let err = err.context(format!("{} via {} failed", request.display_name(), language_server.name()));
                 let message = format!("{err:#}");
                 if should_log_lsp_request_failure(&message) {
                     log::warn!("{message}");
@@ -1858,8 +1851,7 @@ impl LspStore {
             current_servers.difference(&existing_inlay_hints.fetched_servers).copied().collect::<FxHashSet<_>>();
         let known_chunks = known_chunks
             .filter(|(known_version, _)| !query_version.changed_since(known_version))
-            .map(|(_, known_chunks)| known_chunks)
-            .unwrap_or_default();
+            .map_or_default(|(_, known_chunks)| known_chunks);
 
         let buffer_snapshot = buffer.read(cx).snapshot();
         let ranges = ranges.iter().map(|range| range.to_point(&buffer_snapshot)).collect::<Vec<_>>();
@@ -2088,7 +2080,7 @@ impl LspStore {
                                 .context("workspace symbols request")
                                 .log_err()
                                 .flatten()
-                                .map(|symbol_response| match symbol_response {
+                                .map_or_default(|symbol_response| match symbol_response {
                                     lsp::WorkspaceSymbolResponse::Flat(flat_responses) => flat_responses
                                         .into_iter()
                                         .map(|lsp_symbol| {
@@ -2122,8 +2114,7 @@ impl LspStore {
                                             ))
                                         })
                                         .collect::<Vec<_>>(),
-                                })
-                                .unwrap_or_default();
+                                });
 
                             WorkspaceSymbolsResult {
                                 server_id,
@@ -2137,9 +2128,8 @@ impl LspStore {
 
             cx.spawn(async move |this, cx| {
                 let responses = join_all(requests).await;
-                let this = match this.upgrade() {
-                    Some(this) => this,
-                    None => return Ok(Vec::new()),
+                let Some(this) = this.upgrade() else {
+                    return Ok(Vec::new());
                 };
 
                 let mut symbols = Vec::new();
@@ -2317,7 +2307,7 @@ impl LspStore {
 
         language_server_ids.into_iter().filter_map(move |server_id| match local.language_servers.get(&server_id)? {
             LanguageServerState::Running { adapter, server, .. } => Some((adapter, server)),
-            _ => None,
+            LanguageServerState::Starting { .. } => None,
         })
     }
 
@@ -2372,7 +2362,7 @@ impl LspStore {
             });
             if !is_valid {
                 return Task::ready(Err(anyhow!("language server for worktree and language not found")));
-            };
+            }
 
             let symbol_abs_path = match &symbol.path {
                 SymbolLocation::InProject(project_path) => {
@@ -2384,9 +2374,7 @@ impl LspStore {
                 Ok(abs_path) => abs_path,
                 Err(err) => return Task::ready(Err(err)),
             };
-            let symbol_uri = if let Ok(uri) = lsp::Uri::from_file_path(symbol_abs_path) {
-                uri
-            } else {
+            let Ok(symbol_uri) = lsp::Uri::from_file_path(symbol_abs_path) else {
                 return Task::ready(Err(anyhow!("invalid symbol path")));
             };
 
@@ -2418,7 +2406,7 @@ impl LspStore {
                     lsp_store
                         .update(cx, |lsp_store, cx| {
                             let local = &mut lsp_store.local;
-                            local.register_language_server_for_invisible_worktree(&worktree, language_server_id, cx)
+                            local.register_language_server_for_invisible_worktree(&worktree, language_server_id, cx);
                         })
                         .ok();
                 }
@@ -2567,7 +2555,7 @@ impl LspStore {
     pub fn language_server_adapter_for_id(&self, id: LanguageServerId) -> Option<Arc<CachedLspAdapter>> {
         match self.local.language_servers.get(&id)? {
             LanguageServerState::Running { adapter, .. } => Some(adapter.clone()),
-            _ => None,
+            LanguageServerState::Starting { .. } => None,
         }
     }
 
@@ -2616,51 +2604,48 @@ async fn find_worktree_for_lsp_path(
     let (fs, worktree) = lsp_store.read_with(cx, |lsp_store, cx| {
         (Some(lsp_store.local.fs.clone()), lsp_store.worktree_store.read(cx).find_worktree(abs_path, cx))
     })?;
-    match worktree {
-        Some((worktree, relative_path)) => {
-            let relative_path = normalize_lsp_relative_path(&worktree, abs_path, relative_path, cx).await?;
-            Ok(Some((worktree, relative_path)))
-        }
-        None => {
-            let Some(fs) = fs else {
-                return Ok(None);
-            };
-            let Ok(canonical_path) = fs.canonicalize(abs_path).await else {
-                return Ok(None);
-            };
-            let (worktree, mut scans) = lsp_store.read_with(cx, |lsp_store, cx| {
-                let worktree_store = lsp_store.worktree_store.read(cx);
-                if let Some(worktree) = worktree_store.find_worktree(&canonical_path, cx) {
-                    return (Some(worktree), FuturesUnordered::new());
-                }
-                let scans = worktree_store
-                    .worktrees()
-                    .map(|worktree| {
-                        let scan_complete = worktree.read(cx).scan_complete();
-                        async move {
-                            scan_complete.await;
-                            worktree
-                        }
-                    })
-                    .collect::<FuturesUnordered<_>>();
-                (None, scans)
-            })?;
-            if worktree.is_some() {
-                return Ok(worktree);
+    if let Some((worktree, relative_path)) = worktree {
+        let relative_path = normalize_lsp_relative_path(&worktree, abs_path, relative_path, cx).await?;
+        Ok(Some((worktree, relative_path)))
+    } else {
+        let Some(fs) = fs else {
+            return Ok(None);
+        };
+        let Ok(canonical_path) = fs.canonicalize(abs_path).await else {
+            return Ok(None);
+        };
+        let (worktree, mut scans) = lsp_store.read_with(cx, |lsp_store, cx| {
+            let worktree_store = lsp_store.worktree_store.read(cx);
+            if let Some(worktree) = worktree_store.find_worktree(&canonical_path, cx) {
+                return (Some(worktree), FuturesUnordered::new());
             }
-            // Language servers may report files in symlinked external
-            // directories by their canonical path. These directories are
-            // known only after they are scanned. `scan_complete` resolves
-            // immediately for worktrees that are not scanning.
-            while let Some(worktree) = scans.next().await {
-                let relative_path =
-                    worktree.read_with(cx, |worktree, _| worktree.relative_path_for_external_abs_path(&canonical_path));
-                if let Some(relative_path) = relative_path {
-                    return Ok(Some((worktree, Arc::from(relative_path))));
-                }
-            }
-            Ok(None)
+            let scans = worktree_store
+                .worktrees()
+                .map(|worktree| {
+                    let scan_complete = worktree.read(cx).scan_complete();
+                    async move {
+                        scan_complete.await;
+                        worktree
+                    }
+                })
+                .collect::<FuturesUnordered<_>>();
+            (None, scans)
+        })?;
+        if worktree.is_some() {
+            return Ok(worktree);
         }
+        // Language servers may report files in symlinked external
+        // directories by their canonical path. These directories are
+        // known only after they are scanned. `scan_complete` resolves
+        // immediately for worktrees that are not scanning.
+        while let Some(worktree) = scans.next().await {
+            let relative_path =
+                worktree.read_with(cx, |worktree, _| worktree.relative_path_for_external_abs_path(&canonical_path));
+            if let Some(relative_path) = relative_path {
+                return Ok(Some((worktree, Arc::from(relative_path))));
+            }
+        }
+        Ok(None)
     }
 }
 
@@ -2935,5 +2920,5 @@ async fn populate_labels_for_symbols(
 }
 
 pub(crate) fn collapse_newlines(text: &str, separator: &str) -> String {
-    text.lines().map(|line| line.trim()).filter(|line| !line.is_empty()).join(separator)
+    text.lines().map(str::trim).filter(|line| !line.is_empty()).join(separator)
 }

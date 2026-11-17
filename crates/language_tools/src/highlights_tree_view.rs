@@ -102,7 +102,7 @@ pub fn init(cx: &App) {
             let active_item = workspace.active_item(cx);
             let workspace_handle = workspace.weak_handle();
             let highlights_tree_view = cx.new(|cx| HighlightsTreeView::new(workspace_handle, active_item, window, cx));
-            workspace.split_item(SplitDirection::Right, Box::new(highlights_tree_view), window, cx)
+            workspace.split_item(SplitDirection::Right, Box::new(highlights_tree_view), window, cx);
         });
     })
     .detach();
@@ -243,10 +243,10 @@ impl HighlightsTreeView {
         cx.subscribe_in(&workspace_handle.upgrade().unwrap(), window, move |this, workspace, event, window, cx| {
             match event {
                 WorkspaceEvent::ItemAdded { .. } | WorkspaceEvent::ActiveItemChanged => {
-                    this.handle_item_updated(workspace.read(cx).active_item(cx), window, cx)
+                    this.handle_item_updated(workspace.read(cx).active_item(cx), window, cx);
                 }
                 WorkspaceEvent::ItemRemoved { item_id } => {
-                    this.handle_item_removed(item_id, window, cx);
+                    this.handle_item_removed(*item_id, window, cx);
                 }
                 _ => {}
             }
@@ -262,24 +262,19 @@ impl HighlightsTreeView {
         window: &Window,
         cx: &mut Context<Self>,
     ) {
-        let active_editor = match active_item {
-            Some(active_item) => {
-                if active_item.item_id() == cx.entity_id() {
-                    return;
-                } else {
-                    match active_item.downcast::<Editor>() {
-                        Some(active_editor) => active_editor,
-                        None => {
-                            self.clear(cx);
-                            return;
-                        }
-                    }
-                }
+        let active_editor = if let Some(active_item) = active_item {
+            if active_item.item_id() == cx.entity_id() {
+                return;
             }
-            None => {
+            if let Some(active_editor) = active_item.downcast::<Editor>() {
+                active_editor
+            } else {
                 self.clear(cx);
                 return;
             }
+        } else {
+            self.clear(cx);
+            return;
         };
 
         let is_different_editor = self.editor.as_ref().is_none_or(|state| state.editor != active_editor);
@@ -288,8 +283,8 @@ impl HighlightsTreeView {
         }
     }
 
-    fn handle_item_removed(&mut self, item_id: &EntityId, _window: &mut Window, cx: &mut Context<Self>) {
-        if self.editor.as_ref().is_some_and(|state| state.editor.entity_id() == *item_id) {
+    fn handle_item_removed(&mut self, item_id: EntityId, _window: &mut Window, cx: &mut Context<Self>) {
+        if self.editor.as_ref().is_some_and(|state| state.editor.entity_id() == item_id) {
             self.clear(cx);
         }
     }
@@ -513,7 +508,7 @@ impl HighlightsTreeView {
                     let entry = &self.cached_entries[*entry_ix];
                     Some((display_ix, *entry_ix, entry))
                 }
-                _ => None,
+                DisplayItem::ExcerptSeparator { .. } => None,
             })
             .filter(|(_, _, entry)| {
                 entry.buffer_id == cursor_buffer_id
@@ -703,7 +698,7 @@ impl HighlightsTreeView {
             .enumerate()
             .filter_map(|(display_ix, item)| match item {
                 DisplayItem::Entry { entry_ix } => Some((display_ix, *entry_ix)),
-                _ => None,
+                DisplayItem::ExcerptSeparator { .. } => None,
             })
             .collect();
 
@@ -809,7 +804,7 @@ impl Focusable for HighlightsTreeView {
 impl Item for HighlightsTreeView {
     type Event = ();
 
-    fn to_item_events(_: &Self::Event, _: &mut dyn FnMut(ItemEvent)) {}
+    fn to_item_events((): &Self::Event, _: &mut dyn FnMut(ItemEvent)) {}
 
     fn tab_content_text(&self, _detail: usize, _cx: &App) -> SharedString {
         "Highlights".into()
@@ -840,26 +835,19 @@ impl HighlightsTreeToolbarItemView {
         let total = tree_view.cached_entries.len();
         let filtered = tree_view.entry_count();
 
-        let label = if filtered == total {
-            format!("{} highlights", total)
-        } else {
-            format!("{} / {} highlights", filtered, total)
-        };
+        let label =
+            if filtered == total { format!("{total} highlights") } else { format!("{filtered} / {total} highlights") };
 
         Some(ButtonLike::new("highlights header").child(Label::new(label)))
     }
 
     fn render_settings_button(&self, cx: &Context<Self>) -> PopoverMenu<ContextMenu> {
-        let (show_text, show_syntax, show_semantic) = self
-            .tree_view
-            .as_ref()
-            .map(|view| {
-                let v = view.read(cx);
-                (v.show_text_highlights, v.show_syntax_tokens, v.show_semantic_tokens)
-            })
-            .unwrap_or((true, true, true));
+        let (show_text, show_syntax, show_semantic) = self.tree_view.as_ref().map_or((true, true, true), |view| {
+            let v = view.read(cx);
+            (v.show_text_highlights, v.show_syntax_tokens, v.show_semantic_tokens)
+        });
 
-        let tree_view = self.tree_view.as_ref().map(|v| v.downgrade());
+        let tree_view = self.tree_view.as_ref().map(gpui::Entity::downgrade);
 
         PopoverMenu::new("highlights-tree-settings")
             .trigger_with_tooltip(
@@ -990,11 +978,13 @@ fn excerpt_label_for(entry: &HighlightEntry, snapshot: &MultiBufferSnapshot, cx:
         .anchor_to_buffer_anchor(entry.range.start)
         .and_then(|(anchor, _)| snapshot.buffer_for_id(anchor.buffer_id))
         .and_then(|buf| buf.file())
-        .map(|file| {
-            let full_path = file.full_path(cx);
-            full_path.to_string_lossy().to_string()
-        })
-        .unwrap_or_else(|| "untitled".to_string());
+        .map_or_else(
+            || "untitled".to_string(),
+            |file| {
+                let full_path = file.full_path(cx);
+                full_path.to_string_lossy().to_string()
+            },
+        );
     path_label.into()
 }
 
@@ -1073,8 +1063,10 @@ fn build_highlight_entries(
                 .highlights_config
                 .as_ref()
                 .and_then(|config| config.query.capture_names().get(capture.index as usize))
-                .map(|capture_name| SharedString::from((*capture_name).to_string()))
-                .unwrap_or_else(|| SharedString::from("unknown"));
+                .map_or_else(
+                    || SharedString::from("unknown"),
+                    |capture_name| SharedString::from((*capture_name).to_string()),
+                );
 
             let start_anchor = buffer_snapshot.anchor_before(capture.node.start_byte());
             let end_anchor = buffer_snapshot.anchor_after(capture.node.end_byte());
@@ -1082,9 +1074,8 @@ fn build_highlight_entries(
             let start = multi_buffer_snapshot.anchor_in_excerpt(start_anchor);
             let end = multi_buffer_snapshot.anchor_in_excerpt(end_anchor);
 
-            let (start, end) = match (start, end) {
-                (Some(start), Some(end)) => (start, end),
-                _ => continue,
+            let (Some(start), Some(end)) = (start, end) else {
+                continue;
             };
 
             let range = start..end;
@@ -1128,7 +1119,7 @@ fn format_anchor_range(
     let ((start_buffer, start), (_, end)) =
         snapshot.point_to_buffer_point(start).zip(snapshot.point_to_buffer_point(end))?;
     let display =
-        SharedString::from(format!("[{}:{} - {}:{}]", start.row + 1, start.column + 1, end.row + 1, end.column + 1,));
+        SharedString::from(format!("[{}:{} - {}:{}]", start.row + 1, start.column + 1, end.row + 1, end.column + 1));
     Some((display, start_buffer.buffer_id(), start..end))
 }
 
@@ -1184,5 +1175,5 @@ fn format_hsla_as_hex(color: Hsla) -> String {
     let g = (rgba.g * 255.0).round() as u8;
     let b = (rgba.b * 255.0).round() as u8;
     let a = (rgba.a * 255.0).round() as u8;
-    if a == 255 { format!("#{:02X}{:02X}{:02X}", r, g, b) } else { format!("#{:02X}{:02X}{:02X}{:02X}", r, g, b, a) }
+    if a == 255 { format!("#{r:02X}{g:02X}{b:02X}") } else { format!("#{r:02X}{g:02X}{b:02X}{a:02X}") }
 }

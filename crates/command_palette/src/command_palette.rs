@@ -132,7 +132,7 @@ impl CommandPalette {
     }
 
     pub fn set_query(&mut self, query: &str, window: &mut Window, cx: &mut Context<Self>) {
-        self.picker.update(cx, |picker, cx| picker.set_query(query, window, cx))
+        self.picker.update(cx, |picker, cx| picker.set_query(query, window, cx));
     }
 }
 
@@ -219,7 +219,7 @@ impl CommandPaletteDelegate {
         if self.matches.is_empty() {
             return None;
         }
-        let action_ix = self.matches.get(self.selected_ix).map(|m| m.candidate_id).unwrap_or(self.selected_ix);
+        let action_ix = self.matches.get(self.selected_ix).map_or(self.selected_ix, |m| m.candidate_id);
         // this gets called in headless tests where there are no commands loaded
         // so we need to return an Option here
         self.commands.get(action_ix)
@@ -298,15 +298,12 @@ impl PickerDelegate for CommandPaletteDelegate {
             return true;
         };
 
-        match cx.foreground_executor().block_with_timeout(duration, rx.clone().recv()) {
-            Ok(Ok((commands, matches))) => {
-                self.matches_updated(query, commands, matches, cx);
-                true
-            }
-            _ => {
-                self.updating_matches = Some((task, rx));
-                false
-            }
+        if let Ok(Ok((commands, matches))) = cx.foreground_executor().block_with_timeout(duration, rx.recv()) {
+            self.matches_updated(query, commands, matches, cx);
+            true
+        } else {
+            self.updating_matches = Some((task, rx));
+            false
         }
     }
 

@@ -37,7 +37,7 @@ impl Menu {
     pub fn owned(self) -> OwnedMenu {
         OwnedMenu {
             name: self.name.to_string().into(),
-            items: self.items.into_iter().map(|item| item.owned()).collect(),
+            items: self.items.into_iter().map(MenuItem::owned).collect(),
             disabled: self.disabled,
         }
     }
@@ -297,16 +297,14 @@ pub(crate) fn init_app_menus(platform: &dyn Platform, cx: &App) {
         let cx = cx.to_async();
         move || {
             if let Some(app) = cx.app.upgrade() {
-                app.borrow_mut().update(|cx| cx.clear_pending_keystrokes());
+                app.borrow_mut().update(|x| x.clear_pending_keystrokes());
             }
         }
     }));
 
     platform.on_validate_app_menu_command(Box::new({
         let cx = cx.to_async();
-        move |action| {
-            cx.app.upgrade().map(|app| app.borrow_mut().update(|cx| cx.is_action_available(action))).unwrap_or(false)
-        }
+        move |action| cx.app.upgrade().is_some_and(|app| app.borrow_mut().update(|cx| cx.is_action_available(action)))
     }));
 
     platform.on_app_menu_action(Box::new({

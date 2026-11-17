@@ -105,7 +105,6 @@ impl Pasteboard {
             let contains: bool = !types.is_null() && msg_send![types, containsObject: ut_type.inner()];
             if contains {
                 self.data_for_type(ut_type.inner_mut()).map(|bytes| {
-                    let bytes = bytes.to_vec();
                     let id = hash(&bytes);
 
                     ClipboardItem { entries: vec![ClipboardEntry::Image(Image { format, bytes, id })] }
@@ -259,7 +258,7 @@ impl Pasteboard {
 
 /// Returns an autoreleased `NSData` copy of `bytes`.
 unsafe fn ns_data(bytes: *const u8, length: usize) -> id {
-    unsafe { msg_send![class!(NSData), dataWithBytes: bytes as *const c_void, length: length] }
+    unsafe { msg_send![class!(NSData), dataWithBytes: bytes.cast::<c_void>(), length: length] }
 }
 
 #[link(name = "AppKit", kind = "framework")]

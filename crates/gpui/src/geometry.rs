@@ -518,21 +518,23 @@ impl Bounds<Pixels> {
     pub fn centered(display_id: Option<DisplayId>, size: Size<Pixels>, cx: &App) -> Self {
         let display = display_id.and_then(|id| cx.find_display(id)).or_else(|| cx.primary_display());
 
-        display
-            .map(|display| {
+        display.map_or_else(
+            || Bounds { origin: point(px(0.), px(0.)), size },
+            |display| {
                 let visible_bounds = display.visible_bounds();
                 Bounds::centered_at(visible_bounds.center(), size.min(&visible_bounds.size))
-            })
-            .unwrap_or_else(|| Bounds { origin: point(px(0.), px(0.)), size })
+            },
+        )
     }
 
     /// Generate maximized bounds for the given display or primary display if none is provided
     pub fn maximized(display_id: Option<DisplayId>, cx: &App) -> Self {
         let display = display_id.and_then(|id| cx.find_display(id)).or_else(|| cx.primary_display());
 
-        display
-            .map(|display| display.bounds())
-            .unwrap_or_else(|| Bounds { origin: point(px(0.), px(0.)), size: size(px(1024.), px(768.)) })
+        display.map_or_else(
+            || Bounds { origin: point(px(0.), px(0.)), size: size(px(1024.), px(768.)) },
+            |display| display.bounds(),
+        )
     }
 }
 
@@ -2260,7 +2262,7 @@ impl Mul<Pixels> for Rems {
 
 impl AddAssign<Rems> for Rems {
     fn add_assign(&mut self, rhs: Rems) {
-        self.0 += rhs.0
+        self.0 += rhs.0;
     }
 }
 
@@ -2381,9 +2383,9 @@ impl TryFrom<&'_ str> for AbsoluteLength {
     type Error = anyhow::Error;
 
     fn try_from(value: &'_ str) -> Result<Self, Self::Error> {
-        if let Ok(pixels) = value.try_into() {
+        if let Ok(pixels) = Pixels::try_from(value) {
             Ok(Self::Pixels(pixels))
-        } else if let Ok(rems) = value.try_into() {
+        } else if let Ok(rems) = Rems::try_from(value) {
             Ok(Self::Rems(rems))
         } else {
             Err(anyhow!("invalid AbsoluteLength '{value}', expected {EXPECTED_ABSOLUTE_LENGTH}"))
@@ -2563,7 +2565,7 @@ impl Debug for Length {
 impl Display for Length {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Length::Definite(definite_length) => write!(f, "{}", definite_length),
+            Length::Definite(definite_length) => write!(f, "{definite_length}"),
             Length::Auto => write!(f, "auto"),
         }
     }
@@ -2707,7 +2709,7 @@ impl Default for Length {
 }
 
 impl From<()> for Length {
-    fn from(_: ()) -> Self {
+    fn from((): ()) -> Self {
         Self::Definite(DefiniteLength::default())
     }
 }

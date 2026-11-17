@@ -599,7 +599,7 @@ impl BufferDiffSnapshot {
             hunk_patch.push(Edit {
                 old: Point::zero()..prev_hunk.diff_base_byte_range.end.to_point(self.base_text()),
                 new: Point::zero()..prev_hunk.buffer_range.end.to_point(self.original_buffer_snapshot()),
-            })
+            });
         }
         let range_end = range.end().to_offset(self.base_text());
         while let Some(hunk) = cursor.item()
@@ -653,7 +653,7 @@ impl BufferDiffSnapshot {
         let (index_text, head_text) = match (index_text, head_text) {
             (Some(index_text), Some(head_text)) if file_exists || !stage => (index_text, head_text),
             (index_text, head_text) => {
-                let index_len = index_text.as_ref().map_or(0, |rope| rope.len());
+                let index_len = index_text.as_ref().map_or(0, language::Rope::len);
                 let new_index_text: Option<Rope> = if stage {
                     log::debug!("stage all");
                     file_exists.then(|| buffer.as_rope().clone())
@@ -761,10 +761,10 @@ impl BufferDiffSnapshot {
             let index_byte_range = index_start..index_end;
 
             let replacement_text: Arc<str> = if stage {
-                log::debug!("staging hunk {:?}", buffer_offset_range);
+                log::debug!("staging hunk {buffer_offset_range:?}");
                 Arc::from(buffer.text_for_range(buffer_offset_range).collect::<String>())
             } else {
-                log::debug!("unstaging hunk {:?}", buffer_offset_range);
+                log::debug!("unstaging hunk {buffer_offset_range:?}");
                 Arc::from(head_text.chunks_in_range(diff_base_byte_range).collect::<String>())
             };
 
@@ -936,7 +936,7 @@ fn compute_hunks(
         // A common case in ed is that the empty buffer is represented as just a newline,
         // but if we just compute a naive diff you get a "preserved" line in the middle,
         // which is a bit odd.
-        if buffer_text == "\n" && diff_base.ends_with("\n") && diff_base.len() > 1 {
+        if buffer_text == "\n" && diff_base.ends_with('\n') && diff_base.len() > 1 {
             tree.push(
                 InternalDiffHunk {
                     buffer_range: buffer.anchor_before(0)..buffer.anchor_before(0),
@@ -1111,7 +1111,7 @@ fn compare_hunks(
                         if base_text_end
                             .is_none_or(|base_text_end| new_diff_range_end.cmp(&base_text_end, new_base_text).is_gt())
                         {
-                            base_text_end = Some(new_diff_range_end)
+                            base_text_end = Some(new_diff_range_end);
                         }
                         new_cursor.next();
                     }
@@ -1161,7 +1161,7 @@ fn compare_hunks(
                         if base_text_end
                             .is_none_or(|base_text_end| old_diff_range_end.cmp(&base_text_end, new_base_text).is_gt())
                         {
-                            base_text_end = Some(old_diff_range_end)
+                            base_text_end = Some(old_diff_range_end);
                         }
                         old_cursor.next();
                     }
@@ -1179,7 +1179,7 @@ fn compare_hunks(
                 if base_text_end
                     .is_none_or(|base_text_end| new_base_text_end.cmp(&base_text_end, new_base_text).is_gt())
                 {
-                    base_text_end = Some(new_base_text_end)
+                    base_text_end = Some(new_base_text_end);
                 }
                 new_cursor.next();
             }
@@ -1507,7 +1507,7 @@ impl BufferDiff {
 
         let language = base_text_snapshot.language();
         let diff_options = Some(DiffOptions {
-            language_scope: language.map(|l| l.default_scope()),
+            language_scope: language.map(language::Language::default_scope),
             max_word_diff_line_count: MAX_WORD_DIFF_LINE_COUNT,
             ..Default::default()
         });
@@ -1679,7 +1679,7 @@ impl BufferDiff {
     }
 
     pub fn changed_row_counts(&self) -> (u32, u32) {
-        self.diff_snapshot.as_ref().map_or((0, 0), |diff_snapshot| diff_snapshot.changed_row_counts())
+        self.diff_snapshot.as_ref().map_or((0, 0), BufferDiffSnapshot::changed_row_counts)
     }
 
     pub fn snapshot(&self, cx: &App) -> BufferDiffSnapshot {

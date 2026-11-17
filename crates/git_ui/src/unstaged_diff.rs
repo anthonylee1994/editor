@@ -298,7 +298,7 @@ impl Item for UnstagedDiff {
     }
 
     fn to_item_events(event: &EditorEvent, f: &mut dyn FnMut(ItemEvent)) {
-        Editor::to_item_events(event, f)
+        Editor::to_item_events(event, f);
     }
 
     fn deactivated(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -449,7 +449,7 @@ impl UnstagedDiffToolbar {
         let action = action.boxed_clone();
         cx.defer(move |cx| {
             cx.dispatch_action(action.as_ref());
-        })
+        });
     }
 
     fn stage_selected_unstaged_hunks(&self, move_to_next: bool, window: &mut Window, cx: &mut Context<Self>) {
@@ -570,7 +570,7 @@ impl Render for UnstagedDiffToolbar {
                                 .disabled(!button_states.stage)
                                 .tooltip(Tooltip::text("Stage Selected Hunks"))
                                 .on_click(cx.listener(|this, _, window, cx| {
-                                    this.stage_selected_unstaged_hunks(false, window, cx)
+                                    this.stage_selected_unstaged_hunks(false, window, cx);
                                 })),
                         )
                     })
@@ -584,7 +584,7 @@ impl Render for UnstagedDiffToolbar {
                                     &focus_handle,
                                 ))
                                 .on_click(cx.listener(|this, _, window, cx| {
-                                    this.stage_selected_unstaged_hunks(true, window, cx)
+                                    this.stage_selected_unstaged_hunks(true, window, cx);
                                 })),
                         )
                     })
@@ -593,7 +593,7 @@ impl Render for UnstagedDiffToolbar {
                             .disabled(!button_states.restore)
                             .tooltip(Tooltip::text("Restore Selected Hunks"))
                             .on_click(cx.listener(|this, _, window, cx| {
-                                this.restore_selected_unstaged_hunks(false, window, cx)
+                                this.restore_selected_unstaged_hunks(false, window, cx);
                             })),
                     ),
             )

@@ -241,13 +241,10 @@ fn populate_capture_indices(
                 _ => {}
             }
         }
-        if !name.starts_with("_") && !expected_prefixes.iter().any(|&prefix| name.starts_with(prefix)) {
+        if !name.starts_with('_') && !expected_prefixes.iter().any(|&prefix| name.starts_with(prefix)) {
             log::warn!(
-                "unrecognized capture name '{}' in {} {} TreeSitter query \
-                (suppress this warning by prefixing with '_')",
-                name,
-                language_name,
-                query_type
+                "unrecognized capture name '{name}' in {language_name} {query_type} TreeSitter query \
+                (suppress this warning by prefixing with '_')"
             );
         }
     }
@@ -397,7 +394,7 @@ impl Grammar {
         let supports_grouped_runnables =
             extra_captures.iter().any(|capture| matches!(capture, RunnableCapture::RunItem));
 
-        self.runnable_config = Some(RunnableConfig { extra_captures, query, supports_grouped_runnables });
+        self.runnable_config = Some(RunnableConfig { query, extra_captures, supports_grouped_runnables });
 
         Ok(self)
     }
@@ -448,7 +445,7 @@ impl Grammar {
             if let Some(text_object) = TextObject::from_capture_name(name) {
                 text_objects_by_capture_ix.push((ix as u32, text_object));
             } else {
-                log::warn!("unrecognized capture name '{}' in {} textobjects TreeSitter query", name, language_name,);
+                log::warn!("unrecognized capture name '{name}' in {language_name} textobjects TreeSitter query");
             }
         }
 
@@ -473,7 +470,7 @@ impl Grammar {
                     for setting in query.property_settings(ix) {
                         let setting_key = setting.key.as_ref();
                         if setting_key == "newline.only" {
-                            config.newline_only = true
+                            config.newline_only = true;
                         }
                     }
                     config
@@ -574,12 +571,11 @@ impl Grammar {
                 .collect();
             if let Some(content_capture_ix) = content_capture_ix {
                 self.injection_config =
-                    Some(InjectionConfig { query, language_capture_ix, content_capture_ix, host_capture_ix, patterns });
+                    Some(InjectionConfig { query, content_capture_ix, language_capture_ix, host_capture_ix, patterns });
             } else {
                 log::error!(
-                    "missing required capture in injections {} TreeSitter query: \
+                    "missing required capture in injections {language_name} TreeSitter query: \
                     content or injection.content",
-                    language_name,
                 );
             }
         }
@@ -615,7 +611,7 @@ impl Grammar {
 
         for referenced_name in referenced_override_names {
             if !override_configs_by_id.values().any(|entry| entry.name == *referenced_name) {
-                anyhow::bail!("language {:?} has overrides in config not in query: {referenced_name:?}", language_name);
+                anyhow::bail!("language {language_name:?} has overrides in config not in query: {referenced_name:?}");
             }
         }
 

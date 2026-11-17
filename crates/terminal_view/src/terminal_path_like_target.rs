@@ -53,7 +53,7 @@ fn possible_hover_target(
                     None => {
                         terminal_view.hover = None;
                     }
-                };
+                }
                 cx.notify();
             })
             .ok();
@@ -67,7 +67,7 @@ pub(super) fn open_path_like_target(
     window: &Window,
     cx: &Context<TerminalView>,
 ) {
-    possibly_open_target(workspace, terminal_view, path_like_target, window, cx).detach_and_log_err(cx)
+    possibly_open_target(workspace, terminal_view, path_like_target, window, cx).detach_and_log_err(cx);
 }
 
 fn possibly_open_target(

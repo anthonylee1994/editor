@@ -160,9 +160,7 @@ impl Editor {
             let mut non_blank_rows_iter =
                 (start_row..=end_row).filter(|row| !buffer.is_line_blank(MultiBufferRow(*row))).peekable();
 
-            let first_row = if let Some(&row) = non_blank_rows_iter.peek() {
-                row
-            } else {
+            let Some(&first_row) = non_blank_rows_iter.peek() else {
                 return Vec::new();
             };
 
@@ -274,23 +272,17 @@ impl Editor {
                         | CommentFormat::BlockCommentWithEnd(BlockCommentConfig { start, prefix, end, tab_size }),
                     ) = &comment_prefix
                     {
-                        let line_trimmed = line_trimmed
-                            .strip_prefix(start.as_ref())
-                            .map(|s| {
-                                let mut indent_size = indent_size;
-                                indent_size.len -= tab_size;
-                                let indent_prefix: String = indent_size.chars().collect();
-                                first_line_delimiter = Some((indent_prefix, start));
-                                s.trim_start()
-                            })
-                            .unwrap_or(line_trimmed);
-                        let line_trimmed = line_trimmed
-                            .strip_suffix(end.as_ref())
-                            .map(|s| {
-                                last_line_delimiter = Some(end);
-                                s.trim_end()
-                            })
-                            .unwrap_or(line_trimmed);
+                        let line_trimmed = line_trimmed.strip_prefix(start.as_ref()).map_or(line_trimmed, |s| {
+                            let mut indent_size = indent_size;
+                            indent_size.len -= tab_size;
+                            let indent_prefix: String = indent_size.chars().collect();
+                            first_line_delimiter = Some((indent_prefix, start));
+                            s.trim_start()
+                        });
+                        let line_trimmed = line_trimmed.strip_suffix(end.as_ref()).map_or(line_trimmed, |s| {
+                            last_line_delimiter = Some(end);
+                            s.trim_end()
+                        });
                         let line_trimmed = line_trimmed.strip_prefix(prefix.as_ref()).unwrap_or(line_trimmed);
                         Ok(line_trimmed)
                     } else if let Some(CommentFormat::BlockLine(prefix)) = &comment_prefix {
@@ -451,10 +443,10 @@ impl<'a> Iterator for WordBreakingTokenizer<'a> {
                 while let Some(grapheme) = iter.peek().copied() {
                     if next_word_bound.is_some_and(|(i, _)| i == offset) {
                         break;
-                    };
+                    }
                     if is_grapheme_whitespace(grapheme) != is_whitespace || (grapheme == "\n") != is_newline {
                         break;
-                    };
+                    }
                     offset += grapheme.len();
                     grapheme_len += 1;
                     iter.next();
@@ -546,17 +538,17 @@ fn wrap_with_prefix(
                     is_first_line = false;
                     current_line.clone_from(&subsequent_lines_prefix);
                     current_line_len = subsequent_lines_prefix_len;
-                } else if have_preceding_whitespace {
-                    continue;
-                } else if current_line_len + 1 > wrap_column && current_line_len != current_prefix_len {
-                    wrapped_text.push_str(current_line.trim_end());
-                    wrapped_text.push('\n');
-                    is_first_line = false;
-                    current_line.clone_from(&subsequent_lines_prefix);
-                    current_line_len = subsequent_lines_prefix_len;
-                } else if current_line_len != current_prefix_len {
-                    current_line.push(' ');
-                    current_line_len += 1;
+                } else if !have_preceding_whitespace {
+                    if current_line_len + 1 > wrap_column && current_line_len != current_prefix_len {
+                        wrapped_text.push_str(current_line.trim_end());
+                        wrapped_text.push('\n');
+                        is_first_line = false;
+                        current_line.clone_from(&subsequent_lines_prefix);
+                        current_line_len = subsequent_lines_prefix_len;
+                    } else if current_line_len != current_prefix_len {
+                        current_line.push(' ');
+                        current_line_len += 1;
+                    }
                 }
             }
         }

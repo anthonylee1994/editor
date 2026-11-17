@@ -588,14 +588,13 @@ impl WrapSnapshot {
                             line.push_str(prefix);
                             remaining = Some(Chunk { text: suffix, ..chunk });
                             break;
-                        } else {
-                            if let Some(width) = chunk.renderer.as_ref().and_then(|r| r.measured_width) {
-                                line_fragments.push(gpui::LineFragment::element(width, chunk.text.len()));
-                            } else {
-                                fragment_builder.push_fragments(&mut line_fragments, chunk.text);
-                            }
-                            line.push_str(chunk.text);
                         }
+                        if let Some(width) = chunk.renderer.as_ref().and_then(|r| r.measured_width) {
+                            line_fragments.push(gpui::LineFragment::element(width, chunk.text.len()));
+                        } else {
+                            fragment_builder.push_fragments(&mut line_fragments, chunk.text);
+                        }
+                        line.push_str(chunk.text);
                     }
 
                     if line.is_empty() {
@@ -933,9 +932,8 @@ impl WrapSnapshot {
         while let Some(transform) = cursor.item() {
             if transform.is_isomorphic() && cursor.start().1.column() == 0 {
                 return Some(cmp::max(cursor.start().0.row(), point.row()));
-            } else {
-                cursor.next();
             }
+            cursor.next();
         }
 
         None
@@ -1111,7 +1109,7 @@ impl Transform {
                     longest_row_chars: indent,
                 },
             },
-            display_text: Some(&WRAP_TEXT[..1 + indent as usize]),
+            display_text: Some(&WRAP_TEXT[..=(indent as usize)]),
         }
     }
 
@@ -1201,13 +1199,13 @@ impl<'a> sum_tree::Dimension<'a, TransformSummary> for TabPoint {
         TabPoint::default()
     }
 
-    fn add_summary(&mut self, summary: &'a TransformSummary, _: ()) {
+    fn add_summary(&mut self, summary: &'a TransformSummary, (): ()) {
         self.0 += summary.input.lines;
     }
 }
 
 impl sum_tree::SeekTarget<'_, TransformSummary, TransformSummary> for TabPoint {
-    fn cmp(&self, cursor_location: &TransformSummary, _: ()) -> cmp::Ordering {
+    fn cmp(&self, cursor_location: &TransformSummary, (): ()) -> cmp::Ordering {
         Ord::cmp(&self.0, &cursor_location.input.lines)
     }
 }
@@ -1217,7 +1215,7 @@ impl<'a> sum_tree::Dimension<'a, TransformSummary> for WrapPoint {
         WrapPoint::default()
     }
 
-    fn add_summary(&mut self, summary: &'a TransformSummary, _: ()) {
+    fn add_summary(&mut self, summary: &'a TransformSummary, (): ()) {
         self.0 += summary.output.lines;
     }
 }

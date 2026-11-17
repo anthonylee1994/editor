@@ -126,7 +126,7 @@ impl ProjectDiff {
     }
 
     fn deploy(workspace: &mut Workspace, _: &Diff, window: &mut Window, cx: &mut Context<Workspace>) {
-        Self::deploy_at(workspace, None, window, cx)
+        Self::deploy_at(workspace, None, window, cx);
     }
 
     pub fn deploy_at(
@@ -165,7 +165,7 @@ impl ProjectDiff {
         if let Some(entry) = entry {
             project_diff.update(cx, |project_diff, cx| {
                 project_diff.move_to_entry(entry, window, cx);
-            })
+            });
         }
     }
 
@@ -216,7 +216,7 @@ impl ProjectDiff {
     fn from_diff(diff: Entity<DiffMultibuffer>, workspace: Entity<Workspace>, cx: &mut Context<Self>) -> Self {
         let diff_event_subscription = cx.subscribe(&diff, |_, _, event: &EditorEvent, cx| {
             if event == &(EditorEvent::SelectionsChanged { local: true }) {
-                cx.emit(event.clone())
+                cx.emit(event.clone());
             }
         });
         let diff_observation = cx.observe(&diff, |_, _, cx| cx.notify());
@@ -334,7 +334,7 @@ impl Item for ProjectDiff {
     }
 
     fn to_item_events(event: &EditorEvent, f: &mut dyn FnMut(ItemEvent)) {
-        Editor::to_item_events(event, f)
+        Editor::to_item_events(event, f);
     }
 
     fn deactivated(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -358,7 +358,7 @@ impl Item for ProjectDiff {
     }
 
     fn for_each_project_item(&self, cx: &App, f: &mut dyn FnMut(gpui::EntityId, &dyn project::ProjectItem)) {
-        self.diff.read(cx).for_each_project_item(cx, f)
+        self.diff.read(cx).for_each_project_item(cx, f);
     }
 
     fn active_project_path(&self, cx: &App) -> Option<ProjectPath> {
@@ -488,7 +488,7 @@ impl ProjectDiffToolbar {
         let action = action.boxed_clone();
         cx.defer(move |cx| {
             cx.dispatch_action(action.as_ref());
-        })
+        });
     }
 
     fn stage_all(&self, window: &mut Window, cx: &mut Context<Self>) {
@@ -614,11 +614,9 @@ impl Render for ProjectDiffToolbar {
                                     &UnstageAndNext,
                                     &focus_handle,
                                 ))
-                                .on_click(
-                                    cx.listener(|this, _, window, cx| {
-                                        this.dispatch_action(&UnstageAndNext, window, cx)
-                                    }),
-                                ),
+                                .on_click(cx.listener(|this, _, window, cx| {
+                                    this.dispatch_action(&UnstageAndNext, window, cx);
+                                })),
                         )
                     }),
             )

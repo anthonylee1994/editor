@@ -201,7 +201,7 @@ impl SearchQuery {
     ) -> Result<Self> {
         if let Some((case_sensitive_from_pattern, new_pattern)) = Self::case_sensitive_from_pattern(&pattern) {
             case_sensitive = case_sensitive_from_pattern;
-            pattern = new_pattern
+            pattern = new_pattern;
         }
 
         if whole_word {
@@ -217,7 +217,7 @@ impl SearchQuery {
             {
                 word_pattern.push_str("\\b");
             }
-            pattern = word_pattern
+            pattern = word_pattern;
         }
 
         let regex =
@@ -262,9 +262,9 @@ impl SearchQuery {
                     new_query.push('\\');
                     new_query.push(c);
                 }
-                was_escaped = false
+                was_escaped = false;
             } else if c == '\\' {
-                was_escaped = true
+                was_escaped = true;
             } else {
                 new_query.push(c);
             }
@@ -358,7 +358,7 @@ impl SearchQuery {
             return Vec::default();
         }
 
-        let range_offset = subrange.as_ref().map(|r| r.start).unwrap_or(0);
+        let range_offset = subrange.as_ref().map_or(0, |r| r.start);
         let rope = if let Some(range) = subrange { buffer.as_rope().slice(range) } else { buffer.as_rope().clone() };
 
         let mut matches = Vec::new();
@@ -383,7 +383,7 @@ impl SearchQuery {
                             continue;
                         }
                     }
-                    matches.push(mat.start()..mat.end())
+                    matches.push(mat.start()..mat.end());
                 }
             }
 
@@ -635,7 +635,7 @@ async fn read_to_string(reader: &mut (dyn Read + Send)) -> Result<String> {
 }
 
 fn count_newlines(bytes: &[u8]) -> usize {
-    bytes.iter().filter(|&&byte| byte == b'\n').count()
+    bytes.iter().map(|&byte| usize::from(byte == b'\n')).sum()
 }
 
 fn invalid_data() -> anyhow::Error {

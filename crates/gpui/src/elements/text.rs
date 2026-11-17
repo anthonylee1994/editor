@@ -70,7 +70,7 @@ impl Element for &'static str {
         _window: &mut Window,
         _cx: &mut App,
     ) {
-        text_layout.prepaint(bounds, self)
+        text_layout.prepaint(bounds, self);
     }
 
     fn paint(
@@ -78,11 +78,11 @@ impl Element for &'static str {
         _id: Option<&GlobalElementId>,
         _bounds: Bounds<Pixels>,
         text_layout: &mut TextLayout,
-        _: &mut (),
+        (): &mut (),
         window: &mut Window,
         cx: &mut App,
     ) {
-        text_layout.paint(self, window, cx)
+        text_layout.paint(self, window, cx);
     }
 }
 
@@ -137,7 +137,7 @@ impl Element for SharedString {
         _window: &mut Window,
         _cx: &mut App,
     ) {
-        text_layout.prepaint(bounds, self.as_ref())
+        text_layout.prepaint(bounds, self.as_ref());
     }
 
     fn paint(
@@ -145,11 +145,11 @@ impl Element for SharedString {
         _id: Option<&GlobalElementId>,
         _bounds: Bounds<Pixels>,
         text_layout: &mut Self::RequestLayoutState,
-        _: &mut Self::PrepaintState,
+        (): &mut Self::PrepaintState,
         window: &mut Window,
         cx: &mut App,
     ) {
-        text_layout.paint(self.as_ref(), window, cx)
+        text_layout.paint(self.as_ref(), window, cx);
     }
 }
 
@@ -309,23 +309,23 @@ impl Element for StyledText {
         &mut self,
         _id: Option<&GlobalElementId>,
         bounds: Bounds<Pixels>,
-        _: &mut Self::RequestLayoutState,
+        (): &mut Self::RequestLayoutState,
         _window: &mut Window,
         _cx: &mut App,
     ) {
-        self.layout.prepaint(bounds, &self.text)
+        self.layout.prepaint(bounds, &self.text);
     }
 
     fn paint(
         &mut self,
         _id: Option<&GlobalElementId>,
         _bounds: Bounds<Pixels>,
-        _: &mut Self::RequestLayoutState,
-        _: &mut Self::PrepaintState,
+        (): &mut Self::RequestLayoutState,
+        (): &mut Self::PrepaintState,
         window: &mut Window,
         cx: &mut App,
     ) {
-        self.layout.paint(&self.text, window, cx)
+        self.layout.paint(&self.text, window, cx);
     }
 }
 
@@ -590,7 +590,6 @@ impl TextLayout {
             } else if index > line_end_ix {
                 line_origin.y += line.size(line_height).height;
                 line_start_ix = line_end_ix + 1;
-                continue;
             } else {
                 let ix_within_line = index - line_start_ix;
                 return Some(line_origin + line.position_for_index(ix_within_line, line_height)?);
@@ -613,9 +612,8 @@ impl TextLayout {
             } else if index > line_end_ix {
                 line_start_ix = line_end_ix + 1;
                 continue;
-            } else {
-                return Some(line.layout.clone());
             }
+            return Some(line.layout.clone());
         }
 
         None
@@ -780,8 +778,7 @@ impl Element for InteractiveText {
         cx: &mut App,
     ) -> Hitbox {
         window.with_optional_element_state::<InteractiveTextState, _>(global_id, |interactive_state, window| {
-            let mut interactive_state =
-                interactive_state.map(|interactive_state| interactive_state.unwrap_or_default());
+            let mut interactive_state = interactive_state.map(Option::unwrap_or_default);
 
             if let Some(interactive_state) = interactive_state.as_mut() {
                 if self.tooltip_builder.is_some() {
@@ -802,7 +799,7 @@ impl Element for InteractiveText {
         &mut self,
         global_id: Option<&GlobalElementId>,
         bounds: Bounds<Pixels>,
-        _: &mut Self::RequestLayoutState,
+        (): &mut Self::RequestLayoutState,
         hitbox: &mut Hitbox,
         window: &mut Window,
         cx: &mut App,
@@ -816,7 +813,7 @@ impl Element for InteractiveText {
                 if let Ok(ix) = text_layout.index_for_position(mouse_position)
                     && self.clickable_ranges.iter().any(|range| range.contains(&ix))
                 {
-                    window.set_cursor_style(crate::CursorStyle::PointingHand, hitbox)
+                    window.set_cursor_style(crate::CursorStyle::PointingHand, hitbox);
                 }
 
                 let text_layout = text_layout.clone();
@@ -832,7 +829,7 @@ impl Element for InteractiveText {
                                     InteractiveTextClickEvent { mouse_down_index, mouse_up_index },
                                     window,
                                     cx,
-                                )
+                                );
                             }
 
                             mouse_down.take();

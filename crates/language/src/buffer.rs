@@ -743,19 +743,19 @@ impl Buffer {
             has_bom: false,
             reload_with_encoding_txns: FxHashMap::default(),
         };
-        this.resolved_settings = this.compute_resolved_settings(cx);
+        this.resolved_settings = Some(this.compute_resolved_settings(cx));
         this.refresh_fallback_highlighter(cx);
         this
     }
 
-    fn compute_resolved_settings(&self, cx: &App) -> Option<Arc<LanguageSettings>> {
-        Some(LanguageSettings::resolve_uncached(self, None, cx))
+    fn compute_resolved_settings(&self, cx: &App) -> Arc<LanguageSettings> {
+        LanguageSettings::resolve_uncached(self, None, cx)
     }
 
     fn refresh_resolved_settings(&mut self, cx: &mut Context<Self>) {
         let resolved = self.compute_resolved_settings(cx);
-        if resolved.as_deref() != self.resolved_settings.as_deref() {
-            self.resolved_settings = resolved;
+        if Some(&*resolved) != self.resolved_settings.as_deref() {
+            self.resolved_settings = Some(resolved);
             self.non_text_state_update_count += 1;
             self.was_changed();
             cx.emit(BufferEvent::SettingsChanged);
@@ -799,10 +799,10 @@ impl Buffer {
             syntax_map.snapshot()
         };
 
-        let tree_sitter_data = if self.text.version() != *self.tree_sitter_data.version() {
-            Arc::new(TreeSitterData::new(text))
-        } else {
+        let tree_sitter_data = if self.text.version() == *self.tree_sitter_data.version() {
             self.tree_sitter_data.clone()
+        } else {
+            Arc::new(TreeSitterData::new(text))
         };
 
         BufferSnapshot {
@@ -1088,12 +1088,12 @@ impl Buffer {
             if old_state != new_state {
                 file_changed = true;
                 if !was_dirty && matches!(new_state, DiskState::Present { .. }) {
-                    cx.emit(BufferEvent::ReloadNeeded)
+                    cx.emit(BufferEvent::ReloadNeeded);
                 }
             }
         } else {
             file_changed = true;
-        };
+        }
 
         let clear_contents = self.file.as_ref().is_some_and(|old_file| {
             clears_on_file_deletion(
@@ -1192,12 +1192,11 @@ impl Buffer {
     }
 
     fn invalidate_tree_sitter_data(tree_sitter_data: &mut Arc<TreeSitterData>, snapshot: &text::BufferSnapshot) {
-        match Arc::get_mut(tree_sitter_data) {
-            Some(tree_sitter_data) => tree_sitter_data.clear(snapshot),
-            None => {
-                let new_tree_sitter_data = TreeSitterData::new(snapshot);
-                *tree_sitter_data = Arc::new(new_tree_sitter_data)
-            }
+        if let Some(tree_sitter_data) = Arc::get_mut(tree_sitter_data) {
+            tree_sitter_data.clear(snapshot);
+        } else {
+            let new_tree_sitter_data = TreeSitterData::new(snapshot);
+            *tree_sitter_data = Arc::new(new_tree_sitter_data);
         }
     }
 
@@ -1251,9 +1250,7 @@ impl Buffer {
         if self.reparse.is_some() {
             return;
         }
-        let language = if let Some(language) = self.language.clone() {
-            language
-        } else {
+        let Some(language) = self.language.clone() else {
             return;
         };
         if self.parse_deferred {
@@ -1507,8 +1504,7 @@ impl Buffer {
                             let suggested_indent = indent_sizes
                                 .get(&suggestion.basis_row)
                                 .copied()
-                                .map(|e| e.0)
-                                .unwrap_or_else(|| snapshot.logical_indent_size_for_line(suggestion.basis_row))
+                                .map_or_else(|| snapshot.logical_indent_size_for_line(suggestion.basis_row), |e| e.0)
                                 .with_delta(suggestion.delta, language_indent_size);
 
                             if old_suggestions.get(&new_row).is_none_or(|(old_indentation, was_within_error)| {
@@ -1644,7 +1640,7 @@ impl Buffer {
         let old_text = self.as_rope().clone();
         let line_ending = self.line_ending();
         let base_version = self.version();
-        let modified_rows = modified_rows.map(|rows| rows.to_vec());
+        let modified_rows = modified_rows.map(<[std::ops::Range<u32>]>::to_vec);
         cx.background_spawn(async move {
             let ranges = trailing_whitespace_ranges(&old_text, modified_rows.as_deref());
             let empty = Arc::<str>::from("");
@@ -1750,7 +1746,7 @@ impl Buffer {
             return true;
         }
         match self.file.as_ref().map(|f| f.disk_state()) {
-            Some(DiskState::New) | Some(DiskState::Deleted) => !self.is_empty() && self.has_unsaved_edits(),
+            Some(DiskState::New | DiskState::Deleted) => !self.is_empty() && self.has_unsaved_edits(),
             _ => self.has_unsaved_edits(),
         }
     }
@@ -2243,7 +2239,7 @@ impl Buffer {
 
         let undone = self.text.undo_to_transaction(transaction_id);
         if undone {
-            self.did_edit(&old_version, was_dirty, cx)
+            self.did_edit(&old_version, was_dirty, cx);
         }
         undone
     }
@@ -2283,7 +2279,7 @@ impl Buffer {
 
         let redone = self.text.redo_to_transaction(transaction_id);
         if redone {
-            self.did_edit(&old_version, was_dirty, cx)
+            self.did_edit(&old_version, was_dirty, cx);
         }
         redone
     }
@@ -2511,9 +2507,8 @@ impl BufferSnapshot {
         let mut result = BTreeMap::new();
 
         for row_range in contiguous_ranges(rows, 10) {
-            let suggestions = match self.suggest_autoindents(row_range.clone()) {
-                Some(suggestions) => suggestions,
-                _ => break,
+            let Some(suggestions) = self.suggest_autoindents(row_range.clone()) else {
+                break;
             };
 
             for (row, suggestion) in row_range.zip(suggestions) {
@@ -2653,7 +2648,7 @@ impl BufferSnapshot {
             |row, line| {
                 let indent_len = self.indent_size_for_line(row).len;
                 let row_language = self.language_at(Point::new(row, indent_len)).cloned();
-                let row_language_config = row_language.as_ref().map(|lang| lang.config()).unwrap_or(config);
+                let row_language_config = row_language.as_ref().map_or(config, |lang| lang.config());
 
                 if row_language_config.decrease_indent_pattern.as_ref().is_some_and(|regex| regex.is_match(line)) {
                     indent_change_rows.push((row, Ordering::Less));
@@ -2715,13 +2710,13 @@ impl BufferSnapshot {
                     Ordering::Equal => match delta {
                         Ordering::Less => {
                             from_regex = true;
-                            outdent_from_prev_row = true
+                            outdent_from_prev_row = true;
                         }
                         Ordering::Greater => {
                             indent_from_prev_row = true;
-                            from_regex = true
+                            from_regex = true;
                         }
-                        _ => {}
+                        Ordering::Equal => {}
                     },
 
                     Ordering::Greater => break,
@@ -2864,14 +2859,14 @@ impl BufferSnapshot {
             if chunk_range.len() > MAX_BYTES_TO_HIGHLIGHT_IN_A_CHUNK {
                 return None;
             }
-            let chunk_highlights = match self.tree_sitter_data.highlights_by_chunks.get(chunk.id) {
-                Some(chunk_highlights) => chunk_highlights,
-                None => {
+            let chunk_highlights =
+                if let Some(chunk_highlights) = self.tree_sitter_data.highlights_by_chunks.get(chunk.id) {
+                    chunk_highlights
+                } else {
                     let chunk_highlights = self.compute_chunk_highlights(chunk_range);
                     self.tree_sitter_data.highlights_by_chunks.insert(chunk.id, chunk_highlights.clone());
                     chunk_highlights
-                }
-            };
+                };
             for (run_range, highlight_id) in chunk_highlights.runs.iter() {
                 if run_range.end <= range.start {
                     continue;
@@ -3928,7 +3923,7 @@ impl BufferSnapshot {
 
     pub fn words_in_range(&self, query: WordsQuery) -> BTreeMap<String, Range<Anchor>> {
         let query_str = query.fuzzy_contents;
-        if query_str.is_some_and(|query| query.is_empty()) {
+        if query_str.is_some_and(str::is_empty) {
             return BTreeMap::default();
         }
 
@@ -3937,7 +3932,7 @@ impl BufferSnapshot {
 
         let mut query_ix = 0;
         let query_chars = query_str.map(|query| query.chars().collect::<Vec<_>>());
-        let query_len = query_chars.as_ref().map_or(0, |query| query.len());
+        let query_len = query_chars.as_ref().map_or(0, Vec::len);
 
         let mut words = BTreeMap::default();
         let mut current_word_start_ix = None;
@@ -4268,13 +4263,12 @@ impl<'a> Iterator for BufferChunks<'a> {
                 if self.range.start < capture.node.start_byte() {
                     next_capture_start = capture.node.start_byte();
                     break;
-                } else {
-                    let highlight_id = highlights.highlight_maps[capture.grammar_index].get(CaptureId(capture.index));
-                    if let Some(highlight_id) = highlight_id {
-                        highlights.stack.push((capture.node.end_byte(), highlight_id));
-                    }
-                    highlights.next_capture = highlights.captures.next();
                 }
+                let highlight_id = highlights.highlight_maps[capture.grammar_index].get(CaptureId(capture.index));
+                if let Some(highlight_id) = highlight_id {
+                    highlights.stack.push((capture.node.end_byte(), highlight_id));
+                }
+                highlights.next_capture = highlights.captures.next();
             }
         }
 

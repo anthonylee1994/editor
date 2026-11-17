@@ -128,19 +128,16 @@ pub struct ImageItem {
 
 impl ImageItem {
     pub fn compute_metadata_from_bytes(image_bytes: &[u8]) -> Result<ImageMetadata> {
-        let image_format = match image::guess_format(image_bytes) {
-            Ok(format) => format,
-            Err(_) => {
-                let svg = usvg::Tree::from_data(image_bytes, &usvg::Options::default())?;
-                let size = svg.size().to_int_size();
-                return Ok(ImageMetadata {
-                    width: size.width(),
-                    height: size.height(),
-                    file_size: image_bytes.len() as u64,
-                    format: ImageFormat::Svg,
-                    colors: None,
-                });
-            }
+        let Ok(image_format) = image::guess_format(image_bytes) else {
+            let svg = usvg::Tree::from_data(image_bytes, &usvg::Options::default())?;
+            let size = svg.size().to_int_size();
+            return Ok(ImageMetadata {
+                width: size.width(),
+                height: size.height(),
+                file_size: image_bytes.len() as u64,
+                format: ImageFormat::Svg,
+                colors: None,
+            });
         };
 
         let mut image_reader = ImageReader::new(Cursor::new(image_bytes));
@@ -194,7 +191,7 @@ impl ImageItem {
         if old_state != new_state {
             file_changed = true;
             if matches!(new_state, DiskState::Present { .. }) {
-                cx.emit(ImageItemEvent::ReloadNeeded)
+                cx.emit(ImageItemEvent::ReloadNeeded);
             }
         }
 
@@ -309,11 +306,11 @@ impl ImageStore {
     }
 
     pub fn images(&self) -> impl '_ + Iterator<Item = Entity<ImageItem>> {
-        self.opened_images.values().filter_map(|image| image.upgrade())
+        self.opened_images.values().filter_map(gpui::WeakEntity::upgrade)
     }
 
     pub fn get(&self, image_id: ImageId) -> Option<Entity<ImageItem>> {
-        self.opened_images.get(&image_id).and_then(|image| image.upgrade())
+        self.opened_images.get(&image_id).and_then(gpui::WeakEntity::upgrade)
     }
 
     pub fn get_by_path(&self, path: &ProjectPath, cx: &App) -> Option<Entity<ImageItem>> {
@@ -391,19 +388,18 @@ impl ImageStore {
         LocalImageStore::reload_images(images, cx)
     }
 
-    fn add_image(&mut self, image: Entity<ImageItem>, cx: &mut Context<ImageStore>) -> Result<()> {
+    fn add_image(&mut self, image: Entity<ImageItem>, cx: &mut Context<ImageStore>) {
         let image_id = image.read(cx).id;
         self.opened_images.insert(image_id, image.downgrade());
         cx.subscribe(&image, Self::on_image_event).detach();
         cx.emit(ImageStoreEvent::ImageAdded(image));
-        Ok(())
     }
 
     fn on_image_event(&mut self, image: Entity<ImageItem>, event: &ImageItemEvent, cx: &mut Context<Self>) {
         if matches!(event, ImageItemEvent::FileHandleChanged) {
             self.state.update(cx, |local, cx| {
                 local.image_changed_file(image, cx);
-            })
+            });
         }
     }
 }
@@ -432,7 +428,7 @@ impl LocalImageStore {
             let image_id = cx.read_entity(&entity, |model, _| model.id);
 
             this.update(cx, |this, cx| {
-                image_store.update(cx, |image_store, cx| image_store.add_image(entity.clone(), cx))??;
+                image_store.update(cx, |image_store, cx| image_store.add_image(entity.clone(), cx))?;
                 this.local_image_ids_by_path
                     .insert(ProjectPath { worktree_id: file.worktree_id(cx), path: file.path.clone() }, image_id);
 
@@ -451,7 +447,7 @@ impl LocalImageStore {
         cx.spawn(async move |_, cx| {
             for image in images {
                 if let Some(rec) = image.update(cx, |image, cx| image.reload(cx)) {
-                    rec.await?
+                    rec.await?;
                 }
             }
             Ok(())
@@ -506,9 +502,7 @@ impl LocalImageStore {
             })
             .ok()
             .flatten();
-        let image = if let Some(image) = image {
-            image
-        } else {
+        let Some(image) = image else {
             self.local_image_ids_by_path.remove(&project_path);
             self.local_image_ids_by_entry_id.remove(&entry_id);
             return None;
@@ -585,7 +579,7 @@ impl LocalImageStore {
                     self.local_image_ids_by_entry_id.insert(entry_id, image_id);
                 }
             }
-        };
+        }
         self.local_image_ids_by_path
             .insert(ProjectPath { worktree_id: file.worktree_id(cx), path: file.path.clone() }, image_id);
 
@@ -594,13 +588,10 @@ impl LocalImageStore {
 }
 
 fn create_gpui_image(content: Vec<u8>) -> anyhow::Result<Arc<gpui::Image>> {
-    let format = match image::guess_format(&content) {
-        Ok(format) => format,
-        Err(_) => {
-            // SVG has no magic bytes; accept content that parses as one.
-            usvg::Tree::from_data(&content, &usvg::Options::default())?;
-            return Ok(Arc::new(gpui::Image::from_bytes(gpui::ImageFormat::Svg, content)));
-        }
+    let Ok(format) = image::guess_format(&content) else {
+        // SVG has no magic bytes; accept content that parses as one.
+        usvg::Tree::from_data(&content, &usvg::Options::default())?;
+        return Ok(Arc::new(gpui::Image::from_bytes(gpui::ImageFormat::Svg, content)));
     };
 
     Ok(Arc::new(gpui::Image::from_bytes(

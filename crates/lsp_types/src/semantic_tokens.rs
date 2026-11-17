@@ -485,7 +485,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "assertion `left == right` failed")]
     fn test_semantic_tokens_support_deserialization_err() {
         test_deserialization(r#"{"data":[1]}"#, &SemanticTokens { result_id: None, data: vec![] });
     }

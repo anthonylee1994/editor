@@ -262,7 +262,7 @@ impl MermaidDiagrams {
                         Label::new("Rendering...").size(LabelSize::XSmall).color(Color::Muted).with_animation(
                             "mermaid-loading-pulse",
                             Animation::new(Duration::from_secs(2)).repeat().with_easing(pulsating_between(0.4, 0.8)),
-                            |label, delta| label.alpha(delta),
+                            ui::LabelCommon::alpha,
                         ),
                     ))
                 })

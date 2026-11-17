@@ -525,7 +525,7 @@ impl Item for ImageView {
     }
 
     fn for_each_project_item(&self, cx: &App, f: &mut dyn FnMut(gpui::EntityId, &dyn project::ProjectItem)) {
-        f(self.image_item.entity_id(), self.image_item.read(cx))
+        f(self.image_item.entity_id(), self.image_item.read(cx));
     }
 
     fn tab_tooltip_text(&self, cx: &App) -> Option<SharedString> {
@@ -543,14 +543,11 @@ impl Item for ImageView {
             .git_store()
             .read(cx)
             .status_for_project_path(&project_path, cx)
-            .map(|status| status.summary())
-            .unwrap_or_default();
-        let label_color = self
-            .project
-            .read(cx)
-            .entry_for_path(&project_path, cx)
-            .map(|entry| entry_git_aware_label_color(git_status, entry.is_ignored, params.selected))
-            .unwrap_or_else(|| params.text_color());
+            .map_or_default(|status| status.summary());
+        let label_color = self.project.read(cx).entry_for_path(&project_path, cx).map_or_else(
+            || params.text_color(),
+            |entry| entry_git_aware_label_color(git_status, entry.is_ignored, params.selected),
+        );
 
         Label::new(self.tab_content_text(params.detail.unwrap_or_default(), cx))
             .single_line()

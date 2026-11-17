@@ -125,7 +125,7 @@ impl Repository {
                 Err(error) => {
                     log::error!("failed to get repository state for commit search: {error}");
                 }
-            };
+            }
         })
         .detach();
     }
@@ -197,7 +197,7 @@ impl Repository {
         }
     }
 
-    async fn append_initial_graph_commits(
+    fn append_initial_graph_commits(
         this: &WeakEntity<Self>,
         graph_data_key: &(LogSource, LogOrder),
         initial_graph_commit_data: Vec<Arc<InitialGraphCommitData>>,
@@ -253,7 +253,7 @@ impl Repository {
         let graph_data_key = (log_source, log_order);
 
         while let Ok(initial_graph_commit_data) = request_rx.recv().await {
-            Self::append_initial_graph_commits(&this, &graph_data_key, initial_graph_commit_data, cx).await;
+            Self::append_initial_graph_commits(&this, &graph_data_key, initial_graph_commit_data, cx);
         }
 
         task.await?;
@@ -409,7 +409,7 @@ impl Repository {
                             read_futures.push(read_commit_data(sha));
                         }
                     }
-                    _ = futures::FutureExt::fuse(timeout) => {
+                    () = futures::FutureExt::fuse(timeout) => {
                         break;
                     }
                 }

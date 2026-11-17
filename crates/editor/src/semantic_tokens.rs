@@ -45,8 +45,8 @@ impl SemanticTokenState {
         Self { update_task: Task::ready(()), fetched_for_buffers: FxHashMap::default() }
     }
 
-    pub(super) fn invalidate_buffer(&mut self, buffer_id: &BufferId) {
-        self.fetched_for_buffers.remove(buffer_id);
+    pub(super) fn invalidate_buffer(&mut self, buffer_id: BufferId) {
+        self.fetched_for_buffers.remove(&buffer_id);
     }
 }
 
@@ -68,7 +68,7 @@ impl Editor {
 
     pub(super) fn invalidate_semantic_tokens(&mut self, for_buffer: Option<BufferId>) {
         match for_buffer {
-            Some(for_buffer) => self.semantic_token_state.invalidate_buffer(&for_buffer),
+            Some(for_buffer) => self.semantic_token_state.invalidate_buffer(for_buffer),
             None => self.semantic_token_state.fetched_for_buffers.clear(),
         }
     }
@@ -85,7 +85,7 @@ impl Editor {
                 match Arc::get_mut(&mut display_map.semantic_token_highlights) {
                     Some(highlights) => highlights.clear(),
                     None => display_map.semantic_token_highlights = Arc::new(FxHashMap::default()),
-                };
+                }
             });
             self.semantic_token_state.update_task = Task::ready(());
             cx.notify();
@@ -133,7 +133,7 @@ impl Editor {
             .filter(|buffer_id| self.buffer.read(cx).buffer(*buffer_id).is_none())
             .collect::<Vec<_>>()
         {
-            self.semantic_token_state.invalidate_buffer(&removed_buffer);
+            self.semantic_token_state.invalidate_buffer(removed_buffer);
             self.display_map.update(cx, |display_map, _| {
                 display_map.invalidate_semantic_highlights(removed_buffer);
             });
@@ -168,7 +168,7 @@ impl Editor {
                     editor.display_map.update(cx, |display_map, _| {
                         for buffer_id in invalidate_semantic_highlights_for_buffers {
                             display_map.invalidate_semantic_highlights(buffer_id);
-                            editor.semantic_token_state.invalidate_buffer(&buffer_id);
+                            editor.semantic_token_state.invalidate_buffer(buffer_id);
                         }
                     });
 
@@ -273,7 +273,7 @@ fn server_precedences(
     language_name: Option<&LanguageName>,
     tokens: &FxHashMap<LanguageServerId, Arc<[BufferSemanticToken]>>,
 ) -> FxHashMap<LanguageServerId, u32> {
-    let ordered_adapters = language_name.map(|language_name| languages.lsp_adapters(language_name)).unwrap_or_default();
+    let ordered_adapters = language_name.map_or_default(|language_name| languages.lsp_adapters(language_name));
 
     // We base this on the ids that are present rather than the adapter count,
     // otherwise a server we can't resolve an adapter for outranks the

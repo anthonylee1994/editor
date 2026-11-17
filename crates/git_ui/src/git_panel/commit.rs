@@ -322,7 +322,7 @@ impl GitPanel {
 
         let file_name = git_status_entry.repo_path.file_name().unwrap_or_default().to_string();
 
-        Some(format!("{} {}", action_text, file_name))
+        Some(format!("{action_text} {file_name}"))
     }
 
     pub(super) fn reopen_commit_buffer(&mut self, window: &Window, cx: &mut Context<Self>) {
@@ -424,12 +424,12 @@ impl GitPanel {
                     scale_ui_elements_with_buffer_font_size: false,
                     show_active_line_background: false,
                     sizing_behavior: SizingBehavior::ExcludeOverscrollMargin,
-                })
+                });
             } else {
                 editor.set_mode(EditorMode::AutoHeight {
                     min_lines: MAX_PANEL_EDITOR_LINES,
                     max_lines: Some(MAX_PANEL_EDITOR_LINES),
-                })
+                });
             }
         });
 

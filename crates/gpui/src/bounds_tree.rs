@@ -301,10 +301,9 @@ where
                     }
                 }
                 break;
-            } else {
-                // Best child is internal, continue descent
-                current_idx = best_child_idx;
             }
+            // Best child is internal, continue descent
+            current_idx = best_child_idx;
         }
 
         // Propagate bounds and max_order updates up the tree

@@ -98,7 +98,7 @@ impl KeyBinding {
 
     /// Get the predicate used to match this binding
     pub fn predicate(&self) -> Option<Rc<KeyBindingContextPredicate>> {
-        self.context_predicate.as_ref().map(|rc| rc.clone())
+        self.context_predicate.as_ref().map(Clone::clone)
     }
 
     /// Get the metadata for this binding

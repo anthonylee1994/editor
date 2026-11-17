@@ -693,7 +693,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
+    #[ignore = "benchmark"]
     fn bench_large_file() {
         set_theme(&theme());
         let source = "static int add(int a, int b) {\n    /* sum */ return a + b; // ok\n}\n";

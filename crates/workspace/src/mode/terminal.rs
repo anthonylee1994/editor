@@ -150,13 +150,12 @@ fn saved_active_tab(is_terminal: &[bool], active_item: usize) -> usize {
 impl Workspace {
     pub(super) fn render_terminal_mode(&self, window: &mut Window, cx: &mut Context<Workspace>) -> Div {
         let pane = self.active_terminal_pane.clone();
-        let panes = match self.zoomed_pane(WorkspaceMode::Terminal, cx) {
-            Some(zoomed_pane) => self.terminal_center.render_zoomed(&zoomed_pane, cx).into_any_element(),
-            None => {
-                let weak_handle = self.weak_handle();
-                let render_cx = PaneRenderContext { active_pane: &pane, workspace: &weak_handle };
-                self.terminal_center.render(None, None, &render_cx, window, cx).into_any_element()
-            }
+        let panes = if let Some(zoomed_pane) = self.zoomed_pane(WorkspaceMode::Terminal, cx) {
+            self.terminal_center.render_zoomed(&zoomed_pane, cx).into_any_element()
+        } else {
+            let weak_handle = self.weak_handle();
+            let render_cx = PaneRenderContext { active_pane: &pane, workspace: &weak_handle };
+            self.terminal_center.render(None, None, &render_cx, window, cx).into_any_element()
         };
         let content = div()
             .id("terminal-panes")

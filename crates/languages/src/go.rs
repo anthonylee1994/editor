@@ -192,43 +192,43 @@ impl LspAdapter for GoLspAdapter {
         let name = &symbol.name;
         let (text, filter_range, display_range) = match symbol.kind {
             language::SymbolKind::Method | language::SymbolKind::Function => {
-                let text = format!("func {} () {{}}", name);
+                let text = format!("func {name} () {{}}");
                 let filter_range = 5..5 + name.len();
                 let display_range = 0..filter_range.end;
                 (text, filter_range, display_range)
             }
             language::SymbolKind::Struct => {
-                let text = format!("type {} struct {{}}", name);
+                let text = format!("type {name} struct {{}}");
                 let filter_range = 5..5 + name.len();
                 let display_range = 0..text.len();
                 (text, filter_range, display_range)
             }
             language::SymbolKind::Interface => {
-                let text = format!("type {} interface {{}}", name);
+                let text = format!("type {name} interface {{}}");
                 let filter_range = 5..5 + name.len();
                 let display_range = 0..text.len();
                 (text, filter_range, display_range)
             }
             language::SymbolKind::Class => {
-                let text = format!("type {} T", name);
+                let text = format!("type {name} T");
                 let filter_range = 5..5 + name.len();
                 let display_range = 0..filter_range.end;
                 (text, filter_range, display_range)
             }
             language::SymbolKind::Constant => {
-                let text = format!("const {} = nil", name);
+                let text = format!("const {name} = nil");
                 let filter_range = 6..6 + name.len();
                 let display_range = 0..filter_range.end;
                 (text, filter_range, display_range)
             }
             language::SymbolKind::Variable => {
-                let text = format!("var {} = nil", name);
+                let text = format!("var {name} = nil");
                 let filter_range = 4..4 + name.len();
                 let display_range = 0..filter_range.end;
                 (text, filter_range, display_range)
             }
             language::SymbolKind::Module => {
-                let text = format!("package {}", name);
+                let text = format!("package {name}");
                 let filter_range = 8..8 + name.len();
                 let display_range = 0..filter_range.end;
                 (text, filter_range, display_range)
@@ -328,14 +328,16 @@ impl ContextProvider for GoContextProvider {
                 let package_name = variables
                     .get(&VariableName::WorktreeRoot)
                     .and_then(|worktree_abs_path| buffer_dir.strip_prefix(worktree_abs_path).ok())
-                    .map(|relative_pkg_dir| {
-                        if relative_pkg_dir.as_os_str().is_empty() {
-                            ".".into()
-                        } else {
-                            format!("./{}", relative_pkg_dir.to_string_lossy())
-                        }
-                    })
-                    .unwrap_or_else(|| format!("{}", buffer_dir.to_string_lossy()));
+                    .map_or_else(
+                        || format!("{}", buffer_dir.to_string_lossy()),
+                        |relative_pkg_dir| {
+                            if relative_pkg_dir.as_os_str().is_empty() {
+                                ".".into()
+                            } else {
+                                format!("./{}", relative_pkg_dir.to_string_lossy())
+                            }
+                        },
+                    );
 
                 (GO_PACKAGE_TASK_VARIABLE.clone(), package_name)
             });
@@ -346,28 +348,26 @@ impl ContextProvider for GoContextProvider {
                 let module_dir = buffer_dir
                     .ancestors()
                     .find(|dir| dir.join("go.mod").is_file())
-                    .map(|dir| dir.to_string_lossy().into_owned())
-                    .unwrap_or_else(|| ".".to_string());
+                    .map_or_else(|| ".".to_string(), |dir| dir.to_string_lossy().into_owned());
 
                 (GO_MODULE_ROOT_TASK_VARIABLE.clone(), module_dir)
             });
 
         let _subtest_name = variables.get(&VariableName::Custom(Cow::Borrowed("_subtest_name")));
 
-        let go_subtest_variable = extract_subtest_name(_subtest_name.unwrap_or(""))
-            .map(|subtest_name| (GO_SUBTEST_NAME_TASK_VARIABLE.clone(), subtest_name));
+        let go_subtest_variable =
+            Some((GO_SUBTEST_NAME_TASK_VARIABLE.clone(), extract_subtest_name(_subtest_name.unwrap_or(""))));
 
         let _table_test_case_name = variables.get(&VariableName::Custom(Cow::Borrowed("_table_test_case_name")));
 
         let go_table_test_case_variable = _table_test_case_name
-            .and_then(extract_subtest_name)
+            .map(extract_subtest_name)
             .map(|case_name| (GO_TABLE_TEST_CASE_NAME_TASK_VARIABLE.clone(), case_name));
 
         let _suite_name = variables.get(&VariableName::Custom(Cow::Borrowed("_suite_name")));
 
-        let go_suite_variable = _suite_name
-            .and_then(extract_subtest_name)
-            .map(|suite_name| (GO_SUITE_NAME_TASK_VARIABLE.clone(), suite_name));
+        let go_suite_variable =
+            _suite_name.map(extract_subtest_name).map(|suite_name| (GO_SUITE_NAME_TASK_VARIABLE.clone(), suite_name));
 
         Task::ready(Ok(TaskVariables::from_iter(
             [
@@ -536,7 +536,7 @@ impl ContextProvider for GoContextProvider {
                 ..TaskTemplate::default()
             },
             TaskTemplate {
-                label: format!("go run {}", GO_PACKAGE_TASK_VARIABLE.template_value(),),
+                label: format!("go run {}", GO_PACKAGE_TASK_VARIABLE.template_value()),
                 command: "go".into(),
                 args: vec!["run".into(), ".".into()],
                 cwd: package_cwd.clone(),
@@ -566,17 +566,13 @@ impl ContextProvider for GoContextProvider {
     }
 }
 
-fn extract_subtest_name(input: &str) -> Option<String> {
+fn extract_subtest_name(input: &str) -> String {
     let content =
         if input.starts_with('`') && input.ends_with('`') { input.trim_matches('`') } else { input.trim_matches('"') };
 
     let processed = content.chars().map(|c| if c.is_whitespace() { '_' } else { c }).collect::<String>();
 
-    Some(
-        GO_ESCAPE_SUBTEST_NAME_REGEX
-            .replace_all(&processed, |caps: &regex::Captures| format!("\\{}", &caps[0]))
-            .to_string(),
-    )
+    GO_ESCAPE_SUBTEST_NAME_REGEX.replace_all(&processed, |caps: &regex::Captures| format!("\\{}", &caps[0])).to_string()
 }
 
 /// Settings for Go.

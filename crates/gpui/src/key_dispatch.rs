@@ -155,7 +155,7 @@ impl DispatchTree {
             self.node_stack.push(node_id);
             let active_node = &self.nodes[node_id.0];
             if let Some(view_id) = active_node.view_id {
-                self.view_stack.push(view_id)
+                self.view_stack.push(view_id);
             }
             if let Some(context) = active_node.context.clone() {
                 self.context_stack.push(context);
@@ -246,10 +246,9 @@ impl DispatchTree {
             while let Some(source_ancestor) = source_stack.last() {
                 if source_node.parent == Some(*source_ancestor) {
                     break;
-                } else {
-                    source_stack.pop();
-                    self.pop_node();
                 }
+                source_stack.pop();
+                self.pop_node();
             }
 
             source_stack.push(source_node_id);
@@ -441,7 +440,7 @@ impl DispatchTree {
         let (suffix, mut to_replay) = self.replay_prefix(input, dispatch_path);
 
         if !suffix.is_empty() {
-            to_replay.extend(self.flush_dispatch(suffix, dispatch_path))
+            to_replay.extend(self.flush_dispatch(suffix, dispatch_path));
         }
 
         to_replay

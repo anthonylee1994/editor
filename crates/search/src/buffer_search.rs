@@ -163,7 +163,7 @@ impl Render for BufferSearchBar {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let focus_handle = self.focus_handle(cx);
         let diff_style_controls =
-            self.splittable_editor.as_ref().and_then(|weak| weak.upgrade()).map(DiffStyleControls::new);
+            self.splittable_editor.as_ref().and_then(gpui::WeakEntity::upgrade).map(DiffStyleControls::new);
         if self.dismissed {
             return h_flex().pl_0p5().gap_1().children(diff_style_controls).into_any_element();
         }
@@ -194,8 +194,7 @@ impl Render for BufferSearchBar {
                 let matches_count = self
                     .searchable_items_with_matches
                     .get(&searchable_item.downgrade())
-                    .map(|(matches, _)| matches.len())
-                    .unwrap_or(0);
+                    .map_or(0, |(matches, _)| matches.len());
                 if let Some(match_ix) = self.active_match_index {
                     Some(format!("{}/{}", match_ix + 1, matches_count))
                 } else {
@@ -747,7 +746,7 @@ impl BufferSearchBar {
                 if replace_enabled && has_seed_text {
                     handle = self.replacement_editor.focus_handle(cx);
                     select_query = false;
-                };
+                }
 
                 if select_query {
                     self.select_query(window, cx);
@@ -793,7 +792,7 @@ impl BufferSearchBar {
     }
 
     fn supported_options(&self, cx: &Context<Self>) -> searchable::SearchOptions {
-        self.active_searchable_item.as_ref().map(|item| item.supported_options(cx)).unwrap_or_default()
+        self.active_searchable_item.as_ref().map_or_default(|item| item.supported_options(cx))
     }
 
     // The unified/split controls keep a toolbar row even while search is closed.
@@ -873,7 +872,7 @@ impl BufferSearchBar {
                 if search.await.is_ok() {
                     this.update_in(cx, |this, window, cx| {
                         if !this.dismissed {
-                            this.activate_current_match(window, cx)
+                            this.activate_current_match(window, cx);
                         }
                     })
                 } else {
@@ -889,7 +888,7 @@ impl BufferSearchBar {
             && let Some(active_searchable_item) = self.active_searchable_item.as_ref()
             && let Some((matches, token)) = self.searchable_items_with_matches.get(&active_searchable_item.downgrade())
         {
-            active_searchable_item.activate_match(match_ix, matches, *token, window, cx)
+            active_searchable_item.activate_match(match_ix, matches, *token, window, cx);
         }
     }
 
@@ -1003,7 +1002,7 @@ impl BufferSearchBar {
 
     pub fn enable_search_option(&mut self, search_option: SearchOptions, window: &mut Window, cx: &mut Context<Self>) {
         if !self.search_options.contains(search_option) {
-            self.toggle_search_option(search_option, window, cx)
+            self.toggle_search_option(search_option, window, cx);
         }
     }
 
@@ -1157,11 +1156,11 @@ impl BufferSearchBar {
     }
 
     fn toggle_case_sensitive(&mut self, _: &ToggleCaseSensitive, window: &mut Window, cx: &mut Context<Self>) {
-        self.toggle_search_option(SearchOptions::CASE_SENSITIVE, window, cx)
+        self.toggle_search_option(SearchOptions::CASE_SENSITIVE, window, cx);
     }
 
     fn toggle_whole_word(&mut self, _: &ToggleWholeWord, window: &mut Window, cx: &mut Context<Self>) {
-        self.toggle_search_option(SearchOptions::WHOLE_WORD, window, cx)
+        self.toggle_search_option(SearchOptions::WHOLE_WORD, window, cx);
     }
 
     fn toggle_selection(&mut self, _: &ToggleSelection, window: &mut Window, cx: &mut Context<Self>) {
@@ -1173,7 +1172,7 @@ impl BufferSearchBar {
     }
 
     fn toggle_regex(&mut self, _: &ToggleRegex, window: &mut Window, cx: &mut Context<Self>) {
-        self.toggle_search_option(SearchOptions::REGEX, window, cx)
+        self.toggle_search_option(SearchOptions::REGEX, window, cx);
     }
 
     fn clear_active_searchable_item_matches(&mut self, window: &mut Window, cx: &mut App) {
@@ -1358,9 +1357,8 @@ impl BufferSearchBar {
         if let Some(item) = self.active_searchable_item.as_ref() {
             handles.push(item.item_focus_handle(cx));
         }
-        let current_index = match handles.iter().position(|focus| focus.is_focused(window)) {
-            Some(index) => index,
-            None => return,
+        let Some(current_index) = handles.iter().position(|focus| focus.is_focused(window)) else {
+            return;
         };
 
         let new_index = match direction {
@@ -1470,12 +1468,13 @@ impl BufferSearchBar {
     /// Clears them when the search bar is dismissed so that
     /// only the editor's settings are respected.
     fn sync_select_search_options(&self, cx: &mut Context<Self>) {
-        let search_options = match self.dismissed {
-            true => None,
-            false => Some(SelectSearchOptions {
+        let search_options = if self.dismissed {
+            None
+        } else {
+            Some(SelectSearchOptions {
                 case_sensitive: self.search_options.contains(SearchOptions::CASE_SENSITIVE),
                 whole_word: self.search_options.contains(SearchOptions::WHOLE_WORD),
-            }),
+            })
         };
 
         if let Some(active_searchable_item) = self.active_searchable_item.as_ref() {

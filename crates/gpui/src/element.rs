@@ -180,7 +180,7 @@ pub trait ParentElement {
     where
         Self: Sized,
     {
-        self.extend(children.into_iter().map(|child| child.into_any_element()));
+        self.extend(children.into_iter().map(IntoElement::into_any_element));
         self
     }
 }
@@ -258,7 +258,7 @@ impl Display for GlobalElementId {
             if i > 0 {
                 write!(f, ".")?;
             }
-            write!(f, "{}", element_id)?;
+            write!(f, "{element_id}")?;
         }
         Ok(())
     }
@@ -547,7 +547,7 @@ impl Element for AnyElement {
         &mut self,
         _: Option<&GlobalElementId>,
         _: Bounds<Pixels>,
-        _: &mut Self::RequestLayoutState,
+        (): &mut Self::RequestLayoutState,
         window: &mut Window,
         cx: &mut App,
     ) {
@@ -558,8 +558,8 @@ impl Element for AnyElement {
         &mut self,
         _: Option<&GlobalElementId>,
         _: Bounds<Pixels>,
-        _: &mut Self::RequestLayoutState,
-        _: &mut Self::PrepaintState,
+        (): &mut Self::RequestLayoutState,
+        (): &mut Self::PrepaintState,
         window: &mut Window,
         cx: &mut App,
     ) {

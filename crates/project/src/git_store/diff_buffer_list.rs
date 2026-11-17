@@ -155,7 +155,7 @@ impl DiffBufferList {
     }
 
     pub async fn handle_status_updates(this: WeakEntity<Self>, mut recv: watch::Receiver<()>, cx: &mut AsyncApp) {
-        this.update(cx, |this, cx| this.spawn_reload_tree_diff(cx)).log_err();
+        this.update(cx, DiffBufferList::spawn_reload_tree_diff).log_err();
         while recv.changed().await.is_ok() {
             let Ok(()) = this.update(cx, |this, cx| {
                 if this.repo.is_none() {
@@ -274,7 +274,7 @@ impl DiffBufferList {
                     )
                     .then_some(item.status),
                 };
-                let Some(status) = status.filter(|status| status.has_changes()) else {
+                let Some(status) = status.filter(|x| x.has_changes()) else {
                     continue;
                 };
                 seen.insert(item.repo_path.clone());

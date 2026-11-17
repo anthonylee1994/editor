@@ -267,8 +267,7 @@ impl GitPanel {
                 return self
                     .selected_entry
                     .and_then(|ix| self.directory_descendants(ix))
-                    .map(|entries| entries.to_vec())
-                    .unwrap_or_default();
+                    .map_or_default(|entries| entries.to_vec());
             }
         }
 

@@ -52,13 +52,12 @@ impl DocumentColorData {
     }
 
     fn evict(&mut self, for_server: Option<LanguageServerId>) {
-        match for_server {
-            Some(server_id) => self.remove_server_data(server_id),
-            None => {
-                self.colors.clear();
-                self.fetched_servers.clear();
-                self.colors_update = None;
-            }
+        if let Some(server_id) = for_server {
+            self.remove_server_data(server_id);
+        } else {
+            self.colors.clear();
+            self.fetched_servers.clear();
+            self.colors_update = None;
         }
     }
 }

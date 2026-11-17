@@ -335,8 +335,7 @@ impl EditorElement {
         indent_guides
             .iter()
             .find(|guide| guide.depth == 0 && guide.display_row_range.contains(&row))
-            .map(|guide| px(guide.settings.visible_line_width(guide.active) as f32 * 2.0))
-            .unwrap_or(px(0.0))
+            .map_or(px(0.0), |guide| px(guide.settings.visible_line_width(guide.active) as f32 * 2.0))
     }
 
     fn layout_wrap_guides(
@@ -469,10 +468,10 @@ impl EditorElement {
         let selection_iter = selections.iter().flat_map(|(cursor_colors, layouts)| {
             let color = cursor_colors.selection;
             layouts.iter().filter_map(move |selection_layout| {
-                if selection_layout.range.start != selection_layout.range.end {
-                    Some((selection_layout.range.clone(), color))
-                } else {
+                if selection_layout.range.start == selection_layout.range.end {
                     None
+                } else {
+                    Some((selection_layout.range.clone(), color))
                 }
             })
         });
@@ -843,38 +842,34 @@ impl EditorElement {
                     let mut quad = fill(Bounds { origin, size }, highlight.background);
                     if let Some(border_color) = highlight.border {
                         quad.border_color = border_color;
-                        quad.border_widths = edges
+                        quad.border_widths = edges;
                     }
                     window.paint_quad(quad);
                 };
 
                 let mut current_paint: Option<(LineHighlight, Range<DisplayRow>, Edges<Pixels>)> = None;
                 for (&new_row, &new_background) in &layout.highlighted_rows {
-                    match &mut current_paint {
-                        &mut Some((current_background, ref mut current_range, mut edges)) => {
-                            let new_range_started =
-                                current_background != new_background || current_range.end.next_row() != new_row;
-                            if new_range_started {
-                                if current_range.end.next_row() == new_row {
-                                    edges.bottom = px(0.);
-                                };
-                                paint_highlight(current_range.start, current_range.end, current_background, edges);
-                                let edges = Edges {
-                                    top: if current_range.end.next_row() != new_row { px(1.) } else { px(0.) },
-                                    bottom: px(1.),
-                                    ..Default::default()
-                                };
-                                current_paint = Some((new_background, new_row..new_row, edges));
-                                continue;
-                            } else {
-                                current_range.end = current_range.end.next_row();
+                    if let &mut Some((current_background, ref mut current_range, mut edges)) = &mut current_paint {
+                        let new_range_started =
+                            current_background != new_background || current_range.end.next_row() != new_row;
+                        if new_range_started {
+                            if current_range.end.next_row() == new_row {
+                                edges.bottom = px(0.);
                             }
+                            paint_highlight(current_range.start, current_range.end, current_background, edges);
+                            let edges = Edges {
+                                top: if current_range.end.next_row() == new_row { px(0.) } else { px(1.) },
+                                bottom: px(1.),
+                                ..Default::default()
+                            };
+                            current_paint = Some((new_background, new_row..new_row, edges));
+                            continue;
                         }
-                        None => {
-                            let edges = Edges { top: px(1.), bottom: px(1.), ..Default::default() };
-                            current_paint = Some((new_background, new_row..new_row, edges))
-                        }
-                    };
+                        current_range.end = current_range.end.next_row();
+                    } else {
+                        let edges = Edges { top: px(1.), bottom: px(1.), ..Default::default() };
+                        current_paint = Some((new_background, new_row..new_row, edges));
+                    }
                 }
                 if let Some((color, range, edges)) = current_paint {
                     paint_highlight(range.start, range.end, color, edges);
@@ -895,7 +890,7 @@ impl EditorElement {
                     ));
                 }
             }
-        })
+        });
     }
 
     fn paint_indent_guides(&self, layout: &EditorLayout, window: &mut Window, cx: &App) {
@@ -949,7 +944,7 @@ impl EditorElement {
                 window.set_cursor_style(CursorStyle::PointingHand, &layout.position_map.text_hitbox);
             } else {
                 window.set_cursor_style(CursorStyle::IBeam, &layout.position_map.text_hitbox);
-            };
+            }
 
             self.paint_lines_background(layout, window, cx);
             let invisible_display_ranges = self.paint_highlights(layout, window);
@@ -964,7 +959,7 @@ impl EditorElement {
                     trailer.element.paint(window, cx);
                 }
             });
-        })
+        });
     }
 
     fn paint_highlights(&self, layout: &EditorLayout, window: &mut Window) -> SmallVec<[Range<DisplayPoint>; 32]> {
@@ -1015,7 +1010,7 @@ impl EditorElement {
     ) {
         for (ix, line_with_invisibles) in layout.position_map.line_layouts.iter().enumerate() {
             let row = DisplayRow(layout.visible_display_row_range.start.0 + ix as u32);
-            line_with_invisibles.draw(layout, row, layout.content_origin, invisible_display_ranges, window, cx)
+            line_with_invisibles.draw(layout, row, layout.content_origin, invisible_display_ranges, window, cx);
         }
 
         for line_element in &mut layout.line_elements {
@@ -1105,7 +1100,7 @@ impl EditorElement {
         if let Some(mut inline_code_actions) = layout.inline_code_actions.take() {
             window.paint_layer(layout.position_map.text_hitbox.bounds, |window| {
                 inline_code_actions.paint(window, cx);
-            })
+            });
         }
     }
 
@@ -1457,42 +1452,39 @@ impl Element for EditorElement {
                         cx,
                     );
 
-                    let mut highlighted_ranges = self
-                        .editor_with_selections(cx)
-                        .map(|editor| {
-                            if editor == self.editor {
-                                editor.read(cx).background_highlights_in_range(
+                    let mut highlighted_ranges = self.editor_with_selections(cx).map_or_default(|editor| {
+                        if editor == self.editor {
+                            editor.read(cx).background_highlights_in_range(
+                                start_anchor..end_anchor,
+                                &snapshot.display_snapshot,
+                                cx.theme(),
+                            )
+                        } else {
+                            editor.update(cx, |editor, cx| {
+                                let snapshot = editor.snapshot(window, cx);
+                                let start_anchor = if start_row == DisplayRow::default() {
+                                    Anchor::Min
+                                } else {
+                                    snapshot
+                                        .buffer_snapshot()
+                                        .anchor_before(DisplayPoint::new(start_row, 0).to_offset(&snapshot, Bias::Left))
+                                };
+                                let end_anchor = if end_row > max_row {
+                                    Anchor::Max
+                                } else {
+                                    snapshot
+                                        .buffer_snapshot()
+                                        .anchor_before(DisplayPoint::new(end_row, 0).to_offset(&snapshot, Bias::Right))
+                                };
+
+                                editor.background_highlights_in_range(
                                     start_anchor..end_anchor,
                                     &snapshot.display_snapshot,
                                     cx.theme(),
                                 )
-                            } else {
-                                editor.update(cx, |editor, cx| {
-                                    let snapshot = editor.snapshot(window, cx);
-                                    let start_anchor = if start_row == DisplayRow::default() {
-                                        Anchor::Min
-                                    } else {
-                                        snapshot.buffer_snapshot().anchor_before(
-                                            DisplayPoint::new(start_row, 0).to_offset(&snapshot, Bias::Left),
-                                        )
-                                    };
-                                    let end_anchor = if end_row > max_row {
-                                        Anchor::Max
-                                    } else {
-                                        snapshot.buffer_snapshot().anchor_before(
-                                            DisplayPoint::new(end_row, 0).to_offset(&snapshot, Bias::Right),
-                                        )
-                                    };
-
-                                    editor.background_highlights_in_range(
-                                        start_anchor..end_anchor,
-                                        &snapshot.display_snapshot,
-                                        cx.theme(),
-                                    )
-                                })
-                            }
-                        })
-                        .unwrap_or_default();
+                            })
+                        }
+                    });
 
                     struct DiffHunkHighlightColors {
                         filled_background: Hsla,
@@ -1558,9 +1550,9 @@ impl Element for EditorElement {
                         Vec<Selection<Point>>,
                         Vec<BufferId>,
                         FxHashMap<BufferId, Anchor>,
-                    ) = self
-                        .editor_with_selections(cx)
-                        .map(|editor| {
+                    ) = self.editor_with_selections(cx).map_or_else(
+                        || (Vec::new(), Vec::new(), FxHashMap::default()),
+                        |editor| {
                             editor.update(cx, |editor, cx| {
                                 let is_singleton = editor.buffer_kind(cx) == ItemBufferKind::Singleton;
 
@@ -1626,8 +1618,8 @@ impl Element for EditorElement {
 
                                 (selections, selected_buffer_ids, latest_selection_anchors)
                             })
-                        })
-                        .unwrap_or_else(|| (Vec::new(), Vec::new(), FxHashMap::default()));
+                        },
+                    );
 
                     let (selections, active_rows, newest_selection_head) =
                         self.layout_selections(&local_selections, &snapshot, start_row, end_row, window, cx);
@@ -1797,7 +1789,9 @@ impl Element for EditorElement {
                     );
                     let indent_guides_for_spacers = indent_guides.clone();
 
-                    let blocks = if !is_minimap {
+                    let blocks = if is_minimap {
+                        RenderBlocksOutput::default()
+                    } else {
                         {
                             window.with_element_namespace("blocks", |window| {
                                 self.render_blocks(
@@ -1817,14 +1811,12 @@ impl Element for EditorElement {
                                     &latest_selection_anchors,
                                     is_row_soft_wrapped,
                                     sticky_header_excerpt_id,
-                                    &indent_guides_for_spacers,
+                                    indent_guides_for_spacers.as_deref(),
                                     window,
                                     cx,
                                 )
                             })
                         }
-                    } else {
-                        RenderBlocksOutput::default()
                     };
                     let RenderBlocksOutput {
                         non_spacer_blocks: mut blocks,
@@ -1839,15 +1831,14 @@ impl Element for EditorElement {
                                     resized_blocks,
                                     autoscroll_request.map(|(autoscroll, _)| autoscroll),
                                     cx,
-                                )
+                                );
                             });
                             return self.prepaint(None, bounds, request_layout, window, cx);
-                        } else {
-                            log::error!(
-                                "dropping block resize because prepaint depth \
-                                 limit was reached"
-                            );
                         }
+                        log::error!(
+                            "dropping block resize because prepaint depth \
+                             limit was reached"
+                        );
                     }
 
                     let sticky_buffer_header = if self.should_show_buffer_headers() {
@@ -1907,7 +1898,9 @@ impl Element for EditorElement {
                         scroll_position.x * f64::from(em_layout_width),
                         scroll_position.y * f64::from(line_height),
                     );
-                    let indent_guides = if scroll_pixel_position != preliminary_scroll_pixel_position {
+                    let indent_guides = if scroll_pixel_position == preliminary_scroll_pixel_position {
+                        indent_guides
+                    } else {
                         self.layout_indent_guides(
                             content_origin,
                             text_hitbox.origin,
@@ -1918,8 +1911,6 @@ impl Element for EditorElement {
                             window,
                             cx,
                         )
-                    } else {
-                        indent_guides
                     };
 
                     let crease_trailers = window.with_element_namespace("crease_trailers", |window| {
@@ -2163,11 +2154,11 @@ impl Element for EditorElement {
                             &gutter_hitbox,
                             window,
                             cx,
-                        )
+                        );
                     });
 
                     window.with_element_namespace("expand_toggles", |window| {
-                        self.prepaint_expand_toggles(&mut expand_toggles, window, cx)
+                        self.prepaint_expand_toggles(&mut expand_toggles, window, cx);
                     });
 
                     let wrap_guides =
@@ -2402,7 +2393,7 @@ impl Element for EditorElement {
 
                     window.with_element_namespace("blocks", |window| {
                         if let Some(mut sticky_header) = layout.sticky_buffer_header.take() {
-                            sticky_header.paint(window, cx)
+                            sticky_header.paint(window, cx);
                         }
                     });
 
@@ -2410,8 +2401,8 @@ impl Element for EditorElement {
                     self.paint_scrollbars(layout, window, cx);
                     self.paint_mouse_context_menu(layout, window, cx);
                 });
-            })
-        })
+            });
+        });
     }
 }
 

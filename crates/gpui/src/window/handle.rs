@@ -92,7 +92,7 @@ impl<V: 'static + Render> WindowHandle<V> {
             .windows
             .get(self.id)
             .and_then(|window| {
-                window.as_deref().and_then(|window| window.root.clone()).map(|root_view| root_view.downcast::<V>())
+                window.as_deref().and_then(|window| window.root.clone()).map(|view| view.downcast::<V>())
             })
             .context("window not found")?
             .map_err(|_| anyhow!("the type of the window's root view has changed"))?;

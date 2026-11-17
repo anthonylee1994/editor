@@ -694,7 +694,7 @@ impl TerminalView {
         self.clear_bell(cx);
         self.blink_manager.update(cx, BlinkManager::pause_blinking);
         self.terminal.update(cx, |term, _| {
-            term.input(text.0.to_string().into_bytes());
+            term.input(text.0.clone().into_bytes());
         });
     }
 
@@ -788,20 +788,18 @@ impl TerminalView {
         self.terminal = terminal;
     }
 
-    fn rerun_button(&self, task: &TaskState) -> Option<IconButton> {
+    fn rerun_button(&self, task: &TaskState) -> IconButton {
         let workspace = self.workspace.clone();
         let spawned_task = task.spawned_task.clone();
-        Some(
-            IconButton::new("rerun-icon", IconName::Rerun)
-                .icon_size(IconSize::Small)
-                .size(ButtonSize::Compact)
-                .icon_color(Color::Default)
-                .shape(ui::IconButtonShape::Square)
-                .tooltip(move |_window, cx| Tooltip::for_action("Rerun task", &RerunTask, cx))
-                .on_click(move |_, window, cx| {
-                    rerun_in_terminal(workspace.clone(), spawned_task.clone(), window, cx);
-                }),
-        )
+        IconButton::new("rerun-icon", IconName::Rerun)
+            .icon_size(IconSize::Small)
+            .size(ButtonSize::Compact)
+            .icon_color(Color::Default)
+            .shape(ui::IconButtonShape::Square)
+            .tooltip(move |_window, cx| Tooltip::for_action("Rerun task", &RerunTask, cx))
+            .on_click(move |_, window, cx| {
+                rerun_in_terminal(workspace.clone(), spawned_task.clone(), window, cx);
+            })
     }
 }
 
@@ -888,13 +886,13 @@ fn subscribe_for_terminal_events(
             Event::Open(maybe_navigation_target) => match maybe_navigation_target {
                 MaybeNavigationTarget::Url(url) => cx.open_url(url),
                 MaybeNavigationTarget::PathLike(path_like_target) => {
-                    open_path_like_target(&workspace, terminal_view, path_like_target, window, cx)
+                    open_path_like_target(&workspace, terminal_view, path_like_target, window, cx);
                 }
             },
             Event::CloseTerminal => cx.emit(ItemEvent::CloseItem),
             Event::SelectionsChanged => {
                 window.invalidate_character_coordinates();
-                cx.emit(SearchEvent::ActiveMatchChanged)
+                cx.emit(SearchEvent::ActiveMatchChanged);
             }
         });
     vec![terminal_subscription, terminal_events_subscription]
@@ -1084,7 +1082,7 @@ impl Item for TerminalView {
                     .gap_1()
                     .child(Label::new(title.clone()))
                     .child(h_flex().flex_grow_1().child(Divider::horizontal()))
-                    .child(Label::new(format!("Process ID (PID): {}", pid)).color(Color::Muted).size(LabelSize::Small))
+                    .child(Label::new(format!("Process ID (PID): {pid}")).color(Color::Muted).size(LabelSize::Small))
                     .into_any_element()
             }
         }))))
@@ -1101,10 +1099,10 @@ impl Item for TerminalView {
 
         let (icon, icon_color, rerun_button) = match terminal.task() {
             Some(terminal_task) => match &terminal_task.status {
-                TaskStatus::Running => (IconName::PlayFilled, Color::Disabled, self.rerun_button(terminal_task)),
-                TaskStatus::Unknown => (IconName::Warning, Color::Warning, self.rerun_button(terminal_task)),
+                TaskStatus::Running => (IconName::PlayFilled, Color::Disabled, Some(self.rerun_button(terminal_task))),
+                TaskStatus::Unknown => (IconName::Warning, Color::Warning, Some(self.rerun_button(terminal_task))),
                 TaskStatus::Completed { success } => {
-                    let rerun_button = self.rerun_button(terminal_task);
+                    let rerun_button = Some(self.rerun_button(terminal_task));
 
                     if *success {
                         (IconName::Check, Color::Success, rerun_button)
@@ -1334,7 +1332,7 @@ impl Item for TerminalView {
     }
 
     fn to_item_events(event: &Self::Event, f: &mut dyn FnMut(ItemEvent)) {
-        f(*event)
+        f(*event);
     }
 }
 
@@ -1355,7 +1353,7 @@ impl SearchableItem for TerminalView {
 
     /// Clear stored matches
     fn clear_matches(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
-        self.terminal().update(cx, |term, _| term.matches.clear())
+        self.terminal().update(cx, |term, _| term.matches.clear());
     }
 
     /// Store matches returned from find_matches somewhere for rendering
@@ -1367,7 +1365,7 @@ impl SearchableItem for TerminalView {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.terminal().update(cx, |term, _| term.matches = matches.to_vec())
+        self.terminal().update(cx, |term, _| term.matches = matches.to_vec());
     }
 
     /// Returns the selection content to pre-load into this search
@@ -1426,44 +1424,40 @@ impl SearchableItem for TerminalView {
         // associated with a match. Therefore, if there are no matches, we should
         // report None, no matter the state of the terminal
 
-        if !matches.is_empty() {
-            if let Some(selection_head) = self.terminal().read(cx).selection_head {
-                // If selection head is contained in a match. Return that match
-                match direction {
-                    Direction::Prev => {
-                        // If no selection before selection head, return the first match
-                        Some(
-                            matches
-                                .iter()
-                                .enumerate()
-                                .rev()
-                                .find(|(_, search_match)| {
-                                    search_match.contains(selection_head) || search_match.start() < selection_head
-                                })
-                                .map(|(ix, _)| ix)
-                                .unwrap_or(0),
-                        )
-                    }
-                    Direction::Next => {
-                        // If no selection after selection head, return the last match
-                        Some(
-                            matches
-                                .iter()
-                                .enumerate()
-                                .find(|(_, search_match)| {
-                                    search_match.contains(selection_head) || search_match.start() > selection_head
-                                })
-                                .map(|(ix, _)| ix)
-                                .unwrap_or_else(|| matches.len().saturating_sub(1)),
-                        )
-                    }
+        if matches.is_empty() {
+            None
+        } else if let Some(selection_head) = self.terminal().read(cx).selection_head {
+            // If selection head is contained in a match. Return that match
+            match direction {
+                Direction::Prev => {
+                    // If no selection before selection head, return the first match
+                    Some(
+                        matches
+                            .iter()
+                            .enumerate()
+                            .rev()
+                            .find(|(_, search_match)| {
+                                search_match.contains(selection_head) || search_match.start() < selection_head
+                            })
+                            .map_or(0, |(ix, _)| ix),
+                    )
                 }
-            } else {
-                // Matches found but no active selection, return the first last one (closest to cursor)
-                Some(matches.len().saturating_sub(1))
+                Direction::Next => {
+                    // If no selection after selection head, return the last match
+                    Some(
+                        matches
+                            .iter()
+                            .enumerate()
+                            .find(|(_, search_match)| {
+                                search_match.contains(selection_head) || search_match.start() > selection_head
+                            })
+                            .map_or_else(|| matches.len().saturating_sub(1), |(ix, _)| ix),
+                    )
+                }
             }
         } else {
-            None
+            // Matches found but no active selection, return the first last one (closest to cursor)
+            Some(matches.len().saturating_sub(1))
         }
     }
     fn replace(
@@ -1502,6 +1496,6 @@ fn first_project_directory(workspace: &Workspace, cx: &App) -> Option<PathBuf> {
         Some(worktree_path.to_path_buf())
     } else {
         // If worktree is a file, return its parent directory
-        worktree_path.parent().map(|p| p.to_path_buf())
+        worktree_path.parent().map(|x| x.to_path_buf())
     }
 }

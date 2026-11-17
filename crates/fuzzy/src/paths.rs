@@ -97,8 +97,7 @@ pub(crate) fn distance_between_paths(path: &RelPath, relative_to: &RelPath) -> u
     while path_components
         .next()
         .zip(relative_components.next())
-        .map(|(path_component, relative_component)| path_component == relative_component)
-        .unwrap_or_default()
+        .is_some_and(|(path_component, relative_component)| path_component == relative_component)
     {}
     path_components.count() + relative_components.count() + 1
 }
@@ -133,7 +132,7 @@ fn path_match_helper<'a>(
     worktree_id: usize,
     path_prefix: &Arc<RelPath>,
     root_is_file: bool,
-    relative_to: &Option<Arc<RelPath>>,
+    relative_to: Option<&Arc<RelPath>>,
     cancel_flag: &AtomicBool,
 ) -> Result<(), Cancelled> {
     let mut candidate_buf = if !path_prefix.is_empty() && !root_is_file {
@@ -192,7 +191,6 @@ fn path_match_helper<'a>(
             path_prefix: if root_is_file { RelPath::empty_arc() } else { Arc::clone(path_prefix) },
             is_dir: candidate.is_dir,
             distance_to_relative_ancestor: relative_to
-                .as_ref()
                 .map_or(usize::MAX, |relative_to| distance_between_paths(candidate.path, relative_to.as_ref())),
         });
     }
@@ -229,7 +227,7 @@ pub fn match_fixed_path_set(
         worktree_id,
         &path_prefix,
         root_is_file,
-        &None,
+        None,
         &AtomicBool::new(false),
     )
     .ok();
@@ -247,7 +245,7 @@ pub async fn match_path_sets<'a, Set: PathMatchCandidateSet<'a>>(
     cancel_flag: &AtomicBool,
     executor: BackgroundExecutor,
 ) -> Vec<PathMatch> {
-    let path_count: usize = candidate_sets.iter().map(|s| s.len()).sum();
+    let path_count: usize = candidate_sets.iter().map(PathMatchCandidateSet::len).sum();
     if path_count == 0 {
         return Vec::new();
     }
@@ -290,7 +288,7 @@ pub async fn match_path_sets<'a, Set: PathMatchCandidateSet<'a>>(
                                 candidate_set.id(),
                                 &candidate_set.prefix(),
                                 candidate_set.root_is_file(),
-                                &relative_to,
+                                relative_to.as_ref(),
                                 cancel_flag,
                             )
                             .is_err()

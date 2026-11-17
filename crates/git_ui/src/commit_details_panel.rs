@@ -319,9 +319,9 @@ impl CommitDetailsPanel {
         };
         let highlight = self.search_highlight.clone();
         message.update(cx, |message, cx| {
-            let ranges = highlight
-                .map(|(query, case_sensitive)| git_graph::search_match_ranges(message.source(), &query, case_sensitive))
-                .unwrap_or_default();
+            let ranges = highlight.map_or_default(|(query, case_sensitive)| {
+                git_graph::search_match_ranges(message.source(), &query, case_sensitive)
+            });
             if ranges.is_empty() {
                 message.clear_search_highlights(cx);
             } else {
@@ -340,7 +340,7 @@ impl CommitDetailsPanel {
             }
             _ => ("Loading…".into(), "".into(), None),
         };
-        let date_string = commit_timestamp.map(format_timestamp).unwrap_or_default();
+        let date_string = commit_timestamp.map_or_default(format_timestamp);
         let full_sha: SharedString = sha.to_string().into();
         let short_sha: SharedString = full_sha.chars().take(7).collect::<String>().into();
         let head_branch_name: Option<SharedString> = self.repository.upgrade().and_then(|repository| {
@@ -390,7 +390,7 @@ impl CommitDetailsPanel {
                 )
                 .children((!self.ref_names.is_empty()).then(|| {
                     h_flex().gap_1().flex_wrap().justify_center().children(self.ref_names.iter().map(|name| {
-                        let is_head = GitGraph::is_head_ref(name, &head_branch_name);
+                        let is_head = GitGraph::is_head_ref(name, head_branch_name.as_ref());
                         let name_for_menu = name.clone();
                         let this = cx.weak_entity();
                         render_ref_chip(
@@ -401,7 +401,10 @@ impl CommitDetailsPanel {
                             background,
                             move |position, _window, cx| {
                                 this.update(cx, |_, cx| {
-                                    cx.emit(CommitDetailsEvent::DeployRefMenu { position, name: name_for_menu.clone() })
+                                    cx.emit(CommitDetailsEvent::DeployRefMenu {
+                                        position,
+                                        name: name_for_menu.clone(),
+                                    });
                                 })
                                 .ok();
                             },
@@ -690,7 +693,7 @@ fn render_copy_button(
             let state_id = copied_state.entity_id();
             cx.spawn(async move |cx| {
                 cx.background_executor().timer(COPIED_STATE_DURATION).await;
-                cx.update(|cx| cx.notify(state_id))
+                cx.update(|cx| cx.notify(state_id));
             })
             .detach();
         })
@@ -757,8 +760,8 @@ struct ChangedFileEntry {
 
 impl ChangedFileEntry {
     fn from_commit_file(file: &CommitFile) -> Self {
-        let file_name: SharedString = file.path.file_name().map(|n| n.to_string()).unwrap_or_default().into();
-        let dir_path: SharedString = file.path.parent().map(|p| p.as_unix_str().to_string()).unwrap_or_default().into();
+        let file_name: SharedString = file.path.file_name().map_or_default(|n| n.to_string()).into();
+        let dir_path: SharedString = file.path.parent().map_or_default(|p| p.as_unix_str().to_string()).into();
 
         let status_code = match (&file.old_text, &file.new_text) {
             (None, Some(_)) => StatusCode::Added,
@@ -857,12 +860,13 @@ impl ChangedFileDirectoryEntry {
     fn render(&self, ix: usize, panel: WeakEntity<CommitDetailsPanel>, cx: &App) -> AnyElement {
         let path = self.path.clone();
         let expanded = self.expanded;
-        let folder_icon = FileIcons::get_folder_icon(expanded, path.as_std_path(), cx)
-            .map(|icon| Icon::from_path(icon).size(IconSize::Small).color(Color::Muted))
-            .unwrap_or_else(|| {
+        let folder_icon = FileIcons::get_folder_icon(expanded, path.as_std_path(), cx).map_or_else(
+            || {
                 let icon = if expanded { IconName::FolderOpen } else { IconName::Folder };
                 Icon::new(icon).size(IconSize::Small).color(Color::Muted)
-            });
+            },
+            |icon| Icon::from_path(icon).size(IconSize::Small).color(Color::Muted),
+        );
 
         let content = [
             folder_icon.into_any_element(),

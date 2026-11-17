@@ -231,7 +231,7 @@ where
     }
 
     fn add_summary(&mut self, summary: &Self) {
-        *self = summary.clone()
+        *self = summary.clone();
     }
 }
 
@@ -243,7 +243,7 @@ where
         MapKeyRef::default()
     }
 
-    fn add_summary(&mut self, summary: &'a MapKey<K>, _: ()) {
+    fn add_summary(&mut self, summary: &'a MapKey<K>, (): ()) {
         self.0 = summary.0.as_ref();
     }
 }
@@ -252,7 +252,7 @@ impl<'a, K> SeekTarget<'a, MapKey<K>, MapKeyRef<'a, K>> for MapKeyRef<'_, K>
 where
     K: Clone + Ord,
 {
-    fn cmp(&self, cursor_location: &MapKeyRef<K>, _: ()) -> Ordering {
+    fn cmp(&self, cursor_location: &MapKeyRef<K>, (): ()) -> Ordering {
         Ord::cmp(&self.0, &cursor_location.0)
     }
 }
@@ -295,11 +295,11 @@ where
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &K> + '_ {
-        self.0.iter().map(|(k, _)| k)
+        self.0.iter().map(|(k, ())| k)
     }
 
     pub fn iter_from<'a>(&'a self, key: &K) -> impl Iterator<Item = &'a K> + 'a {
-        self.0.iter_from(key).map(move |(k, _)| k)
+        self.0.iter_from(key).map(move |(k, ())| k)
     }
 }
 

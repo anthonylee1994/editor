@@ -101,8 +101,8 @@ impl GitPanel {
                     match remote_message {
                         Ok(remote_message) => this.show_remote_output(action, remote_message, cx),
                         Err(e) => {
-                            log::error!("Error while fetching {:?}", e);
-                            this.show_error_toast(action.name(), e, cx)
+                            log::error!("Error while fetching {e:?}");
+                            this.show_error_toast(action.name(), e, cx);
                         }
                     }
 
@@ -174,11 +174,8 @@ impl GitPanel {
         };
 
         cx.spawn_in(window, async move |this, cx| {
-            let worktree = match worktree.await {
-                Some(worktree) => worktree,
-                None => {
-                    return;
-                }
+            let Some(worktree) = worktree.await else {
+                return;
             };
 
             let Ok(result) = this.update(cx, |this, cx| {
@@ -224,7 +221,7 @@ impl GitPanel {
                     return Ok(());
                 }
                 Err(e) => {
-                    log::error!("Failed to get current remote: {}", e);
+                    log::error!("Failed to get current remote: {e}");
                     this.update(cx, |this, cx| this.show_error_toast("pull", e, cx)).ok();
                     return Ok(());
                 }
@@ -247,8 +244,8 @@ impl GitPanel {
             this.update(cx, |this, cx| match remote_message {
                 Ok(remote_message) => this.show_remote_output(action, remote_message, cx),
                 Err(e) => {
-                    log::error!("Error while pulling {:?}", e);
-                    this.show_error_toast(action.name(), e, cx)
+                    log::error!("Error while pulling {e:?}");
+                    this.show_error_toast(action.name(), e, cx);
                 }
             })
             .ok();
@@ -297,13 +294,13 @@ impl GitPanel {
                                 "No remote available to push to. Add a remote to be able to publish changes."
                             ),
                             cx,
-                        )
+                        );
                     })
                     .ok();
                     return Ok(());
                 }
                 Err(e) => {
-                    log::error!("Failed to get current remote: {}", e);
+                    log::error!("Failed to get current remote: {e}");
                     this.update(cx, |this, cx| this.show_error_toast("push", e, cx)).ok();
                     return Ok(());
                 }
@@ -332,8 +329,8 @@ impl GitPanel {
             this.update(cx, |this, cx| match remote_output {
                 Ok(remote_message) => this.show_remote_output(action, remote_message, cx),
                 Err(e) => {
-                    log::error!("Error while pushing {:?}", e);
-                    this.show_error_toast(action.name(), e, cx)
+                    log::error!("Error while pushing {e:?}");
+                    this.show_error_toast(action.name(), e, cx);
                 }
             })?;
 
@@ -492,7 +489,7 @@ impl GitPanel {
                 }
                 .dismiss_button(true)
             });
-            workspace.toggle_status_toast(status_toast, cx)
+            workspace.toggle_status_toast(status_toast, cx);
         });
     }
 }

@@ -56,7 +56,7 @@ where
     base_style.overflow.y = Some(Overflow::Scroll);
 
     let render_range = move |range: Range<usize>, window: &mut Window, cx: &mut App| {
-        f(range, window, cx).into_iter().map(|component| component.into_any_element()).collect()
+        f(range, window, cx).into_iter().map(|x| x.into_any_element()).collect()
     };
 
     UniformList {
@@ -401,7 +401,7 @@ impl Element for UniformList {
                                 }
                             }
                         }
-                        scroll_offset = *updated_scroll_offset
+                        scroll_offset = *updated_scroll_offset;
                     }
 
                     let scroll_top = -scroll_offset.y.to_f64();
@@ -484,7 +484,7 @@ impl Element for UniformList {
             for decoration in &mut request_layout.decorations {
                 decoration.paint(window, cx);
             }
-        })
+        });
     }
 }
 

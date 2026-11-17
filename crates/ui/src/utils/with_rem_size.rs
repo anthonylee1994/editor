@@ -48,7 +48,7 @@ impl Styled for WithRemSize {
 
 impl ParentElement for WithRemSize {
     fn extend(&mut self, elements: impl IntoIterator<Item = AnyElement>) {
-        self.div.extend(elements)
+        self.div.extend(elements);
     }
 }
 
@@ -90,8 +90,8 @@ impl Element for WithRemSize {
         cx: &mut App,
     ) {
         window.with_rem_size(Some(self.rem_size), |window| {
-            self.div.paint(id, bounds, request_layout, prepaint, window, cx)
-        })
+            self.div.paint(id, bounds, request_layout, prepaint, window, cx);
+        });
     }
 }
 

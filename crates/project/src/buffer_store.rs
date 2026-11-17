@@ -155,9 +155,7 @@ impl LocalBufferStore {
             None
         };
 
-        let buffer = if let Some(buffer) = buffer {
-            buffer
-        } else {
+        let Some(buffer) = buffer else {
             this.path_to_buffer_id.remove(&project_path);
             this.local.local_buffer_ids_by_entry_id.remove(&entry_id);
             return None;
@@ -509,7 +507,7 @@ impl BufferStore {
             cx.on_release(move |buffer, cx| {
                 handle.update(cx, |_, cx| cx.emit(BufferStoreEvent::BufferDropped(buffer.buffer_id()))).ok();
             })
-            .detach()
+            .detach();
         });
 
         if let Some(path) = path {
@@ -522,11 +520,11 @@ impl BufferStore {
     }
 
     pub fn buffers(&self) -> impl '_ + Iterator<Item = Entity<Buffer>> {
-        self.opened_buffers.values().filter_map(|buffer| buffer.upgrade())
+        self.opened_buffers.values().filter_map(gpui::WeakEntity::upgrade)
     }
 
-    pub(crate) fn is_searchable(&self, id: &BufferId) -> bool {
-        !self.non_searchable_buffers.contains(id)
+    pub(crate) fn is_searchable(&self, id: BufferId) -> bool {
+        !self.non_searchable_buffers.contains(&id)
     }
 
     pub fn buffer_id_for_project_path(&self, project_path: &ProjectPath) -> Option<&BufferId> {
@@ -563,7 +561,7 @@ impl BufferStore {
             }
             self.path_to_buffer_id
                 .insert(ProjectPath { worktree_id: file.worktree_id(cx), path: file.path.clone() }, buffer_id);
-        };
+        }
 
         Some(())
     }

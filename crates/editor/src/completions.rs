@@ -417,7 +417,7 @@ impl Editor {
                 ignore_word_threshold = ignore_threshold;
                 None
             }
-            Some(CompletionsMenuSource::SnippetChoices) | Some(CompletionsMenuSource::SnippetsOnly) => {
+            Some(CompletionsMenuSource::SnippetChoices | CompletionsMenuSource::SnippetsOnly) => {
                 log::error!("bug: SnippetChoices requested_source is not handled");
                 None
             }
@@ -454,7 +454,7 @@ impl Editor {
                     }
                 }
             }
-        };
+        }
 
         let (word_replace_range, word_to_exclude) =
             if let (word_range, Some(CharKind::Word)) = buffer_snapshot.surrounding_word(buffer_position, None) {
@@ -670,7 +670,7 @@ impl Editor {
                         && prev_menu.id > id
                     {
                         return;
-                    };
+                    }
 
                     // Only valid to take prev_menu because either the new menu is immediately set
                     // below, or the menu is hidden.
@@ -687,7 +687,7 @@ impl Editor {
                             // try to populate the documentation cache.
                             menu.preserve_markdown_cache(prev_menu);
                         }
-                    };
+                    }
 
                     menu.set_filter_results(matches, provider, cx);
                 }) else {
@@ -849,10 +849,10 @@ impl Editor {
 
         let tx_id = self.transact(window, cx, |editor, window, cx| {
             if let Some(mut snippet) = snippet {
-                snippet.text = new_text.to_string();
+                snippet.text.clone_from(&new_text);
                 let offset_ranges =
                     ranges.iter().map(|range| range.to_offset(&multibuffer_snapshot)).collect::<Vec<_>>();
-                editor.insert_snippet(&offset_ranges, snippet, window, cx).log_err();
+                editor.insert_snippet(&offset_ranges, snippet, window, cx);
             } else {
                 editor.buffer.update(cx, |multi_buffer, cx| {
                     let auto_indent = match completion.insert_text_mode {
@@ -921,8 +921,7 @@ impl Editor {
                     .await
                     .context("applying post-completion command")?;
                 if let Some(workspace) = editor.read_with(cx, |editor, _| editor.workspace())? {
-                    Self::open_project_transaction(&editor, workspace.downgrade(), project_transaction, title, cx)
-                        .await?;
+                    Self::open_project_transaction(&editor, workspace.downgrade(), project_transaction, title, cx)?;
                 }
             }
 
@@ -1080,7 +1079,7 @@ fn snippet_completions(
             // Each prefix may be matched multiple times; the completion menu must filter out duplicates.
 
             let buffer_windows = snippet_candidate_suffixes(&max_buffer_window, &is_word_char)
-                .take(sorted_snippet_candidates.first().map(|(_, _, word_count)| *word_count).unwrap_or_default())
+                .take(sorted_snippet_candidates.first().map_or_default(|(_, _, word_count)| *word_count))
                 .collect_vec();
 
             const MAX_RESULTS: usize = 100;
@@ -1264,9 +1263,7 @@ impl CompletionProvider for Entity<Project> {
         cx: &mut Context<Editor>,
     ) -> bool {
         let mut chars = text.chars();
-        let char = if let Some(char) = chars.next() {
-            char
-        } else {
+        let Some(char) = chars.next() else {
             return false;
         };
         if chars.next().is_some() {
@@ -1353,7 +1350,7 @@ fn process_completion_for_edit(
         if let Some(scope) = buffer_snapshot.language_scope_at(previous_point)
             && scope.prefers_label_for_snippet_in_completion()
             && let Some(label) = completion.label()
-            && matches!(completion.kind(), Some(CompletionItemKind::FUNCTION) | Some(CompletionItemKind::METHOD))
+            && matches!(completion.kind(), Some(CompletionItemKind::FUNCTION | CompletionItemKind::METHOD))
         {
             snippet_source = label;
         }

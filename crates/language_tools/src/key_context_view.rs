@@ -41,7 +41,7 @@ pub fn init(cx: &App) {
     cx.observe_new(|workspace: &mut Workspace, _, _| {
         workspace.register_action(|workspace, _: &OpenKeyContextView, window, cx| {
             let key_context_view = cx.new(|cx| KeyContextView::new(window, cx));
-            workspace.split_item(SplitDirection::Right, Box::new(key_context_view), window, cx)
+            workspace.split_item(SplitDirection::Right, Box::new(key_context_view), window, cx);
         });
     })
     .detach();
@@ -63,30 +63,32 @@ impl KeyContextView {
             pending.push(e.keystroke.clone());
             let mut possibilities = cx.all_bindings_for_input(&pending);
             possibilities.reverse();
-            this.last_keystrokes = Some(json!(pending.iter().map(|p| p.unparse()).join(" ")).to_string().into());
+            this.last_keystrokes =
+                Some(json!(pending.iter().map(gpui::Keystroke::unparse).join(" ")).to_string().into());
             this.context_stack.clone_from(&e.context_stack);
             this.last_possibilities = possibilities
                 .into_iter()
                 .map(|binding| {
                     let match_state = if let Some(predicate) = binding.predicate() {
                         if this.matches(&predicate) {
-                            if this.action_matches(&e.action, binding.action()) { Some(true) } else { Some(false) }
+                            if this.action_matches(e.action.as_deref(), binding.action()) {
+                                Some(true)
+                            } else {
+                                Some(false)
+                            }
                         } else {
                             None
                         }
-                    } else if this.action_matches(&e.action, binding.action()) {
+                    } else if this.action_matches(e.action.as_deref(), binding.action()) {
                         Some(true)
                     } else {
                         Some(false)
                     };
-                    let predicate = if let Some(predicate) = binding.predicate() {
-                        format!("{}", predicate)
-                    } else {
-                        "".to_string()
-                    };
+                    let predicate =
+                        if let Some(predicate) = binding.predicate() { format!("{predicate}") } else { String::new() };
                     let mut name = binding.action().name();
                     if name == "ed::NoAction" {
-                        name = "(null)"
+                        name = "(null)";
                     }
 
                     (name.to_owned().into(), json!(predicate).to_string().into(), match_state)
@@ -95,7 +97,7 @@ impl KeyContextView {
             cx.notify();
         });
         let sub2 = cx.observe_pending_input(window, |this, window, cx| {
-            this.pending_keystrokes = window.pending_input_keystrokes().map(|k| k.to_vec());
+            this.pending_keystrokes = window.pending_input_keystrokes().map(<[gpui::Keystroke]>::to_vec);
             if this.pending_keystrokes.is_some() {
                 this.last_keystrokes.take();
             }
@@ -123,14 +125,14 @@ impl Focusable for KeyContextView {
 impl KeyContextView {
     fn set_context_stack(&mut self, stack: Vec<KeyContext>, cx: &mut Context<Self>) {
         self.context_stack = stack;
-        cx.notify()
+        cx.notify();
     }
 
     fn matches(&self, predicate: &KeyBindingContextPredicate) -> bool {
         predicate.depth_of(&self.context_stack).is_some()
     }
 
-    fn action_matches(&self, a: &Option<Box<dyn Action>>, b: &dyn Action) -> bool {
+    fn action_matches(&self, a: Option<&dyn Action>, b: &dyn Action) -> bool {
         if let Some(last_action) = a { last_action.partial_eq(b) } else { b.name() == "ed::NoAction" }
     }
 }
@@ -138,7 +140,7 @@ impl KeyContextView {
 impl Item for KeyContextView {
     type Event = ();
 
-    fn to_item_events(_: &Self::Event, _: &mut dyn FnMut(ItemEvent)) {}
+    fn to_item_events((): &Self::Event, _: &mut dyn FnMut(ItemEvent)) {}
 
     fn tab_content_text(&self, _detail: usize, _cx: &App) -> SharedString {
         "Keyboard Context".into()
@@ -194,7 +196,7 @@ impl Render for KeyContextView {
             )
             .children({
                 self.context_stack.iter().enumerate().map(|(i, context)| {
-                    let primary = context.primary().map(|e| e.key.clone()).unwrap_or_default();
+                    let primary = context.primary().map_or_default(|e| e.key.clone());
                     let secondary = context
                         .secondary()
                         .map(|e| {
@@ -205,7 +207,7 @@ impl Render for KeyContextView {
                             }
                         })
                         .join(" ");
-                    Label::new(format!("{} {}", primary, secondary)).ml(px(12. * (i + 1) as f32))
+                    Label::new(format!("{primary} {secondary}")).ml(px(12. * (i + 1) as f32))
                 })
             })
             .child(Label::new("Last Keystroke").mt_4().size(LabelSize::Large))
@@ -213,13 +215,13 @@ impl Render for KeyContextView {
                 el.child(
                     Label::new(format!(
                         "Waiting for more input: {}",
-                        keystrokes.iter().map(|k| k.unparse()).join(" ")
+                        keystrokes.iter().map(gpui::Keystroke::unparse).join(" ")
                     ))
                     .ml(px(12.)),
                 )
             })
             .when_some(self.last_keystrokes.as_ref(), |el, keystrokes| {
-                el.child(Label::new(format!("Typed: {}", keystrokes)).ml_4())
+                el.child(Label::new(format!("Typed: {keystrokes}")).ml_4())
                     .children(
                         self.last_possibilities
                             .iter()
@@ -246,7 +248,7 @@ impl Render for KeyContextView {
                             .iter()
                             .sorted()
                             .map(|(key, equivalent)| {
-                                Label::new(format!("cmd-{} => cmd-{}", key, equivalent)).ml_8()
+                                Label::new(format!("cmd-{key} => cmd-{equivalent}")).ml_8()
                             }),
                     )
             })

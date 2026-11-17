@@ -115,11 +115,9 @@ impl ProjectEnvironment {
                     };
 
                     if let Some(shell_env) = shell_env.as_ref() {
-                        let path = shell_env.get("PATH").map(|path| path.as_str()).unwrap_or_default();
+                        let path = shell_env.get("PATH").map_or_default(String::as_str);
                         log::debug!(
-                            "using project environment variables shell launched in {:?}. PATH={:?}",
-                            abs_path,
-                            path
+                            "using project environment variables shell launched in {abs_path:?}. PATH={path:?}"
                         );
                     }
 

@@ -531,13 +531,12 @@ impl Inner {
         let change = self.history.remove(before_cursor).expect("we can undo");
         let operation = change.clone().into_inverse();
 
-        match operation.execute(self, cx).await? {
-            Some(undo_change) => self.history.insert(before_cursor, undo_change),
-            None => {
-                self.history.insert(before_cursor, change);
-                self.cursor += 1;
-            }
-        };
+        if let Some(undo_change) = operation.execute(self, cx).await? {
+            self.history.insert(before_cursor, undo_change);
+        } else {
+            self.history.insert(before_cursor, change);
+            self.cursor += 1;
+        }
 
         Ok(())
     }
@@ -743,8 +742,7 @@ impl Inner {
                 let original_path = project.fs().original_path_for_trash_id(trash_id)?;
                 let original_name = original_path
                     .file_name()
-                    .map(|name| name.to_string_lossy().into_owned())
-                    .unwrap_or_else(|| original_path.display().to_string());
+                    .map_or_else(|| original_path.display().to_string(), |name| name.to_string_lossy().into_owned());
 
                 let project_path = (|| {
                     let worktree = project.worktree_for_id(worktree_id, cx)?;
@@ -792,7 +790,7 @@ impl Inner {
                         })
                         .with_title(title)
                     })
-                })
+                });
             })
             .ok();
     }

@@ -47,7 +47,7 @@ impl Banner {
 
 impl ParentElement for Banner {
     fn extend(&mut self, elements: impl IntoIterator<Item = AnyElement>) {
-        self.children.extend(elements)
+        self.children.extend(elements);
     }
 }
 

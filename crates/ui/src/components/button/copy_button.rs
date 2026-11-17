@@ -33,7 +33,7 @@ impl CopyButtonState {
     }
 
     fn is_copied(&self) -> bool {
-        self.copied_at.map(|t| t.elapsed() < COPIED_STATE_DURATION).unwrap_or(false)
+        self.copied_at.is_some_and(|t| t.elapsed() < COPIED_STATE_DURATION)
     }
 
     fn mark_copied(&mut self) {
@@ -125,7 +125,7 @@ impl RenderOnce for CopyButton {
                     cx.background_executor().timer(COPIED_STATE_DURATION).await;
                     cx.update(|cx| {
                         cx.notify(state_id);
-                    })
+                    });
                 })
                 .detach();
             });

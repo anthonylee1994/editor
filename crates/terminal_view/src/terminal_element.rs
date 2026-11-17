@@ -556,7 +556,7 @@ impl TerminalElement {
                             }
                             current_batch = Some(new_batch);
                         }
-                    };
+                    }
                 }
             }
         }
@@ -648,8 +648,8 @@ impl TerminalElement {
     /// 6x6x6 cube at 16..=231 and the 24-step grayscale ramp at 232..=255).
     /// Indices 0..=15 still go through contrast adjustment since those map to
     /// theme-defined ANSI colors that can clash with the theme background.
-    const fn is_app_chosen_exact_color(fg: &Color) -> bool {
-        terminal_is_app_chosen_exact_color(*fg)
+    const fn is_app_chosen_exact_color(fg: Color) -> bool {
+        terminal_is_app_chosen_exact_color(fg)
     }
 
     /// Returns the filled subcells of a sextant character as a bitmap, where
@@ -816,7 +816,7 @@ impl TerminalElement {
         hyperlink: Option<(HighlightStyle, &Range)>,
         minimum_contrast: f32,
     ) -> TextRun {
-        let skip_contrast = Self::is_app_chosen_exact_color(&fg);
+        let skip_contrast = Self::is_app_chosen_exact_color(fg);
         let mut fg = convert_color(&fg, colors);
         let bg = convert_color(&bg, colors);
 
@@ -888,7 +888,7 @@ impl TerminalElement {
                     }
                     terminal.mouse_down(&adjusted_event);
                     cx.notify();
-                })
+                });
             }
         });
 
@@ -914,13 +914,13 @@ impl TerminalElement {
                             terminal.mouse_drag(&adjusted_event, hitbox.bounds, cx);
                             cx.notify();
                         }
-                    })
+                    });
                 }
 
                 if hitbox.is_hovered(window) {
                     terminal.update(cx, |terminal, cx| {
                         terminal.mouse_move(e, cx);
-                    })
+                    });
                 }
             }
         });
@@ -976,7 +976,7 @@ impl TerminalElement {
         });
     }
 
-    fn rem_size(&self, cx: &App) -> Option<Pixels> {
+    fn rem_size(&self, cx: &App) -> Pixels {
         let buffer_font_size = font::buffer_font_size(cx);
         let rem_size_scale = {
             // Our default UI font size is 14px on a 16px base scale.
@@ -992,7 +992,7 @@ impl TerminalElement {
             1. + default_font_size_delta
         };
 
-        Some(buffer_font_size * rem_size_scale)
+        buffer_font_size * rem_size_scale
     }
 }
 
@@ -1023,7 +1023,7 @@ impl Element for TerminalElement {
         &mut self,
         global_id: Option<&GlobalElementId>,
         bounds: Bounds<Pixels>,
-        _: &mut Self::RequestLayoutState,
+        (): &mut Self::RequestLayoutState,
         window: &mut Window,
         cx: &mut App,
     ) -> Self::PrepaintState {
@@ -1174,7 +1174,7 @@ impl Element for TerminalElement {
             // searches, highlights to a single range representations
             let mut relative_highlighted_ranges = Vec::new();
             for search_match in search_matches {
-                relative_highlighted_ranges.push((search_match, match_color))
+                relative_highlighted_ranges.push((search_match, match_color));
             }
             if let Some(selection) = selection {
                 relative_highlighted_ranges.push((selection.point_range(), cursor_colors.selection));
@@ -1310,7 +1310,7 @@ impl Element for TerminalElement {
                     let origin = GpuiPoint::new(bounds.origin.x, dimensions.bounds.origin.y)
                         + point(px(0.), target_line as f32 * dimensions.line_height())
                         - point(px(0.), scroll_top);
-                    window.with_rem_size(rem_size, |window| {
+                    window.with_rem_size(Some(rem_size), |window| {
                         element.prepaint_as_root(origin, available_space, window, cx);
                     });
                     Some(element)
@@ -1343,7 +1343,7 @@ impl Element for TerminalElement {
         &mut self,
         global_id: Option<&GlobalElementId>,
         bounds: Bounds<Pixels>,
-        _: &mut Self::RequestLayoutState,
+        (): &mut Self::RequestLayoutState,
         layout: &mut Self::PrepaintState,
         window: &mut Window,
         cx: &mut App,

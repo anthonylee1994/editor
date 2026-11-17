@@ -306,10 +306,7 @@ impl SelectionsCollection {
     }
 
     pub fn first_anchor(&self) -> Selection<Anchor> {
-        self.pending
-            .as_ref()
-            .map(|pending| pending.selection)
-            .unwrap_or_else(|| self.disjoint.first().copied().unwrap())
+        self.pending.as_ref().map_or_else(|| self.disjoint.first().copied().unwrap(), |pending| pending.selection)
     }
 
     pub fn first<D>(&self, snapshot: &DisplaySnapshot) -> Selection<D>
@@ -717,7 +714,7 @@ impl MutableSelectionsCollection<'_, '_> {
             .map(|mut selection| {
                 if selection.start > selection.end {
                     mem::swap(&mut selection.start, &mut selection.end);
-                    selection.reversed = true
+                    selection.reversed = true;
                 }
                 selection
             })
@@ -793,7 +790,7 @@ impl MutableSelectionsCollection<'_, '_> {
             })
             .collect::<Vec<_>>();
 
-        self.select(selections)
+        self.select(selections);
     }
 
     pub fn select_anchor_ranges<I>(&mut self, ranges: I)
@@ -820,7 +817,7 @@ impl MutableSelectionsCollection<'_, '_> {
                 }
             })
             .collect::<Vec<_>>();
-        self.select_anchors(selections)
+        self.select_anchors(selections);
     }
 
     pub fn select_display_ranges<T>(&mut self, ranges: T)
@@ -867,7 +864,7 @@ impl MutableSelectionsCollection<'_, '_> {
             .collect();
 
         if changed {
-            self.select(selections)
+            self.select(selections);
         }
     }
 
@@ -892,7 +889,7 @@ impl MutableSelectionsCollection<'_, '_> {
             .collect();
 
         if changed {
-            self.select(selections)
+            self.select(selections);
         }
     }
 
@@ -916,7 +913,7 @@ impl MutableSelectionsCollection<'_, '_> {
     ) {
         self.move_with(&mut |map, selection| {
             let (cursor, new_goal) = update_cursor_position(map, selection.head(), selection.goal);
-            selection.collapse_to(cursor, new_goal)
+            selection.collapse_to(cursor, new_goal);
         });
     }
 
@@ -931,7 +928,7 @@ impl MutableSelectionsCollection<'_, '_> {
     ) {
         self.move_cursors_with(&mut |map, point, goal| {
             update_cursor_position(map, point, goal).unwrap_or((point, goal))
-        })
+        });
     }
 
     pub(crate) fn select_anchors_unexpanded(&mut self, selections: Vec<Selection<Anchor>>) {
@@ -999,7 +996,7 @@ fn resolve_selections_display<'a>(
     let selections = resolve_selections_point(selections, map).map(move |s| {
         let display_start = map.point_to_display_point(s.start, Bias::Left);
         let display_end = map.point_to_display_point(s.end, if s.start == s.end { Bias::Right } else { Bias::Left });
-        assert!(display_start <= display_end, "display_start: {:?}, display_end: {:?}", display_start, display_end);
+        assert!(display_start <= display_end, "display_start: {display_start:?}, display_end: {display_end:?}");
         Selection { id: s.id, start: display_start, end: display_end, reversed: s.reversed, goal: s.goal }
     });
     coalesce_selections(selections)
@@ -1072,13 +1069,13 @@ where
     let mut converted_endpoints = map.buffer_snapshot().dimensions_from_points::<D>(to_convert.flat_map(|s| {
         let start = map.display_point_to_point(s.start, Bias::Left);
         let end = map.display_point_to_point(s.end, Bias::Right);
-        assert!(start <= end, "start: {:?}, end: {:?}", start, end);
+        assert!(start <= end, "start: {start:?}, end: {end:?}");
         [start, end]
     }));
     selections.map(move |s| {
         let start = converted_endpoints.next().unwrap();
         let end = converted_endpoints.next().unwrap();
-        assert!(start <= end, "start: {:?}, end: {:?}", start, end);
+        assert!(start <= end, "start: {start:?}, end: {end:?}");
         Selection { id: s.id, start, end, reversed: s.reversed, goal: s.goal }
     })
 }

@@ -279,22 +279,19 @@ impl MarkdownElementBuilder {
             // Table cells center their content vertically and apply column alignment via a
             // column-direction container. Switching it to a row moves those axes, so the
             // alignment has to be restated for the row.
-            match table_cell_alignment {
-                Some(alignment) => {
-                    let el = el.items_center().content_center();
-                    match alignment {
-                        Some(Alignment::Center) => el.justify_center(),
-                        Some(Alignment::Right) => el.justify_end(),
-                        _ => el.justify_start(),
-                    }
+            if let Some(alignment) = table_cell_alignment {
+                let el = el.items_center().content_center();
+                match alignment {
+                    Some(Alignment::Center) => el.justify_center(),
+                    Some(Alignment::Right) => el.justify_end(),
+                    _ => el.justify_start(),
                 }
-                None => {
-                    let el = el.items_start();
-                    match text_align {
-                        TextAlign::Left => el.justify_start(),
-                        TextAlign::Center => el.justify_center(),
-                        TextAlign::Right => el.justify_end(),
-                    }
+            } else {
+                let el = el.items_start();
+                match text_align {
+                    TextAlign::Left => el.justify_start(),
+                    TextAlign::Center => el.justify_center(),
+                    TextAlign::Right => el.justify_end(),
                 }
             }
         });
@@ -540,13 +537,9 @@ impl MarkdownElementBuilder {
             return;
         }
 
-        let highlights = line
-            .source_mappings
-            .first()
-            .map(|first_mapping| {
-                self.highlights.highlights_for_line(first_mapping.source_index..self.current_source_index)
-            })
-            .unwrap_or_default();
+        let highlights = line.source_mappings.first().map_or_default(|first_mapping| {
+            self.highlights.highlights_for_line(first_mapping.source_index..self.current_source_index)
+        });
         let runs = if highlights.is_empty()
             || self.highlights.minimum_contrast <= 0.
             || !self.highlights.base_background.is_opaque()

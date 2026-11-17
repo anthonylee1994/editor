@@ -129,7 +129,7 @@ impl SanitizedPath {
 
     pub fn unchecked_new<T: AsRef<Path> + ?Sized>(path: &T) -> &Self {
         // safe because `Path` and `SanitizedPath` have the same repr and Drop impl
-        unsafe { mem::transmute::<&Path, &Self>(path.as_ref()) }
+        unsafe { &*(std::ptr::from_ref::<Path>(path.as_ref()) as *const Self) }
     }
 
     pub fn from_arc(path: Arc<Path>) -> Arc<Self> {
@@ -147,9 +147,9 @@ impl SanitizedPath {
         unsafe { mem::transmute::<Arc<Self>, Arc<Path>>(path) }
     }
 
-    pub fn cast_arc_ref(path: &Arc<Self>) -> &Arc<Path> {
+    pub const fn cast_arc_ref(path: &Arc<Self>) -> &Arc<Path> {
         // safe because `Path` and `SanitizedPath` have the same repr and Drop impl
-        unsafe { mem::transmute::<&Arc<Self>, &Arc<Path>>(path) }
+        unsafe { &*std::ptr::from_ref(path).cast::<Arc<Path>>() }
     }
 
     pub fn starts_with(&self, prefix: &Self) -> bool {
@@ -258,7 +258,7 @@ pub fn normalize_lexically(path: &Path) -> Result<PathBuf, NormalizeError> {
     // Find the root, if any, and add it to the lexical path.
     let root = match iter.peek() {
         Some(Component::ParentDir) => return Err(NormalizeError),
-        Some(p @ Component::RootDir) | Some(p @ Component::CurDir) => {
+        Some(p @ (Component::RootDir | Component::CurDir)) => {
             lexical.push(p);
             iter.next();
             lexical.as_os_str().len()
@@ -272,14 +272,13 @@ pub fn normalize_lexically(path: &Path) -> Result<PathBuf, NormalizeError> {
         match component {
             Component::RootDir => unreachable!(),
             Component::Prefix(_) => unreachable!("no path prefixes on unix"),
-            Component::CurDir => continue,
+            Component::CurDir => {}
             Component::ParentDir => {
                 // It's an error if ParentDir causes us to go above the "root".
                 if lexical.as_os_str().len() == root {
                     return Err(NormalizeError);
-                } else {
-                    lexical.pop();
                 }
+                lexical.pop();
             }
             Component::Normal(path) => lexical.push(path),
         }
@@ -349,56 +348,53 @@ impl PathWithPosition {
         // so far this code isn't called from multiple hot paths. Getting contention here
         // in the future seems unlikely.
         static SUFFIX_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(ROW_COL_CAPTURE_REGEX).unwrap());
-        match SUFFIX_RE.captures(maybe_file_name_with_row_col).and_then(|captures| {
-            let file_name_end = captures.iter().skip(1).flatten().next()?.end();
-            let (_, [_, row, column]) = captures.extract();
-            Some((file_name_end, row, column))
-        }) {
-            Some((file_name_end, maybe_row, maybe_column)) => {
-                let row = maybe_row.parse::<u32>().ok();
-                let column = maybe_column.parse::<u32>().ok();
+        if let Some((file_name_end, maybe_row, maybe_column)) =
+            SUFFIX_RE.captures(maybe_file_name_with_row_col).and_then(|captures| {
+                let file_name_end = captures.iter().skip(1).flatten().next()?.end();
+                let (_, [_, row, column]) = captures.extract();
+                Some((file_name_end, row, column))
+            })
+        {
+            let row = maybe_row.parse::<u32>().ok();
+            let column = maybe_column.parse::<u32>().ok();
 
-                Self { path: path.with_file_name(&maybe_file_name_with_row_col[..file_name_end]), row, column }
-            }
-            None => {
-                // The `ROW_COL_CAPTURE_REGEX` deals with separated digits only,
-                // but in reality there could be `foo/bar.py:22:in` inputs which we want to match too.
-                // The regex mentioned is not very extendable with "digit or random string" checks, so do this here instead.
-                let path = Path::new(s);
-                let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
-                    return Self::from_path(path.to_path_buf());
-                };
-                let delimiter = ':';
-                let mut path_parts = file_name.rsplitn(3, delimiter).collect::<Vec<_>>().into_iter().rev().fuse();
-                let mut path_string = path_parts
-                    .next()
-                    .expect("rsplitn should have the rest of the string as its last parameter that we reversed")
-                    .to_owned();
-                let mut row = None;
-                let mut column = None;
-                if let Some(maybe_row) = path_parts.next() {
-                    if let Ok(parsed_row) = maybe_row.parse::<u32>() {
-                        row = Some(parsed_row);
-                        if let Some(parsed_column) =
-                            path_parts.next().and_then(|maybe_col| maybe_col.parse::<u32>().ok())
-                        {
-                            column = Some(parsed_column);
-                        }
-                    } else {
-                        path_string.push(delimiter);
-                        path_string.push_str(maybe_row);
+            Self { path: path.with_file_name(&maybe_file_name_with_row_col[..file_name_end]), row, column }
+        } else {
+            // The `ROW_COL_CAPTURE_REGEX` deals with separated digits only,
+            // but in reality there could be `foo/bar.py:22:in` inputs which we want to match too.
+            // The regex mentioned is not very extendable with "digit or random string" checks, so do this here instead.
+            let path = Path::new(s);
+            let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
+                return Self::from_path(path.to_path_buf());
+            };
+            let delimiter = ':';
+            let mut path_parts = file_name.rsplitn(3, delimiter).collect::<Vec<_>>().into_iter().rev().fuse();
+            let mut path_string = path_parts
+                .next()
+                .expect("rsplitn should have the rest of the string as its last parameter that we reversed")
+                .to_owned();
+            let mut row = None;
+            let mut column = None;
+            if let Some(maybe_row) = path_parts.next() {
+                if let Ok(parsed_row) = maybe_row.parse::<u32>() {
+                    row = Some(parsed_row);
+                    if let Some(parsed_column) = path_parts.next().and_then(|maybe_col| maybe_col.parse::<u32>().ok()) {
+                        column = Some(parsed_column);
                     }
-                }
-                for split in path_parts {
+                } else {
                     path_string.push(delimiter);
-                    path_string.push_str(split);
+                    path_string.push_str(maybe_row);
                 }
+            }
+            for split in path_parts {
+                path_string.push(delimiter);
+                path_string.push_str(split);
+            }
 
-                Self {
-                    path: if row.is_some() { path.with_file_name(path_string) } else { path.to_path_buf() },
-                    row,
-                    column,
-                }
+            Self {
+                path: if row.is_some() { path.with_file_name(path_string) } else { path.to_path_buf() },
+                row,
+                column,
             }
         }
     }
@@ -488,7 +484,7 @@ impl PathMatcher {
             glob_builder.add(single_glob);
         }
         let glob = glob_builder.build()?;
-        Ok(PathMatcher { glob, sources })
+        Ok(PathMatcher { sources, glob })
     }
 
     pub fn sources(&self) -> impl Iterator<Item = &str> + Clone {
@@ -644,14 +640,13 @@ pub fn natural_sort(a: &str, b: &str) -> Ordering {
                         Ordering::Equal => continue,
                         ordering => return ordering,
                     }
-                } else {
-                    match a_char.to_ascii_lowercase().cmp(&b_char.to_ascii_lowercase()) {
-                        Ordering::Equal => {
-                            a_iter.next();
-                            b_iter.next();
-                        }
-                        ordering => return ordering,
+                }
+                match a_char.to_ascii_lowercase().cmp(&b_char.to_ascii_lowercase()) {
+                    Ordering::Equal => {
+                        a_iter.next();
+                        b_iter.next();
                     }
+                    ordering => return ordering,
                 }
             }
         }
@@ -729,9 +724,8 @@ pub enum SortMode {
 }
 
 fn case_group_key(name: &str, order: SortOrder) -> u8 {
-    let first = match name.chars().next() {
-        Some(c) => c,
-        None => return 0,
+    let Some(first) = name.chars().next() else {
+        return 0;
     };
     match order {
         SortOrder::Upper => {

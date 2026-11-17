@@ -40,7 +40,6 @@ use futures::AsyncWriteExt;
 use futures::Future;
 use futures::FutureExt;
 use futures::StreamExt;
-use futures::channel::oneshot::Canceled;
 use futures::channel::oneshot::{self};
 use futures::future::Either;
 use futures::future::{self};
@@ -520,7 +519,7 @@ impl LanguageServer {
             .stderr(Stdio::piped())
             .kill_on_drop(true);
 
-        let mut server = command.spawn().with_context(|| format!("failed to spawn command {command:?}",))?;
+        let mut server = command.spawn().with_context(|| format!("failed to spawn command {command:?}"))?;
 
         let stdin = server.stdin.take().unwrap();
         let stdout = server.stdout.take().unwrap();
@@ -617,15 +616,16 @@ impl LanguageServer {
                 .await
             }
         });
-        let stderr_input_task = stderr
-            .map(|stderr| {
+        let stderr_input_task = stderr.map_or_else(
+            || Task::ready(None),
+            |stderr| {
                 let io_handlers = io_handlers.clone();
                 let stderr_captures = stderr_capture.clone();
                 cx.background_spawn(
                     async move { Self::handle_stderr(stderr, io_handlers, stderr_captures).log_err().await },
                 )
-            })
-            .unwrap_or_else(|| Task::ready(None));
+            },
+        );
         let input_task = cx.background_spawn(async move {
             let (stdout, stderr) = futures::join!(stdout_input_task, stderr_input_task);
             stdout.or(stderr)
@@ -649,7 +649,7 @@ impl LanguageServer {
                     OutboundMessage::Serialized(message) => message,
                     OutboundMessage::PendingSerialization(serialize) => serialize(),
                 };
-                let Ok(_) = serialized_tx.send(serialized).await else {
+                let Ok(()) = serialized_tx.send(serialized).await else {
                     return;
                 };
             }
@@ -664,7 +664,7 @@ impl LanguageServer {
             io_handlers,
             name: server_name,
             version: None,
-            process_name: binary.path.file_name().map(|name| Arc::from(name.to_string_lossy())).unwrap_or_default(),
+            process_name: binary.path.file_name().map_or_default(|name| Arc::from(name.to_string_lossy())),
             binary,
             capabilities: RwLock::default(),
             configuration,
@@ -799,7 +799,7 @@ impl LanguageServer {
         });
         let mut content_len_buffer = Vec::new();
         while let Ok(message) = outbound_rx.recv().await {
-            log::trace!("outgoing message:{}", message);
+            log::trace!("outgoing message:{message}");
             for handler in io_handlers.lock().values_mut() {
                 handler(IoKind::StdIn, &message);
             }
@@ -1113,7 +1113,7 @@ impl LanguageServer {
                     false
                 }
 
-                _ = timer => {
+                () = timer => {
                     log::info!("timeout waiting for language server {name} (id {server_id}) to shutdown");
                     true
                 },
@@ -1125,7 +1125,7 @@ impl LanguageServer {
             if !shutdown_timed_out {
                 select! {
                     _ = output_done.fuse() => {},
-                    _ = timer => {
+                    () = timer => {
                         log::info!("timeout draining output for language server {name} (id {server_id}) during shutdown");
                     },
                 }
@@ -1246,7 +1246,7 @@ impl LanguageServer {
                         }
 
                         Err(error) => {
-                            log::error!("error deserializing {} request: {:?}", method, error);
+                            log::error!("error deserializing {method} request: {error:?}");
                             let response = AnyResponse {
                                 jsonrpc: JSON_RPC_VERSION,
                                 id,
@@ -1290,7 +1290,7 @@ impl LanguageServer {
                             version: &'a str,
                         }
                         let parsed: GoplsVersion = serde_json::from_str(obj.as_str()).ok()?;
-                        Some(parsed.version.trim_start_matches("v").to_owned().into())
+                        Some(parsed.version.trim_start_matches('v').to_owned().into())
                     })
                     .or_else(|| self.version.clone())
             }
@@ -1325,7 +1325,7 @@ impl LanguageServer {
 
     /// Get the process ID of the running language server, if available.
     pub fn process_id(&self) -> Option<u32> {
-        self.server.lock().as_ref().map(|child| child.id())
+        self.server.lock().as_ref().map(|x| x.id())
     }
 
     /// Get the binary information of the running language server.
@@ -1392,7 +1392,7 @@ impl LanguageServer {
                                     Ok(response) => match deserialize_result(&response) {
                                         Ok(deserialized) => Ok(deserialized),
                                         Err(error) => {
-                                            log::error!("failed to deserialize response from language server: {}. response from language server: {:?}", error, response);
+                                            log::error!("failed to deserialize response from language server: {error}. response from language server: {response:?}");
                                             Err(error).context("failed to deserialize response")
                                         }
                                     }
@@ -1435,12 +1435,9 @@ impl LanguageServer {
                     let elapsed = started.elapsed();
                     log::trace!("Took {elapsed:?} to receive response to {method:?} id {id}");
                     cancel_on_drop.abort();
-                    match response {
-                        Ok(response_result) => ConnectionResult::Result(response_result),
-                        Err(Canceled) => {
-                            log::error!("Server reset connection for a request {method:?} id {id}");
-                            ConnectionResult::ConnectionReset
-                        },
+                    if let Ok(response_result) = response { ConnectionResult::Result(response_result) } else {
+                        log::error!("Server reset connection for a request {method:?} id {id}");
+                        ConnectionResult::ConnectionReset
                     }
                 }
 
@@ -1490,7 +1487,7 @@ impl LanguageServer {
             return Either::Left(future::pending::<String>());
         }
 
-        Either::Right(executor.timer(request_timeout).map(move |_| format!("which took over {request_timeout:?}")))
+        Either::Right(executor.timer(request_timeout).map(move |()| format!("which took over {request_timeout:?}")))
     }
 
     /// Obtain a request timer for the LSP.

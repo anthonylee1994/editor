@@ -121,20 +121,16 @@ impl Editor {
                     let mut edits = Vec::new();
                     let mut original_indent_columns = Vec::new();
                     for (ix, selection) in old_selections.iter().enumerate() {
-                        let to_insert;
-                        let entire_line;
-                        let original_indent_column;
-                        if let Some(clipboard_selection) = clipboard_selections.get(ix) {
-                            let end_offset = start_offset + clipboard_selection.len;
-                            to_insert = &clipboard_text[start_offset..end_offset];
-                            entire_line = clipboard_selection.is_entire_line;
-                            start_offset = if entire_line { end_offset } else { end_offset + 1 };
-                            original_indent_column = Some(clipboard_selection.first_line_indent);
-                        } else {
-                            to_insert = &*clipboard_text;
-                            entire_line = all_selections_were_entire_line;
-                            original_indent_column = first_selection_indent_column
-                        }
+                        let (to_insert, entire_line, original_indent_column) =
+                            if let Some(clipboard_selection) = clipboard_selections.get(ix) {
+                                let end_offset = start_offset + clipboard_selection.len;
+                                let entire_line = clipboard_selection.is_entire_line;
+                                let to_insert = &clipboard_text[start_offset..end_offset];
+                                start_offset = if entire_line { end_offset } else { end_offset + 1 };
+                                (to_insert, entire_line, Some(clipboard_selection.first_line_indent))
+                            } else {
+                                (&*clipboard_text, all_selections_were_entire_line, first_selection_indent_column)
+                            };
 
                         let (range, to_insert) = if selection.is_empty() && handle_entire_lines && entire_line {
                             // If the corresponding selection was empty when this slice of the
@@ -177,10 +173,10 @@ impl Editor {
             } else {
                 let clipboard_is_url = is_standalone_url(&clipboard_text);
 
-                let auto_indent_mode = if !clipboard_text.is_empty() {
-                    Some(AutoindentMode::Block { original_indent_columns: Vec::new() })
-                } else {
+                let auto_indent_mode = if clipboard_text.is_empty() {
                     None
+                } else {
+                    Some(AutoindentMode::Block { original_indent_columns: Vec::new() })
                 };
 
                 let selection_anchors = this.buffer.update(cx, |buffer, cx| {
@@ -260,8 +256,7 @@ impl Editor {
                 selections
                     .first()
                     .and_then(|s| display_map.buffer_snapshot().language_at(s.head()))
-                    .map(|lang| lang.name() == "Markdown")
-                    .unwrap_or(false)
+                    .is_some_and(|lang| lang.name() == "Markdown")
             };
 
             if is_markdown {
@@ -323,7 +318,7 @@ impl Editor {
             .into_iter()
             .map(|selection| selection.start..selection.end)
             .collect();
-        self.insert_snippet(&insertion_ranges, snippet, window, cx).log_err();
+        self.insert_snippet(&insertion_ranges, snippet, window, cx);
     }
 
     pub(super) fn cut_common(
@@ -464,7 +459,7 @@ impl Editor {
             }
         };
 
-        cx.set_global(item)
+        cx.set_global(item);
     }
 
     pub(super) fn kill_ring_yank(&mut self, _: &KillRingYank, window: &mut Window, cx: &mut Context<Self>) {
@@ -547,11 +542,11 @@ impl Editor {
         if selections.is_empty() {
             log::warn!("There should always be at least one selection in ed. This is a bug.");
             return;
-        };
+        }
 
         let clipboard_text = cx.read_from_clipboard().and_then(|item| {
             item.entries().iter().find_map(|entry| match entry {
-                ClipboardEntry::String(text) => Some(text.text().to_string()),
+                ClipboardEntry::String(text) => Some(text.text().clone()),
                 _ => None,
             })
         });
@@ -604,7 +599,7 @@ fn edit_for_markdown_paste<'a>(
 ) -> (Range<MultiBufferOffset>, Cow<'a, str>) {
     if !to_insert_is_url {
         return (range, Cow::Borrowed(to_insert));
-    };
+    }
 
     let old_text = buffer.text_for_range(range.clone()).collect::<String>();
 

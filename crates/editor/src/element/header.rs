@@ -184,8 +184,7 @@ pub(crate) fn header_jump_data(
                 let end = text::ToOffset::to_offset(&excerpt.context.end, selection_buffer);
                 start <= jump_offset && jump_offset <= end
             })
-            .map(|excerpt| excerpt.context.start)
-            .unwrap_or(first_excerpt.range.context.start);
+            .map_or(first_excerpt.range.context.start, |excerpt| excerpt.context.start);
         (jump_anchor, selection_buffer, selection_excerpt_start)
     } else {
         (first_excerpt.range.primary.start, buffer, first_excerpt.range.context.start)
@@ -241,11 +240,8 @@ pub(crate) fn render_buffer_header(
         indicator_color.map(|indicator_color| Indicator::dot().color(indicator_color))
     });
 
-    let include_root = editor_read
-        .project
-        .as_ref()
-        .map(|project| project.read(cx).visible_worktrees(cx).count() > 1)
-        .unwrap_or_default();
+    let include_root =
+        editor_read.project.as_ref().is_some_and(|project| project.read(cx).visible_worktrees(cx).count() > 1);
     let file = buffer.file();
     let can_open_excerpts = file.is_none_or(|file| file.can_open());
     let relative_path = buffer.resolve_file_path(include_root, cx);
@@ -381,7 +377,7 @@ pub(crate) fn render_buffer_header(
                         .overflow_hidden()
                         .child(h_flex().min_w_0().flex_1().gap_0p5().overflow_hidden().map(|path_header| {
                             let filename =
-                                filename.map(SharedString::from).unwrap_or_else(|| MultiBuffer::DEFAULT_TITLE.into());
+                                filename.map_or_else(|| MultiBuffer::DEFAULT_TITLE.into(), SharedString::from);
 
                             let full_path = match parent_path.as_deref() {
                                 Some(parent) if !parent.is_empty() => {
@@ -556,7 +552,7 @@ pub(crate) fn render_buffer_header(
                                 window.handler_for(&editor, move |editor, _, cx| {
                                     if let Some(project) = &mut editor.project {
                                         project.update(cx, |_, cx| {
-                                            cx.emit(project::Event::RevealInProjectPanel(entry_id))
+                                            cx.emit(project::Event::RevealInProjectPanel(entry_id));
                                         });
                                     }
                                 }),

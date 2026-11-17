@@ -23,17 +23,17 @@ pub struct AbsPath(Path);
 impl AbsPath {
     pub fn new(path: &Path) -> anyhow::Result<&Self> {
         if !path.is_absolute() {
-            return Err(anyhow::anyhow!("Path is not absolute: {:?}", path));
+            return Err(anyhow::anyhow!("Path is not absolute: {path:?}"));
         }
         if path.to_str().is_none() {
-            return Err(anyhow::anyhow!("Path is not valid utf-8: {:?}", path));
+            return Err(anyhow::anyhow!("Path is not valid utf-8: {path:?}"));
         }
         Ok(Self::new_unchecked(path))
     }
 
     const fn new_unchecked(path: &Path) -> &Self {
         // SAFETY: `AbsPath` is a `repr(transparent)` wrapper around `Path`.
-        unsafe { &*(path as *const Path as *const Self) }
+        unsafe { &*(std::ptr::from_ref::<Path>(path) as *const Self) }
     }
 
     pub fn to_abs_path_buf(&self) -> AbsPathBuf {

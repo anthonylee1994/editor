@@ -172,7 +172,7 @@ impl Workspace {
                 serialized_workspace.center_group.deserialize(&project, workspace.clone(), cx).await
             {
                 center_items = Some(items);
-                center_group = Some((group, active_pane))
+                center_group = Some((group, active_pane));
             }
 
             let mut items_by_project_path = FxHashMap::default();
@@ -283,13 +283,13 @@ pub(super) fn open_items(
                 opened_items.push(restored_item.map(Ok));
             }
 
-            project_paths_to_open.iter_mut().for_each(|(_, project_path)| {
+            for (_, project_path) in &mut project_paths_to_open {
                 if let Some(project_path_to_open) = project_path
                     && restored_project_paths.contains(project_path_to_open)
                 {
                     *project_path = None;
                 }
-            });
+            }
         } else {
             for _ in 0..project_paths_to_open.len() {
                 opened_items.push(None);

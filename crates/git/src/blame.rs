@@ -354,7 +354,7 @@ impl GitBlameParser {
                                 format!("{sha} {}", unquote_git_path(filename))
                             }
                             None => value.into(),
-                        })
+                        });
                     }
 
                     "summary" if is_committed => entry.summary = Some(value.into()),
@@ -370,7 +370,7 @@ impl GitBlameParser {
                     _ => {}
                 }
             }
-        };
+        }
 
         if done {
             self.push_current_entry();

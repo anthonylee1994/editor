@@ -288,7 +288,7 @@ pub struct StatusEntry {
 impl sum_tree::Item for StatusEntry {
     type Summary = PathSummary<GitSummary>;
 
-    fn summary(&self, _: <Self::Summary as sum_tree::Summary>::Context<'_>) -> Self::Summary {
+    fn summary(&self, (): <Self::Summary as sum_tree::Summary>::Context<'_>) -> Self::Summary {
         PathSummary { max_path: self.repo_path.as_ref().clone(), item_summary: self.status.summary() }
     }
 }
@@ -411,7 +411,7 @@ impl RepositoryState {
                 log::error!("failed to get working directory environment for repository {work_directory_abs_path:?}");
                 FxHashMap::default()
             });
-        let search_paths = environment.get("PATH").map(|val| val.to_owned());
+        let search_paths = environment.get("PATH").map(ToOwned::to_owned);
         let backend = cx
             .background_spawn({
                 let fs = fs.clone();
@@ -500,7 +500,7 @@ impl GitStore {
                         let watcher = fs.watch(&path, Duration::from_millis(100));
                         let (mut watcher, _) = watcher.await;
                         while watcher.next().await.is_some() {
-                            let Ok(_) = this.update(cx, |this, cx| {
+                            let Ok(()) = this.update(cx, |this, cx| {
                                 let GitStoreState { project_environment, fs, .. } = &this.state;
                                 let project_environment = project_environment.downgrade();
                                 let fs = fs.clone();
@@ -515,7 +515,7 @@ impl GitStore {
                                     repo.update(cx, |repo, cx| {
                                         repo.respawn_local_worker(project_environment.clone(), fs.clone(), cx);
                                         repo.schedule_scan(cx);
-                                    })
+                                    });
                                 }
                                 cx.emit(GitStoreEvent::GlobalConfigurationUpdated);
                             }) else {
@@ -860,11 +860,11 @@ impl GitStore {
             }
         }
 
-        cx.emit(GitStoreEvent::RepositoryUpdated(id, event.clone(), self.active_repo_id == Some(id)))
+        cx.emit(GitStoreEvent::RepositoryUpdated(id, event.clone(), self.active_repo_id == Some(id)));
     }
 
     fn on_jobs_updated(&mut self, _: Entity<Repository>, _: &JobsUpdated, cx: &mut Context<Self>) {
-        cx.emit(GitStoreEvent::JobsUpdated)
+        cx.emit(GitStoreEvent::JobsUpdated);
     }
 
     /// Update our list of repositories and schedule git scans in response to a notification from a worktree,
@@ -1327,7 +1327,7 @@ impl GitStore {
                     let mut ix = entries.partition_point(|path| path < &*repo_path);
                     if ix == entries.len() {
                         return None;
-                    };
+                    }
 
                     let mut paths = Vec::new();
                     // All paths prefixed by a given repo will constitute a continuous range.
@@ -1537,7 +1537,7 @@ impl MergeDetails {
         // Clear state for paths that are no longer conflicted and for which the merge heads have changed
         self.merge_heads_by_conflicted_path.retain(|path, old_merge_heads| {
             let keep = current_conflicted_paths.contains(path)
-                || (old_merge_heads == &heads && old_merge_heads.iter().any(|head| head.is_some()));
+                || (old_merge_heads == &heads && old_merge_heads.iter().any(Option::is_some));
             if !keep {
                 conflicts_changed = true;
             }
@@ -1780,7 +1780,7 @@ impl Repository {
                             (None, None) => None,
                         };
 
-                        changes.push((buffer.clone(), change))
+                        changes.push((buffer.clone(), change));
                     }
                     changes
                 })
@@ -1948,7 +1948,7 @@ impl Repository {
 
         self.spawn_job_with_tracking(paths.clone(), pending_op::GitStatus::Reverted, cx, async move |this, cx| {
             this.update(cx, |this, _cx| {
-                this.send_job(Some(format!("git checkout {}", commit).into()), move |git_repo, _| async move {
+                this.send_job(Some(format!("git checkout {commit}").into()), move |git_repo, _| async move {
                     {
                         let RepositoryState { backend, environment, .. } = git_repo;
                         backend.checkout_files(commit, paths, environment.clone()).await
@@ -2036,7 +2036,7 @@ impl Repository {
                         save_futures.push(buffer_store.save_buffer(buffer, cx));
                     }
                 }
-            })
+            });
         }
         save_futures
     }
@@ -2284,7 +2284,7 @@ impl Repository {
     pub fn add_path_to_gitignore(&mut self, repo_path: &RepoPath, is_dir: bool) -> oneshot::Receiver<Result<()>> {
         let work_dir = self.snapshot.work_directory_abs_path.clone();
         let path_display = repo_path.as_ref().display();
-        let file_path_str = if is_dir { format!("{}/", path_display) } else { path_display.to_string() };
+        let file_path_str = if is_dir { format!("{path_display}/") } else { path_display.to_string() };
 
         self.send_job(None, move |git_repo, _cx| async move {
             {
@@ -2301,7 +2301,7 @@ impl Repository {
     ) -> oneshot::Receiver<Result<()>> {
         let repository_dir = self.snapshot.common_dir_abs_path.clone();
         let path_display = repo_path.as_ref().display();
-        let file_path_str = if is_dir { format!("{}/", path_display) } else { path_display.to_string() };
+        let file_path_str = if is_dir { format!("{path_display}/") } else { path_display.to_string() };
 
         self.send_job(None, move |git_repo, _cx| async move {
             {
@@ -2429,16 +2429,14 @@ impl Repository {
         options: Option<PushOptions>,
         cx: &mut Context<Self>,
     ) -> oneshot::Receiver<Result<RemoteCommandOutput>> {
-        let args = options
-            .map(|option| match option {
-                PushOptions::SetUpstream => " --set-upstream",
-                PushOptions::Force => " --force-with-lease",
-            })
-            .unwrap_or("");
+        let args = options.map_or("", |option| match option {
+            PushOptions::SetUpstream => " --set-upstream",
+            PushOptions::Force => " --force-with-lease",
+        });
 
         let this = cx.weak_entity();
         self.send_job(
-            Some(format!("git push {} {} {}:{}", args, remote, branch, remote_branch).into()),
+            Some(format!("git push {args} {remote} {branch}:{remote_branch}").into()),
             move |git_repo, mut cx| async move {
                 {
                     let RepositoryState { backend, environment, .. } = git_repo;
@@ -2477,7 +2475,9 @@ impl Repository {
         self.send_job(Some(status.into()), move |git_repo, cx| async move {
             {
                 let RepositoryState { backend, environment, .. } = git_repo;
-                backend.pull(branch.as_ref().map(|b| b.to_string()), remote.to_string(), environment.clone(), cx).await
+                backend
+                    .pull(branch.as_ref().map(ToString::to_string), remote.to_string(), environment.clone(), cx)
+                    .await
             }
         })
     }
@@ -2860,7 +2860,7 @@ impl Repository {
         );
 
         if updated != self.pending_ops {
-            cx.emit(RepositoryEvent::PendingOpsChanged { pending_ops: self.pending_ops.clone() })
+            cx.emit(RepositoryEvent::PendingOpsChanged { pending_ops: self.pending_ops.clone() });
         }
 
         self.pending_ops = updated;
@@ -3025,7 +3025,7 @@ impl Repository {
                     let changed_paths = GitStore::limit_repo_paths(GitStore::coalesce_repo_paths(
                         changed_paths.into_iter().flatten().collect::<BTreeSet<_>>().into_iter().collect(),
                     ));
-                    let changed_paths_vec = changed_paths.to_vec();
+                    let changed_paths_vec = changed_paths.clone();
 
                     let status_task = backend.status(&changed_paths_vec);
                     let diff_stat_future = |diff| {
@@ -3181,7 +3181,7 @@ impl Repository {
     pub fn access(&mut self, _cx: &App) -> oneshot::Receiver<GitAccess> {
         self.send_job(None, move |git_repo, _cx| async move {
             match git_repo.backend.check_access().await {
-                Ok(_) => GitAccess::Yes,
+                Ok(()) => GitAccess::Yes,
                 Err(_) => GitAccess::No,
             }
         })
@@ -3306,11 +3306,11 @@ pub fn linked_worktree_short_name(main_worktree_path: &Path, linked_worktree_pat
 
     let project_name = main_worktree_path.file_name()?.to_str()?;
     let directory_name = linked_worktree_path.file_name()?.to_str()?;
-    let name = if directory_name != project_name {
-        directory_name.to_string()
-    } else {
+    let name = if directory_name == project_name {
         let parent = linked_worktree_path.parent()?;
         parent.file_name()?.to_str()?.to_string()
+    } else {
+        directory_name.to_string()
     };
     Some(name.into())
 }
@@ -3336,11 +3336,11 @@ async fn append_pattern_to_ignore_file(fs: Arc<dyn Fs>, file_path: PathBuf, patt
     }
 
     let new_content = if existing_content.is_empty() {
-        format!("{}\n", pattern)
+        format!("{pattern}\n")
     } else if existing_content.ends_with('\n') {
-        format!("{}{}\n", existing_content, pattern)
+        format!("{existing_content}{pattern}\n")
     } else {
-        format!("{}\n{}\n", existing_content, pattern)
+        format!("{existing_content}\n{pattern}\n")
     };
 
     fs.save(&file_path, &text::Rope::from(new_content.as_str()), text::LineEnding::Unix).await

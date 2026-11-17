@@ -1,7 +1,6 @@
 use std::ops::Range;
 use std::sync::Arc;
 
-use anyhow::Result;
 use gpui::Context;
 use gpui::Window;
 use language::AutoindentMode;
@@ -52,14 +51,14 @@ impl Editor {
         snippet: Snippet,
         window: &mut Window,
         cx: &mut Context<Self>,
-    ) -> Result<()> {
+    ) {
         self.insert_snippet_with_autoindent(
             insertion_ranges,
             snippet,
             Some(AutoindentMode::Block { original_indent_columns: Vec::new() }),
             window,
             cx,
-        )
+        );
     }
 
     pub(crate) fn insert_snippet_with_autoindent(
@@ -69,7 +68,7 @@ impl Editor {
         autoindent_mode: Option<AutoindentMode>,
         window: &mut Window,
         cx: &mut Context<Self>,
-    ) -> Result<()> {
+    ) {
         struct Tabstop<T> {
             is_end_tabstop: bool,
             ranges: Vec<Range<T>>,
@@ -123,7 +122,7 @@ impl Editor {
             if let Some(choices) = &tabstop.choices
                 && let Some(selection) = tabstop.ranges.first()
             {
-                self.show_snippet_choices(choices, selection.clone(), cx)
+                self.show_snippet_choices(choices, selection.clone(), cx);
             }
 
             // If we're already at the last tabstop and it's at the end of the snippet,
@@ -181,7 +180,6 @@ impl Editor {
                 }
             }
         }
-        Ok(())
     }
 
     pub fn move_to_next_snippet_tabstop(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
@@ -216,7 +214,7 @@ impl Editor {
                 self.change_selections(SelectionEffects::default(), window, cx, |s| {
                     // Reverse order so that the first range is the newest created selection.
                     // Completions will use it and autoscroll will prioritize it.
-                    s.select_ranges(current_ranges.iter().rev().cloned())
+                    s.select_ranges(current_ranges.iter().rev().cloned());
                 });
 
                 if let Some(choices) = &snippet.choices[snippet.active_index]

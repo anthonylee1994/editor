@@ -47,7 +47,7 @@ fn fmt_pascal_case(f: &mut Formatter<'_>, name: &str) -> fmt::Result {
     for word in name.split('_') {
         let mut chars = word.chars();
         let first = chars.next().unwrap();
-        write!(f, "{}", first)?;
+        write!(f, "{first}")?;
         for rest in chars {
             write!(f, "{}", rest.to_lowercase())?;
         }
@@ -222,8 +222,8 @@ pub enum NumberOrString {
 impl fmt::Display for NumberOrString {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            NumberOrString::Number(n) => write!(f, "{}", n),
-            NumberOrString::String(s) => write!(f, "{}", s),
+            NumberOrString::Number(n) => write!(f, "{n}"),
+            NumberOrString::String(s) => write!(f, "{s}"),
         }
     }
 }
@@ -1031,6 +1031,7 @@ mod url_map {
         deserializer.deserialize_option(OptionUrlMapVisitor::default())
     }
 
+    #[allow(clippy::ref_option)] // signature required by `#[serde(with)]`
     pub fn serialize<S, V>(changes: &Option<HashMap<Uri, V>>, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -2852,7 +2853,7 @@ mod tests {
 
     #[test]
     fn one_of() {
-        test_serialization(&OneOf::<bool, ()>::Left(true), r#"true"#);
+        test_serialization(&OneOf::<bool, ()>::Left(true), r"true");
         test_serialization(&OneOf::<String, ()>::Left("abcd".into()), r#""abcd""#);
         test_serialization(
             &OneOf::<String, WorkDoneProgressOptions>::Right(WorkDoneProgressOptions {
@@ -2864,7 +2865,7 @@ mod tests {
 
     #[test]
     fn number_or_string() {
-        test_serialization(&NumberOrString::Number(123), r#"123"#);
+        test_serialization(&NumberOrString::Number(123), r"123");
 
         test_serialization(&NumberOrString::String("abcd".into()), r#""abcd""#);
     }
@@ -2918,7 +2919,7 @@ mod tests {
             r#"{"changes":{}}"#,
         );
 
-        test_serialization(&WorkspaceEdit { changes: None, document_changes: None, ..Default::default() }, r#"{}"#);
+        test_serialization(&WorkspaceEdit { changes: None, document_changes: None, ..Default::default() }, r"{}");
 
         test_serialization(
             &WorkspaceEdit {

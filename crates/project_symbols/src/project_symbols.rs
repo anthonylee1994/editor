@@ -50,7 +50,7 @@ pub fn init(cx: &mut App) {
             workspace.toggle_modal(window, cx, move |window, cx| {
                 let delegate = ProjectSymbolsDelegate::new(handle, project);
                 Picker::uniform_list(delegate, window, cx)
-            })
+            });
         });
     })
     .detach();
@@ -282,9 +282,11 @@ impl PickerDelegate for ProjectSymbolsDelegate {
                         LabelLike::new()
                             .child(StyledText::new(&label).with_default_highlights(&text_style, highlights)),
                     )
-                    .child(h_flex().child(Label::new(path).size(LabelSize::Small).color(Color::Muted)).child(
-                        Label::new(format!(":{}", line_number)).size(LabelSize::Small).color(Color::Placeholder),
-                    )),
+                    .child(
+                        h_flex().child(Label::new(path).size(LabelSize::Small).color(Color::Muted)).child(
+                            Label::new(format!(":{line_number}")).size(LabelSize::Small).color(Color::Placeholder),
+                        ),
+                    ),
             ),
         )
     }

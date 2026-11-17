@@ -225,7 +225,7 @@ pub fn initialize_workspace(app_state: Arc<AppState>, cx: &mut App) {
                     initialize_pane(workspace, pane, window, cx);
                 }
                 workspace::Event::OpenBundledFile { text, title, language } => {
-                    open_bundled_file(workspace, text.clone(), title, language, window, cx)
+                    open_bundled_file(workspace, text.clone(), title, language, window, cx);
                 }
                 _ => {}
             }
@@ -233,7 +233,7 @@ pub fn initialize_workspace(app_state: Arc<AppState>, cx: &mut App) {
         .detach();
 
         if let Some(specs) = window.gpu_specs() {
-            log::info!("Using GPU: {:?}", specs);
+            log::info!("Using GPU: {specs:?}");
         }
 
         let search_button = cx.new(|_| SearchButton::new());
@@ -276,31 +276,28 @@ pub fn initialize_workspace(app_state: Arc<AppState>, cx: &mut App) {
 
 fn initialize_panels(window: &Window, cx: &Context<Workspace>) -> Task<anyhow::Result<()>> {
     cx.spawn_in(window, async move |workspace_handle, cx| {
-        let project_panel = ProjectPanel::load(workspace_handle.clone(), cx.clone());
-        let outline_panel = OutlinePanel::load(workspace_handle.clone(), cx.clone());
-        let terminal_panel = TerminalPanel::load(workspace_handle.clone(), cx.clone());
-        let git_panel = GitPanel::load(workspace_handle.clone(), cx.clone());
-
-        async fn add_panel_when_ready(
-            panel_task: impl Future<Output = anyhow::Result<Entity<impl workspace::Panel>>> + 'static,
-            workspace_handle: WeakEntity<Workspace>,
-            mut cx: gpui::AsyncWindowContext,
+        fn add_panel(
+            panel: anyhow::Result<Entity<impl workspace::Panel>>,
+            workspace_handle: &WeakEntity<Workspace>,
+            cx: &mut gpui::AsyncWindowContext,
         ) {
-            if let Some(panel) = panel_task.await.context("failed to load panel").log_err() {
+            if let Some(panel) = panel.context("failed to load panel").log_err() {
                 workspace_handle
-                    .update_in(&mut cx, |workspace, window, cx| {
+                    .update_in(cx, |workspace, window, cx| {
                         workspace.add_panel(panel, window, cx);
                     })
                     .log_err();
             }
         }
 
-        futures::join!(
-            add_panel_when_ready(project_panel, workspace_handle.clone(), cx.clone()),
-            add_panel_when_ready(outline_panel, workspace_handle.clone(), cx.clone()),
-            add_panel_when_ready(terminal_panel, workspace_handle.clone(), cx.clone()),
-            add_panel_when_ready(git_panel, workspace_handle.clone(), cx.clone()),
-        );
+        let project_panel = ProjectPanel::load(&workspace_handle, cx);
+        let outline_panel = OutlinePanel::load(&workspace_handle, cx);
+        let terminal_panel = TerminalPanel::load(&workspace_handle, cx);
+        let git_panel = GitPanel::load(&workspace_handle, cx);
+        add_panel(project_panel, &workspace_handle, cx);
+        add_panel(outline_panel, &workspace_handle, cx);
+        add_panel(terminal_panel, &workspace_handle, cx);
+        add_panel(git_panel, &workspace_handle, cx);
 
         workspace_handle.update(cx, |workspace, cx| {
             workspace.finish_dock_restoration(cx);
@@ -442,7 +439,7 @@ fn register_actions(app_state: Arc<AppState>, workspace: &mut Workspace, _: &mut
         })
         .register_action(move |_, _: &NewFile, _, cx| {
             open_new(workspace::OpenOptions::default(), app_state.clone(), cx, |workspace, window, cx| {
-                Editor::new_file(workspace, &NewFile, window, cx)
+                Editor::new_file(workspace, &NewFile, window, cx);
             })
             .detach_and_log_err(cx);
         });
@@ -479,7 +476,7 @@ fn initialize_pane(workspace: &Workspace, pane: &Entity<Pane>, window: &mut Wind
             toolbar.add_item(commit_view_toolbar, window, cx);
             let image_view_toolbar = cx.new(|_| image_viewer::ImageViewToolbarControls::new());
             toolbar.add_item(image_view_toolbar, window, cx);
-        })
+        });
     });
 }
 
@@ -762,7 +759,7 @@ fn open_bundled_file(
                             true,
                             window,
                             cx,
-                        )
+                        );
                     })
                 })
             })?

@@ -69,7 +69,7 @@ impl Display for GitPickerTab {
             GitPickerTab::Branches => "Branches",
             GitPickerTab::Stashes => "Stashes",
         };
-        write!(f, "{}", label)
+        write!(f, "{label}")
     }
 }
 
@@ -456,8 +456,9 @@ fn open_with_tab(workspace: &mut Workspace, tab: GitPickerTab, window: &mut Wind
     let workspace_handle = workspace.weak_handle();
     let repository = workspace.project().read(cx).active_repository(cx);
 
-    workspace
-        .toggle_modal(window, cx, |window, cx| GitPicker::new(workspace_handle, repository, tab, rems(34.), window, cx))
+    workspace.toggle_modal(window, cx, |window, cx| {
+        GitPicker::new(workspace_handle, repository, tab, rems(34.), window, cx)
+    });
 }
 
 pub fn popover(

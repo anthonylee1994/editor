@@ -184,15 +184,12 @@ impl History {
     }
 
     fn group_until(&mut self, transaction_id: TransactionId) {
-        let mut count = 0;
-        for transaction in self.undo_stack.iter().rev() {
+        for (count, transaction) in self.undo_stack.iter().rev().enumerate() {
             if transaction.id == transaction_id {
                 self.group_trailing(count);
                 break;
             } else if transaction.suppress_grouping {
                 break;
-            } else {
-                count += 1;
             }
         }
     }
@@ -242,7 +239,7 @@ impl MultiBuffer {
 
     pub fn last_transaction_id(&self, cx: &App) -> Option<TransactionId> {
         if let Some(buffer) = self.as_singleton() {
-            buffer.read(cx).peek_undo_stack().map(|history_entry| history_entry.transaction_id())
+            buffer.read(cx).peek_undo_stack().map(text::HistoryEntry::transaction_id)
         } else {
             let last_transaction = self.history.undo_stack.last()?;
             Some(last_transaction.id)
@@ -329,7 +326,7 @@ impl MultiBuffer {
                 if let Some(destination_buffer_transaction_id) = destination.buffer_transactions.get(&buffer_id) {
                     if let Some(state) = self.buffers.get(&buffer_id) {
                         state.buffer.update(cx, |buffer, _| {
-                            buffer.merge_transactions(buffer_transaction_id, *destination_buffer_transaction_id)
+                            buffer.merge_transactions(buffer_transaction_id, *destination_buffer_transaction_id);
                         });
                     }
                 } else {
@@ -365,7 +362,7 @@ impl MultiBuffer {
     }
     pub fn undo(&mut self, cx: &mut Context<Self>) -> Option<TransactionId> {
         let transaction_id = if let Some(buffer) = self.as_singleton() {
-            buffer.update(cx, |buffer, cx| buffer.undo(cx))
+            buffer.update(cx, language::Buffer::undo)
         } else {
             let mut undone_id = None;
             while let Some(transaction) = self.history.pop_undo() {
@@ -399,7 +396,7 @@ impl MultiBuffer {
 
     pub fn redo(&mut self, cx: &mut Context<Self>) -> Option<TransactionId> {
         if let Some(buffer) = self.as_singleton() {
-            return buffer.update(cx, |buffer, cx| buffer.redo(cx));
+            return buffer.update(cx, language::Buffer::redo);
         }
 
         while let Some(transaction) = self.history.pop_redo() {

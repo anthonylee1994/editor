@@ -80,7 +80,7 @@ pub fn init(cx: &App) {
             let active_item = workspace.active_item(cx);
             let workspace_handle = workspace.weak_handle();
             let syntax_tree_view = cx.new(|cx| SyntaxTreeView::new(workspace_handle, active_item, window, cx));
-            workspace.split_item(SplitDirection::Right, Box::new(syntax_tree_view), window, cx)
+            workspace.split_item(SplitDirection::Right, Box::new(syntax_tree_view), window, cx);
         });
     })
     .detach();
@@ -141,10 +141,10 @@ impl SyntaxTreeView {
         cx.subscribe_in(&workspace_handle.upgrade().unwrap(), window, move |this, workspace, event, window, cx| {
             match event {
                 WorkspaceEvent::ItemAdded { .. } | WorkspaceEvent::ActiveItemChanged => {
-                    this.handle_item_updated(workspace.read(cx).active_item(cx), window, cx)
+                    this.handle_item_updated(workspace.read(cx).active_item(cx), window, cx);
                 }
                 WorkspaceEvent::ItemRemoved { item_id } => {
-                    this.handle_item_removed(item_id, window, cx);
+                    this.handle_item_removed(*item_id, window, cx);
                 }
                 _ => {}
             }
@@ -173,8 +173,8 @@ impl SyntaxTreeView {
         }
     }
 
-    fn handle_item_removed(&mut self, item_id: &EntityId, window: &Window, cx: &mut Context<Self>) {
-        if self.editor.as_ref().is_some_and(|state| state.editor.entity_id() == *item_id) {
+    fn handle_item_removed(&mut self, item_id: EntityId, window: &Window, cx: &mut Context<Self>) {
+        if self.editor.as_ref().is_some_and(|state| state.editor.entity_id() == item_id) {
             self.editor = None;
             // Try activating the last active editor if there is one
             self.update_active_editor(window, cx);
@@ -235,24 +235,21 @@ impl SyntaxTreeView {
             buffer_state.active_layer = None;
         }
 
-        let layer = match &mut buffer_state.active_layer {
-            Some(layer) => layer,
-            None => {
-                let snapshot = buffer.read(cx).snapshot();
-                let layer = if let Some(prev_layer) = prev_layer {
-                    let prev_range = prev_layer.node().byte_range();
-                    snapshot.syntax_layers().filter(|layer| layer.language == &prev_layer.language).min_by_key(
-                        |layer| {
-                            let range = layer.node().byte_range();
-                            ((range.start as u64).cast_signed() - (prev_range.start as u64).cast_signed()).abs()
-                                + ((range.end as u64).cast_signed() - (prev_range.end as u64).cast_signed()).abs()
-                        },
-                    )?
-                } else {
-                    snapshot.syntax_layers().next()?
-                };
-                buffer_state.active_layer.insert(layer.to_owned())
-            }
+        let layer = if let Some(layer) = &mut buffer_state.active_layer {
+            layer
+        } else {
+            let snapshot = buffer.read(cx).snapshot();
+            let layer = if let Some(prev_layer) = prev_layer {
+                let prev_range = prev_layer.node().byte_range();
+                snapshot.syntax_layers().filter(|layer| layer.language == &prev_layer.language).min_by_key(|layer| {
+                    let range = layer.node().byte_range();
+                    ((range.start as u64).cast_signed() - (prev_range.start as u64).cast_signed()).abs()
+                        + ((range.end as u64).cast_signed() - (prev_range.end as u64).cast_signed()).abs()
+                })?
+            } else {
+                snapshot.syntax_layers().next()?
+            };
+            buffer_state.active_layer.insert(layer.to_owned())
         };
 
         // Within the active layer, find the syntax node under the cursor,
@@ -475,7 +472,7 @@ impl Focusable for SyntaxTreeView {
 impl Item for SyntaxTreeView {
     type Event = ();
 
-    fn to_item_events(_: &Self::Event, _: &mut dyn FnMut(ItemEvent)) {}
+    fn to_item_events((): &Self::Event, _: &mut dyn FnMut(ItemEvent)) {}
 
     fn tab_content_text(&self, _detail: usize, _cx: &App) -> SharedString {
         "Syntax Tree".into()
@@ -574,7 +571,7 @@ impl SyntaxTreeToolbarItemView {
 fn format_node_range(node: Node) -> String {
     let start = node.start_position();
     let end = node.end_position();
-    format!("[{}:{} - {}:{}]", start.row + 1, start.column + 1, end.row + 1, end.column + 1,)
+    format!("[{}:{} - {}:{}]", start.row + 1, start.column + 1, end.row + 1, end.column + 1)
 }
 
 fn format_anonymous_node_kind(kind: &str) -> String {

@@ -390,7 +390,7 @@ impl FromStr for GitStatus {
                 let sep = entry.get(2..3)?;
                 if sep != " " {
                     return None;
-                };
+                }
                 let path = &entry[3..];
                 // The git status output includes untracked directories as well as untracked files.
                 // We do our own processing to compute the "summary" status of each directory,
@@ -464,7 +464,7 @@ impl FromStr for TreeDiff {
         while let Some((status, path)) = fields.next().zip(fields.next()) {
             let path = RepoPath::from_rel_path(RelPath::from_unix_str(path)?);
 
-            let mut fields = status.split(" ").skip(2);
+            let mut fields = status.split(' ').skip(2);
             let old_sha = fields.next().ok_or_else(|| anyhow!("expected to find old_sha"))?.to_owned().parse()?;
             let _new_sha = fields.next().ok_or_else(|| anyhow!("expected to find new_sha"))?;
             let status = fields

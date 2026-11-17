@@ -82,9 +82,9 @@ impl Workspace {
                                 this.bottom_dock
                                     .update(cx, |dock, cx| dock.clamp_panel_size(bounds.size.height, window, cx));
                             }
-                        })
+                        });
                     },
-                    |_, _, _, _| {},
+                    |_, (), _, _| {},
                 )
                 .absolute()
                 .size_full()
@@ -108,7 +108,7 @@ impl Workspace {
                                     cx,
                                 );
                             }
-                        };
+                        }
                         workspace.serialize_workspace(window, cx);
                     }
                 }))
@@ -192,9 +192,9 @@ impl Workspace {
                             bounds.size.height
                         } else {
                             bounds.size.width
-                        })
+                        });
                     },
-                    |_, _, _, _| {},
+                    |_, (), _, _| {},
                 )
                 .absolute()
                 .top_0()

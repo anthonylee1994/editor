@@ -185,7 +185,7 @@ impl SemanticsProvider for WeakEntity<Project> {
 
     fn invalidate_inlay_hints(&self, for_buffers: &FxHashSet<BufferId>, cx: &mut App) {
         self.update(cx, |project, cx| {
-            project.lsp_store().update(cx, |lsp_store, _| lsp_store.invalidate_inlay_hints(for_buffers))
+            project.lsp_store().update(cx, |lsp_store, _| lsp_store.invalidate_inlay_hints(for_buffers));
         })
         .ok();
     }

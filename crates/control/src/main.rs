@@ -395,8 +395,7 @@ impl Client {
             let state: State = self.request(Command::State)?;
             let servers: Vec<LanguageServerState> = state
                 .workspace
-                .map(|workspace| workspace.language_servers)
-                .unwrap_or_default()
+                .map_or_default(|workspace| workspace.language_servers)
                 .into_iter()
                 .filter(|status| server.is_none_or(|name| status.name == name))
                 .collect();

@@ -161,7 +161,7 @@ where
 }
 
 fn spawn_dedicated_os_thread(session_id: SessionId, thread_body: impl FnOnce() + Send + 'static) {
-    let thread_name = format!("spawn_dedicated session {:?}", session_id);
+    let thread_name = format!("spawn_dedicated session {session_id:?}");
 
     Builder::new().name(thread_name).spawn(thread_body).expect("failed to spawn dedicated thread");
 }

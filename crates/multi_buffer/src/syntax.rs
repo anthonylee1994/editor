@@ -173,7 +173,7 @@ impl MultiBufferSnapshot {
                 (BufferOffset(close.start)..BufferOffset(close.end), ()),
             ]
         })?;
-        let [(open, _), (close, _)] = results.try_into().ok()?;
+        let [(open, ()), (close, ())] = results.try_into().ok()?;
         Some((open, close))
     }
 
@@ -199,7 +199,7 @@ impl MultiBufferSnapshot {
                 })
                 .collect()
         })?;
-        Some(results.into_iter().map(|(range, _)| range).tuples())
+        Some(results.into_iter().map(|(range, ())| range).tuples())
     }
 
     /// Returns enclosing bracket ranges containing the given range or returns None if the range is
@@ -243,7 +243,7 @@ impl MultiBufferSnapshot {
                 })
                 .collect()
         })?;
-        Some(results.into_iter().map(|(range, _)| range).tuples())
+        Some(results.into_iter().map(|(range, ())| range).tuples())
     }
 
     pub fn runnable_ranges(
@@ -527,7 +527,7 @@ impl MultiBufferSnapshot {
                     break;
                 }
             } else {
-                found_indent = true
+                found_indent = true;
             }
 
             let depth = if found_indent { line_indent.len(tab_size) / tab_size } else { 0 };
@@ -545,7 +545,7 @@ impl MultiBufferSnapshot {
                             indent.end_row = MultiBufferRow(first_row.0.saturating_sub(1));
                         }
 
-                        result.push(indent)
+                        result.push(indent);
                     }
                 }
                 cmp::Ordering::Greater => {
@@ -560,7 +560,7 @@ impl MultiBufferSnapshot {
                         });
                     }
                 }
-                _ => {}
+                cmp::Ordering::Equal => {}
             }
 
             for indent in &mut indent_stack {
@@ -589,7 +589,7 @@ impl MultiBufferSnapshot {
     }
 
     pub fn char_classifier_at<T: ToOffset>(&self, point: T) -> CharClassifier {
-        self.point_to_buffer_offset(point).map(|(buffer, offset)| buffer.char_classifier_at(offset)).unwrap_or_default()
+        self.point_to_buffer_offset(point).map_or_default(|(buffer, offset)| buffer.char_classifier_at(offset))
     }
 
     pub fn language_indent_size_at<T: ToOffset>(&self, position: T, cx: &App) -> Option<IndentSize> {
@@ -609,7 +609,7 @@ impl MultiBufferSnapshot {
         self.lift_buffer_metadata::<Point, _, _>(Point::zero()..self.max_point(), move |buffer, range| {
             if buffer.buffer_id() != buffer_id {
                 return None;
-            };
+            }
             Some(
                 buffer
                     .diagnostics_in_range(range, false)
@@ -731,10 +731,10 @@ impl MultiBufferSnapshot {
             buffer_snapshot.buffer_id(),
             buffer_snapshot
                 .symbols_containing(
-                    anchor
-                        .excerpt_anchor()
-                        .map(|anchor| anchor.text_anchor())
-                        .unwrap_or_else(|| text::Anchor::min_for_buffer(buffer_snapshot.buffer_id())),
+                    anchor.excerpt_anchor().map_or_else(
+                        || text::Anchor::min_for_buffer(buffer_snapshot.buffer_id()),
+                        |anchor| anchor.text_anchor(),
+                    ),
                     theme,
                 )
                 .into_iter()

@@ -197,7 +197,7 @@ impl SerializedPaneGroup {
                 } else {
                     let pane = pane.upgrade()?;
                     workspace
-                        .update_in(cx, |workspace, window, cx| workspace.force_remove_pane(&pane, &None, window, cx))
+                        .update_in(cx, |workspace, window, cx| workspace.force_remove_pane(&pane, None, window, cx))
                         .log_err()?;
                     None
                 }
@@ -221,7 +221,7 @@ pub struct SerializedPane {
 
 impl SerializedPane {
     pub const fn new(children: Vec<SerializedItem>, active: bool, pinned_count: usize, zoomed: bool) -> Self {
-        SerializedPane { children, active, pinned_count, zoomed }
+        SerializedPane { active, children, pinned_count, zoomed }
     }
 
     pub async fn deserialize_to(

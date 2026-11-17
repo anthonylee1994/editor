@@ -150,9 +150,9 @@ struct State {
 }
 
 impl State {
-    fn is_unfolded(&self, entry_id: &ProjectEntryId) -> bool {
-        self.unfolded_dir_ids.contains(entry_id)
-            || self.edit_state.as_ref().is_some_and(|edit_state| edit_state.temporarily_unfolded == Some(*entry_id))
+    fn is_unfolded(&self, entry_id: ProjectEntryId) -> bool {
+        self.unfolded_dir_ids.contains(&entry_id)
+            || self.edit_state.as_ref().is_some_and(|edit_state| edit_state.temporarily_unfolded == Some(entry_id))
     }
 
     fn derive(old: &Self) -> Self {
@@ -509,11 +509,11 @@ impl FoldedAncestors {
 
     const fn set_active_index(&mut self, index: usize) -> bool {
         let new_depth = self.max_ancestor_depth().saturating_sub(1).saturating_sub(index);
-        if self.current_ancestor_depth != new_depth {
+        if self.current_ancestor_depth == new_depth {
+            false
+        } else {
             self.current_ancestor_depth = new_depth;
             true
-        } else {
-            false
         }
     }
 
@@ -700,8 +700,7 @@ impl ProjectPanel {
                             .workspace
                             .upgrade()
                             .and_then(|ws| ws.read(cx).active_item(cx))
-                            .map(|item| item.act_as_type(TypeId::of::<FileDiffView>(), cx).is_some())
-                            .unwrap_or(false);
+                            .is_some_and(|item| item.act_as_type(TypeId::of::<FileDiffView>(), cx).is_some());
                         if !is_active_item_file_diff_view {
                             this.marked_entries.clear();
                         }
@@ -891,8 +890,8 @@ impl ProjectPanel {
         project_panel
     }
 
-    pub async fn load(workspace: WeakEntity<Workspace>, mut cx: AsyncWindowContext) -> Result<Entity<Self>> {
-        workspace.update_in(&mut cx, ProjectPanel::new)
+    pub fn load(workspace: &WeakEntity<Workspace>, cx: &mut AsyncWindowContext) -> Result<Entity<Self>> {
+        workspace.update_in(cx, ProjectPanel::new)
     }
 
     fn update_diagnostics(&mut self, cx: &Context<Self>) {
@@ -952,9 +951,7 @@ impl ProjectPanel {
     ) {
         let project = self.project.read(cx);
 
-        let worktree_id = if let Some(id) = project.worktree_id_for_entry(entry_id, cx) {
-            id
-        } else {
+        let Some(worktree_id) = project.worktree_id_for_entry(entry_id, cx) else {
             return;
         };
 
@@ -978,7 +975,7 @@ impl ProjectPanel {
                 let git_store = project.git_store().read(cx);
                 let has_git_repo = git_store.repository_and_path_for_project_path(&project_path, cx).is_some();
                 let has_history = has_git_repo
-                    && !git_store.project_path_git_status(&project_path, cx).is_some_and(|status| status.is_created());
+                    && !git_store.project_path_git_status(&project_path, cx).is_some_and(|x| x.is_created());
                 (has_git_repo, has_history)
             };
 
@@ -1180,7 +1177,7 @@ impl ProjectPanel {
             {
                 return child.kind.is_dir();
             }
-        };
+        }
         false
     }
 
@@ -1218,10 +1215,7 @@ impl ProjectPanel {
             if entry.is_dir() {
                 let worktree_id = worktree.id();
                 let entry_id = entry.id;
-                let expanded_dir_ids = if let Some(expanded_dir_ids) = self.state.expanded_dir_ids.get_mut(&worktree_id)
-                {
-                    expanded_dir_ids
-                } else {
+                let Some(expanded_dir_ids) = self.state.expanded_dir_ids.get_mut(&worktree_id) else {
                     return;
                 };
 
@@ -1249,7 +1243,7 @@ impl ProjectPanel {
         let Some((worktree, entry)) = self.selected_entry_handle(cx) else {
             return;
         };
-        self.collapse_entry(entry.clone(), worktree, window, cx)
+        self.collapse_entry(entry.clone(), worktree, window, cx);
     }
 
     fn collapse_entry(&mut self, entry: Entry, worktree: Entity<Worktree>, window: &Window, cx: &mut Context<Self>) {
@@ -1262,9 +1256,7 @@ impl ProjectPanel {
             return;
         }
         let worktree_id = worktree.id();
-        let expanded_dir_ids = if let Some(expanded_dir_ids) = self.state.expanded_dir_ids.get_mut(&worktree_id) {
-            expanded_dir_ids
-        } else {
+        let Some(expanded_dir_ids) = self.state.expanded_dir_ids.get_mut(&worktree_id) else {
             return;
         };
 
@@ -1786,11 +1778,11 @@ impl ProjectPanel {
 
             let file_name = entry.path.file_name()?.to_string();
 
-            let answer = if !action.skip_prompt {
+            let answer = if action.skip_prompt {
+                None
+            } else {
                 let prompt = format!("Discard changes to {}?", MarkdownInlineCode(&file_name));
                 Some(window.prompt(PromptLevel::Info, &prompt, None, &["Restore", "Cancel"], cx))
-            } else {
-                None
             };
 
             cx.spawn_in(window, async move |panel, cx| {
@@ -1807,7 +1799,7 @@ impl ProjectPanel {
                 if let Err(e) = task.await {
                     panel
                         .update(cx, |panel, cx| {
-                            let message = format!("Failed to restore {}: {}", file_name, e);
+                            let message = format!("Failed to restore {file_name}: {e}");
                             let toast = StatusToast::new(message, cx, |this, _| {
                                 this.icon(Icon::new(IconName::XCircle).size(IconSize::Small).color(Color::Error))
                                     .dismiss_button(true)
@@ -1833,7 +1825,7 @@ impl ProjectPanel {
                                     drop(buffer.reload(cx));
                                 });
                             }
-                        })
+                        });
                     })
                     .ok();
 
@@ -1865,7 +1857,7 @@ impl ProjectPanel {
                     && let Some(workspace) = workspace.upgrade()
                 {
                     cx.update(|cx| {
-                        let message = format!("Failed to add to .gitignore: {}", e);
+                        let message = format!("Failed to add to .gitignore: {e}");
                         let toast = StatusToast::new(message, cx, |this, _| {
                             this.icon(Icon::new(IconName::XCircle).color(Color::Error)).dismiss_button(true)
                         });
@@ -1902,7 +1894,7 @@ impl ProjectPanel {
                     && let Some(workspace) = workspace.upgrade()
                 {
                     cx.update(|cx| {
-                        let message = format!("Failed to add to .git/info/exclude: {}", e);
+                        let message = format!("Failed to add to .git/info/exclude: {e}");
                         let toast = StatusToast::new(message, cx, |this, _| {
                             this.icon(Icon::new(IconName::XCircle).color(Color::Error)).dismiss_button(true)
                         });
@@ -2094,11 +2086,9 @@ impl ProjectPanel {
             self.selection.as_ref(),
             true,
             &|entry: GitEntryRef, worktree_id: WorktreeId| {
-                (self.selection.is_none()
-                    || self.selection.is_some_and(|selection| {
-                        if selection.worktree_id == worktree_id { selection.entry_id != entry.id } else { true }
-                    }))
-                    && entry.is_file()
+                self.selection.is_none_or(|selection| {
+                    if selection.worktree_id == worktree_id { selection.entry_id != entry.id } else { true }
+                }) && entry.is_file()
                     && entry.git_summary.index.modified + entry.git_summary.worktree.modified > 0
             },
             cx,
@@ -2333,9 +2323,9 @@ impl ProjectPanel {
             };
 
             let working_directory =
-                if entry.is_dir() { Some(abs_path) } else { abs_path.parent().map(|path| path.to_path_buf()) };
+                if entry.is_dir() { Some(abs_path) } else { abs_path.parent().map(|x| x.to_path_buf()) };
             if let Some(working_directory) = working_directory {
-                window.dispatch_action(workspace::OpenTerminal { working_directory }.boxed_clone(), cx)
+                window.dispatch_action(workspace::OpenTerminal { working_directory }.boxed_clone(), cx);
             }
         }
     }
@@ -2346,13 +2336,12 @@ impl ProjectPanel {
                 entry.path.clone()
             } else {
                 // entry is a file, use its parent directory
-                match entry.path.parent() {
-                    Some(parent) => Arc::from(parent),
-                    None => {
-                        // File at root, open search with empty filter
-                        window.dispatch_action(Box::new(search_actions::NewSearchInDirectory::default()), cx);
-                        return;
-                    }
+                if let Some(parent) = entry.path.parent() {
+                    Arc::from(parent)
+                } else {
+                    // File at root, open search with empty filter
+                    window.dispatch_action(Box::new(search_actions::NewSearchInDirectory::default()), cx);
+                    return;
                 }
             };
 
@@ -2444,7 +2433,7 @@ impl ProjectPanel {
     /// Finds the currently selected subentry for a given leaf entry id. If a given entry
     /// has no ancestors, the project entry ID that's passed in is returned as-is.
     fn resolve_entry(&self, id: ProjectEntryId) -> ProjectEntryId {
-        self.state.ancestors.get(&id).and_then(|ancestors| ancestors.active_ancestor()).unwrap_or(id)
+        self.state.ancestors.get(&id).and_then(FoldedAncestors::active_ancestor).unwrap_or(id)
     }
 
     pub fn selected_entry<'a>(&self, cx: &'a App) -> Option<(&'a Worktree, &'a project::Entry)> {
@@ -2537,7 +2526,7 @@ impl ProjectPanel {
         });
     }
 
-    const fn is_copy_modifier_set(modifiers: &Modifiers) -> bool {
+    const fn is_copy_modifier_set(modifiers: Modifiers) -> bool {
         true && modifiers.alt || false && modifiers.control
     }
 
@@ -2587,8 +2576,7 @@ impl ProjectPanel {
             .workspace
             .upgrade()
             .and_then(|ws| ws.read(cx).active_item(cx))
-            .map(|item| item.act_as_type(TypeId::of::<FileDiffView>(), cx).is_some())
-            .unwrap_or(false);
+            .is_some_and(|item| item.act_as_type(TypeId::of::<FileDiffView>(), cx).is_some());
         if is_active_item_file_diff_view {
             return Ok(());
         }
@@ -2658,7 +2646,7 @@ impl Panel for ProjectPanel {
 
     fn starts_open(&self, _: &Window, cx: &App) -> bool {
         let project = &self.project.read(cx);
-        project.visible_worktrees(cx).any(|tree| tree.read(cx).root_entry().is_some_and(|entry| entry.is_dir()))
+        project.visible_worktrees(cx).any(|tree| tree.read(cx).root_entry().is_some_and(project::Entry::is_dir))
     }
 
     fn set_active(&mut self, active: bool, window: &mut Window, cx: &mut Context<Self>) {

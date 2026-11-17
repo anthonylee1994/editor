@@ -194,7 +194,7 @@ impl LspAdapter for RustLspAdapter {
                 })
                 .await;
             if let Err(err) = result {
-                log::debug!("failed to run rust-analyzer after detecting it in PATH: binary: {:?}: {}", path, err);
+                log::debug!("failed to run rust-analyzer after detecting it in PATH: binary: {path:?}: {err}");
                 return None;
             }
 
@@ -282,7 +282,7 @@ impl LspAdapter for RustLspAdapter {
                 if completion.insert_text_format != Some(lsp::InsertTextFormat::SNIPPET) =>
             {
                 let name = &completion.label;
-                let text = format!("{name}: {signature}",);
+                let text = format!("{name}: {signature}");
                 let prefix = "let ";
                 let source = Rope::from_iter([prefix, &text, " = ();"]);
                 let runs = language.highlight_text(&source, prefix.len()..prefix.len() + text.len()).collect();
@@ -454,7 +454,7 @@ impl LspAdapter for RustLspAdapter {
             language::SymbolKind::EnumMember => {
                 let prefix = "enum E {";
                 return Some(CodeLabel::new(
-                    name.to_string(),
+                    name.clone(),
                     0..name.len(),
                     language
                         .highlight_text(&Rope::from_iter([prefix, name, "}"]), prefix.len()..prefix.len() + name.len())
@@ -571,8 +571,8 @@ impl ContextProvider for RustContextProvider {
                         (RUST_BIN_KIND_TASK_VARIABLE.clone(), target.target_kind.to_string()),
                     ]));
                     if target.required_features.is_empty() {
-                        variables.insert(RUST_BIN_REQUIRED_FEATURES_FLAG_TASK_VARIABLE, "".into());
-                        variables.insert(RUST_BIN_REQUIRED_FEATURES_TASK_VARIABLE, "".into());
+                        variables.insert(RUST_BIN_REQUIRED_FEATURES_FLAG_TASK_VARIABLE, String::new());
+                        variables.insert(RUST_BIN_REQUIRED_FEATURES_TASK_VARIABLE, String::new());
                     } else {
                         variables
                             .insert(RUST_BIN_REQUIRED_FEATURES_FLAG_TASK_VARIABLE.clone(), "--features".to_string());
@@ -594,7 +594,7 @@ impl ContextProvider for RustContextProvider {
     fn associated_tasks(&self, _: Option<Entity<Buffer>>, _: &App) -> Task<Option<TaskTemplates>> {
         let task_templates = vec![
             TaskTemplate {
-                label: format!("Check (package: {})", RUST_PACKAGE_TASK_VARIABLE.template_value(),),
+                label: format!("Check (package: {})", RUST_PACKAGE_TASK_VARIABLE.template_value()),
                 command: "cargo".into(),
                 args: vec!["check".into(), "-p".into(), RUST_PACKAGE_TASK_VARIABLE.template_value()],
                 cwd: Some("$ED_DIRNAME".to_owned()),
@@ -836,7 +836,7 @@ fn target_info_from_metadata(metadata: CargoMetadata, abs_path: &Path) -> Option
             }
         } else {
             manifest_path = Some((Arc::from(manifest_dir_path), candidate_path_length));
-        };
+        }
 
         for target in package.targets {
             let Some(bin_kind) = target.kind.iter().find_map(|kind| TargetKind::try_from(kind.as_ref()).ok()) else {
@@ -897,13 +897,12 @@ fn package_name_from_pkgid(pkgid: &str) -> Option<&str> {
     }
 
     let (version_prefix, version_suffix) = pkgid.trim().rsplit_once('#')?;
-    let package_name = match version_suffix.rsplit_once('@') {
-        Some((custom_package_name, _version)) => custom_package_name,
-        None => {
-            let host_and_path = split_off_suffix(version_prefix, '?');
-            let (_, package_name) = host_and_path.rsplit_once('/')?;
-            package_name
-        }
+    let package_name = if let Some((custom_package_name, _version)) = version_suffix.rsplit_once('@') {
+        custom_package_name
+    } else {
+        let host_and_path = split_off_suffix(version_prefix, '?');
+        let (_, package_name) = host_and_path.rsplit_once('/')?;
+        package_name
     };
     Some(package_name)
 }

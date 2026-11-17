@@ -245,7 +245,7 @@ impl LabelCommon for LabelLike {
 
 impl ParentElement for LabelLike {
     fn extend(&mut self, elements: impl IntoIterator<Item = AnyElement>) {
-        self.children.extend(elements)
+        self.children.extend(elements);
     }
 }
 

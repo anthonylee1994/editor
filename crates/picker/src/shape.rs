@@ -25,14 +25,14 @@ impl Default for Shape {
 impl Shape {
     /// The picker's width, kept within 95% of the viewport but never narrower
     /// than it was asked to be.
-    pub(crate) fn width(&self, window: &Window) -> Pixels {
+    pub(crate) fn width(self, window: &Window) -> Pixels {
         let width = self.width * window.rem_size();
         clamp_size(width, width, window.viewport_size().width * 0.95)
     }
 
     /// The height the picker's results may grow to, kept clear of the window
     /// chrome.
-    pub(crate) fn max_height(&self, window: &Window) -> Pixels {
+    pub(crate) fn max_height(self, window: &Window) -> Pixels {
         let rem = window.rem_size();
         let max = (window.viewport_size().height - VERTICAL_CHROME * rem) * 0.95;
         clamp_size(self.max_height * rem, MIN_HEIGHT * rem, max)

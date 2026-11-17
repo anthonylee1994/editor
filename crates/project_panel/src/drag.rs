@@ -202,7 +202,7 @@ impl ProjectPanel {
         .detach();
     }
 
-    pub(super) fn refresh_drag_cursor_style(&self, modifiers: &Modifiers, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn refresh_drag_cursor_style(&self, modifiers: Modifiers, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(existing_cursor) = cx.active_drag_cursor_style() {
             let new_cursor =
                 if Self::is_copy_modifier_set(modifiers) { CursorStyle::DragCopy } else { CursorStyle::PointingHand };
@@ -260,7 +260,7 @@ impl ProjectPanel {
             return;
         }
 
-        if Self::is_copy_modifier_set(&window.modifiers()) {
+        if Self::is_copy_modifier_set(window.modifiers()) {
             let _ = (|| {
                 let project = self.project.read(cx);
                 let target_worktree = project.worktree_for_entry(target_entry_id, cx)?;

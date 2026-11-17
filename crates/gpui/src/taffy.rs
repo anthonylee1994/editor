@@ -2,7 +2,6 @@ use std::cmp;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::hash::Hasher;
-use std::mem;
 use std::ops::Range;
 
 use rustc_hash::FxHashMap;
@@ -143,7 +142,7 @@ impl TaffyLayoutEngine {
             count += 1;
 
             // Count all of this child's children.
-            count += self.count_all_children(LayoutId(child))?
+            count += self.count_all_children(LayoutId(child))?;
         }
 
         Ok(count)
@@ -361,9 +360,9 @@ impl TaffyLayoutEngine {
 pub struct LayoutId(NodeId);
 
 impl LayoutId {
-    fn to_taffy_slice(node_ids: &[Self]) -> &[taffy::NodeId] {
+    const fn to_taffy_slice(node_ids: &[Self]) -> &[taffy::NodeId] {
         // SAFETY: LayoutId is repr(transparent) to taffy::tree::NodeId.
-        unsafe { mem::transmute::<&[LayoutId], &[taffy::NodeId]>(node_ids) }
+        unsafe { std::slice::from_raw_parts(node_ids.as_ptr().cast(), node_ids.len()) }
     }
 }
 
@@ -420,10 +419,8 @@ impl ToTaffy<style::Style> for Style {
             taffy::Line { start: placement.start.into(), end: placement.end.into() }
         }
 
-        fn to_grid_repeat<T: style::CheapCloneStr>(
-            unit: &Option<GridTemplate>,
-        ) -> Vec<taffy::GridTemplateComponent<T>> {
-            unit.map(|template| {
+        fn to_grid_repeat<T: style::CheapCloneStr>(unit: Option<GridTemplate>) -> Vec<taffy::GridTemplateComponent<T>> {
+            unit.map_or_default(|template| {
                 match template.min_size {
                     // grid-template-*: repeat(<number>, minmax(0, 1fr));
                     crate::GridTemplateMinSize::Zero => {
@@ -439,7 +436,6 @@ impl ToTaffy<style::Style> for Style {
                     }
                 }
             })
-            .unwrap_or_default()
         }
 
         style::Style {
@@ -455,20 +451,20 @@ impl ToTaffy<style::Style> for Style {
             margin: self.margin.to_taffy(rem_size, scale_factor),
             padding: self.padding.to_taffy(rem_size, scale_factor),
             border: border_widths_to_taffy(&self.border_widths, rem_size, scale_factor),
-            align_items: self.align_items.map(|x| x.into()),
-            align_self: self.align_self.map(|x| x.into()),
-            align_content: self.align_content.map(|x| x.into()),
-            justify_content: self.justify_content.map(|x| x.into()),
+            align_items: self.align_items.map(Into::into),
+            align_self: self.align_self.map(Into::into),
+            align_content: self.align_content.map(Into::into),
+            justify_content: self.justify_content.map(Into::into),
             gap: self.gap.to_taffy(rem_size, scale_factor),
             flex_direction: self.flex_direction.into(),
             flex_wrap: self.flex_wrap.into(),
             flex_basis: self.flex_basis.to_taffy(rem_size, scale_factor),
             flex_grow: self.flex_grow,
             flex_shrink: self.flex_shrink,
-            grid_template_rows: to_grid_repeat(&self.grid_rows),
-            grid_template_columns: to_grid_repeat(&self.grid_cols),
-            grid_row: self.grid_location.as_ref().map(|location| to_grid_line(&location.row)).unwrap_or_default(),
-            grid_column: self.grid_location.as_ref().map(|location| to_grid_line(&location.column)).unwrap_or_default(),
+            grid_template_rows: to_grid_repeat(self.grid_rows),
+            grid_template_columns: to_grid_repeat(self.grid_cols),
+            grid_row: self.grid_location.as_ref().map_or_default(|location| to_grid_line(&location.row)),
+            grid_column: self.grid_location.as_ref().map_or_default(|location| to_grid_line(&location.column)),
             ..Default::default()
         }
     }

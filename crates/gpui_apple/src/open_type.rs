@@ -29,7 +29,7 @@ pub fn apply_features_and_fallbacks(
     font: &mut CFRetained<CTFont>,
     features: &FontFeatures,
     fallbacks: Option<&FontFallbacks>,
-) -> anyhow::Result<()> {
+) {
     let feature_array = generate_feature_array(features);
     let mut keys: Vec<&CFString> = vec![unsafe { kCTFontFeatureSettingsAttribute }];
     let mut values: Vec<&CFType> = vec![feature_array.as_ref()];
@@ -46,7 +46,6 @@ pub fn apply_features_and_fallbacks(
         let descriptor = CTFontDescriptor::with_attributes(attributes.as_opaque());
         *font = font.copy_with_attributes(0.0, ptr::null(), Some(&descriptor));
     }
-    Ok(())
 }
 
 fn generate_feature_array(features: &FontFeatures) -> CFRetained<CFMutableArray<CFDictionary<CFString, CFType>>> {

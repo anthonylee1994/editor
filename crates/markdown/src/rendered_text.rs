@@ -353,13 +353,11 @@ impl RenderedLine {
             } else {
                 boundaries
                     .get(wrapped_row_ix - 1)
-                    .map(|b| wrapped_line.unwrapped_layout.runs[b.run_ix].glyphs[b.glyph_ix].position.x)
-                    .unwrap_or(px(0.))
+                    .map_or(px(0.), |b| wrapped_line.unwrapped_layout.runs[b.run_ix].glyphs[b.glyph_ix].position.x)
             };
-            let segment_end_x = boundaries
-                .get(wrapped_row_ix)
-                .map(|b| wrapped_line.unwrapped_layout.runs[b.run_ix].glyphs[b.glyph_ix].position.x)
-                .unwrap_or(wrapped_line.unwrapped_layout.width);
+            let segment_end_x = boundaries.get(wrapped_row_ix).map_or(wrapped_line.unwrapped_layout.width, |b| {
+                wrapped_line.unwrapped_layout.runs[b.run_ix].glyphs[b.glyph_ix].position.x
+            });
 
             let alignment_offset = self.alignment_offset_for_segment(bounds.size.width, segment_start_x, segment_end_x);
             Some(point(position.x - alignment_offset, position.y))
@@ -643,7 +641,7 @@ impl RenderedText {
             let rendered_index_in_line = line.rendered_index_for_source_index(source_index) - line_rendered_start;
             let text = line.layout.text();
 
-            let scope = line.language.as_ref().map(|l| l.default_scope());
+            let scope = line.language.as_ref().map(language::Language::default_scope);
             let classifier = CharClassifier::new(scope);
 
             let mut prev_chars = text[..rendered_index_in_line].chars().rev().peekable();

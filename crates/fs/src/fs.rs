@@ -441,15 +441,14 @@ impl Fs for RealFs {
             open_options.create_new(true);
         }
         let path = path.to_owned();
-        unblock(move || open_options.open(&path).with_context(|| format!("Failed to create file at {:?}", path)))
-            .await?;
+        unblock(move || open_options.open(&path).with_context(|| format!("Failed to create file at {path:?}"))).await?;
         Ok(())
     }
 
     async fn create_file_with(&self, path: &Path, mut content: Pin<&mut (dyn AsyncRead + Send)>) -> Result<()> {
         let mut bytes = Vec::new();
         content.read_to_end(&mut bytes).await?;
-        async_macos::fs::write(path, bytes).await.with_context(|| format!("Failed to create file at {:?}", path))?;
+        async_macos::fs::write(path, bytes).await.with_context(|| format!("Failed to create file at {path:?}"))?;
         Ok(())
     }
 
@@ -457,9 +456,8 @@ impl Fs for RealFs {
         if !options.overwrite && async_macos::fs::metadata(target).await.is_ok() {
             if options.ignore_if_exists {
                 return Ok(());
-            } else {
-                anyhow::bail!("{target:?} already exists");
             }
+            anyhow::bail!("{target:?} already exists");
         }
 
         async_macos::fs::copy(source, target).await?;
@@ -511,9 +509,8 @@ impl Fs for RealFs {
         if use_metadata_fallback && async_macos::fs::metadata(target).await.is_ok() {
             if options.ignore_if_exists {
                 return Ok(());
-            } else {
-                return Err(io::Error::new(io::ErrorKind::AlreadyExists, format!("{target:?} already exists")).into());
             }
+            return Err(io::Error::new(io::ErrorKind::AlreadyExists, format!("{target:?} already exists")).into());
         }
 
         async_macos::fs::rename(source, target).await?;
@@ -599,12 +596,12 @@ impl Fs for RealFs {
     async fn save(&self, path: &Path, text: &Rope, line_ending: LineEnding) -> Result<()> {
         let buffer_size = text.summary().len.min(10 * 1024);
         if let Some(path) = path.parent() {
-            self.create_dir(path).await.with_context(|| format!("Failed to create directory at {:?}", path))?;
+            self.create_dir(path).await.with_context(|| format!("Failed to create directory at {path:?}"))?;
         }
         let path = path.to_owned();
         let text = text.clone();
         unblock(move || {
-            let file = File::create(&path).with_context(|| format!("Failed to create file at {:?}", path))?;
+            let file = File::create(&path).with_context(|| format!("Failed to create file at {path:?}"))?;
             let mut writer = io::BufWriter::with_capacity(buffer_size, file);
             for chunk in text::chunks_with_line_ending(&text, line_ending) {
                 writer.write_all(chunk.as_bytes())?;
@@ -618,7 +615,7 @@ impl Fs for RealFs {
 
     async fn write(&self, path: &Path, content: &[u8]) -> Result<()> {
         if let Some(path) = path.parent() {
-            self.create_dir(path).await.with_context(|| format!("Failed to create directory at {:?}", path))?;
+            self.create_dir(path).await.with_context(|| format!("Failed to create directory at {path:?}"))?;
         }
         let path = path.to_owned();
         let contents = content.to_owned();
@@ -734,7 +731,7 @@ impl Fs for RealFs {
     fn open_repo(&self, dotgit_path: &Path, git_binary_path: Option<&Path>) -> Result<Arc<dyn GitRepository>> {
         Ok(Arc::new(RealGitRepository::new(
             dotgit_path,
-            git_binary_path.map(|path| path.to_path_buf()),
+            git_binary_path.map(|x| x.to_path_buf()),
             self.executor.clone(),
         )?))
     }
@@ -767,7 +764,7 @@ impl Fs for RealFs {
     async fn git_clone(&self, abs_work_directory: &Path, repo_url: &str) -> Result<()> {
         let job_id = self.next_job_id.fetch_add(1, Ordering::SeqCst);
         let job_info =
-            JobInfo { id: job_id, start: Instant::now(), message: SharedString::from(format!("Cloning {}", repo_url)) };
+            JobInfo { id: job_id, start: Instant::now(), message: SharedString::from(format!("Cloning {repo_url}")) };
 
         let job_tracker = JobTracker::new(job_info, self.job_event_subscribers.clone());
         let mut child = new_command("git")
@@ -852,7 +849,7 @@ impl Fs for RealFs {
 
             // Now check whether it's possible to create file2
             let case_sensitive = match self.create_file(&test_file_2, create_opts).await {
-                Ok(_) => Ok(true),
+                Ok(()) => Ok(true),
                 Err(e) => {
                     if let Some(io_error) = e.downcast_ref::<io::Error>() {
                         if io_error.kind() == io::ErrorKind::AlreadyExists { Ok(false) } else { Err(e) }
@@ -925,9 +922,8 @@ pub async fn copy_recursive<'a>(
             if !options.overwrite && fs.metadata(&target_item).await.is_ok_and(|m| m.is_some()) {
                 if options.ignore_if_exists {
                     continue;
-                } else {
-                    anyhow::bail!("{target_item:?} already exists");
                 }
+                anyhow::bail!("{target_item:?} already exists");
             }
             let _ = fs.remove_dir(&target_item, RemoveOptions { recursive: true, ignore_if_not_exists: true }).await;
             fs.create_dir(&target_item).await?;

@@ -106,7 +106,7 @@ impl StatusItemView for ActiveBufferEncoding {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if let Some(editor) = active_pane_item.and_then(|item| item.downcast::<Editor>()) {
+        if let Some(editor) = active_pane_item.and_then(<dyn workspace::ItemHandle + 'static>::downcast::<Editor>) {
             self._observe_active_editor = Some(cx.observe_in(&editor, window, Self::update_encoding));
             self.update_encoding(editor, window, cx);
         } else {

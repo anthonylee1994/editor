@@ -148,7 +148,7 @@ pub fn expand_macro_recursively(
         };
 
         if macro_expansion.is_empty() {
-            log::info!("Empty macro expansion for position {:?}", trigger_anchor);
+            log::info!("Empty macro expansion for position {trigger_anchor:?}");
             return Ok(());
         }
 
@@ -211,7 +211,7 @@ pub fn open_docs(editor: &mut Editor, _: &OpenDocs, window: &mut Window, cx: &mu
         };
 
         if docs_urls.is_empty() {
-            log::debug!("Empty docs urls for position {:?}", trigger_anchor);
+            log::debug!("Empty docs urls for position {trigger_anchor:?}");
             return Ok(());
         }
 

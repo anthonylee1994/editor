@@ -47,13 +47,12 @@ impl DocumentSymbolsData {
     }
 
     fn evict(&mut self, for_server: Option<LanguageServerId>) {
-        match for_server {
-            Some(server_id) => self.remove_server_data(server_id),
-            None => {
-                self.symbols.clear();
-                self.fetched_servers.clear();
-                self.symbols_update = None;
-            }
+        if let Some(server_id) = for_server {
+            self.remove_server_data(server_id);
+        } else {
+            self.symbols.clear();
+            self.fetched_servers.clear();
+            self.symbols_update = None;
         }
     }
 }
@@ -93,21 +92,22 @@ impl LspStore {
             if !version_queried_for.changed_since(&lsp_data.buffer_version)
                 && let Some(cached) = &mut lsp_data.document_symbols
             {
-                match missing_servers_to_query(&mut cached.symbols, &mut cached.fetched_servers, &current_servers) {
-                    Some(missing_servers) => servers_to_query = Some(missing_servers),
-                    None => {
-                        let snapshot = buffer.read(cx).snapshot();
-                        return Task::ready(
-                            cached
-                                .symbols
-                                .values()
-                                .flatten()
-                                .unique()
-                                .cloned()
-                                .sorted_by(|a, b| a.range.start.cmp(&b.range.start, &snapshot))
-                                .collect(),
-                        );
-                    }
+                if let Some(missing_servers) =
+                    missing_servers_to_query(&mut cached.symbols, &mut cached.fetched_servers, &current_servers)
+                {
+                    servers_to_query = Some(missing_servers);
+                } else {
+                    let snapshot = buffer.read(cx).snapshot();
+                    return Task::ready(
+                        cached
+                            .symbols
+                            .values()
+                            .flatten()
+                            .unique()
+                            .cloned()
+                            .sorted_by(|a, b| a.range.start.cmp(&b.range.start, &snapshot))
+                            .collect(),
+                    );
                 }
             }
             if let Some(document_symbols) = &lsp_data.document_symbols

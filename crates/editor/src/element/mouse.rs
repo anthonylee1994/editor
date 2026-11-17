@@ -267,8 +267,8 @@ impl EditorElement {
                         MouseButton::Middle => editor.update(cx, |editor, cx| {
                             Self::mouse_middle_down(editor, event, &position_map, window, cx);
                         }),
-                        _ => {}
-                    };
+                        MouseButton::Navigate(_) => {}
+                    }
                 }
             }
         });
@@ -319,7 +319,7 @@ impl EditorElement {
                 if phase == DispatchPhase::Bubble {
                     editor.update(cx, |editor, cx| {
                         Self::pressure_click(editor, event, &position_map, window, cx);
-                    })
+                    });
                 }
             }
         });
@@ -338,10 +338,10 @@ impl EditorElement {
                         if event.pressed_button == Some(MouseButton::Left)
                             || event.pressed_button == Some(MouseButton::Middle)
                         {
-                            Self::mouse_dragged(editor, event, &position_map, window, cx)
+                            Self::mouse_dragged(editor, event, &position_map, window, cx);
                         }
 
-                        Self::mouse_moved(editor, event, &position_map, split_side, window, cx)
+                        Self::mouse_moved(editor, event, &position_map, split_side, window, cx);
                     });
                 }
             }
@@ -494,7 +494,7 @@ impl EditorElement {
         }
 
         let position = point_for_position.nearest_valid;
-        if let Some(mode) = Editor::columnar_selection_mode(&modifiers) {
+        if let Some(mode) = Editor::columnar_selection_mode(modifiers) {
             editor.select(
                 SelectPhase::BeginColumnar {
                     position,

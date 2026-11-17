@@ -196,7 +196,7 @@ impl WindowHeader {
                     })
                     .ok();
             },
-            |_, _, _, _| {},
+            |_, (), _, _| {},
         )
         .absolute()
         .size_full()

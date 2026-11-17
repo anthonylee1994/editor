@@ -285,7 +285,7 @@ impl Editor {
                             &match_ranges,
                             |_, theme| theme.colors().editor_document_highlight_bracket_background,
                             cx,
-                        )
+                        );
                     }
                 })
                 .log_err();
@@ -439,7 +439,7 @@ impl Editor {
             }
 
             true
-        })
+        });
     }
 
     /// Clear all anchor ranges for a certain highlight context type, so no corresponding rows will be highlighted.
@@ -545,7 +545,7 @@ impl Editor {
             ranges,
             |_, colors| colors.colors().editor_document_highlight_read_background,
             cx,
-        )
+        );
     }
 
     pub fn highlight_background(
@@ -581,7 +581,7 @@ impl Editor {
     ) {
         let snapshot = self.buffer().read(cx).snapshot(cx);
         let mut highlights =
-            self.gutter_highlights.remove(&TypeId::of::<T>()).map(|(_, highlights)| highlights).unwrap_or_default();
+            self.gutter_highlights.remove(&TypeId::of::<T>()).map_or_default(|(_, highlights)| highlights);
         let ix = highlights.binary_search_by(|highlight| {
             Ordering::Equal
                 .then_with(|| highlight.start.cmp(&range.start, &snapshot))
@@ -652,7 +652,7 @@ impl Editor {
                 let color = color_fetcher(&(start_ix + index), theme);
                 let start = range.start.to_display_point(display_snapshot);
                 let end = range.end.to_display_point(display_snapshot);
-                results.push((start..end, color))
+                results.push((start..end, color));
             }
         }
         results
@@ -680,7 +680,7 @@ impl Editor {
 
                 let start = range.start.to_display_point(display_snapshot);
                 let end = range.end.to_display_point(display_snapshot);
-                results.push((start..end, color))
+                results.push((start..end, color));
             }
         }
         results

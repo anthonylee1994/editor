@@ -180,7 +180,7 @@ fn adjust_lightness_for_contrast(foreground: Hsla, background: Hsla, minimum_apc
     let mut best_l = foreground.l;
 
     for _ in 0..20 {
-        let mid = (low + high) / 2.0;
+        let mid = f32::midpoint(low, high);
         let test_color = Hsla { h: foreground.h, s: foreground.s, l: mid, a: foreground.a };
 
         let contrast = apca_contrast(test_color, background).abs();

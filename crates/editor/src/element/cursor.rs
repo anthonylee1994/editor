@@ -341,7 +341,7 @@ impl EditorElement {
                                     * ScrollPixelOffset::from(em_width))
                                 .into();
 
-                            autoscroll_bounds = Some(Bounds::from_corners(point(left, top), point(right, bottom)))
+                            autoscroll_bounds = Some(Bounds::from_corners(point(left, top), point(right, bottom)));
                         }
                     }
 

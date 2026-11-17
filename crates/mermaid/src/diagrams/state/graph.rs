@@ -196,8 +196,7 @@ impl Builder<'_> {
             return;
         }
         let known = self.db.state(id);
-        let class_str =
-            || known.and_then(|known| known.classes.as_ref()).map(|classes| classes.join(" ")).unwrap_or_default();
+        let class_str = || known.and_then(|known| known.classes.as_ref()).map_or_default(|classes| classes.join(" "));
         let styles = known.and_then(|known| known.styles.as_deref()).unwrap_or_default();
 
         if !self.drafts.contains_key(id) {
@@ -398,7 +397,7 @@ pub(crate) fn build_state_graph(root_doc: &[Stmt], db: &StateDb) -> Result<State
             match &draft.description {
                 Description::Many(texts) => {
                     node.label = texts.first().cloned();
-                    node.description = texts.get(1..).map(<[String]>::to_vec).unwrap_or_default();
+                    node.description = texts.get(1..).map_or_default(<[String]>::to_vec);
                 }
                 Description::One(text) => {
                     node.label = Some(text.clone());

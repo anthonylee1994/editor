@@ -139,7 +139,7 @@ impl ProjectPanel {
                         while let Some(entry) = entry_iter.entry() {
                             if entry.kind.is_dir() {
                                 auto_folded_ancestors.push(entry.id);
-                                if !new_state.is_unfolded(&entry.id)
+                                if !new_state.is_unfolded(entry.id)
                                     && let Some(root_path) = worktree_snapshot.root_entry()
                                 {
                                     let mut child_entries = worktree_snapshot.child_entries(&entry.path);
@@ -170,8 +170,7 @@ impl ProjectPanel {
                                     .unwrap_or_else(|| {
                                         old_ancestors
                                             .get(&entry.id)
-                                            .map(|ancestor| ancestor.current_ancestor_depth)
-                                            .unwrap_or_default()
+                                            .map_or_default(|ancestor| ancestor.current_ancestor_depth)
                                     })
                                     .min(auto_folded_ancestors.len());
                                 if let Some(edit_state) = &mut new_state.edit_state
@@ -294,7 +293,7 @@ impl ProjectPanel {
                             depth_offset: usize::from(is_library),
                             entries: visible_worktree_entries,
                             index: OnceCell::new(),
-                        })
+                        });
                     }
                     if let Some((project_entry_id, worktree_id, _)) = max_width_item {
                         let mut visited_worktrees_length = 0;
@@ -364,7 +363,7 @@ impl ProjectPanel {
         };
         let workspace = workspace.read(cx);
         let panel_id = cx.entity_id();
-        if workspace.zoomed_item().and_then(|view| view.upgrade()).is_some_and(|view| view.entity_id() != panel_id)
+        if workspace.zoomed_item().and_then(gpui::AnyWeakView::upgrade).is_some_and(|view| view.entity_id() != panel_id)
             || !workspace
                 .all_docks()
                 .into_iter()
@@ -602,7 +601,7 @@ impl ProjectPanel {
                 reverse_search,
             )
             .find_single_ended(|ele| predicate(*ele, worktree_id))
-            .map(|ele| ele.to_owned())
+            .map(project::GitEntryRef::to_owned)
         })
     }
 
@@ -640,7 +639,7 @@ impl ProjectPanel {
                     .take_while_inclusive(|(count, entry)| entry.entry != root_entry || *count == 0usize)
                     .map(|(_, entry)| entry)
                     .find(|ele| predicate(*ele, tree_id))
-                    .map(|ele| ele.to_owned());
+                    .map(project::GitEntryRef::to_owned);
 
                 let second_iter = GitTraversal::new(&repo_snapshots, worktree.entries(true, 0usize));
 
@@ -649,13 +648,13 @@ impl ProjectPanel {
                         .take_while_inclusive(|ele| ele.id != start.entry_id)
                         .filter(|ele| predicate(*ele, tree_id))
                         .last()
-                        .map(|ele| ele.to_owned())
+                        .map(project::GitEntryRef::to_owned)
                 } else {
                     second_iter
                         .take_while(|ele| ele.id != start.entry_id)
                         .filter(|ele| predicate(*ele, tree_id))
                         .last()
-                        .map(|ele| ele.to_owned())
+                        .map(project::GitEntryRef::to_owned)
                 };
 
                 if reverse_search { Some((second, first)) } else { Some((first, second)) }

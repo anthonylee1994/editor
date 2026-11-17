@@ -401,7 +401,7 @@ impl Editor {
                         }
                     }
                 }
-            };
+            }
 
             if !go_to_definition_updated {
                 editor.hide_hovered_link(cx);

@@ -432,7 +432,7 @@ impl Editor {
             }
 
             this.change_selections(SelectionEffects::scroll(Autoscroll::fit()).completions(false), window, cx, |s| {
-                s.select(new_selections)
+                s.select(new_selections);
             });
 
             if !bracket_inserted
@@ -457,7 +457,7 @@ impl Editor {
                             line_length: None,
                         },
                         cx,
-                    )
+                    );
                 }
             }
             this.trigger_completion_on_input(&text, trigger_in_words, window, cx);
@@ -488,7 +488,7 @@ impl Editor {
                         let end = selection.end;
                         let selection_is_empty = start == end;
                         let language_scope = buffer.language_scope_at(start);
-                        existing_indent = logical_indent_for_newline(&start_point, &buffer, existing_indent);
+                        existing_indent = logical_indent_for_newline(start_point, &buffer, existing_indent);
                         let (delimiter, newline_config) = if let Some(language) = &language_scope {
                             let needs_extra_newline =
                                 NewlineConfig::insert_extra_newline_brackets(&buffer, start..end, language)
@@ -507,7 +507,7 @@ impl Editor {
 
                             if selection_is_empty
                                 && let Some(comment_delimiter) =
-                                    comment_delimiter_for_newline(&start_point, &buffer, language)
+                                    comment_delimiter_for_newline(start_point, &buffer, language)
                             {
                                 delimiter = Some(comment_delimiter);
                                 if let NewlineConfig::Newline { extra_line_additional_indent, .. } = &mut newline_config
@@ -516,7 +516,7 @@ impl Editor {
                                 }
                             } else if selection_is_empty
                                 && let Some(doc_delimiter) = documentation_delimiter_for_newline(
-                                    &start_point,
+                                    start_point,
                                     &buffer,
                                     language,
                                     &mut newline_config,
@@ -525,7 +525,7 @@ impl Editor {
                                 delimiter = Some(doc_delimiter);
                             } else if selection_is_empty
                                 && let Some(list_delimiter) =
-                                    list_delimiter_for_newline(&start_point, &buffer, language, &mut newline_config)
+                                    list_delimiter_for_newline(start_point, &buffer, language, &mut newline_config)
                             {
                                 delimiter = Some(list_delimiter);
                             }
@@ -562,11 +562,10 @@ impl Editor {
                                 extra_line_additional_indent,
                                 prevent_auto_indent,
                             } => {
-                                let capacity_for_delimiter = delimiter.as_deref().map(str::len).unwrap_or_default();
+                                let capacity_for_delimiter = delimiter.as_deref().map_or_default(str::len);
                                 let existing_indent_len = existing_indent.len as usize;
                                 let extra_line_len = extra_line_additional_indent
-                                    .map(|i| 1 + existing_indent_len + i.len as usize)
-                                    .unwrap_or(0);
+                                    .map_or(0, |i| 1 + existing_indent_len + i.len as usize);
                                 let mut new_text = String::with_capacity(
                                     1 + capacity_for_delimiter
                                         + existing_indent_len
@@ -689,7 +688,7 @@ impl Editor {
             let mut indent_edits = Vec::new();
             let multibuffer_snapshot = editor.buffer.read(cx).snapshot(cx);
             for row in rows {
-                let indents = multibuffer_snapshot.suggested_indents(row..row + 1, cx);
+                let indents = multibuffer_snapshot.suggested_indents(row..=row, cx);
                 for (row, indent) in indents {
                     if indent.len == 0 {
                         continue;
@@ -771,7 +770,7 @@ impl Editor {
             let mut indent_edits = Vec::new();
             let multibuffer_snapshot = editor.buffer.read(cx).snapshot(cx);
             for row in rows.into_iter().flatten() {
-                let indents = multibuffer_snapshot.suggested_indents(row..row + 1, cx);
+                let indents = multibuffer_snapshot.suggested_indents(row..=row, cx);
                 for (row, indent) in indents {
                     if indent.len == 0 {
                         continue;
@@ -1100,12 +1099,12 @@ impl Editor {
                     let prefix: Arc<str> = if comment_start.ends_with(' ') {
                         comment_start.clone()
                     } else {
-                        format!("{} ", comment_start).into()
+                        format!("{comment_start} ").into()
                     };
                     let suffix: Arc<str> = if comment_end.starts_with(' ') {
                         comment_end.clone()
                     } else {
-                        format!(" {}", comment_end).into()
+                        format!(" {comment_end}").into()
                     };
 
                     edits.push((start_point..start_point, prefix.clone()));
@@ -1224,12 +1223,9 @@ impl Editor {
             // TODO: Handle selections that cross excerpts
             for selection in &mut selections {
                 let start_column = snapshot.indent_size_for_line(MultiBufferRow(selection.start.row)).len;
-                let language =
-                    if let Some(language) = snapshot.language_scope_at(Point::new(selection.start.row, start_column)) {
-                        language
-                    } else {
-                        continue;
-                    };
+                let Some(language) = snapshot.language_scope_at(Point::new(selection.start.row, start_column)) else {
+                    continue;
+                };
 
                 selection_edit_ranges.clear();
 
@@ -1351,8 +1347,6 @@ impl Editor {
                         edits.push((prefix_range, empty_str.clone()));
                         edits.push((suffix_range, empty_str.clone()));
                     }
-                } else {
-                    continue;
                 }
             }
 
@@ -1371,7 +1365,6 @@ impl Editor {
                     match row.cmp(&MultiBufferRow(selection.end.row)) {
                         Ordering::Less => {
                             suffixes_inserted.next();
-                            continue;
                         }
                         Ordering::Greater => break,
                         Ordering::Equal => {
@@ -1413,7 +1406,7 @@ impl Editor {
                             display_snapshot.x_for_display_point(display_point, text_layout_details).into(),
                         );
                         (display_point, goal)
-                    })
+                    });
                 });
             }
         });
@@ -1571,7 +1564,7 @@ impl Editor {
         }
         if query_range.start.buffer_id != query_range.end.buffer_id {
             return None;
-        };
+        }
         let multibuffer_snapshot = self.buffer.read(cx).snapshot(cx);
         let buffer = self.buffer.read(cx).buffer(query_range.end.buffer_id)?;
         let buffer_snapshot = buffer.read(cx).snapshot();
@@ -1718,7 +1711,7 @@ impl Editor {
 
         drop(buffer);
         self.change_selections(SelectionEffects::no_scroll(), window, cx, |selections| {
-            selections.select(new_selections)
+            selections.select(new_selections);
         });
     }
 
@@ -1744,9 +1737,8 @@ impl Editor {
                 }
                 if selection.id == state.selection_id {
                     return true;
-                } else {
-                    i += 1;
                 }
+                i += 1;
             }
             false
         });
@@ -1858,7 +1850,8 @@ impl Editor {
             bail!("`name` or `snippet` is required")
         };
 
-        self.insert_snippet(&insertion_ranges, snippet, window, cx)
+        self.insert_snippet(&insertion_ranges, snippet, window, cx);
+        Ok(())
     }
 }
 
@@ -1886,9 +1879,8 @@ pub(super) fn is_list_prefix_row(row: MultiBufferRow, buffer: &MultiBufferSnapsh
     let ordered_list_candidate: String =
         snapshot.chars_for_range(range).skip(num_of_whitespaces).take(ORDERED_LIST_MAX_MARKER_LEN).collect();
     for ordered_config in language.ordered_list() {
-        let regex = match Regex::new(&ordered_config.pattern) {
-            Ok(r) => r,
-            Err(_) => continue,
+        let Ok(regex) = Regex::new(&ordered_config.pattern) else {
+            continue;
         };
         if let Some(captures) = regex.captures(&ordered_list_candidate) {
             return captures.get(0).is_some();
@@ -1983,7 +1975,7 @@ impl NewlineConfig {
 }
 
 fn comment_delimiter_for_newline(
-    start_point: &Point,
+    start_point: Point,
     buffer: &MultiBufferSnapshot,
     language: &LanguageScope,
 ) -> Option<Arc<str>> {
@@ -2045,7 +2037,7 @@ fn comment_delimiter_for_newline(
 }
 
 fn documentation_delimiter_for_newline(
-    start_point: &Point,
+    start_point: Point,
     buffer: &MultiBufferSnapshot,
     language: &LanguageScope,
     newline_config: &mut NewlineConfig,
@@ -2053,7 +2045,7 @@ fn documentation_delimiter_for_newline(
     let BlockCommentConfig { start: start_tag, end: end_tag, prefix: delimiter, tab_size: len } =
         language.documentation_comment()?;
     let is_within_block_comment =
-        buffer.language_scope_at(*start_point).is_some_and(|scope| scope.override_name() == Some("comment"));
+        buffer.language_scope_at(start_point).is_some_and(|scope| scope.override_name() == Some("comment"));
     if !is_within_block_comment {
         return None;
     }
@@ -2141,7 +2133,7 @@ fn documentation_delimiter_for_newline(
 /// `existing_indent` unless the cursor sits after the closing delimiter of a
 /// multi-line block comment. See [`language::BufferSnapshot::block_comment_closing_indent`].
 fn logical_indent_for_newline(
-    start_point: &Point,
+    start_point: Point,
     buffer: &MultiBufferSnapshot,
     existing_indent: IndentSize,
 ) -> IndentSize {
@@ -2157,7 +2149,7 @@ fn logical_indent_for_newline(
 }
 
 fn list_delimiter_for_newline(
-    start_point: &Point,
+    start_point: Point,
     buffer: &MultiBufferSnapshot,
     language: &LanguageScope,
     newline_config: &mut NewlineConfig,
@@ -2207,9 +2199,8 @@ fn list_delimiter_for_newline(
         snapshot.chars_for_range(range.clone()).skip(num_of_whitespaces).take(ORDERED_LIST_MAX_MARKER_LEN).collect();
 
     for ordered_config in language.ordered_list() {
-        let regex = match Regex::new(&ordered_config.pattern) {
-            Ok(r) => r,
-            Err(_) => continue,
+        let Ok(regex) = Regex::new(&ordered_config.pattern) else {
+            continue;
         };
 
         if let Some(captures) = regex.captures(&candidate) {
@@ -2357,7 +2348,7 @@ impl EntityInputHandler for Editor {
                 // incorrectly delete the character just before the cursor.
                 let should_backspace = new_selected_ranges.iter().any(|r| r.start != r.end);
                 this.change_selections(SelectionEffects::no_scroll(), window, cx, |selections| {
-                    selections.select_ranges(new_selected_ranges)
+                    selections.select_ranges(new_selected_ranges);
                 });
                 if should_backspace {
                     this.backspace(&Backspace, window, cx);
@@ -2480,7 +2471,7 @@ impl EntityInputHandler for Editor {
 
                 drop(snapshot);
                 this.change_selections(SelectionEffects::no_scroll(), window, cx, |selections| {
-                    selections.select_ranges(new_selected_ranges)
+                    selections.select_ranges(new_selected_ranges);
                 });
             }
         });

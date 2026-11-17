@@ -466,11 +466,8 @@ impl EditorElement {
     }
 
     pub(super) fn paint_minimap(&self, layout: &mut EditorLayout, window: &mut Window, cx: &mut App) {
-        let markers = layout
-            .minimap
-            .as_ref()
-            .map(|minimap| self.minimap_marker_quads(layout, minimap, window, cx))
-            .unwrap_or_default();
+        let markers =
+            layout.minimap.as_ref().map_or_default(|minimap| self.minimap_marker_quads(layout, minimap, window, cx));
         if let Some(mut layout) = layout.minimap.take() {
             let minimap_hitbox = layout.thumb_layout.hitbox.clone();
             let dragging_minimap = self.editor.read(cx).scroll_manager.is_dragging_minimap();
@@ -660,7 +657,7 @@ impl MinimapMarkerTrack {
     const CURSOR_LINE_OPACITY: f32 = 0.25;
 
     fn quads_for_ranges(
-        &self,
+        self,
         row_ranges: impl IntoIterator<Item = ColoredRange<DisplayRow>>,
         lane: MinimapMarkerLane,
     ) -> Vec<PaintQuad> {

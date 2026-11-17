@@ -127,7 +127,7 @@ impl DiffHunkRenderer for DefaultDiffHunkRenderer {
         window: &mut Window,
         cx: &mut App,
     ) -> AnyElement {
-        render_diff_hunk_controls(row, status, hunk_range, is_created_file, line_height, editor, window, cx)
+        render_diff_hunk_controls(row, *status, hunk_range, is_created_file, line_height, editor, window, cx)
     }
 }
 
@@ -304,7 +304,7 @@ impl Editor {
 
     pub fn expand_selected_diff_hunks(&mut self, cx: &mut Context<Self>) {
         let ranges: Vec<_> = self.selections.disjoint_anchors().iter().map(|s| s.range()).collect();
-        self.buffer.update(cx, |buffer, cx| buffer.expand_diff_hunks(ranges, cx))
+        self.buffer.update(cx, |buffer, cx| buffer.expand_diff_hunks(ranges, cx));
     }
 
     pub fn toggle_git_blame(&mut self, _: &::git::Blame, window: &mut Window, cx: &mut Context<Self>) {
@@ -377,7 +377,7 @@ impl Editor {
         let mut buffer_ids = FxHashSet::default();
         let snapshot = self.buffer().read(cx).snapshot(cx);
         for selection in self.selections.all::<MultiBufferOffset>(&self.display_snapshot(cx)) {
-            buffer_ids.extend(snapshot.buffer_ids_for_range(selection.range()))
+            buffer_ids.extend(snapshot.buffer_ids_for_range(selection.range()));
         }
 
         let ranges =
@@ -652,7 +652,7 @@ impl Editor {
     pub(super) fn toggle_single_diff_hunk(&self, range: Range<Anchor>, cx: &mut Context<Self>) {
         self.buffer.update(cx, |buffer, cx| {
             buffer.toggle_single_diff_hunk(range, cx);
-        })
+        });
     }
 
     pub(super) fn open_git_blame_commit(
@@ -697,7 +697,7 @@ impl Editor {
         self.buffer.update(cx, |buffer, cx| {
             let expand = !buffer.has_expanded_diff_hunks_in_ranges(&ranges, cx);
             buffer.expand_or_collapse_diff_hunks(ranges, expand, cx);
-        })
+        });
     }
 
     pub fn set_blame(&mut self, blame: Entity<GitBlame>, window: &mut Window, cx: &mut Context<Self>) {
@@ -1001,7 +1001,7 @@ pub fn set_blame_renderer(renderer: impl BlameRenderer + 'static, cx: &mut App) 
 
 pub fn render_diff_hunk_controls(
     row: u32,
-    status: &DiffHunkStatus,
+    status: DiffHunkStatus,
     hunk_range: Range<Anchor>,
     is_created_file: bool,
     line_height: Pixels,

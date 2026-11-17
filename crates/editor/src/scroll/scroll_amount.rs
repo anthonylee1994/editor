@@ -30,7 +30,7 @@ impl ScrollAmount {
             Self::Page(count) => {
                 // for full pages subtract one to leave an anchor line
                 if self.is_full_page() {
-                    visible_line_count -= 1.0
+                    visible_line_count -= 1.0;
                 }
                 (visible_line_count * (*count as f64)).trunc()
             }

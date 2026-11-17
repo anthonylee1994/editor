@@ -53,7 +53,7 @@ impl PathList {
         indexed_paths.sort_by(|(_, a), (_, b)| a.cmp(b));
         let order = indexed_paths.iter().map(|e| e.0).collect::<Vec<_>>().into();
         let paths = indexed_paths.into_iter().map(|e| e.1).collect::<Vec<_>>().into();
-        Self { order, paths }
+        Self { paths, order }
     }
 
     pub fn is_empty(&self) -> bool {

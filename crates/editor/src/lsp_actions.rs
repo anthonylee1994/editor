@@ -151,7 +151,7 @@ impl Editor {
                     let rename_editor = cx.new(|cx| {
                         let mut editor = Editor::single_line(window, cx);
                         editor.buffer.update(cx, |buffer, cx| {
-                            buffer.edit([(MultiBufferOffset(0)..MultiBufferOffset(0), old_name.clone())], None, cx)
+                            buffer.edit([(MultiBufferOffset(0)..MultiBufferOffset(0), old_name.clone())], None, cx);
                         });
                         let head_offset_in_rename_range = MultiBufferOffset(head_offset_in_rename_range);
                         let tail_offset_in_rename_range = MultiBufferOffset(tail_offset_in_rename_range);
@@ -175,7 +175,7 @@ impl Editor {
                     });
                     cx.subscribe(&rename_editor, |_, _, e: &EditorEvent, cx| {
                         if e == &EditorEvent::Focused {
-                            cx.emit(EditorEvent::FocusedIn)
+                            cx.emit(EditorEvent::FocusedIn);
                         }
                     })
                     .detach();
@@ -285,10 +285,9 @@ impl Editor {
                 &editor,
                 workspace,
                 project_transaction,
-                format!("Rename: {} → {}", old_name, new_name),
+                format!("Rename: {old_name} → {new_name}"),
                 cx,
-            )
-            .await?;
+            )?;
 
             editor.update(cx, |editor, cx| {
                 editor.refresh_document_highlights(cx);
@@ -326,7 +325,7 @@ impl Editor {
             drop(snapshot);
 
             self.change_selections(SelectionEffects::no_scroll(), window, cx, |s| {
-                s.select_ranges(vec![cursor_in_editor..cursor_in_editor])
+                s.select_ranges(vec![cursor_in_editor..cursor_in_editor]);
             });
         } else {
             self.refresh_document_highlights(cx);
@@ -541,7 +540,7 @@ impl Editor {
                         cx,
                     );
                 });
-            })
+            });
         }
     }
 

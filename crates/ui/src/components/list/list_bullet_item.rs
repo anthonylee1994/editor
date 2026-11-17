@@ -38,7 +38,7 @@ impl ListBulletItem {
 
 impl ParentElement for ListBulletItem {
     fn extend(&mut self, elements: impl IntoIterator<Item = AnyElement>) {
-        self.children.extend(elements)
+        self.children.extend(elements);
     }
 }
 
@@ -61,15 +61,15 @@ impl RenderOnce for ListBulletItem {
                             .child(Icon::new(IconName::Dash).size(IconSize::XSmall).color(Color::Hidden)),
                     )
                     .map(|this| {
-                        if !self.children.is_empty() {
-                            this.child(h_flex().gap_0p5().flex_wrap().children(self.children))
-                        } else {
+                        if self.children.is_empty() {
                             this.child(
                                 div()
                                     .w_full()
                                     .min_w_0()
                                     .child(Label::new(self.label).color(self.label_color.unwrap_or(Color::Default))),
                             )
+                        } else {
+                            this.child(h_flex().gap_0p5().flex_wrap().children(self.children))
                         }
                     }),
             )

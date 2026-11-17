@@ -171,7 +171,7 @@ impl Workspace {
         }
 
         if focus_center {
-            self.active_pane.update(cx, |pane, cx| window.focus(&pane.focus_handle(cx), cx))
+            self.active_pane.update(cx, |pane, cx| window.focus(&pane.focus_handle(cx), cx));
         }
 
         cx.notify();
@@ -258,7 +258,7 @@ impl Workspace {
         if let Some(item) = self.active_item(cx) {
             item.item_focus_handle(cx).focus(window, cx);
         } else {
-            log::error!("Could not find a focus target when switching focus to the center panes",);
+            log::error!("Could not find a focus target when switching focus to the center panes");
         }
     }
 
@@ -294,7 +294,7 @@ impl Workspace {
                 });
 
                 if focus_center {
-                    self.active_pane.update(cx, |pane, cx| window.focus(&pane.focus_handle(cx), cx))
+                    self.active_pane.update(cx, |pane, cx| window.focus(&pane.focus_handle(cx), cx));
                 }
 
                 result_panel = panel;
@@ -334,9 +334,9 @@ impl Workspace {
         for dock in &self.all_docks() {
             dock.update(cx, |dock, cx| {
                 if dock.panel::<T>().is_some() {
-                    dock.set_open(false, window, cx)
+                    dock.set_open(false, window, cx);
                 }
-            })
+            });
         }
     }
 
@@ -372,7 +372,7 @@ impl Workspace {
         }
 
         if focus_center {
-            self.active_pane.update(cx, |pane, cx| window.focus(&pane.focus_handle(cx), cx))
+            self.active_pane.update(cx, |pane, cx| window.focus(&pane.focus_handle(cx), cx));
         }
 
         if self.zoomed_position != dock_to_reveal {
@@ -404,7 +404,7 @@ impl Workspace {
         self.right_dock.read_with(cx, |right_dock, cx| {
             let right_dock_size = right_dock.stored_active_panel_size(window, cx).unwrap_or(Pixels::ZERO);
             if right_dock_size + size > workspace_width {
-                size = workspace_width - right_dock_size
+                size = workspace_width - right_dock_size;
             }
         });
 
@@ -419,7 +419,7 @@ impl Workspace {
         self.left_dock.read_with(cx, |left_dock, cx| {
             let left_dock_size = left_dock.stored_active_panel_size(window, cx).unwrap_or(Pixels::ZERO);
             if left_dock_size + size > workspace_width {
-                size = workspace_width - left_dock_size
+                size = workspace_width - left_dock_size;
             }
         });
         self.right_dock.update(cx, |right_dock, cx| {

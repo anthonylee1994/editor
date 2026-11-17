@@ -72,7 +72,7 @@ impl<'de> serde::Deserialize<'de> for FontFeatures {
 
                 while let Some((key, value)) = access.next_entry::<String, Option<FeatureValue>>()? {
                     if !is_valid_feature_tag(&key) {
-                        log::error!("Incorrect font feature tag: {}", key);
+                        log::error!("Incorrect font feature tag: {key}");
                         continue;
                     }
                     if let Some(value) = value {
@@ -88,8 +88,7 @@ impl<'de> serde::Deserialize<'de> for FontFeatures {
                                 if value.is_u64() {
                                     feature_list.push((key, value.as_u64().unwrap() as u32));
                                 } else {
-                                    log::error!("Incorrect font feature value {} for feature tag {}", value, key);
-                                    continue;
+                                    log::error!("Incorrect font feature value {value} for feature tag {key}");
                                 }
                             }
                         }

@@ -110,7 +110,7 @@ where
                         Some(&items[entry.index()])
                     }
                 }
-                _ => unreachable!(),
+                Node::Internal { .. } => unreachable!(),
             }
         } else {
             None
@@ -129,7 +129,7 @@ where
                         Some(&item_summaries[entry.index()])
                     }
                 }
-                _ => unreachable!(),
+                Node::Internal { .. } => unreachable!(),
             }
         } else {
             None
@@ -145,7 +145,7 @@ where
             } else {
                 match *entry.tree.0 {
                     Node::Leaf { ref items, .. } => Some(&items[entry.index() + 1]),
-                    _ => unreachable!(),
+                    Node::Internal { .. } => unreachable!(),
                 }
             }
         } else if self.at_end {
@@ -179,7 +179,7 @@ where
             } else {
                 match *entry.tree.0 {
                     Node::Leaf { ref items, .. } => Some(&items[entry.index() - 1]),
-                    _ => unreachable!(),
+                    Node::Internal { .. } => unreachable!(),
                 }
             }
         } else if self.at_end {
@@ -206,7 +206,7 @@ where
 
     #[track_caller]
     pub fn prev(&mut self) {
-        self.search_backward(|_| true)
+        self.search_backward(|_| true);
     }
 
     #[track_caller]
@@ -246,9 +246,8 @@ where
                 if entry.index() == 0 {
                     self.stack.pop();
                     continue;
-                } else {
-                    entry.index -= 1;
                 }
+                entry.index -= 1;
             }
 
             for summary in &entry.tree.0.child_summaries()[..entry.index()] {
@@ -281,7 +280,7 @@ where
 
     #[track_caller]
     pub fn next(&mut self) {
-        self.search_forward(|_| true)
+        self.search_forward(|_| true);
     }
 
     #[track_caller]
@@ -313,11 +312,10 @@ where
                             let next_summary = &child_summaries[entry.index()];
                             if filter_node(next_summary) {
                                 break;
-                            } else {
-                                entry.index += 1;
-                                entry.position.add_summary(next_summary, self.cx);
-                                self.position.add_summary(next_summary, self.cx);
                             }
+                            entry.index += 1;
+                            entry.position.add_summary(next_summary, self.cx);
+                            self.position.add_summary(next_summary, self.cx);
                         }
 
                         child_trees.get(entry.index())
@@ -334,11 +332,10 @@ where
                             if let Some(next_item_summary) = item_summaries.get(entry.index()) {
                                 if filter_node(next_item_summary) {
                                     return;
-                                } else {
-                                    entry.index += 1;
-                                    entry.position.add_summary(next_item_summary, self.cx);
-                                    self.position.add_summary(next_item_summary, self.cx);
                                 }
+                                entry.index += 1;
+                                entry.position.add_summary(next_item_summary, self.cx);
+                                self.position.add_summary(next_item_summary, self.cx);
                             } else {
                                 break None;
                             }
@@ -437,7 +434,7 @@ where
         bias: Bias,
         aggregate: &mut dyn SeekAggregate<'a, T>,
     ) -> bool {
-        assert!(target.cmp(&self.position, self.cx).is_ge(), "cannot seek backward",);
+        assert!(target.cmp(&self.position, self.cx).is_ge(), "cannot seek backward");
 
         if !self.did_seek {
             self.did_seek = true;
@@ -544,9 +541,8 @@ impl<'a, T: Item> Iterator for Iter<'a, T> {
 
                         if let Some(next_item) = items.get(entry.index()) {
                             return Some(next_item);
-                        } else {
-                            None
                         }
+                        None
                     }
                 }
             };

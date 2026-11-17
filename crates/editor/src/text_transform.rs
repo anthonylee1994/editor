@@ -232,7 +232,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.rotate_selections(window, cx, false)
+        self.rotate_selections(window, cx, false);
     }
 
     pub fn rotate_selections_backward(
@@ -241,7 +241,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.rotate_selections(window, cx, true)
+        self.rotate_selections(window, cx, true);
     }
 
     fn rotate_selections(&mut self, window: &mut Window, cx: &mut Context<Self>, reverse: bool) {
@@ -377,23 +377,23 @@ impl Editor {
     }
 
     pub fn convert_to_upper_case(&mut self, _: &ConvertToUpperCase, window: &mut Window, cx: &mut Context<Self>) {
-        self.manipulate_text(window, cx, |text| text.to_uppercase())
+        self.manipulate_text(window, cx, |text| text.to_uppercase());
     }
 
     pub fn convert_to_lower_case(&mut self, _: &ConvertToLowerCase, window: &mut Window, cx: &mut Context<Self>) {
-        self.manipulate_text(window, cx, |text| text.to_lowercase())
+        self.manipulate_text(window, cx, |text| text.to_lowercase());
     }
 
     pub fn convert_to_title_case(&mut self, _: &ConvertToTitleCase, window: &mut Window, cx: &mut Context<Self>) {
-        self.manipulate_text(window, cx, |text| Self::convert_text_case(text, Case::Title))
+        self.manipulate_text(window, cx, |text| Self::convert_text_case(text, Case::Title));
     }
 
     pub fn convert_to_snake_case(&mut self, _: &ConvertToSnakeCase, window: &mut Window, cx: &mut Context<Self>) {
-        self.manipulate_text(window, cx, |text| Self::convert_text_case(text, Case::Snake))
+        self.manipulate_text(window, cx, |text| Self::convert_text_case(text, Case::Snake));
     }
 
     pub fn convert_to_kebab_case(&mut self, _: &ConvertToKebabCase, window: &mut Window, cx: &mut Context<Self>) {
-        self.manipulate_text(window, cx, |text| Self::convert_text_case(text, Case::Kebab))
+        self.manipulate_text(window, cx, |text| Self::convert_text_case(text, Case::Kebab));
     }
 
     pub fn convert_to_upper_camel_case(
@@ -402,7 +402,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.manipulate_text(window, cx, |text| Self::convert_text_case(text, Case::UpperCamel))
+        self.manipulate_text(window, cx, |text| Self::convert_text_case(text, Case::UpperCamel));
     }
 
     pub fn convert_to_lower_camel_case(
@@ -411,7 +411,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.manipulate_text(window, cx, |text| Self::convert_text_case(text, Case::Camel))
+        self.manipulate_text(window, cx, |text| Self::convert_text_case(text, Case::Camel));
     }
 
     pub fn convert_to_opposite_case(&mut self, _: &ConvertToOppositeCase, window: &mut Window, cx: &mut Context<Self>) {
@@ -424,18 +424,18 @@ impl Editor {
                 }
                 t
             })
-        })
+        });
     }
 
     pub fn convert_to_sentence_case(&mut self, _: &ConvertToSentenceCase, window: &mut Window, cx: &mut Context<Self>) {
-        self.manipulate_text(window, cx, |text| Self::convert_text_case(text, Case::Sentence))
+        self.manipulate_text(window, cx, |text| Self::convert_text_case(text, Case::Sentence));
     }
 
     pub fn toggle_case(&mut self, _: &ToggleCase, window: &mut Window, cx: &mut Context<Self>) {
         self.manipulate_text(window, cx, |text| {
             let has_upper_case_characters = text.chars().any(|c| c.is_uppercase());
             if has_upper_case_characters { text.to_lowercase() } else { text.to_uppercase() }
-        })
+        });
     }
 
     pub fn convert_to_rot13(&mut self, _: &ConvertToRot13, window: &mut Window, cx: &mut Context<Self>) {
@@ -447,7 +447,7 @@ impl Editor {
                     _ => c,
                 })
                 .collect()
-        })
+        });
     }
 
     fn convert_text_case(text: &str, case: Case) -> String {
@@ -473,12 +473,12 @@ impl Editor {
                     c
                 })
                 .collect()
-        })
+        });
     }
 
     pub fn convert_to_base64(&mut self, _: &ConvertToBase64, window: &mut Window, cx: &mut Context<Self>) {
         use base64::Engine as _;
-        self.manipulate_text(window, cx, |text| STANDARD.encode(text))
+        self.manipulate_text(window, cx, |text| STANDARD.encode(text));
     }
 
     pub fn convert_from_base64(&mut self, _: &ConvertFromBase64, window: &mut Window, cx: &mut Context<Self>) {
@@ -486,7 +486,7 @@ impl Editor {
         self.manipulate_text(window, cx, |text| match STANDARD.decode(text) {
             Ok(bytes) => String::from_utf8(bytes).unwrap_or_else(|_| text.to_string()),
             Err(_) => text.to_string(),
-        })
+        });
     }
 
     fn manipulate_text<Fn>(&mut self, window: &mut Window, cx: &mut Context<Self>, mut callback: Fn)

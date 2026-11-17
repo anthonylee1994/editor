@@ -211,8 +211,8 @@ impl<D: PickerDelegate> Picker<D> {
                 .w_full()
                 .p_2()
                 .overflow_hidden()
-                .when(is_wide_window, |this| this.max_w_96())
-                .when(!is_wide_window, |this| this.max_w_48())
+                .when(is_wide_window, gpui::Styled::max_w_96)
+                .when(!is_wide_window, gpui::Styled::max_w_48)
                 .child((aside.render)(cx))
         };
 

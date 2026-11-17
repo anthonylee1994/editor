@@ -24,7 +24,7 @@ pub(crate) fn delete(path: PathBuf) -> Result<TrashItem, Error> {
 
     // Without a resulting URL the item is trashed but can't be restored;
     // restoring then reports it as no longer in the trash.
-    let id = trashed_url.and_then(|url| url.path()).map(|path| OsString::from(path.to_string())).unwrap_or_default();
+    let id = trashed_url.and_then(|url| url.path()).map_or_default(|path| OsString::from(path.to_string()));
     Ok(TrashItem {
         id,
         name: path.file_name().expect("trashed paths are canonical and have a file name").to_owned(),

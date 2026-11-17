@@ -648,7 +648,7 @@ pub fn init(cx: &mut App) {
     cx.on_action(move |_: &workspace::NewFile, cx| {
         let app_state = workspace::AppState::global(cx);
         workspace::open_new(workspace::OpenOptions::default(), app_state, cx, |workspace, window, cx| {
-            Editor::new_file(workspace, &workspace::NewFile, window, cx)
+            Editor::new_file(workspace, &workspace::NewFile, window, cx);
         })
         .detach_and_log_err(cx);
     })
@@ -656,7 +656,7 @@ pub fn init(cx: &mut App) {
         let app_state = workspace::AppState::global(cx);
         workspace::open_new(workspace::OpenOptions::default(), app_state, cx, |workspace, window, cx| {
             cx.activate(true);
-            Editor::new_file(workspace, &workspace::NewFile, window, cx)
+            Editor::new_file(workspace, &workspace::NewFile, window, cx);
         })
         .detach_and_log_err(cx);
     });
@@ -873,23 +873,23 @@ impl MinimapVisibility {
         if mode.is_full() { MinimapVisibility::Enabled { visible: true } } else { MinimapVisibility::Disabled }
     }
 
-    const fn hidden(&self) -> MinimapVisibility {
-        match *self {
+    const fn hidden(self) -> MinimapVisibility {
+        match self {
             MinimapVisibility::Enabled { .. } => MinimapVisibility::Enabled { visible: false },
             MinimapVisibility::Disabled => MinimapVisibility::Disabled,
         }
     }
 
-    const fn disabled(&self) -> bool {
-        matches!(*self, MinimapVisibility::Disabled)
+    const fn disabled(self) -> bool {
+        matches!(self, MinimapVisibility::Disabled)
     }
 
-    const fn visible(&self) -> bool {
-        matches!(*self, MinimapVisibility::Enabled { visible: true })
+    const fn visible(self) -> bool {
+        matches!(self, MinimapVisibility::Enabled { visible: true })
     }
 
-    const fn toggle_visibility(&self) -> MinimapVisibility {
-        match *self {
+    const fn toggle_visibility(self) -> MinimapVisibility {
+        match self {
             MinimapVisibility::Enabled { visible } => MinimapVisibility::Enabled { visible: !visible },
             MinimapVisibility::Disabled => MinimapVisibility::Disabled,
         }
@@ -987,7 +987,7 @@ impl ChangeList {
         if let Some(last) = self.changes.last_mut()
             && group
         {
-            last.current = Some(new_positions)
+            last.current = Some(new_positions);
         } else {
             self.changes.push(ChangeLocation { original: new_positions, current: None });
         }
@@ -1276,7 +1276,7 @@ enum NextScrollCursorCenterTopBottom {
 }
 
 impl NextScrollCursorCenterTopBottom {
-    const fn next(&self) -> Self {
+    const fn next(self) -> Self {
         match self {
             Self::Center => Self::Top,
             Self::Top => Self::Bottom,
@@ -1834,14 +1834,12 @@ impl Editor {
                         if snapshot.buffer_id() == *id && focus_handle.is_focused(window) {
                             for (range, snippet) in snippet_edits {
                                 let buffer_range = language::range_from_lsp(*range).to_offset(&snapshot);
-                                editor
-                                    .insert_snippet(
-                                        &[MultiBufferOffset(buffer_range.start)..MultiBufferOffset(buffer_range.end)],
-                                        snippet.clone(),
-                                        window,
-                                        cx,
-                                    )
-                                    .ok();
+                                editor.insert_snippet(
+                                    &[MultiBufferOffset(buffer_range.start)..MultiBufferOffset(buffer_range.end)],
+                                    snippet.clone(),
+                                    window,
+                                    cx,
+                                );
                             }
                         }
                     }
@@ -1878,7 +1876,7 @@ impl Editor {
                                         new_project_path.clone(),
                                         new_abs_path.clone().into(),
                                     );
-                                })
+                                });
                             });
                         });
 
@@ -2079,7 +2077,9 @@ impl Editor {
             gutter_hover_button: (None, None),
             gutter_copied_row: (None, None),
             hovered_diff_hunk_row: None,
-            _subscriptions: if !is_minimap {
+            _subscriptions: if is_minimap {
+                Vec::default()
+            } else {
                 {
                     vec![
                         cx.observe(&multi_buffer, Self::on_buffer_changed),
@@ -2089,8 +2089,6 @@ impl Editor {
                         observe_buffer_font_size_adjustment(cx, |_, cx| cx.notify()),
                     ]
                 }
-            } else {
-                Vec::default()
             },
             runnables: RunnableData::new(),
             lsp_data_tasks: FxHashMap::default(),
@@ -2162,16 +2160,13 @@ impl Editor {
                 EditorEvent::Edited { .. } => {
                     let display_map = editor.display_snapshot(cx);
                     let selections = editor.selections.all_adjusted_display(&display_map);
-                    let pop_state = editor
-                        .change_list
-                        .last()
-                        .map(|previous| {
-                            previous.len() == selections.len()
-                                && previous.iter().enumerate().all(|(ix, p)| {
-                                    p.to_display_point(&display_map).row() == selections[ix].head().row()
-                                })
-                        })
-                        .unwrap_or(false);
+                    let pop_state = editor.change_list.last().is_some_and(|previous| {
+                        previous.len() == selections.len()
+                            && previous
+                                .iter()
+                                .enumerate()
+                                .all(|(ix, p)| p.to_display_point(&display_map).row() == selections[ix].head().row())
+                    });
                     let new_positions = selections
                         .into_iter()
                         .map(|s| display_map.display_point_to_anchor(s.head(), Bias::Left))
@@ -2260,7 +2255,7 @@ impl Editor {
             }
             Some(CodeContextMenu::CodeActions(menu)) if menu.visible() => {
                 key_context.add("menu");
-                key_context.add("showing_code_actions")
+                key_context.add("showing_code_actions");
             }
             _ => {}
         }
@@ -2445,7 +2440,7 @@ impl Editor {
         &mut self,
         f: impl 'static + Fn(&mut Self, DisplayPoint, &mut Window, &mut Context<Self>) -> Option<Entity<ui::ContextMenu>>,
     ) {
-        self.custom_context_menu = Some(Box::new(f))
+        self.custom_context_menu = Some(Box::new(f));
     }
 
     pub fn semantics_provider(&self) -> Option<Rc<dyn SemanticsProvider>> {
@@ -2649,7 +2644,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.update_selection_mode(&modifiers, position_map, window, cx);
+        self.update_selection_mode(modifiers, position_map, window, cx);
 
         let mouse_position = window.mouse_position();
         if !position_map.text_hitbox.is_hovered(window) {
@@ -2667,12 +2662,12 @@ impl Editor {
             modifiers,
             window,
             cx,
-        )
+        );
     }
 
     /// Columnar selection mode for a mouse gesture: shift+cmd/ctrl selects from the mouse,
     /// shift+alt extends from the current selection.
-    const fn columnar_selection_mode(modifiers: &Modifiers) -> Option<ColumnarMode> {
+    const fn columnar_selection_mode(modifiers: Modifiers) -> Option<ColumnarMode> {
         if modifiers.shift && modifiers.number_of_modifiers() == 2 {
             if modifiers.secondary() {
                 Some(ColumnarMode::FromMouse)
@@ -2688,7 +2683,7 @@ impl Editor {
 
     fn update_selection_mode(
         &mut self,
-        modifiers: &Modifiers,
+        modifiers: Modifiers,
         position_map: &PositionMap,
         window: &mut Window,
         cx: &mut Context<Self>,
@@ -2816,7 +2811,7 @@ impl Editor {
         let menu = menu.as_ref()?;
         if !menu.visible() {
             return None;
-        };
+        }
         self.style.as_ref().map(|style| menu.render(style, max_height_in_lines, window, cx))
     }
 
@@ -3166,7 +3161,7 @@ impl Editor {
         if self.display_map.read(cx).masked != masked {
             self.display_map.update(cx, |map, _| map.masked = masked);
         }
-        cx.notify()
+        cx.notify();
     }
 
     pub fn insert_uuid_v4(&mut self, _: &InsertUuidV4, window: &mut Window, cx: &mut Context<Self>) {
@@ -3357,9 +3352,9 @@ impl Editor {
                 let listener = listener.clone();
                 window.on_action(action_type, move |action, phase, window, cx| {
                     if phase == DispatchPhase::Bubble {
-                        listener(action, window, cx)
+                        listener(action, window, cx);
                     }
-                })
+                });
             }),
         );
 
@@ -3480,7 +3475,7 @@ impl Editor {
             },
         };
         if let Some(text_style_refinement) = &self.text_style_refinement {
-            text_style.refine(text_style_refinement)
+            text_style.refine(text_style_refinement);
         }
 
         let background = match self.mode {
@@ -3647,9 +3642,8 @@ impl<T: InvalidationRegion> InvalidationStack<T> {
 
             if all_selections_inside_invalidation_ranges {
                 break;
-            } else {
-                self.pop();
             }
+            self.pop();
         }
     }
 }
@@ -3888,21 +3882,21 @@ mod tests {
     #[test]
     fn columnar_selection_from_mouse_with_shift_and_secondary() {
         let modifiers = Modifiers { shift: true, ..Modifiers::secondary_key() };
-        assert!(matches!(Editor::columnar_selection_mode(&modifiers), Some(ColumnarMode::FromMouse)));
+        assert!(matches!(Editor::columnar_selection_mode(modifiers), Some(ColumnarMode::FromMouse)));
     }
 
     #[test]
     fn columnar_selection_from_selection_with_shift_and_alt() {
         let modifiers = Modifiers { shift: true, alt: true, ..Modifiers::default() };
-        assert!(matches!(Editor::columnar_selection_mode(&modifiers), Some(ColumnarMode::FromSelection)));
+        assert!(matches!(Editor::columnar_selection_mode(modifiers), Some(ColumnarMode::FromSelection)));
     }
 
     #[test]
     fn no_columnar_selection_without_shift_combo() {
-        assert!(Editor::columnar_selection_mode(&Modifiers { alt: true, ..Modifiers::default() }).is_none());
-        assert!(Editor::columnar_selection_mode(&Modifiers { shift: true, ..Modifiers::default() }).is_none());
+        assert!(Editor::columnar_selection_mode(Modifiers { alt: true, ..Modifiers::default() }).is_none());
+        assert!(Editor::columnar_selection_mode(Modifiers { shift: true, ..Modifiers::default() }).is_none());
         let three = Modifiers { shift: true, alt: true, control: true, ..Modifiers::default() };
-        assert!(Editor::columnar_selection_mode(&three).is_none());
+        assert!(Editor::columnar_selection_mode(three).is_none());
     }
 
     #[test]

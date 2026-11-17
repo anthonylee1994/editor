@@ -155,7 +155,7 @@ impl PathBuilder {
 
     /// Adds a polygon.
     pub fn add_polygon(&mut self, points: &[Point<Pixels>], closed: bool) {
-        let points = points.iter().copied().map(|p| p.into()).collect::<Vec<_>>();
+        let points = points.iter().copied().map(Into::into).collect::<Vec<_>>();
         self.raw.add_polygon(Polygon { points: points.as_ref(), closed });
     }
 
@@ -177,7 +177,7 @@ impl PathBuilder {
         if let Some(transform) = self.transform {
             self.transform = Some(transform.then_translate(Vector2D::new(to.x.0, to.y.0)));
         } else {
-            self.transform = Some(Transform::translation(to.x.0, to.y.0))
+            self.transform = Some(Transform::translation(to.x.0, to.y.0));
         }
     }
 
@@ -215,11 +215,11 @@ impl PathBuilder {
 
         match self.style {
             PathStyle::Stroke(options) => Self::tessellate_stroke(self.dash_array, &path, &options),
-            PathStyle::Fill(options) => Self::tessellate_fill(&path, &options),
+            PathStyle::Fill(options) => Self::tessellate_fill(&path, options),
         }
     }
 
-    fn tessellate_fill(path: &path::Path, options: &FillOptions) -> Result<Path<Pixels>, Error> {
+    fn tessellate_fill(path: &path::Path, options: FillOptions) -> Result<Path<Pixels>, Error> {
         // Will contain the result of the tessellation.
         let mut buf: VertexBuffers<math::Point, u16> = VertexBuffers::new();
         let mut tessellator = FillTessellator::new();
@@ -227,7 +227,7 @@ impl PathBuilder {
         // Compute the tessellation.
         tessellator.tessellate_path(
             path,
-            options,
+            &options,
             &mut BuffersBuilder::new(&mut buf, |vertex: FillVertex| vertex.position()),
         )?;
 

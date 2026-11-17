@@ -142,61 +142,56 @@ impl MultiBufferSnapshot {
             }
 
             let mut position = diff_transforms.start().1;
-            match item {
-                Some(DiffTransform::DeletedHunk { buffer_id, base_text_byte_range, hunk_info, .. }) => {
-                    let base_text = self.diff_state(*buffer_id).map(|diff| diff.base_text());
-                    if let Some(diff_base_anchor) = anchor.diff_base_anchor
-                        && let Some(base_text) = base_text
-                        && base_text.can_resolve(&diff_base_anchor)
-                    {
-                        // The anchor carries a diff-base position — resolve it
-                        // to a location inside the deleted hunk.
-                        let base_text_offset = diff_base_anchor.to_offset(base_text);
-                        if base_text_offset >= base_text_byte_range.start
-                            && base_text_offset <= base_text_byte_range.end
-                        {
-                            let position_in_hunk = base_text.text_summary_for_range::<MBD::TextDimension, _>(
-                                base_text_byte_range.start..base_text_offset,
-                            );
-                            position.0.add_text_dim(&position_in_hunk);
-                        } else if at_transform_end && base_text_offset > base_text_byte_range.end {
-                            // diff_base offset falls outside this hunk's range;
-                            // advance to see if the next transform is a better fit.
-                            diff_transforms.next();
-                            continue;
-                        }
-                    } else {
-                        let departed_base_sorts_after =
-                            anchor.diff_base_anchor.zip(base_text).is_some_and(|(diff_base_anchor, base_text)| {
-                                diff_base_anchor.buffer_id > base_text.buffer_id()
-                            });
-                        if at_transform_end
-                            && (departed_base_sorts_after
-                                || anchor.text_anchor().cmp(&hunk_info.hunk_start_anchor, excerpt_buffer).is_gt())
-                        {
-                            diff_transforms.next();
-                            continue;
-                        }
+            if let Some(DiffTransform::DeletedHunk { buffer_id, base_text_byte_range, hunk_info, .. }) = item {
+                let base_text = self.diff_state(*buffer_id).map(|diff| diff.base_text());
+                if let Some(diff_base_anchor) = anchor.diff_base_anchor
+                    && let Some(base_text) = base_text
+                    && base_text.can_resolve(&diff_base_anchor)
+                {
+                    // The anchor carries a diff-base position — resolve it
+                    // to a location inside the deleted hunk.
+                    let base_text_offset = diff_base_anchor.to_offset(base_text);
+                    if base_text_offset >= base_text_byte_range.start && base_text_offset <= base_text_byte_range.end {
+                        let position_in_hunk = base_text.text_summary_for_range::<MBD::TextDimension, _>(
+                            base_text_byte_range.start..base_text_offset,
+                        );
+                        position.0.add_text_dim(&position_in_hunk);
+                    } else if at_transform_end && base_text_offset > base_text_byte_range.end {
+                        // diff_base offset falls outside this hunk's range;
+                        // advance to see if the next transform is a better fit.
+                        diff_transforms.next();
+                        continue;
                     }
-                }
-                _ => {
-                    // On a BufferContent (or no transform). If the anchor
-                    // carries a diff_base_anchor it needs a DeletedHunk, so
-                    // advance to find one.
+                } else {
+                    let departed_base_sorts_after =
+                        anchor.diff_base_anchor.zip(base_text).is_some_and(|(diff_base_anchor, base_text)| {
+                            diff_base_anchor.buffer_id > base_text.buffer_id()
+                        });
                     if at_transform_end
-                        && (anchor.diff_base_anchor.is_some()
-                            || matches!(
-                                diff_transforms.next_item(),
-                                Some(DiffTransform::DeletedHunk { buffer_id, .. })
-                                    if *buffer_id == anchor.text_anchor.buffer_id
-                            ))
+                        && (departed_base_sorts_after
+                            || anchor.text_anchor().cmp(&hunk_info.hunk_start_anchor, excerpt_buffer).is_gt())
                     {
                         diff_transforms.next();
                         continue;
                     }
-                    let overshoot = excerpt_position - diff_transforms.start().0;
-                    position += overshoot;
                 }
+            } else {
+                // On a BufferContent (or no transform). If the anchor
+                // carries a diff_base_anchor it needs a DeletedHunk, so
+                // advance to find one.
+                if at_transform_end
+                    && (anchor.diff_base_anchor.is_some()
+                        || matches!(
+                            diff_transforms.next_item(),
+                            Some(DiffTransform::DeletedHunk { buffer_id, .. })
+                                if *buffer_id == anchor.text_anchor.buffer_id
+                        ))
+                {
+                    diff_transforms.next();
+                    continue;
+                }
+                let overshoot = excerpt_position - diff_transforms.start().0;
+                position += overshoot;
             }
 
             return position.0;
@@ -446,7 +441,7 @@ impl MultiBufferSnapshot {
             }
         } else {
             excerpt_offset += MultiBufferOffset(offset_in_transform);
-        };
+        }
 
         let mut excerpts = self.excerpts.cursor::<Dimensions<ExcerptOffset, ExcerptSummary>>(());
         excerpts.seek(&excerpt_offset, Bias::Right);

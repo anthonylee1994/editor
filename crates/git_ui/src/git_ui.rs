@@ -304,7 +304,7 @@ pub fn init(cx: &mut App) {
             };
             panel.update(cx, |panel, cx| {
                 panel.uncommit(window, cx);
-            })
+            });
         });
         workspace.register_action(|workspace, _action: &git::Init, window, cx| {
             let Some(panel) = workspace.panel::<git_panel::GitPanel>(cx) else {
@@ -345,7 +345,7 @@ pub fn init(cx: &mut App) {
         workspace.register_action(|workspace, action: &DiffClipboardWithSelectionData, window, cx| {
             if let Some(task) = TextDiffView::open(action, workspace, window, cx) {
                 task.detach();
-            };
+            }
         });
     })
     .detach();
@@ -437,7 +437,7 @@ impl RenameBranchModal {
         let current_branch = self.current_branch.to_string();
         cx.spawn(async move |_, cx| {
             match repo.update(cx, |repo, _| repo.rename_branch(current_branch, new_name.clone())).await {
-                Ok(Ok(_)) => Ok(()),
+                Ok(Ok(())) => Ok(()),
                 Ok(Err(error)) => Err(error),
                 Err(_) => Err(anyhow!("Operation was canceled")),
             }
@@ -1130,7 +1130,7 @@ mod remote_button {
         let should_render_counts = left_icon.is_none() && (ahead_count > 0 || behind_count > 0);
         let is_in_progress = in_progress_operation.is_some();
 
-        let left = ButtonLike::new_rounded_left(format!("split-button-left-{}", id))
+        let left = ButtonLike::new_rounded_left(format!("split-button-left-{id}"))
             .layer(ElevationIndex::ModalSurface)
             .size(ButtonSize::Compact)
             .disabled(is_in_progress)
@@ -1175,7 +1175,7 @@ mod remote_button {
                 }
             });
 
-        let right = render_git_action_menu(format!("split-button-right-{}", id), keybinding_target, menu_handle)
+        let right = render_git_action_menu(format!("split-button-right-{id}"), keybinding_target, menu_handle)
             .into_any_element();
 
         SplitButton::new(left, right)

@@ -69,7 +69,7 @@ impl ProjectPanel {
         new_path.push(RelPath::from_unix_str(&source_file_name).unwrap());
 
         let (extension, file_name_without_extension) = if source_entry.is_file() {
-            (new_path.extension().map(|s| s.to_string()), new_path.file_stem()?.to_string())
+            (new_path.extension().map(ToString::to_string), new_path.file_stem()?.to_string())
         } else {
             (None, source_file_name)
         };
@@ -82,7 +82,7 @@ impl ProjectPanel {
             while worktree.entry_for_path(&new_path).is_some() {
                 new_path.pop();
 
-                let mut new_file_name = file_name_without_extension.to_string();
+                let mut new_file_name = file_name_without_extension.clone();
 
                 let disambiguation = " copy";
                 let mut disambiguation_len = disambiguation.len();
@@ -90,7 +90,7 @@ impl ProjectPanel {
                 new_file_name.push_str(disambiguation);
 
                 if ix > 0 {
-                    let extra_disambiguation = format!(" {}", ix);
+                    let extra_disambiguation = format!(" {ix}");
                     disambiguation_len += extra_disambiguation.len();
                     new_file_name.push_str(&extra_disambiguation);
                 }

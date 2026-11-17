@@ -79,7 +79,7 @@ impl Svg {
         let mut hasher = DefaultHasher::new();
         data.hash(&mut hasher);
         let hash = hasher.finish();
-        let path = SharedString::from(format!("__binary_svg__{}", hash));
+        let path = SharedString::from(format!("__binary_svg__{hash}"));
         self.data = Some(Arc::from(data));
         self.data_path = Some(path);
         self
@@ -162,7 +162,7 @@ impl Element for Svg {
                         .log_err();
                 }
             } else if let Some((path, color)) = self.external_path.as_ref().zip(style.text.color) {
-                let Some(bytes) = window.use_asset::<SvgAsset>(path, cx).and_then(|asset| asset.log_err()) else {
+                let Some(bytes) = window.use_asset::<SvgAsset>(path, cx).and_then(gpui_util::ResultExt::log_err) else {
                     return;
                 };
 
@@ -172,7 +172,7 @@ impl Element for Svg {
             } else if let Some((path, color)) = self.path.as_ref().zip(style.text.color) {
                 window.paint_svg_sprite(bounds, path.clone(), None, transformation, animation, color, cx).log_err();
             }
-        })
+        });
     }
 }
 

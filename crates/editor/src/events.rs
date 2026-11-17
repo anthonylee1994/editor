@@ -77,7 +77,7 @@ impl Editor {
                 self.refresh_runnables(None, window, cx);
                 self.refresh_spell_check(cx);
                 self.refresh_selected_text_highlights(&self.display_snapshot(cx), true, window, cx);
-                self.semantic_token_state.invalidate_buffer(&buffer_id);
+                self.semantic_token_state.invalidate_buffer(buffer_id);
                 cx.emit(EditorEvent::BufferRangesUpdated {
                     buffer: buffer.clone(),
                     ranges: ranges.clone(),
@@ -93,7 +93,7 @@ impl Editor {
                 for buffer_id in removed_buffer_ids {
                     self.registered_buffers.remove(buffer_id);
                     self.clear_runnables(Some(*buffer_id));
-                    self.semantic_token_state.invalidate_buffer(buffer_id);
+                    self.semantic_token_state.invalidate_buffer(*buffer_id);
                     self.lsp_document_symbols.remove(buffer_id);
                     self.lsp_document_links.per_buffer.remove(buffer_id);
                     self.display_map.update(cx, |display_map, cx| {
@@ -167,13 +167,13 @@ impl Editor {
                 cx.notify();
             }
             multi_buffer::Event::Reloaded | multi_buffer::Event::BufferDiffChanged => {
-                cx.emit(EditorEvent::TitleChanged)
+                cx.emit(EditorEvent::TitleChanged);
             }
             multi_buffer::Event::DiagnosticsUpdated => {
                 self.update_diagnostics_state(window, cx);
             }
-            _ => {}
-        };
+            multi_buffer::Event::TransactionUndone { .. } => {}
+        }
     }
 
     pub(super) fn on_display_map_changed(&mut self, _: Entity<DisplayMap>, _: &mut Window, cx: &mut Context<Self>) {
@@ -193,7 +193,7 @@ impl Editor {
             window.focus(&descendant, cx);
         } else {
             if let Some(blame) = self.blame.as_ref() {
-                blame.update(cx, GitBlame::focus)
+                blame.update(cx, GitBlame::focus);
             }
 
             self.blink_manager.update(cx, BlinkManager::enable);
@@ -222,7 +222,7 @@ impl Editor {
     }
 
     pub(super) fn handle_focus_in(&mut self, _: &mut Window, cx: &mut Context<Self>) {
-        cx.emit(EditorEvent::FocusedIn)
+        cx.emit(EditorEvent::FocusedIn);
     }
 
     pub(super) fn handle_focus_out(&mut self, event: FocusOutEvent, _window: &mut Window, _cx: &mut Context<Self>) {
@@ -236,7 +236,7 @@ impl Editor {
         self.blink_manager.update(cx, BlinkManager::disable);
 
         if let Some(blame) = self.blame.as_ref() {
-            blame.update(cx, GitBlame::blur)
+            blame.update(cx, GitBlame::blur);
         }
         if !self.hover_state.focused(window, cx) {
             hide_hover(self, cx);

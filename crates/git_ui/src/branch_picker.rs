@@ -122,7 +122,7 @@ pub fn open(workspace: &mut Workspace, _: &ed_actions::git::Branch, window: &mut
 
     workspace.toggle_modal(window, cx, |window, cx| {
         BranchList::new(workspace_handle, repository, BranchListStyle::Modal, rems(34.), window, cx)
-    })
+    });
 }
 
 pub fn popover(
@@ -292,10 +292,9 @@ impl BranchList {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
-        let all_branches = repository
-            .as_ref()
-            .map(|repo| process_branches(&repo.read(cx).branch_list, !branch_selection_behavior.is_select_only()))
-            .unwrap_or_default();
+        let all_branches = repository.as_ref().map_or_default(|repo| {
+            process_branches(&repo.read(cx).branch_list, !branch_selection_behavior.is_select_only())
+        });
         let branch_list_error = repository.as_ref().and_then(|repo| repo.read(cx).branch_list_error.clone());
 
         let default_branch_request = repository
@@ -387,7 +386,7 @@ impl BranchList {
         self.picker.update(cx, |picker, cx| {
             picker.delegate.modifiers = ev.modifiers;
             cx.notify();
-        })
+        });
     }
 
     pub fn handle_delete(&mut self, _: &branch_picker::DeleteBranch, window: &mut Window, cx: &mut Context<Self>) {
@@ -395,8 +394,8 @@ impl BranchList {
             if picker.delegate.is_select_only() {
                 return;
             }
-            picker.delegate.delete_at(picker.delegate.selected_index, false, window, cx)
-        })
+            picker.delegate.delete_at(picker.delegate.selected_index, false, window, cx);
+        });
     }
 
     pub fn handle_force_delete(
@@ -409,8 +408,8 @@ impl BranchList {
             if picker.delegate.is_select_only() {
                 return;
             }
-            picker.delegate.delete_at(picker.delegate.selected_index, true, window, cx)
-        })
+            picker.delegate.delete_at(picker.delegate.selected_index, true, window, cx);
+        });
     }
 
     pub(crate) fn set_branch_filter(&self, branch_filter: BranchFilter, window: &mut Window, cx: &mut Context<Self>) {
@@ -479,7 +478,7 @@ impl Render for BranchList {
                         }
                         this.picker.update(cx, |this, cx| {
                             this.cancel(&menu::Cancel, window, cx);
-                        })
+                        });
                     })
                 })
             })
@@ -821,7 +820,7 @@ fn sort_branch_entries(matches: &mut [Entry], branch_selection_context: Option<&
             return (true, 4);
         };
 
-        let priority = branch_selection_context.map(|context| context.priority(branch)).unwrap_or(0);
+        let priority = branch_selection_context.map_or(0, |context| context.priority(branch));
         (branch.is_remote() != selected_branch_is_remote, priority)
     });
 }
@@ -1013,7 +1012,7 @@ impl BranchListDelegate {
                             delete_branch_command(is_remote, entry.name(), attempted_force),
                             error,
                             cx,
-                        )
+                        );
                     })?;
                 }
 
@@ -1219,11 +1218,11 @@ impl PickerDelegate for BranchListDelegate {
                 .update(cx, |picker, _| {
                     if let PickerState::CreateRemote(url) = &picker.delegate.state {
                         let query = normalize_branch_name(&query);
-                        if !query.is_empty() {
+                        if query.is_empty() {
+                            picker.delegate.matches = Vec::new();
+                        } else {
                             picker.delegate.matches =
                                 vec![Entry::NewRemoteName { name: query.clone(), url: url.clone() }];
-                        } else {
-                            picker.delegate.matches = Vec::new();
                         }
                         picker.delegate.selected_index = 0;
                         picker.delegate.last_query = query;
@@ -1495,7 +1494,7 @@ impl PickerDelegate for BranchListDelegate {
                                             .as_ref()
                                             .and_then(|repo| repo.read(cx).branch.as_ref().map(|b| b.name()))
                                         {
-                                            format!("Based off {}", current_branch)
+                                            format!("Based off {current_branch}")
                                         } else {
                                             "Based off the current branch".to_string()
                                         }

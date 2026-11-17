@@ -393,7 +393,7 @@ impl TabSnapshot {
         }
 
         let left_over_char_bytes =
-            if !cursor.is_char_boundary() { cursor.bytes_until_next_char().unwrap_or(0) as u32 } else { 0 };
+            if cursor.is_char_boundary() { 0 } else { cursor.bytes_until_next_char().unwrap_or(0) as u32 };
 
         let collapsed_bytes = cursor.byte_offset() + left_over_char_bytes;
         let expanded_bytes = cursor.byte_offset() + *expanded_tab_len - *tab_count + left_over_char_bytes;
@@ -429,12 +429,10 @@ impl TabSnapshot {
                     Bias::Left => (cursor.byte_offset() - 1, expanded_chars, expanded_bytes - column),
                     Bias::Right => (cursor.byte_offset(), expanded_chars, 0),
                 };
-            } else {
-                // otherwise we only want to move the cursor collapse column forward
-                collapsed_column = collapsed_column - tab_len + 1;
-                seek_target =
-                    (collapsed_column - cursor.byte_offset).min(self.max_expansion_column - cursor.byte_offset);
             }
+            // otherwise we only want to move the cursor collapse column forward
+            collapsed_column = collapsed_column - tab_len + 1;
+            seek_target = (collapsed_column - cursor.byte_offset).min(self.max_expansion_column - cursor.byte_offset);
         }
 
         let collapsed_bytes = cursor.byte_offset();
@@ -469,31 +467,27 @@ impl TabPointCursor<'_> {
         let row = point.row();
         let end_column = point.column().min(snapshot.max_expansion_column);
 
-        let cursor = match &mut self.tab_stop_cursor {
-            Some(cursor) => {
-                let can_continue = !self.needs_seek && !cursor.crossed_newline;
-                if !(can_continue && row == self.row && end_column >= cursor.byte_offset) {
-                    // Scanning over the rows in between is cheaper than seeking
-                    // the fold chunks, as long as the target row is nearby.
-                    let advanced =
-                        can_continue && row > self.row && cursor.advance_rows(row - self.row, self.max_scan_chunks);
-                    if !advanced {
-                        let row_start = FoldPoint::new(row, 0).to_offset(&snapshot.fold_snapshot);
-                        cursor.seek_to(row_start..snapshot.fold_snapshot.len());
-                    }
-                    self.tab_count = 0;
-                    self.expanded_tab_len = 0;
-                    self.needs_seek = false;
+        let cursor = if let Some(cursor) = &mut self.tab_stop_cursor {
+            let can_continue = !self.needs_seek && !cursor.crossed_newline;
+            if !(can_continue && row == self.row && end_column >= cursor.byte_offset) {
+                // Scanning over the rows in between is cheaper than seeking
+                // the fold chunks, as long as the target row is nearby.
+                let advanced =
+                    can_continue && row > self.row && cursor.advance_rows(row - self.row, self.max_scan_chunks);
+                if !advanced {
+                    let row_start = FoldPoint::new(row, 0).to_offset(&snapshot.fold_snapshot);
+                    cursor.seek_to(row_start..snapshot.fold_snapshot.len());
                 }
-                cursor
-            }
-            None => {
                 self.tab_count = 0;
                 self.expanded_tab_len = 0;
                 self.needs_seek = false;
-                self.tab_stop_cursor
-                    .insert(TabStopCursor::new(snapshot.fold_snapshot.chunks_at(FoldPoint::new(row, 0))))
             }
+            cursor
+        } else {
+            self.tab_count = 0;
+            self.expanded_tab_len = 0;
+            self.needs_seek = false;
+            self.tab_stop_cursor.insert(TabStopCursor::new(snapshot.fold_snapshot.chunks_at(FoldPoint::new(row, 0))))
         };
         self.row = row;
 
@@ -781,17 +775,16 @@ impl<'a> TabStopCursor<'a> {
         let mut rows_remaining = row_delta;
         let mut chunks_remaining = max_chunks;
         loop {
-            let (mut chunk, chunk_position) = match self.current_chunk.take() {
-                Some(current_chunk) => current_chunk,
-                None => {
-                    if chunks_remaining == 0 {
-                        return false;
-                    }
-                    chunks_remaining -= 1;
-                    match self.chunks.next() {
-                        Some(chunk) => (TabStopChunk::new(chunk), 0),
-                        None => return false,
-                    }
+            let (mut chunk, chunk_position) = if let Some(current_chunk) = self.current_chunk.take() {
+                current_chunk
+            } else {
+                if chunks_remaining == 0 {
+                    return false;
+                }
+                chunks_remaining -= 1;
+                match self.chunks.next() {
+                    Some(chunk) => (TabStopChunk::new(chunk), 0),
+                    None => return false,
                 }
             };
 

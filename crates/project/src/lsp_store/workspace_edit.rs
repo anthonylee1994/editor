@@ -166,7 +166,7 @@ impl LocalLspStore {
         if let Some(document_changes) = edit.document_changes {
             match document_changes {
                 lsp::DocumentChanges::Edits(edits) => {
-                    operations.extend(edits.into_iter().map(lsp::DocumentChangeOperation::Edit))
+                    operations.extend(edits.into_iter().map(lsp::DocumentChangeOperation::Edit));
                 }
                 lsp::DocumentChanges::Operations(ops) => operations = ops,
             }
@@ -193,12 +193,10 @@ impl LocalLspStore {
                     } else {
                         fs.create_file(
                             &abs_path,
-                            op.options
-                                .map(|options| fs::CreateOptions {
-                                    overwrite: options.overwrite.unwrap_or(false),
-                                    ignore_if_exists: options.ignore_if_exists.unwrap_or(false),
-                                })
-                                .unwrap_or_default(),
+                            op.options.map_or_default(|options| fs::CreateOptions {
+                                overwrite: options.overwrite.unwrap_or(false),
+                                ignore_if_exists: options.ignore_if_exists.unwrap_or(false),
+                            }),
                         )
                         .await?;
                     }
@@ -262,13 +260,10 @@ impl LocalLspStore {
 
                 lsp::DocumentChangeOperation::Op(lsp::ResourceOp::Delete(op)) => {
                     let abs_path = op.uri.to_file_path().map_err(|()| anyhow!("can't convert URI to path"))?;
-                    let options = op
-                        .options
-                        .map(|options| fs::RemoveOptions {
-                            recursive: options.recursive.unwrap_or(false),
-                            ignore_if_not_exists: options.ignore_if_not_exists.unwrap_or(false),
-                        })
-                        .unwrap_or_default();
+                    let options = op.options.map_or_default(|options| fs::RemoveOptions {
+                        recursive: options.recursive.unwrap_or(false),
+                        ignore_if_not_exists: options.ignore_if_not_exists.unwrap_or(false),
+                    });
                     if abs_path.ends_with("/") {
                         fs.remove_dir(&abs_path, options).await?;
                     } else {
@@ -304,12 +299,12 @@ impl LocalLspStore {
                                 match edit {
                                     Edit::Plain(edit) => {
                                         if !edits.contains(&edit) {
-                                            edits.push(edit)
+                                            edits.push(edit);
                                         }
                                     }
                                     Edit::Annotated(edit) => {
                                         if !edits.contains(&edit.text_edit) {
-                                            edits.push(edit.text_edit)
+                                            edits.push(edit.text_edit);
                                         }
                                     }
                                     Edit::Snippet(edit) => {

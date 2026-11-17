@@ -141,7 +141,6 @@ use terminals::Terminals;
 use text::Anchor;
 use text::BufferId;
 use text::Rope;
-use util::ResultExt as _;
 use util::paths::SanitizedPath;
 use util::rel_path::RelPath;
 use worktree::CreatedEntry;
@@ -476,7 +475,7 @@ impl CompletionSource {
                     || default_insert_text_mode.is_some()
                 {
                     if completion_with_defaults.commit_characters.is_none() && default_commit_characters.is_some() {
-                        completion_with_defaults.commit_characters = default_commit_characters.cloned()
+                        completion_with_defaults.commit_characters = default_commit_characters.cloned();
                     }
                     if completion_with_defaults.text_edit.is_none() {
                         match default_edit_range {
@@ -485,7 +484,7 @@ impl CompletionSource {
                                     Some(lsp::CompletionTextEdit::Edit(lsp::TextEdit {
                                         range: *range,
                                         new_text: completion_with_defaults.label.clone(),
-                                    }))
+                                    }));
                             }
                             Some(lsp::CompletionListItemDefaultsEditRange::InsertAndReplace { insert, replace }) => {
                                 completion_with_defaults.text_edit =
@@ -493,16 +492,16 @@ impl CompletionSource {
                                         new_text: completion_with_defaults.label.clone(),
                                         insert: *insert,
                                         replace: *replace,
-                                    }))
+                                    }));
                             }
                             None => {}
                         }
                     }
                     if completion_with_defaults.insert_text_format.is_none() && default_insert_text_format.is_some() {
-                        completion_with_defaults.insert_text_format = default_insert_text_format.copied()
+                        completion_with_defaults.insert_text_format = default_insert_text_format.copied();
                     }
                     if completion_with_defaults.insert_text_mode.is_none() && default_insert_text_mode.is_some() {
-                        completion_with_defaults.insert_text_mode = default_insert_text_mode.copied()
+                        completion_with_defaults.insert_text_mode = default_insert_text_mode.copied();
                     }
                 }
                 return Some(Cow::Owned(completion_with_defaults));
@@ -594,9 +593,7 @@ impl LspAction {
         match self {
             Self::Action(action) => &action.title,
             Self::Command(command) => &command.title,
-            Self::CodeLens(lens) => {
-                lens.command.as_ref().map(|command| command.title.as_str()).unwrap_or("Unknown command")
-            }
+            Self::CodeLens(lens) => lens.command.as_ref().map_or("Unknown command", |command| command.title.as_str()),
         }
     }
 
@@ -801,11 +798,13 @@ impl DirectoryLister {
             .next()
             .map(|worktree| worktree.read(cx).abs_path().to_string_lossy().into_owned())
             .or_else(|| env::home_dir().map(|dir| dir.to_string_lossy().into_owned()))
-            .map(|mut s| {
-                s.push('/');
-                s
-            })
-            .unwrap_or_else(|| "~/".to_string())
+            .map_or_else(
+                || "~/".to_string(),
+                |mut s| {
+                    s.push('/');
+                    s
+                },
+            )
     }
 
     pub fn list_directory(&self, path: String, cx: &mut App) -> Task<Result<Vec<DirectoryItem>>> {
@@ -1048,8 +1047,7 @@ impl Project {
     #[inline]
     pub fn entry_is_worktree_root(&self, entry_id: ProjectEntryId, cx: &App) -> bool {
         self.worktree_for_entry(entry_id, cx)
-            .map(|worktree| worktree.read(cx).root_entry().is_some_and(|e| e.id == entry_id))
-            .unwrap_or(false)
+            .is_some_and(|worktree| worktree.read(cx).root_entry().is_some_and(|e| e.id == entry_id))
     }
 
     #[inline]
@@ -1080,7 +1078,7 @@ impl Project {
                 if is_subpath && worktree.is_path_ignored(&relative_path) {
                     return None;
                 }
-                let is_dir = worktree.entry_for_path(&relative_path).is_some_and(|e| e.is_dir());
+                let is_dir = worktree.entry_for_path(&relative_path).is_some_and(worktree::Entry::is_dir);
                 let contains = !is_dir || !is_subpath;
                 contains.then(|| worktree.is_visible())
             })
@@ -1319,7 +1317,7 @@ impl Project {
         cx.spawn(async move |_project, cx| {
             let buffer = task.await?;
             let project_entry_id = buffer
-                .read_with(cx, |buffer, _cx| File::from_dyn(buffer.file()).and_then(|file| file.project_entry_id()));
+                .read_with(cx, |buffer, _cx| File::from_dyn(buffer.file()).and_then(worktree::File::project_entry_id));
 
             Ok((project_entry_id, buffer))
         })
@@ -1439,15 +1437,13 @@ impl Project {
         self.buffer_store.read(cx).get_by_path(path)
     }
 
-    fn register_buffer(&mut self, buffer: &Entity<Buffer>, cx: &mut Context<Self>) -> Result<()> {
+    fn register_buffer(&mut self, buffer: &Entity<Buffer>, cx: &mut Context<Self>) {
         self.request_buffer_diff_recalculation(buffer, cx);
 
         cx.subscribe(buffer, |this, buffer, event, cx| {
             this.on_buffer_event(buffer, event, cx);
         })
         .detach();
-
-        Ok(())
     }
 
     pub fn open_image(
@@ -1479,7 +1475,7 @@ impl Project {
 
     fn on_buffer_store_event(&mut self, _: Entity<BufferStore>, event: &BufferStoreEvent, cx: &mut Context<Self>) {
         if let BufferStoreEvent::BufferAdded(buffer) = event {
-            self.register_buffer(buffer, cx).log_err();
+            self.register_buffer(buffer, cx);
         }
     }
 
@@ -1497,14 +1493,14 @@ impl Project {
     fn on_lsp_store_event(&mut self, _: Entity<LspStore>, event: &LspStoreEvent, cx: &mut Context<Self>) {
         match event {
             LspStoreEvent::DiagnosticsUpdated { server_id, paths } => {
-                cx.emit(Event::DiagnosticsUpdated { paths: paths.clone(), language_server_id: *server_id })
+                cx.emit(Event::DiagnosticsUpdated { paths: paths.clone(), language_server_id: *server_id });
             }
             LspStoreEvent::LanguageServerAdded(server_id, name, worktree_id) => {
-                cx.emit(Event::LanguageServerAdded(*server_id, name.clone(), *worktree_id))
+                cx.emit(Event::LanguageServerAdded(*server_id, name.clone(), *worktree_id));
             }
             LspStoreEvent::LanguageServerRemoved(server_id) => cx.emit(Event::LanguageServerRemoved(*server_id)),
             LspStoreEvent::LanguageServerLog(server_id, log_type, string) => {
-                cx.emit(Event::LanguageServerLog(*server_id, log_type.clone(), string.clone()))
+                cx.emit(Event::LanguageServerLog(*server_id, log_type.clone(), string.clone()));
             }
             LspStoreEvent::LanguageDetected { buffer, new_language } => {
                 let Some(_) = new_language else {
@@ -1513,30 +1509,30 @@ impl Project {
                 };
             }
             LspStoreEvent::RefreshInlayHints { server_id } => {
-                cx.emit(Event::RefreshInlayHints { server_id: *server_id })
+                cx.emit(Event::RefreshInlayHints { server_id: *server_id });
             }
             LspStoreEvent::RefreshSemanticTokens { server_id } => {
-                cx.emit(Event::RefreshSemanticTokens { server_id: *server_id })
+                cx.emit(Event::RefreshSemanticTokens { server_id: *server_id });
             }
             LspStoreEvent::RefreshCodeLens { server_id } => cx.emit(Event::RefreshCodeLens { server_id: *server_id }),
             LspStoreEvent::RefreshDocumentColors { server_id } => {
-                cx.emit(Event::RefreshDocumentColors { server_id: *server_id })
+                cx.emit(Event::RefreshDocumentColors { server_id: *server_id });
             }
             LspStoreEvent::RefreshDocumentLinks { server_id } => {
-                cx.emit(Event::RefreshDocumentLinks { server_id: *server_id })
+                cx.emit(Event::RefreshDocumentLinks { server_id: *server_id });
             }
             LspStoreEvent::RefreshDocumentHighlights { server_id } => {
-                cx.emit(Event::RefreshDocumentHighlights { server_id: *server_id })
+                cx.emit(Event::RefreshDocumentHighlights { server_id: *server_id });
             }
             LspStoreEvent::RefreshFoldingRanges { server_id } => {
-                cx.emit(Event::RefreshFoldingRanges { server_id: *server_id })
+                cx.emit(Event::RefreshFoldingRanges { server_id: *server_id });
             }
             LspStoreEvent::RefreshDocumentSymbols { server_id } => {
-                cx.emit(Event::RefreshDocumentSymbols { server_id: *server_id })
+                cx.emit(Event::RefreshDocumentSymbols { server_id: *server_id });
             }
             LspStoreEvent::LanguageServerPrompt(prompt) => cx.emit(Event::LanguageServerPrompt(prompt.clone())),
             LspStoreEvent::LanguageServerShowDocument(request) => {
-                cx.emit(Event::LanguageServerShowDocument(request.clone()))
+                cx.emit(Event::LanguageServerShowDocument(request.clone()));
             }
             LspStoreEvent::DiskBasedDiagnosticsStarted { language_server_id } => {
                 cx.emit(Event::DiskBasedDiagnosticsStarted { language_server_id: *language_server_id });
@@ -1557,11 +1553,11 @@ impl Project {
             }),
             LspStoreEvent::LanguageServerStatus { .. } | LspStoreEvent::PendingWorkUpdated => {}
             LspStoreEvent::Notification(message) => {
-                cx.emit(Event::Toast { notification_id: "lsp".into(), message: message.clone(), link: None })
+                cx.emit(Event::Toast { notification_id: "lsp".into(), message: message.clone(), link: None });
             }
             LspStoreEvent::SnippetEdit { buffer_id, edits } => cx.emit(Event::SnippetEdit(*buffer_id, edits.clone())),
             LspStoreEvent::WorkspaceEditApplied(transaction) => {
-                cx.emit(Event::WorkspaceEditApplied(transaction.clone()))
+                cx.emit(Event::WorkspaceEditApplied(transaction.clone()));
             }
         }
     }
@@ -1589,7 +1585,7 @@ impl Project {
                 }
             }
             WorktreeStoreEvent::WorktreeDeletedEntry(worktree_id, id) => {
-                cx.emit(Event::DeletedEntry(*worktree_id, *id))
+                cx.emit(Event::DeletedEntry(*worktree_id, *id));
             }
             // Listen to the GitStore instead.
             WorktreeStoreEvent::WorktreeUpdatedGitRepositories(_, _) => {}
@@ -1664,7 +1660,7 @@ impl Project {
         new_language: Arc<Language>,
         cx: &mut Context<Self>,
     ) {
-        self.lsp_store.update(cx, |lsp_store, cx| lsp_store.set_language_for_buffer(buffer, new_language, cx))
+        self.lsp_store.update(cx, |lsp_store, cx| lsp_store.set_language_for_buffer(buffer, new_language, cx));
     }
 
     pub fn restart_language_servers_for_buffers(
@@ -1674,8 +1670,8 @@ impl Project {
         cx: &mut Context<Self>,
     ) {
         self.lsp_store.update(cx, |lsp_store, cx| {
-            lsp_store.restart_language_servers_for_buffers(buffers, only_restart_servers, cx)
-        })
+            lsp_store.restart_language_servers_for_buffers(buffers, only_restart_servers, cx);
+        });
     }
 
     pub fn stop_language_servers_for_buffers(
@@ -1694,7 +1690,7 @@ impl Project {
         buffers: impl IntoIterator<Item = Entity<Buffer>>,
         cx: &mut Context<Self>,
     ) {
-        self.lsp_store.update(cx, |lsp_store, cx| lsp_store.cancel_language_server_work_for_buffers(buffers, cx))
+        self.lsp_store.update(cx, |lsp_store, cx| lsp_store.cancel_language_server_work_for_buffers(buffers, cx));
     }
 
     pub fn cancel_language_server_work(
@@ -1703,7 +1699,8 @@ impl Project {
         token_to_cancel: Option<ProgressToken>,
         cx: &mut Context<Self>,
     ) {
-        self.lsp_store.update(cx, |lsp_store, cx| lsp_store.cancel_language_server_work(server_id, token_to_cancel, cx))
+        self.lsp_store
+            .update(cx, |lsp_store, cx| lsp_store.cancel_language_server_work(server_id, token_to_cancel, cx));
     }
 
     pub fn language_server_statuses<'a>(
@@ -1926,7 +1923,7 @@ impl Project {
             }
         }
         let server_to_query =
-            request.language_server_id.map(LanguageServerToQuery::Other).unwrap_or(LanguageServerToQuery::FirstCapable);
+            request.language_server_id.map_or(LanguageServerToQuery::FirstCapable, LanguageServerToQuery::Other);
         self.request_lsp(buffer, server_to_query, request, cx)
     }
 
@@ -2019,7 +2016,7 @@ impl Project {
         buffer: &Entity<Buffer>,
         cx: &mut Context<Self>,
     ) -> Task<Option<ResolvedPath>> {
-        if Path::new(path).has_root() || path.starts_with("~") {
+        if Path::new(path).has_root() || path.starts_with('~') {
             self.resolve_abs_path(path, cx)
         } else {
             self.resolve_path_in_worktrees(path, buffer, cx)
@@ -2030,7 +2027,7 @@ impl Project {
         let resolve_task = self.resolve_abs_path(path, cx);
         cx.background_spawn(async move {
             let resolved_path = resolve_task.await;
-            resolved_path.filter(|path| path.is_file())
+            resolved_path.filter(ResolvedPath::is_file)
         })
     }
 
@@ -2473,14 +2470,14 @@ impl<'a> fuzzy::PathMatchCandidateSet<'a> for PathMatchCandidateSet {
         }
     }
     fn prefix(&self) -> Arc<RelPath> {
-        if self.snapshot.root_entry().is_some_and(|e| e.is_file()) || self.include_root_name {
+        if self.snapshot.root_entry().is_some_and(worktree::Entry::is_file) || self.include_root_name {
             self.snapshot.root_name().into()
         } else {
             RelPath::empty_arc()
         }
     }
     fn root_is_file(&self) -> bool {
-        self.snapshot.root_entry().is_some_and(|f| f.is_file())
+        self.snapshot.root_entry().is_some_and(worktree::Entry::is_file)
     }
     fn candidates(&'a self, start: usize) -> Self::Candidates {
         PathMatchCandidateSetIter {
@@ -2528,21 +2525,21 @@ impl ResolvedPath {
     pub fn abs_path(&self) -> Option<&str> {
         match self {
             Self::AbsPath { path, .. } => Some(path),
-            _ => None,
+            Self::ProjectPath { .. } => None,
         }
     }
 
     pub fn into_abs_path(self) -> Option<String> {
         match self {
             Self::AbsPath { path, .. } => Some(path),
-            _ => None,
+            Self::ProjectPath { .. } => None,
         }
     }
 
     pub const fn project_path(&self) -> Option<&ProjectPath> {
         match self {
             Self::ProjectPath { project_path, .. } => Some(project_path),
-            _ => None,
+            Self::AbsPath { .. } => None,
         }
     }
 
@@ -2564,7 +2561,7 @@ impl ProjectItem for Buffer {
     }
 
     fn entry_id(&self, _cx: &App) -> Option<ProjectEntryId> {
-        File::from_dyn(self.file()).and_then(|file| file.project_entry_id())
+        File::from_dyn(self.file()).and_then(worktree::File::project_entry_id)
     }
 
     fn project_path(&self, cx: &App) -> Option<ProjectPath> {

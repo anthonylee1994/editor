@@ -85,7 +85,7 @@ enum Transform {
 impl sum_tree::Item for Transform {
     type Summary = TransformSummary;
 
-    fn summary(&self, _: ()) -> Self::Summary {
+    fn summary(&self, (): ()) -> Self::Summary {
         match self {
             Transform::Isomorphic(summary) => TransformSummary { input: *summary, output: *summary },
             Transform::Inlay(inlay) => TransformSummary {
@@ -182,7 +182,7 @@ impl<'a> sum_tree::Dimension<'a, TransformSummary> for InlayOffset {
         InlayOffset::default()
     }
 
-    fn add_summary(&mut self, summary: &'a TransformSummary, _: ()) {
+    fn add_summary(&mut self, summary: &'a TransformSummary, (): ()) {
         self.0 += summary.output.len;
     }
 }
@@ -211,7 +211,7 @@ impl<'a> sum_tree::Dimension<'a, TransformSummary> for InlayPoint {
         InlayPoint::default()
     }
 
-    fn add_summary(&mut self, summary: &'a TransformSummary, _: ()) {
+    fn add_summary(&mut self, summary: &'a TransformSummary, (): ()) {
         self.0 += &summary.output.lines;
     }
 }
@@ -221,7 +221,7 @@ impl<'a> sum_tree::Dimension<'a, TransformSummary> for MultiBufferOffset {
         MultiBufferOffset::default()
     }
 
-    fn add_summary(&mut self, summary: &'a TransformSummary, _: ()) {
+    fn add_summary(&mut self, summary: &'a TransformSummary, (): ()) {
         *self += summary.input.len;
     }
 }
@@ -231,7 +231,7 @@ impl<'a> sum_tree::Dimension<'a, TransformSummary> for Point {
         Point::default()
     }
 
-    fn add_summary(&mut self, summary: &'a TransformSummary, _: ()) {
+    fn add_summary(&mut self, summary: &'a TransformSummary, (): ()) {
         *self += &summary.input.lines;
     }
 }
@@ -404,7 +404,7 @@ impl<'a> Iterator for InlayChunks<'a> {
                     inlay_chunk.len()
                 } else if next_inlay_highlight_endpoint == 0 {
                     // Need to take at least one character to make progress
-                    inlay_chunk.chars().next().map(|c| c.len_utf8()).unwrap_or(1)
+                    inlay_chunk.chars().next().map_or(1, |c| c.len_utf8())
                 } else {
                     inlay_chunk.ceil_char_boundary(next_inlay_highlight_endpoint)
                 };
@@ -775,15 +775,13 @@ impl InlaySnapshot {
                         while let Some(Transform::Inlay(inlay)) = cursor.next_item() {
                             if inlay.position.bias() == Bias::Right {
                                 break;
-                            } else {
-                                cursor.next();
                             }
+                            cursor.next();
                         }
                         return cursor.end().1;
-                    } else {
-                        let overshoot = offset - cursor.start().0;
-                        return InlayOffset(cursor.start().1.0 + overshoot);
                     }
+                    let overshoot = offset - cursor.start().0;
+                    return InlayOffset(cursor.start().1.0 + overshoot);
                 }
                 Some(Transform::Inlay(inlay)) => {
                     if inlay.position.bias() == Bias::Left {
@@ -858,9 +856,8 @@ impl InlaySnapshot {
                         let clipped_point = InlayPoint(cursor.start().0.0 + clipped_overshoot);
                         if clipped_point == point {
                             return clipped_point;
-                        } else {
-                            point = clipped_point;
                         }
+                        point = clipped_point;
                     }
                 }
                 Some(Transform::Inlay(inlay)) => {
@@ -1080,15 +1077,13 @@ impl InlayPointCursor<'_> {
                         while let Some(Transform::Inlay(inlay)) = cursor.next_item() {
                             if bias == Bias::Left && inlay.position.bias() == Bias::Right {
                                 break;
-                            } else {
-                                cursor.next();
                             }
+                            cursor.next();
                         }
                         return cursor.end().1;
-                    } else {
-                        let overshoot = point - cursor.start().0;
-                        return InlayPoint(cursor.start().1.0 + overshoot);
                     }
+                    let overshoot = point - cursor.start().0;
+                    return InlayPoint(cursor.start().1.0 + overshoot);
                 }
                 Some(Transform::Inlay(inlay)) => {
                     if inlay.position.bias() == Bias::Left || bias == Bias::Right {

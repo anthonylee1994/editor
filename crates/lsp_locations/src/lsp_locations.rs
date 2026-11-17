@@ -610,9 +610,8 @@ impl PickerDelegate for LspLocationsDelegate {
                 Some(div().py(DynamicSpacing::Base04.rems()).child(Divider::horizontal()).into_any_element())
             }
             Entry::Header(path) => {
-                let file_name = path.path.file_name().map(|name| name.to_string()).unwrap_or_default();
-                let directory =
-                    path.path.parent().map(|parent| parent.display()).map(SharedString::new).unwrap_or_default();
+                let file_name = path.path.file_name().map_or_default(ToString::to_string);
+                let directory = path.path.parent().map(|x| x.display()).map_or_default(SharedString::new);
                 let file_icon = FileIcons::get_icon(path.path.as_std_path(), cx)
                     .map(|icon| Icon::from_path(icon).color(Color::Muted).size(IconSize::Small));
                 Some(

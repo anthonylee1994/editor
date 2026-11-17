@@ -905,11 +905,11 @@ impl Workspace {
                         }
 
                         cx.new(|_| notification)
-                    })
+                    });
                 }
 
                 project::Event::HideToast { notification_id } => {
-                    this.dismiss_notification(&NotificationId::named(notification_id.clone()), cx)
+                    this.dismiss_notification(&NotificationId::named(notification_id.clone()), cx);
                 }
 
                 project::Event::LanguageServerPrompt(request) => {
@@ -922,7 +922,7 @@ impl Workspace {
 
                 _ => {}
             }
-            cx.notify()
+            cx.notify();
         })
         .detach();
 
@@ -1102,9 +1102,9 @@ impl Workspace {
             let mut paths_to_open = Vec::with_capacity(abs_paths.len());
             for path in abs_paths {
                 if let Ok(canonical) = app_state.fs.canonicalize(&path).await {
-                    paths_to_open.push(canonical)
+                    paths_to_open.push(canonical);
                 } else {
-                    paths_to_open.push(path)
+                    paths_to_open.push(path);
                 }
             }
 
@@ -1130,7 +1130,7 @@ impl Workspace {
 
             let window_to_replace = match open_mode {
                 OpenMode::NewWindow => None,
-                _ => requesting_window,
+                OpenMode::Activate => requesting_window,
             };
 
             let (window, workspace): (WindowHandle<Workspace>, Entity<Workspace>) =
@@ -1307,11 +1307,11 @@ impl Workspace {
     }
 
     pub fn set_prompt_for_new_path(&mut self, prompt: PromptForNewPath) {
-        self.on_prompt_for_new_path = Some(prompt)
+        self.on_prompt_for_new_path = Some(prompt);
     }
 
     pub fn set_prompt_for_open_path(&mut self, prompt: PromptForOpenPath) {
-        self.on_prompt_for_open_path = Some(prompt)
+        self.on_prompt_for_open_path = Some(prompt);
     }
 
     pub fn set_terminal_provider(&mut self, provider: impl TerminalProvider + 'static) {
@@ -1526,7 +1526,7 @@ impl Workspace {
     }
 
     pub fn item_of_type<T: Item>(&self, cx: &App) -> Option<Entity<T>> {
-        self.items_of_type(cx).max_by_key(|item| item.item_id())
+        self.items_of_type(cx).max_by_key(item::ItemHandle::item_id)
     }
 
     pub fn items_of_type<'a, T: Item>(&'a self, cx: &'a App) -> impl 'a + Iterator<Item = Entity<T>> {
@@ -1581,7 +1581,7 @@ impl Workspace {
         cx: &mut Context<Self>,
     ) {
         if let Some(task) = self.close_all_internal(true, action.save_intent.unwrap_or(SaveIntent::Close), window, cx) {
-            task.detach_and_log_err(cx)
+            task.detach_and_log_err(cx);
         }
     }
 
@@ -1593,7 +1593,7 @@ impl Workspace {
     ) {
         if let Some(task) = self.close_all_internal(false, action.save_intent.unwrap_or(SaveIntent::Close), window, cx)
         {
-            task.detach_and_log_err(cx)
+            task.detach_and_log_err(cx);
         }
     }
 
@@ -1667,7 +1667,7 @@ impl Workspace {
                 pane.close_all_items(&CloseAllItems { save_intent: Some(save_intent), close_pinned: false }, window, cx)
             });
 
-            tasks.push(close_pane_items)
+            tasks.push(close_pane_items);
         }
 
         if tasks.is_empty() {
@@ -1675,7 +1675,7 @@ impl Workspace {
         } else {
             Some(cx.spawn_in(window, async move |_, _| {
                 for task in tasks {
-                    task.await?
+                    task.await?;
                 }
                 Ok(())
             }))
@@ -1773,7 +1773,7 @@ impl Workspace {
         let project = self.project().read(cx);
         let active_project_path = self.active_item(cx).and_then(|item| item.project_path(cx));
         let file_name = active_project_path.as_ref().and_then(|project_path| {
-            project_path.path.file_name().map(|file_name| file_name.to_string()).or_else(|| {
+            project_path.path.file_name().map(ToString::to_string).or_else(|| {
                 Some(project.worktree_for_id(project_path.worktree_id, cx)?.read(cx).root_name_str().to_string())
             })
         });
@@ -1851,7 +1851,7 @@ impl Workspace {
                     workspace
                         .update(cx, |workspace, cx| {
                             workspace.dirty_items.remove(&item_id);
-                            workspace.update_window_edited(window, cx)
+                            workspace.update_window_edited(window, cx);
                         })
                         .ok();
                 })
@@ -1939,7 +1939,7 @@ impl Workspace {
                 cx.listener(|workspace, _: &GoBack, window, cx| workspace.go_back(window, cx).detach_and_log_err(cx)),
             )
             .on_action(cx.listener(|workspace, _: &GoForward, window, cx| {
-                workspace.go_forward(window, cx).detach_and_log_err(cx)
+                workspace.go_forward(window, cx).detach_and_log_err(cx);
             }))
             .on_action(cx.listener(Self::close_inactive_items_and_panes))
             .on_action(cx.listener(Self::close_all_items_and_panes))
@@ -1990,7 +1990,7 @@ impl Workspace {
                 );
             }))
             .on_action(cx.listener(|workspace, _: &ActivatePreviousPane, window, cx| {
-                workspace.activate_previous_pane(window, cx)
+                workspace.activate_previous_pane(window, cx);
             }))
             .on_action(
                 cx.listener(|workspace, _: &ActivateNextPane, window, cx| workspace.activate_next_pane(window, cx)),
@@ -2005,39 +2005,35 @@ impl Workspace {
                 workspace.move_part_focus(false, window, cx);
             }))
             .on_action(cx.listener(|workspace, _: &ActivateNextWindow, _window, cx| workspace.activate_next_window(cx)))
-            .on_action(
-                cx.listener(|workspace, _: &ActivatePreviousWindow, _window, cx| {
-                    workspace.activate_previous_window(cx)
-                }),
-            )
+            .on_action(cx.listener(|workspace, _: &ActivatePreviousWindow, _window, cx| {
+                workspace.activate_previous_window(cx);
+            }))
             .on_action(cx.listener(|workspace, _: &ActivatePaneLeft, window, cx| {
-                workspace.activate_pane_in_direction(SplitDirection::Left, window, cx)
+                workspace.activate_pane_in_direction(SplitDirection::Left, window, cx);
             }))
             .on_action(cx.listener(|workspace, _: &ActivatePaneRight, window, cx| {
-                workspace.activate_pane_in_direction(SplitDirection::Right, window, cx)
+                workspace.activate_pane_in_direction(SplitDirection::Right, window, cx);
             }))
             .on_action(cx.listener(|workspace, _: &ActivatePaneUp, window, cx| {
-                workspace.activate_pane_in_direction(SplitDirection::Up, window, cx)
+                workspace.activate_pane_in_direction(SplitDirection::Up, window, cx);
             }))
             .on_action(cx.listener(|workspace, _: &ActivatePaneDown, window, cx| {
-                workspace.activate_pane_in_direction(SplitDirection::Down, window, cx)
+                workspace.activate_pane_in_direction(SplitDirection::Down, window, cx);
             }))
             .on_action(cx.listener(|workspace, action: &MoveItemToPaneInDirection, window, cx| {
-                workspace.move_item_to_pane_in_direction(action, window, cx)
+                workspace.move_item_to_pane_in_direction(action, window, cx);
             }))
             .on_action(cx.listener(|workspace, _: &SwapPaneLeft, _, cx| {
-                workspace.swap_pane_in_direction(SplitDirection::Left, cx)
+                workspace.swap_pane_in_direction(SplitDirection::Left, cx);
             }))
             .on_action(cx.listener(|workspace, _: &SwapPaneRight, _, cx| {
-                workspace.swap_pane_in_direction(SplitDirection::Right, cx)
+                workspace.swap_pane_in_direction(SplitDirection::Right, cx);
             }))
-            .on_action(
-                cx.listener(|workspace, _: &SwapPaneUp, _, cx| {
-                    workspace.swap_pane_in_direction(SplitDirection::Up, cx)
-                }),
-            )
+            .on_action(cx.listener(|workspace, _: &SwapPaneUp, _, cx| {
+                workspace.swap_pane_in_direction(SplitDirection::Up, cx);
+            }))
             .on_action(cx.listener(|workspace, _: &SwapPaneDown, _, cx| {
-                workspace.swap_pane_in_direction(SplitDirection::Down, cx)
+                workspace.swap_pane_in_direction(SplitDirection::Down, cx);
             }))
             .on_action(cx.listener(|workspace, _: &SwapPaneAdjacent, window, cx| {
                 const DIRECTION_PRIORITY: [SplitDirection; 4] =
@@ -2050,22 +2046,18 @@ impl Workspace {
                     }
                 }
             }))
-            .on_action(
-                cx.listener(|workspace, _: &MovePaneLeft, _, cx| {
-                    workspace.move_pane_to_border(SplitDirection::Left, cx)
-                }),
-            )
+            .on_action(cx.listener(|workspace, _: &MovePaneLeft, _, cx| {
+                workspace.move_pane_to_border(SplitDirection::Left, cx);
+            }))
             .on_action(cx.listener(|workspace, _: &MovePaneRight, _, cx| {
-                workspace.move_pane_to_border(SplitDirection::Right, cx)
+                workspace.move_pane_to_border(SplitDirection::Right, cx);
             }))
             .on_action(
                 cx.listener(|workspace, _: &MovePaneUp, _, cx| workspace.move_pane_to_border(SplitDirection::Up, cx)),
             )
-            .on_action(
-                cx.listener(|workspace, _: &MovePaneDown, _, cx| {
-                    workspace.move_pane_to_border(SplitDirection::Down, cx)
-                }),
-            )
+            .on_action(cx.listener(|workspace, _: &MovePaneDown, _, cx| {
+                workspace.move_pane_to_border(SplitDirection::Down, cx);
+            }))
             .on_action(cx.listener(|this, _: &ToggleLeftDock, window, cx| {
                 this.toggle_dock(DockPosition::Left, window, cx);
             }))
@@ -2267,7 +2259,7 @@ impl Workspace {
 
     fn add_workspace_actions_listeners(&self, mut div: Div, window: &mut Window, cx: &mut Context<Self>) -> Div {
         for action in &self.workspace_actions {
-            div = (action)(div, self, window, cx)
+            div = (action)(div, self, window, cx);
         }
         div
     }
@@ -2291,7 +2283,7 @@ impl Workspace {
     where
         B: FnOnce(&mut Window, &mut Context<V>) -> V,
     {
-        self.modal_layer.update(cx, |modal_layer, cx| modal_layer.toggle_modal(window, cx, build))
+        self.modal_layer.update(cx, |modal_layer, cx| modal_layer.toggle_modal(window, cx, build));
     }
 
     pub fn hide_modal(&mut self, window: &mut Window, cx: &mut App) -> bool {
@@ -2310,7 +2302,7 @@ impl Workspace {
     }
 
     pub fn toggle_status_toast<V: ToastView>(&mut self, entity: Entity<V>, cx: &mut App) {
-        self.toast_layer.update(cx, |toast_layer, cx| toast_layer.toggle_toast(cx, entity))
+        self.toast_layer.update(cx, |toast_layer, cx| toast_layer.toggle_toast(cx, entity));
     }
 
     pub fn toggle_editor_zoom(&mut self, _: &ToggleEditorZoom, window: &mut Window, cx: &mut Context<Self>) {
@@ -2345,7 +2337,7 @@ impl Workspace {
         // the dock itself as a fallback.
         fn dock_content_handle(dock: &Entity<Dock>, cx: &App) -> FocusHandle {
             let dock = dock.read(cx);
-            dock.active_panel().map(|panel| panel.activation_focus_handle(cx)).unwrap_or_else(|| dock.focus_handle(cx))
+            dock.active_panel().map_or_else(|| dock.focus_handle(cx), |panel| panel.activation_focus_handle(cx))
         }
 
         let dock_part = |dock: &Entity<Dock>| {
@@ -2363,7 +2355,7 @@ impl Workspace {
         let center_pane = self
             .last_active_center_pane
             .as_ref()
-            .and_then(|pane| pane.upgrade())
+            .and_then(gpui::WeakEntity::upgrade)
             .unwrap_or_else(|| self.center.first_pane());
         parts.push(FocusablePart::landmark(center_pane.read(cx).focus_handle(cx)));
 
@@ -2768,21 +2760,18 @@ pub fn with_active_or_new_workspace(
     cx: &mut App,
     f: impl FnOnce(&mut Workspace, &mut Window, &mut Context<Workspace>) + Send + 'static,
 ) {
-    match cx.active_window().and_then(|w| w.downcast::<Workspace>()) {
-        Some(workspace) => {
-            cx.defer(move |cx| {
-                workspace
-                    .update(cx, |workspace, window, cx| {
-                        f(workspace, window, cx);
-                    })
-                    .log_err();
-            });
-        }
-        None => {
-            let app_state = AppState::global(cx);
-            open_new(OpenOptions::default(), app_state, cx, move |workspace, window, cx| f(workspace, window, cx))
-                .detach_and_log_err(cx);
-        }
+    if let Some(workspace) = cx.active_window().and_then(|w| w.downcast::<Workspace>()) {
+        cx.defer(move |cx| {
+            workspace
+                .update(cx, |workspace, window, cx| {
+                    f(workspace, window, cx);
+                })
+                .log_err();
+        });
+    } else {
+        let app_state = AppState::global(cx);
+        open_new(OpenOptions::default(), app_state, cx, move |workspace, window, cx| f(workspace, window, cx))
+            .detach_and_log_err(cx);
     }
 }
 

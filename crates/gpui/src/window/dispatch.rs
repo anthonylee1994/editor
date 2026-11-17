@@ -70,9 +70,9 @@ impl PendingInputTimeoutStatus {
 
     /// Returns the duration remaining before pending input is flushed.
     pub fn remaining(&self, cx: &App) -> Duration {
-        self.started_at
-            .map(|started_at| self.remaining.saturating_sub(cx.background_executor().now() - started_at))
-            .unwrap_or(self.remaining)
+        self.started_at.map_or(self.remaining, |started_at| {
+            self.remaining.saturating_sub(cx.background_executor().now() - started_at)
+        })
     }
 }
 
@@ -190,9 +190,10 @@ impl Window {
     /// Return a key binding string for an action, to display in the UI. Uses the highest precedence
     /// binding for the action (last binding added to the keymap).
     pub fn keystroke_text_for(&self, action: &dyn Action) -> String {
-        self.highest_precedence_binding_for_action(action)
-            .map(|binding| binding.keystrokes().iter().map(ToString::to_string).collect::<Vec<_>>().join(" "))
-            .unwrap_or_else(|| action.name().to_string())
+        self.highest_precedence_binding_for_action(action).map_or_else(
+            || action.name().to_string(),
+            |binding| binding.keystrokes().iter().map(ToString::to_string).collect::<Vec<_>>().join(" "),
+        )
     }
 
     /// Dispatch a mouse or keyboard event on the window.
@@ -364,11 +365,11 @@ impl Window {
 
             if self.pending_modifier.modifiers.number_of_modifiers() == 0 && event.modifiers.number_of_modifiers() == 1
             {
-                self.pending_modifier.saw_other_input = false
+                self.pending_modifier.saw_other_input = false;
             } else if event.modifiers.number_of_modifiers() > 1 {
-                self.pending_modifier.saw_other_input = true
+                self.pending_modifier.saw_other_input = true;
             }
-            self.pending_modifier.modifiers = event.modifiers
+            self.pending_modifier.modifiers = event.modifiers;
         } else if let Some(key_down_event) = event.downcast_ref::<KeyDownEvent>() {
             self.pending_modifier.saw_other_input = true;
             keystroke = Some(key_down_event.keystroke.clone());
@@ -524,7 +525,7 @@ impl Window {
                     window.rendered_frame.dispatch_tree.flush_dispatch(currently_pending.keystrokes, &dispatch_path);
 
                 window.pending_input_changed(cx);
-                window.replay_pending_input(to_replay, cx)
+                window.replay_pending_input(to_replay, cx);
             })
             .log_err();
         });
@@ -747,11 +748,11 @@ impl Window {
             if !cx.propagate_event {
                 continue 'replay;
             }
-            if let Some(input) = replay.keystroke.key_char.as_ref().cloned()
+            if let Some(input) = replay.keystroke.key_char.clone()
                 && let Some(mut input_handler) = self.platform_window.take_input_handler()
             {
                 input_handler.dispatch_input(&input, self, cx);
-                self.platform_window.set_input_handler(input_handler)
+                self.platform_window.set_input_handler(input_handler);
             }
         }
     }

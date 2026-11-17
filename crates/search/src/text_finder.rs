@@ -70,7 +70,7 @@ impl TextFinder {
                 text_picker.picker.update(cx, |picker, cx| {
                     picker.cycle_selection(window, cx);
                 });
-            })
+            });
         });
     }
 

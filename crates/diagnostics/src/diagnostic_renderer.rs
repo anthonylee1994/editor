@@ -106,7 +106,7 @@ impl DiagnosticRenderer {
             markdown.push_str(message_markdown);
         } else {
             markdown.push_str(&Markdown::escape(diagnostic.message.as_str()));
-        };
+        }
         markdown
     }
 }
@@ -181,7 +181,7 @@ impl editor::DiagnosticRenderer for DiagnosticRenderer {
     }
 
     fn open_link(&self, editor: &mut Editor, link: SharedString, window: &mut Window, cx: &mut Context<Editor>) {
-        DiagnosticBlock::open_link(editor, &None, link, window, cx);
+        DiagnosticBlock::open_link(editor, None, link, window, cx);
     }
 }
 
@@ -238,7 +238,7 @@ impl DiagnosticBlock {
                             move |link, window, cx| {
                                 editor
                                     .update(cx, |editor, cx| {
-                                        Self::open_link(editor, &diagnostics_editor, link, window, cx)
+                                        Self::open_link(editor, diagnostics_editor.as_ref(), link, window, cx);
                                     })
                                     .ok();
                             }
@@ -251,7 +251,7 @@ impl DiagnosticBlock {
 
     pub fn open_link(
         editor: &mut Editor,
-        diagnostics_editor: &Option<Arc<dyn DiagnosticsEditor>>,
+        diagnostics_editor: Option<&Arc<dyn DiagnosticsEditor>>,
         link: SharedString,
         window: &mut Window,
         cx: &mut Context<Editor>,
@@ -288,7 +288,7 @@ impl DiagnosticBlock {
         } else if let Some(diagnostic) =
             editor.snapshot(window, cx).buffer_snapshot().diagnostic_group(buffer_id, group_id).nth(ix)
         {
-            Self::jump_to(editor, diagnostic.range, window, cx)
+            Self::jump_to(editor, diagnostic.range, window, cx);
         }
     }
 

@@ -154,7 +154,7 @@ impl ActivityIndicator {
                         activity_indicator.statuses.retain(|s| s.name != name);
                         activity_indicator.statuses.push(ServerStatus { name, status: status.clone() });
                     }
-                    cx.notify()
+                    cx.notify();
                 }
                 LspStoreEvent::PendingWorkUpdated
                 | LspStoreEvent::LanguageServerRegisteredForBuffer { .. }
@@ -171,7 +171,7 @@ impl ActivityIndicator {
 
             cx.subscribe(&project.read(cx).git_store().clone(), |_, _, event: &GitStoreEvent, cx| {
                 if matches!(event, GitStoreEvent::JobsUpdated) {
-                    cx.notify()
+                    cx.notify();
                 }
             })
             .detach();
@@ -336,7 +336,7 @@ impl ActivityIndicator {
                 let mut message = progress.title.clone().unwrap_or_else(|| progress_token.to_string());
 
                 if let Some(percentage) = progress.percentage {
-                    write!(&mut message, " ({}%)", percentage).unwrap();
+                    write!(&mut message, " ({percentage}%)").unwrap();
                 }
 
                 if let Some(progress_message) = progress.message.as_ref() {
@@ -346,7 +346,7 @@ impl ActivityIndicator {
 
                 let additional_work_count = pending_work.count();
                 if additional_work_count > 0 {
-                    write!(&mut message, " + {} more", additional_work_count).unwrap();
+                    write!(&mut message, " + {additional_work_count} more").unwrap();
                 }
 
                 return Some(Content {
@@ -362,7 +362,7 @@ impl ActivityIndicator {
             self.project.read(cx).active_repository(cx).map(|r| r.read(cx)).and_then(Repository::current_job);
         // Show any long-running git command
         if let Some(job_info) = current_job
-            && Instant::now() - job_info.start >= GIT_OPERATION_DELAY
+            && job_info.start.elapsed() >= GIT_OPERATION_DELAY
         {
             return Some(Content {
                 icon: ActivityIcon::LoadingSpinner,
@@ -421,7 +421,7 @@ impl ActivityIndicator {
                 icon: ActivityIcon::Icon(IconName::Warning),
                 message: format!(
                     "Failed to run {}. Click to show error.",
-                    failed.iter().map(|name| name.as_ref()).fold(String::new(), |mut acc, s| {
+                    failed.iter().map(AsRef::as_ref).fold(String::new(), |mut acc, s| {
                         if !acc.is_empty() {
                             acc.push_str(", ");
                         }
@@ -478,7 +478,7 @@ impl ActivityIndicator {
                 tooltip_message,
                 on_click: Some(Arc::new(move |activity_indicator, window, cx| {
                     if altered_message {
-                        activity_indicator.show_error_message(&ShowErrorMessage, window, cx)
+                        activity_indicator.show_error_message(&ShowErrorMessage, window, cx);
                     } else {
                         activity_indicator.statuses.retain(|status| status.name != server_name);
                         cx.notify();

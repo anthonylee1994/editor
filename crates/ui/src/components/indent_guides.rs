@@ -394,7 +394,7 @@ impl Element for IndentGuidesElement {
                             match (prev_hovered_hitbox_id, hovered_hitbox_id) {
                                 (Some(prev_id), Some(id)) => {
                                     if prev_id != id {
-                                        cx.notify(current_view)
+                                        cx.notify(current_view);
                                     }
                                 }
                                 (None, Some(_)) => cx.notify(current_view),
@@ -454,7 +454,7 @@ fn compute_indent_guides(
                     });
                 }
             }
-            _ => {}
+            Ordering::Equal => {}
         }
 
         for indent in &mut indent_stack {
@@ -466,8 +466,7 @@ fn compute_indent_guides(
 
     for guide in &mut indent_guides {
         if includes_trailing_indent && guide.offset.y + guide.length == offset + indents.len().saturating_sub(1) {
-            guide.continues_offscreen =
-                indents.last().map(|last_indent| guide.offset.x < *last_indent).unwrap_or(false);
+            guide.continues_offscreen = indents.last().is_some_and(|last_indent| guide.offset.x < *last_indent);
         }
     }
 

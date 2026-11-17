@@ -264,7 +264,7 @@ impl ServerTreeRebase {
             })
             .collect();
         let new_tree = LanguageServerTree::new(old_tree.manifest_tree.clone(), old_tree.languages.clone());
-        Self { old_contents, all_server_ids, new_tree }
+        Self { old_contents, new_tree, all_server_ids }
     }
 
     pub(crate) fn walk<'a>(

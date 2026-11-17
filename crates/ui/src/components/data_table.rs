@@ -590,7 +590,7 @@ pub fn render_table_row(
         .when(table_context.show_row_hover, |row| row.hover(|s| s.bg(cx.theme().colors().element_hover.opacity(0.6))));
 
     let pinned_cols = table_context.pinned_cols;
-    let column_filter = &table_context.column_filter;
+    let column_filter = table_context.column_filter.as_ref();
 
     // Only `Resizable` columns (independent absolute pixel widths) should leave the wrapper
     // hugging their combined width so the row border stops at the last column. Percentage
@@ -675,16 +675,16 @@ pub fn render_table_header(
     let column_widths =
         table_context.column_widths.map_or_else(|| vec![None; cols].into_table_row(cols), |widths| widths.map(Some));
 
-    let element_id = entity_id.map(|entity| entity.to_string()).unwrap_or_default();
+    let element_id = entity_id.map_or_default(|entity| entity.to_string());
 
-    let shared_element_id: SharedString = format!("table-{}", element_id).into();
+    let shared_element_id: SharedString = format!("table-{element_id}").into();
     let pinned_cols = table_context.pinned_cols;
 
     let outer = h_flex().py_1().w_full().border_b_1().border_color(cx.theme().colors().border_variant);
 
     let use_ui_font = table_context.use_ui_font;
     let resize_info_ref = resize_info.as_ref();
-    let column_filter = &table_context.column_filter;
+    let column_filter = table_context.column_filter.as_ref();
 
     if is_pinned_layout(pinned_cols, cols) {
         let headers_vec: Vec<AnyElement> = headers.into_vec().into_iter().map(IntoElement::into_any_element).collect();
@@ -813,8 +813,8 @@ impl TableRenderContext {
 }
 
 /// Returns `true` when the column at `col_idx` should be rendered (i.e. not filtered out).
-fn column_is_visible(filter: &Option<TableRow<bool>>, col_idx: usize) -> bool {
-    filter.as_ref().is_none_or(|mask| !mask.get(col_idx).copied().unwrap_or(false))
+fn column_is_visible(filter: Option<&TableRow<bool>>, col_idx: usize) -> bool {
+    filter.is_none_or(|mask| !mask.get(col_idx).copied().unwrap_or(false))
 }
 
 /// Builds resize dividers for the given column range, positioned absolutely from `left: 0`.
@@ -957,7 +957,7 @@ impl RenderOnce for Table {
                 Some(HeaderResizeInfo::from_redistributable(columns_state, cx))
             }
             ColumnWidthConfig::Resizable(entity) => Some(HeaderResizeInfo::from_resizable(entity, cx)),
-            _ => None,
+            ColumnWidthConfig::Static { .. } => None,
         });
 
         // Pinned mode sizes each row internally, so no fixed table_width or h_scroll_container.
@@ -993,7 +993,7 @@ impl RenderOnce for Table {
                     Some(entity.clone()),
                     Some(render_resize_handles_resizable(entity, pinned_cols, h_scroll_handle.as_ref(), window, cx)),
                 ),
-                _ => (None, None, None),
+                ColumnWidthConfig::Static { .. } => (None, None, None),
             }
         } else {
             (None, None, None)
@@ -1026,7 +1026,7 @@ impl RenderOnce for Table {
                     if event.drag(cx).state_id != entity.entity_id() {
                         return;
                     }
-                    let h_scroll_offset = scroll_handle_for_drag.as_ref().map(|h| h.offset().x).unwrap_or(px(0.));
+                    let h_scroll_offset = scroll_handle_for_drag.as_ref().map_or(px(0.), |h| h.offset().x);
                     entity.update(cx, |state, cx| state.on_drag_move(event, h_scroll_offset, window, cx));
                 })
             })

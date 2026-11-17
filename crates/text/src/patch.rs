@@ -187,9 +187,8 @@ where
             Err(ix) => {
                 if ix == 0 {
                     return old;
-                } else {
-                    ix - 1
                 }
+                ix - 1
             }
         };
         if let Some(edit) = self.0.get(ix) {
@@ -212,9 +211,8 @@ where
             Err(ix) => {
                 if ix == 0 {
                     return Edit { old: old..old, new: old..old };
-                } else {
-                    ix - 1
                 }
+                ix - 1
             }
         };
 

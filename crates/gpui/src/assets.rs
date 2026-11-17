@@ -77,13 +77,10 @@ impl RenderImage {
 
     /// Get the size of this image, in pixels.
     pub fn size(&self, frame_index: usize) -> Size<DevicePixels> {
-        self.data
-            .get(frame_index)
-            .map(|frame| {
-                let (width, height) = frame.buffer().dimensions();
-                size(width.into(), height.into())
-            })
-            .unwrap_or_default()
+        self.data.get(frame_index).map_or_default(|frame| {
+            let (width, height) = frame.buffer().dimensions();
+            size(width.into(), height.into())
+        })
     }
 
     /// Get the size of this image, in pixels for display, adjusted for the scale factor.
@@ -93,7 +90,7 @@ impl RenderImage {
 
     /// Get the delay of this frame from the previous
     pub fn delay(&self, frame_index: usize) -> Delay {
-        self.data.get(frame_index).map(|frame| frame.delay()).unwrap_or_else(|| Delay::from_numer_denom_ms(100, 1))
+        self.data.get(frame_index).map_or_else(|| Delay::from_numer_denom_ms(100, 1), image::Frame::delay)
     }
 
     /// Get the number of frames for this image.

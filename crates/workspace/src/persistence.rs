@@ -160,7 +160,7 @@ impl Global for GlobalProjectsStore {}
 
 impl ProjectsStore {
     fn load(fs: Arc<dyn Fs>, path: PathBuf) -> ProjectsStore {
-        let file = std_fs::read_to_string(&path).map(|text| ProjectsFile::parse(&text)).unwrap_or_default();
+        let file = std_fs::read_to_string(&path).map_or_default(|text| ProjectsFile::parse(&text));
         ProjectsStore {
             fs,
             path,
@@ -386,14 +386,14 @@ async fn resolve_local_workspace_identity(fs: &dyn Fs, paths: &PathList) -> Opti
     let resolved_paths =
         future::join_all(raw_paths.iter().map(|path| git_store::resolve_git_worktree_to_main_repo(fs, path))).await;
 
-    if resolved_paths.iter().all(|resolved| resolved.is_none()) {
+    if resolved_paths.iter().all(Option::is_none) {
         return None;
     }
 
     let resolved_paths: Vec<PathBuf> = raw_paths
         .iter()
         .zip(resolved_paths.iter())
-        .map(|(original, resolved)| resolved.as_ref().cloned().unwrap_or_else(|| original.clone()))
+        .map(|(original, resolved)| resolved.clone().unwrap_or_else(|| original.clone()))
         .collect();
     let resolved_path_refs: Vec<&Path> = resolved_paths.iter().map(PathBuf::as_path).collect();
     Some(PathList::new(&resolved_path_refs))

@@ -168,7 +168,7 @@ impl<'a> sum_tree::Dimension<'a, TransformSummary> for FoldPoint {
         FoldPoint::default()
     }
 
-    fn add_summary(&mut self, summary: &'a TransformSummary, _: ()) {
+    fn add_summary(&mut self, summary: &'a TransformSummary, (): ()) {
         self.0 += &summary.output.lines;
     }
 }
@@ -513,7 +513,7 @@ impl FoldMap {
                                             (fold.placeholder.render)(fold_id, fold.range.0.clone(), cx.context)
                                         }),
                                         constrain_width: fold.placeholder.constrain_width,
-                                        measured_width: self.snapshot.fold_width(&fold_id),
+                                        measured_width: self.snapshot.fold_width(fold_id),
                                     },
                                 }),
                             },
@@ -672,8 +672,8 @@ impl FoldSnapshot {
         item.is_some_and(|transform| transform.placeholder.is_some())
     }
 
-    fn fold_width(&self, fold_id: &FoldId) -> Option<Pixels> {
-        self.fold_metadata_by_id.get(fold_id)?.width
+    fn fold_width(&self, fold_id: FoldId) -> Option<Pixels> {
+        self.fold_metadata_by_id.get(&fold_id)?.width
     }
 
     #[inline(always)]
@@ -745,9 +745,7 @@ impl FoldSnapshot {
     }
 
     pub fn row_infos(&self, start_row: u32) -> FoldRows<'_> {
-        if start_row > self.transforms.summary().output.lines.row {
-            panic!("invalid display row {}", start_row);
-        }
+        assert!(start_row <= self.transforms.summary().output.lines.row, "invalid display row {start_row}");
 
         let fold_point = FoldPoint::new(start_row, 0);
         let mut cursor = self.transforms.cursor::<Dimensions<FoldPoint, InlayPoint>>(());
@@ -757,7 +755,7 @@ impl FoldSnapshot {
         let inlay_point = InlayPoint(cursor.start().1.0 + overshoot);
         let input_rows = self.inlay_snapshot.row_infos(inlay_point.row());
 
-        FoldRows { fold_point, input_rows, cursor }
+        FoldRows { cursor, input_rows, fold_point }
     }
 
     pub fn max_point(&self) -> FoldPoint {
@@ -932,7 +930,7 @@ fn push_isomorphic(transforms: &mut SumTree<Transform>, summary: MBTextSummary) 
     );
     if !did_merge {
         transforms
-            .push(Transform { summary: TransformSummary { input: summary, output: summary }, placeholder: None }, ())
+            .push(Transform { summary: TransformSummary { input: summary, output: summary }, placeholder: None }, ());
     }
 }
 
@@ -1517,7 +1515,7 @@ impl<'a> sum_tree::Dimension<'a, TransformSummary> for FoldOffset {
         FoldOffset::default()
     }
 
-    fn add_summary(&mut self, summary: &'a TransformSummary, _: ()) {
+    fn add_summary(&mut self, summary: &'a TransformSummary, (): ()) {
         self.0 += summary.output.len;
     }
 }
@@ -1527,7 +1525,7 @@ impl<'a> sum_tree::Dimension<'a, TransformSummary> for InlayPoint {
         InlayPoint::default()
     }
 
-    fn add_summary(&mut self, summary: &'a TransformSummary, _: ()) {
+    fn add_summary(&mut self, summary: &'a TransformSummary, (): ()) {
         self.0 += &summary.input.lines;
     }
 }
@@ -1537,7 +1535,7 @@ impl<'a> sum_tree::Dimension<'a, TransformSummary> for InlayOffset {
         InlayOffset::default()
     }
 
-    fn add_summary(&mut self, summary: &'a TransformSummary, _: ()) {
+    fn add_summary(&mut self, summary: &'a TransformSummary, (): ()) {
         self.0 += summary.input.len;
     }
 }

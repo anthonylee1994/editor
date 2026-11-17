@@ -433,8 +433,8 @@ impl MarkdownPreviewView {
         }
 
         let had_active_editor = self.active_editor.is_some();
-        let subscription = cx.subscribe_in(&editor, window, |this, editor, event: &EditorEvent, window, cx| {
-            match event {
+        let subscription =
+            cx.subscribe_in(&editor, window, |this, editor, event: &EditorEvent, window, cx| match event {
                 EditorEvent::Edited { .. }
                 | EditorEvent::BufferEdited
                 | EditorEvent::DirtyChanged
@@ -459,8 +459,7 @@ impl MarkdownPreviewView {
                     }
                 }
                 _ => {}
-            };
-        });
+            });
 
         self.base_directory = Self::get_folder_for_active_editor(editor.read(cx), cx);
         self.hovered_url = None;
@@ -633,7 +632,7 @@ impl MarkdownPreviewView {
         editor.update(cx, |editor, cx| {
             let selection = MultiBufferOffset(source_index)..MultiBufferOffset(source_index);
             editor.change_selections(SelectionEffects::scroll(Autoscroll::center()), window, cx, |selections| {
-                selections.select_ranges(vec![selection])
+                selections.select_ranges(vec![selection]);
             });
             if move_focus {
                 window.focus(&editor.focus_handle(cx), cx);
@@ -1022,10 +1021,7 @@ fn open_markdown_link_in_preview(
     let workspace = workspace.clone();
     let workspace_for_error = workspace.clone();
     let task = window.spawn(cx, async move |cx| {
-        let target_path = open_target
-            .await
-            .filter(|open_target| open_target.is_file())
-            .map(|open_target| open_target.path().path.clone());
+        let target_path = open_target.await.filter(|x| x.is_file()).map(|open_target| open_target.path().path.clone());
         let Some(abs_path) = target_path else {
             workspace.update_in(cx, |workspace, window, cx| {
                 workspace.open_url_or_file(&fallback_url, base_directory.as_deref(), window, cx);
@@ -1045,7 +1041,7 @@ fn open_markdown_link_in_preview(
             .context("opening Markdown preview link buffer")?;
 
         workspace.update_in(cx, |workspace, window, cx| {
-            if let Some(source_view) = source_view.as_ref().and_then(|view| view.upgrade())
+            if let Some(source_view) = source_view.as_ref().and_then(gpui::WeakEntity::upgrade)
                 && source_view.read(cx).is_previewing(&buffer, cx)
             {
                 source_view.update(cx, |view, cx| {
@@ -1066,7 +1062,7 @@ fn open_markdown_link_in_preview(
             let preview = MarkdownPreviewView::create_markdown_view(workspace, editor, window, cx);
             let pane = source_view
                 .as_ref()
-                .and_then(|view| view.upgrade())
+                .and_then(gpui::WeakEntity::upgrade)
                 .and_then(|view| workspace.pane_for(&view))
                 .unwrap_or_else(|| workspace.shown_pane().clone());
             pane.update(cx, |pane, cx| {
@@ -1124,8 +1120,7 @@ fn resolve_preview_image(
         return None;
     }
 
-    let decoded =
-        urlencoding::decode(dest_url).map(|decoded| decoded.into_owned()).unwrap_or_else(|_| dest_url.to_string());
+    let decoded = urlencoding::decode(dest_url).map_or_else(|_| dest_url.to_string(), |x| x.into_owned());
     let workspace_relative_path = ['/', '\\'].iter().find_map(|prefix| decoded.strip_prefix(*prefix));
 
     if let (Some(project), Some(source_project_path)) = (project, source_project_path) {
@@ -1256,22 +1251,22 @@ impl Item for MarkdownPreviewView {
     }
 
     fn tab_content_text(&self, detail: usize, cx: &App) -> SharedString {
-        self.active_editor
-            .as_ref()
-            .map(|editor_state| {
+        self.active_editor.as_ref().map_or_else(
+            || SharedString::from("Markdown Preview"),
+            |editor_state| {
                 let title = editor_state.editor.read(cx).tab_content_text(detail, cx);
                 format!("Preview {title}").into()
-            })
-            .unwrap_or_else(|| SharedString::from("Markdown Preview"))
+            },
+        )
     }
 
     // Save As writes the source file, so suggest its name rather than the tab text, which can be a
     // full path for files outside the project.
     fn suggested_filename(&self, cx: &App) -> SharedString {
-        self.active_editor
-            .as_ref()
-            .map(|editor_state| editor_state.editor.read(cx).suggested_filename(cx))
-            .unwrap_or_else(|| SharedString::from("Markdown Preview"))
+        self.active_editor.as_ref().map_or_else(
+            || SharedString::from("Markdown Preview"),
+            |editor_state| editor_state.editor.read(cx).suggested_filename(cx),
+        )
     }
 
     fn tab_tooltip_text(&self, cx: &App) -> Option<SharedString> {
@@ -1312,10 +1307,10 @@ impl Item for MarkdownPreviewView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Task<Result<()>> {
-        self.active_editor
-            .as_ref()
-            .map(|editor_state| editor_state.editor.update(cx, |editor, cx| editor.save(options, project, window, cx)))
-            .unwrap_or_else(|| Task::ready(Ok(())))
+        self.active_editor.as_ref().map_or_else(
+            || Task::ready(Ok(())),
+            |editor_state| editor_state.editor.update(cx, |editor, cx| editor.save(options, project, window, cx)),
+        )
     }
 
     fn save_as(
@@ -1325,10 +1320,10 @@ impl Item for MarkdownPreviewView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Task<Result<()>> {
-        self.active_editor
-            .as_ref()
-            .map(|editor_state| editor_state.editor.update(cx, |editor, cx| editor.save_as(project, path, window, cx)))
-            .unwrap_or_else(|| Task::ready(Ok(())))
+        self.active_editor.as_ref().map_or_else(
+            || Task::ready(Ok(())),
+            |editor_state| editor_state.editor.update(cx, |editor, cx| editor.save_as(project, path, window, cx)),
+        )
     }
 
     fn reload(&mut self, _project: Entity<Project>, _window: &mut Window, _cx: &mut Context<Self>) -> Task<Result<()>> {
@@ -1414,7 +1409,7 @@ impl Render for MarkdownPreviewView {
                             return None;
                         }
                         Some(ContextMenu::build(window, cx, move |menu, _, _cx| {
-                            menu.when_some(focus, |menu, focus| menu.context(focus))
+                            menu.when_some(focus, ui::ContextMenu::context)
                                 .when_some(selected_text, |menu, text| {
                                     menu.entry("Copy", Some(Box::new(markdown::Copy)), move |_, cx| {
                                         cx.write_to_clipboard(ClipboardItem::new_string(text.to_string()));

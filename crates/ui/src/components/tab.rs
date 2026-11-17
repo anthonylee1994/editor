@@ -153,26 +153,27 @@ impl Toggleable for Tab {
 
 impl ParentElement for Tab {
     fn extend(&mut self, elements: impl IntoIterator<Item = AnyElement>) {
-        self.children.extend(elements)
+        self.children.extend(elements);
     }
 }
 
 impl RenderOnce for Tab {
     #[allow(refining_impl_trait)]
     fn render(self, _: &mut Window, cx: &mut App) -> Stateful<Div> {
-        let (text_color, tab_bg, _tab_hover_bg, _tab_active_bg) = match self.selected {
-            false => (
-                cx.theme().colors().text_muted,
-                cx.theme().colors().tab_inactive_background,
-                cx.theme().colors().ghost_element_hover,
-                cx.theme().colors().ghost_element_active,
-            ),
-            true => (
+        let (text_color, tab_bg, _tab_hover_bg, _tab_active_bg) = if self.selected {
+            (
                 cx.theme().colors().text,
                 cx.theme().colors().tab_active_background,
                 cx.theme().colors().element_hover,
                 cx.theme().colors().element_active,
-            ),
+            )
+        } else {
+            (
+                cx.theme().colors().text_muted,
+                cx.theme().colors().tab_inactive_background,
+                cx.theme().colors().ghost_element_hover,
+                cx.theme().colors().ghost_element_active,
+            )
         };
 
         let start_slot = h_flex().size(START_TAB_SLOT_SIZE).justify_center().children(self.start_slot);

@@ -176,7 +176,7 @@ fn parse_metadata_table_rows(source: &str, source_range: Range<usize>) -> Option
         let content_range = line_start..content_end;
         let line_text = &source[content_range.clone()];
 
-        if line_text.is_empty() || line_text.chars().next().is_some_and(|character| character.is_whitespace()) {
+        if line_text.is_empty() || line_text.chars().next().is_some_and(char::is_whitespace) {
             return None;
         }
 
@@ -393,7 +393,7 @@ pub(crate) fn parse_markdown_with_options(text: &str, options: MarkdownOptions) 
                     pulldown_cmark::Tag::DefinitionListTitle => MarkdownTag::DefinitionListTitle,
                     pulldown_cmark::Tag::DefinitionListDefinition => MarkdownTag::DefinitionListDefinition,
                 };
-                state.push_event(range, MarkdownEvent::Start(tag))
+                state.push_event(range, MarkdownEvent::Start(tag));
             }
             pulldown_cmark::Event::End(tag) => {
                 if tag == pulldown_cmark::TagEnd::Link {
@@ -566,18 +566,18 @@ pub(crate) fn parse_markdown_with_options(text: &str, options: MarkdownOptions) 
                 } else {
                     MarkdownEvent::Code
                 };
-                state.push_event(content_range, event)
+                state.push_event(content_range, event);
             }
             pulldown_cmark::Event::Html(_) => state.push_event(range, MarkdownEvent::Html),
             pulldown_cmark::Event::InlineHtml(_) => state.push_event(range, MarkdownEvent::InlineHtml),
             pulldown_cmark::Event::FootnoteReference(label) => {
-                state.push_event(range, MarkdownEvent::FootnoteReference(SharedString::from(label.to_string())))
+                state.push_event(range, MarkdownEvent::FootnoteReference(SharedString::from(label.to_string())));
             }
             pulldown_cmark::Event::SoftBreak => state.push_event(range, MarkdownEvent::SoftBreak),
             pulldown_cmark::Event::HardBreak => state.push_event(range, MarkdownEvent::HardBreak),
             pulldown_cmark::Event::Rule => state.push_event(range, MarkdownEvent::Rule),
             pulldown_cmark::Event::TaskListMarker(checked) => {
-                state.push_event(range, MarkdownEvent::TaskListMarker(checked))
+                state.push_event(range, MarkdownEvent::TaskListMarker(checked));
             }
             pulldown_cmark::Event::InlineMath(_) | pulldown_cmark::Event::DisplayMath(_) => {}
         }

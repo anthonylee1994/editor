@@ -103,7 +103,7 @@ pub struct ImageCacheElement {
 
 impl ParentElement for ImageCacheElement {
     fn extend(&mut self, elements: impl IntoIterator<Item = AnyElement>) {
-        self.children.extend(elements)
+        self.children.extend(elements);
     }
 }
 
@@ -173,7 +173,7 @@ impl Element for ImageCacheElement {
             for child in &mut self.children {
                 child.paint(window, cx);
             }
-        })
+        });
     }
 }
 

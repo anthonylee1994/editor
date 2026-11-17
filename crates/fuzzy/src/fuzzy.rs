@@ -30,7 +30,7 @@ pub enum Case {
 
 impl Case {
     pub fn smart_if_uppercase_in(query: &str) -> Self {
-        if query.chars().any(|c| c.is_uppercase()) { Self::Smart } else { Self::Ignore }
+        if query.chars().any(char::is_uppercase) { Self::Smart } else { Self::Ignore }
     }
 
     pub const fn is_smart(self) -> bool {
@@ -77,7 +77,7 @@ impl Query {
         }
         let normalized = query.split_whitespace().collect::<Vec<_>>().join(" ");
         let pattern = Pattern::new(&normalized, CaseMatching::Ignore, Normalization::Smart, AtomKind::Fuzzy);
-        let wants_case_penalty = case.is_smart() && query.chars().any(|c| c.is_uppercase());
+        let wants_case_penalty = case.is_smart() && query.chars().any(char::is_uppercase);
         let query_chars = wants_case_penalty.then(|| query.chars().filter(|c| !c.is_whitespace()).collect());
         Some(Query { pattern, query_chars, char_bag: CharBag::from(query) })
     }

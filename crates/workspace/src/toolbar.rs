@@ -98,7 +98,7 @@ impl Render for Toolbar {
             return div();
         }
 
-        let secondary_items = self.secondary_items().map(|item| item.to_any());
+        let secondary_items = self.secondary_items().map(ToolbarItemViewHandle::to_any);
 
         let has_left_items = self.left_items().count() > 0;
         let has_right_items = self.right_items().count() > 0;
@@ -124,7 +124,7 @@ impl Render for Toolbar {
                                     .flex_auto()
                                     .justify_start()
                                     .overflow_x_hidden()
-                                    .children(self.left_items().map(|item| item.to_any())),
+                                    .children(self.left_items().map(ToolbarItemViewHandle::to_any)),
                             )
                         })
                         .when(has_right_items, |this| {
@@ -132,9 +132,9 @@ impl Render for Toolbar {
                                 h_flex()
                                     .h_8()
                                     .flex_row_reverse()
-                                    .when(has_left_items, |this| this.flex_none())
+                                    .when(has_left_items, gpui::Styled::flex_none)
                                     .justify_end()
-                                    .children(self.right_items().map(|item| item.to_any())),
+                                    .children(self.right_items().map(ToolbarItemViewHandle::to_any)),
                             )
                         }),
                 )
@@ -182,8 +182,8 @@ impl Toolbar {
     }
 
     pub fn set_active_item(&mut self, item: Option<&dyn ItemHandle>, window: &mut Window, cx: &mut Context<Self>) {
-        self.active_item = item.map(|item| item.boxed_clone());
-        self.hidden = self.active_item.as_ref().map(|item| !item.show_toolbar(cx)).unwrap_or(false);
+        self.active_item = item.map(|x| x.boxed_clone());
+        self.hidden = self.active_item.as_ref().is_some_and(|item| !item.show_toolbar(cx));
 
         for (toolbar_item, current_location) in &mut self.items {
             let new_location = toolbar_item.set_active_pane_item(item, window, cx);

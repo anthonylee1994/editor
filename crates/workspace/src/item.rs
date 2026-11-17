@@ -467,7 +467,7 @@ impl<T: Item> ItemHandle for Entity<T> {
     }
 
     fn for_each_project_item(&self, cx: &App, f: &mut dyn FnMut(EntityId, &dyn project::ProjectItem)) {
-        self.read(cx).for_each_project_item(cx, f)
+        self.read(cx).for_each_project_item(cx, f);
     }
 
     fn buffer_kind(&self, cx: &App) -> ItemBufferKind {
@@ -501,11 +501,8 @@ impl<T: Item> ItemHandle for Entity<T> {
         if old_item_pane.is_none() {
             let mut event_subscription =
                 Some(cx.subscribe_in(self, window, move |workspace, item: &Entity<T>, event, window, cx| {
-                    let pane = if let Some(pane) =
-                        workspace.panes_by_item.get(&item.item_id()).and_then(|pane| pane.upgrade())
-                    {
-                        pane
-                    } else {
+                    let Some(pane) = workspace.panes_by_item.get(&item.item_id()).and_then(gpui::WeakEntity::upgrade)
+                    else {
                         return;
                     };
 
@@ -714,7 +711,7 @@ impl<T: Item> ItemHandle for Entity<T> {
         self.update(cx, |this, cx| {
             this.focus_handle(cx).focus(window, cx);
             window.dispatch_action(action, cx);
-        })
+        });
     }
 
     /// Called when the containing pane receives a drop on the item or the item's tab.

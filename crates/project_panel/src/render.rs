@@ -325,7 +325,7 @@ impl ProjectPanel {
             .border_r_2()
             .border_color(border_color)
             .hover(|style| style.bg(bg_hover_color).border_color(border_hover_color))
-            .when(is_sticky, |this| this.block_mouse_except_scroll())
+            .when(is_sticky, gpui::InteractiveElement::block_mouse_except_scroll)
             .when(!is_sticky, |this| {
                 this.when(show_drag_highlight, |this| this.border_color(transparent_white()).bg(transparent_white()))
                     .map(|this| {
@@ -589,7 +589,7 @@ impl ProjectPanel {
                                         )
                                     })
                                 })
-                                .when_some(symlink_element, |this, el| this.child(el))
+                                .when_some(symlink_element, gpui::ParentElement::child)
                                 .into_any_element(),
                         )
                     })
@@ -746,7 +746,7 @@ impl ProjectPanel {
         let path_component_elements = components.into_iter().enumerate().map(move |(index, component)| {
             div()
                 .id(SharedString::from(format!("project_panel_path_component_{}_{index}", entry_id.to_usize())))
-                .when(index == 0, |this| this.ml_neg_0p5())
+                .when(index == 0, gpui::Styled::ml_neg_0p5)
                 .px_0p5()
                 .rounded_xs()
                 .hover(|style| style.bg(cx.theme().colors().element_active))
@@ -799,7 +799,7 @@ impl ProjectPanel {
                     Label::new(component)
                         .single_line()
                         .color(filename_text_color)
-                        .when(index == active_index && is_active_or_marked, |this| this.underline()),
+                        .when(index == active_index && is_active_or_marked, ui::LabelCommon::underline),
                 )
                 .into_any()
         });
@@ -878,7 +878,7 @@ impl ProjectPanel {
         _window: &mut Window,
         cx: &Context<Self>,
     ) -> EntryDetails {
-        let expanded_entry_ids = self.state.expanded_dir_ids.get(&worktree_id).map(Vec::as_slice).unwrap_or(&[]);
+        let expanded_entry_ids = self.state.expanded_dir_ids.get(&worktree_id).map_or(&[][..], Vec::as_slice);
         let is_expanded = expanded_entry_ids.binary_search(&entry.id).is_ok();
 
         let mut icon = Self::entry_icon(entry, is_expanded, cx);
@@ -969,8 +969,7 @@ impl ProjectPanel {
                     .state
                     .expanded_dir_ids
                     .get(&worktree.id())
-                    .map(|ids| ids.binary_search(&entry.id).is_ok())
-                    .unwrap_or(false);
+                    .is_some_and(|ids| ids.binary_search(&entry.id).is_ok());
             if is_expanded_dir {
                 break;
             }
@@ -1160,7 +1159,7 @@ impl Render for ProjectPanel {
                     // Refresh cursor only when an actual drag happens,
                     // because modifiers are not updated when the cursor is not moved.
                     if e.event.position != previous_position {
-                        this.refresh_drag_cursor_style(&e.event.modifiers, window, cx);
+                        this.refresh_drag_cursor_style(e.event.modifiers, window, cx);
                     }
                 }
                 this.previous_drag_position = Some(e.event.position);
@@ -1229,7 +1228,7 @@ impl Render for ProjectPanel {
                 .size_full()
                 .relative()
                 .on_modifiers_changed(cx.listener(|this, event: &ModifiersChangedEvent, window, cx| {
-                    this.refresh_drag_cursor_style(&event.modifiers, window, cx);
+                    this.refresh_drag_cursor_style(event.modifiers, window, cx);
                 }))
                 .key_context(self.dispatch_context(window, cx))
                 .on_action(cx.listener(Self::scroll_up))
@@ -1577,7 +1576,7 @@ impl Render for ProjectPanel {
                     deferred(
                         anchored()
                             .position(context_menu.position)
-                            .when_some(context_menu.anchor, |anchored, anchor| anchored.anchor(anchor))
+                            .when_some(context_menu.anchor, gpui::Anchored::anchor)
                             .child(context_menu.menu.clone()),
                     )
                     .with_priority(3)

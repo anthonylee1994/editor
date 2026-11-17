@@ -48,9 +48,8 @@ use crate::undo::Change;
 
 impl ProjectPanel {
     pub(super) fn populate_validation_error(&mut self, cx: &mut Context<Self>) {
-        let edit_state = match self.state.edit_state.as_mut() {
-            Some(state) => state,
-            None => return,
+        let Some(edit_state) = self.state.edit_state.as_mut() else {
+            return;
         };
         let filename = self.filename_editor.read(cx).text(cx);
         if !filename.is_empty() {
@@ -106,7 +105,7 @@ impl ProjectPanel {
                     {
                         already_exists = true;
                     }
-                };
+                }
                 if already_exists {
                     edit_state.validation_state = ValidationState::Error(format!(
                         "File or directory '{}' already exists at location. Please choose a different name.",
@@ -144,23 +143,17 @@ impl ProjectPanel {
         let worktree = self.project.read(cx).worktree_for_id(worktree_id, cx)?;
         let entry = worktree.read(cx).entry_for_id(edit_state.entry_id)?.clone();
 
-        let edit_task;
-        let edited_entry_id;
-        let new_project_path: ProjectPath;
-        let changes: Vec<Change>;
-
-        if is_new_entry {
+        let (edit_task, edited_entry_id, changes) = if is_new_entry {
             self.selection = Some(SelectedEntry { worktree_id, entry_id: NEW_ENTRY_ID });
             let new_path = entry.path.join(&filename);
             if worktree.read(cx).entry_for_path(&new_path).is_some() {
                 return None;
             }
 
-            edited_entry_id = NEW_ENTRY_ID;
-            new_project_path = (worktree_id, new_path).into();
-            edit_task =
+            let new_project_path: ProjectPath = (worktree_id, new_path).into();
+            let edit_task =
                 self.project.update(cx, |project, cx| project.create_entry(new_project_path.clone(), is_dir, cx));
-            changes = vec![Change::Created(new_project_path)];
+            (edit_task, NEW_ENTRY_ID, vec![Change::Created(new_project_path)])
         } else {
             let new_path = match entry.path.parent() {
                 Some(parent) => parent.join(&filename).into(),
@@ -180,26 +173,27 @@ impl ProjectPanel {
                 }
                 return None;
             }
-            edited_entry_id = entry.id;
-            new_project_path = (worktree_id, new_path).into();
+            let edited_entry_id = entry.id;
+            let new_project_path: ProjectPath = (worktree_id, new_path).into();
 
             // Before renaming, keep track of which directories will need to be
             // created, so we can remove these when undoing.
             let created_dirs =
                 crate_undo::missing_parent_dirs(worktree.read(cx), worktree_id, new_project_path.path.as_ref());
 
-            edit_task = self
+            let edit_task = self
                 .project
                 .update(cx, |project, cx| project.rename_entry(edited_entry_id, new_project_path.clone(), cx));
 
             // Record the directory creations shallowest-first, then the rename,
             // so undoing reverses them in the right order.
-            changes = created_dirs
+            let changes = created_dirs
                 .into_iter()
                 .rev()
                 .map(Change::DirCreated)
                 .chain(iter::once(Change::Renamed((worktree_id, entry.path).into(), new_project_path)))
                 .collect();
+            (edit_task, edited_entry_id, changes)
         };
 
         if refocus {
@@ -271,7 +265,7 @@ impl ProjectPanel {
                                             abs_path
                                         ),
                                         link: None,
-                                    })
+                                    });
                                 });
                                 None
                             } else {
@@ -332,11 +326,11 @@ impl ProjectPanel {
     }
 
     pub(super) fn new_file(&mut self, _: &NewFile, window: &mut Window, cx: &mut Context<Self>) {
-        self.add_entry(false, window, cx)
+        self.add_entry(false, window, cx);
     }
 
     pub(super) fn new_directory(&mut self, _: &NewDirectory, window: &mut Window, cx: &mut Context<Self>) {
-        self.add_entry(true, window, cx)
+        self.add_entry(true, window, cx);
     }
 
     fn add_entry(&mut self, is_dir: bool, window: &mut Window, cx: &mut Context<Self>) {
@@ -378,22 +372,21 @@ impl ProjectPanel {
                         }
                         directory_id = entry.id;
                         break;
-                    } else {
-                        if let Some(parent_path) = entry.path.parent()
-                            && let Some(parent_entry) = worktree.entry_for_path(parent_path)
-                        {
-                            entry = parent_entry;
-                            continue;
-                        }
-                        return;
                     }
+                    if let Some(parent_path) = entry.path.parent()
+                        && let Some(parent_entry) = worktree.entry_for_path(parent_path)
+                    {
+                        entry = parent_entry;
+                        continue;
+                    }
+                    return;
                 }
             } else {
                 return;
-            };
+            }
         } else {
             return;
-        };
+        }
 
         self.marked_entries.clear();
         self.state.edit_state = Some(EditState {
@@ -442,14 +435,14 @@ impl ProjectPanel {
                         file_name.len()
                     } else {
                         let file_stem = entry.path.file_stem();
-                        file_stem.map_or(file_name.len(), |file_stem| file_stem.len())
+                        file_stem.map_or(file_name.len(), str::len)
                     };
                     0..selection_end
                 });
                 self.filename_editor.update(cx, |editor, cx| {
                     editor.set_text(file_name, window, cx);
                     editor.change_selections(editor::SelectionEffects::default(), window, cx, |s| {
-                        s.select_ranges([MultiBufferOffset(selection.start)..MultiBufferOffset(selection.end)])
+                        s.select_ranges([MultiBufferOffset(selection.start)..MultiBufferOffset(selection.end)]);
                     });
                 });
                 self.update_visible_entries(None, true, true, window, cx);
@@ -474,24 +467,23 @@ impl ProjectPanel {
     {
         let message_start = "Do you want to delete";
 
-        let mut message = match names {
-            [name] => format!("{message_start} {}?", MarkdownInlineCode(name.as_ref())),
-            _ => {
-                const CUTOFF_POINT: usize = 10;
-                let mut listed_names = names
-                    .iter()
-                    .take(CUTOFF_POINT)
-                    .map(|name| MarkdownInlineCode(name.as_ref()).to_string())
-                    .collect::<Vec<_>>();
-                let omitted_count = names.len().saturating_sub(CUTOFF_POINT);
-                if omitted_count == 1 {
-                    listed_names.push(".. 1 file not shown".into());
-                } else if omitted_count > 1 {
-                    listed_names.push(format!(".. {omitted_count} files not shown"));
-                }
-
-                format!("{message_start} the following {} files?\n{}", names.len(), listed_names.join("\n"))
+        let mut message = if let [name] = names {
+            format!("{message_start} {}?", MarkdownInlineCode(name.as_ref()))
+        } else {
+            const CUTOFF_POINT: usize = 10;
+            let mut listed_names = names
+                .iter()
+                .take(CUTOFF_POINT)
+                .map(|name| MarkdownInlineCode(name.as_ref()).to_string())
+                .collect::<Vec<_>>();
+            let omitted_count = names.len().saturating_sub(CUTOFF_POINT);
+            if omitted_count == 1 {
+                listed_names.push(".. 1 file not shown".into());
+            } else if omitted_count > 1 {
+                listed_names.push(format!(".. {omitted_count} files not shown"));
             }
+
+            format!("{message_start} the following {} files?\n{}", names.len(), listed_names.join("\n"))
         };
         match dirty_buffers {
             0 => {}
@@ -533,7 +525,9 @@ impl ProjectPanel {
             if file_paths.is_empty() {
                 return None;
             }
-            let answer = if !action.skip_prompt {
+            let answer = if action.skip_prompt {
+                None
+            } else {
                 let names = file_paths.iter().map(|(_, _, name)| name.as_str()).collect::<Vec<_>>();
                 let prompt = ProjectPanel::build_removal_prompt(&names, dirty_buffers);
 
@@ -544,8 +538,6 @@ impl ProjectPanel {
                     &[prompt.confirmation_label, "Cancel"],
                     cx,
                 ))
-            } else {
-                None
             };
             let next_selection = self.find_next_selection_after_deletion(items_to_delete, cx);
             cx.spawn_in(window, async move |panel, cx| {
@@ -660,7 +652,7 @@ impl ProjectPanel {
                     || (!marked_entries_in_worktree.contains(&&SelectedEntry { worktree_id, entry_id: sibling.id })
                         && (!hide_gitignore || !sibling.is_ignored))
             })
-            .map(|entry| entry.to_owned())
+            .map(project::GitEntryRef::to_owned)
             .collect();
 
         sort_worktree_entries(&mut siblings);

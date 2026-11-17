@@ -277,9 +277,8 @@ fn show_hover(
         {
             // Hover triggered from same location as last time. Don't show again.
             return None;
-        } else {
-            hide_hover(editor, cx);
         }
+        hide_hover(editor, cx);
     }
 
     let all_diagnostics_active = editor.all_diagnostics_active();
@@ -293,7 +292,7 @@ fn show_hover(
                 None
             } else {
                 let lsp_request_early = HOVER_POPOVER_DELAY / 2;
-                cx.background_executor().timer(HOVER_POPOVER_DELAY - lsp_request_early).await;
+                cx.background_executor().timer(HOVER_POPOVER_DELAY.checked_sub(lsp_request_early).unwrap()).await;
 
                 // Construct delay task to wait for later
 
@@ -427,7 +426,7 @@ fn show_hover(
                     anchor: Some(anchor),
                     last_bounds: Rc::new(Cell::new(None)),
                     _subscription: subscription,
-                })
+                });
             }
 
             let doc_link_task = this
@@ -460,12 +459,14 @@ fn show_hover(
                     .range
                     .and_then(|range| buffer_snapshot.buffer_anchor_range_to_anchor_range(range))
                     .filter(|range| !range.to_offset(buffer_snapshot).is_empty())
-                    .map(|range| (range, None))
-                    .unwrap_or_else(|| {
-                        let range = fallback_hover_range(buffer_snapshot, anchor);
-                        let fallback_state = FallbackHoverState::new(buffer_snapshot, &range);
-                        (range, Some(fallback_state))
-                    });
+                    .map_or_else(
+                        || {
+                            let range = fallback_hover_range(buffer_snapshot, anchor);
+                            let fallback_state = FallbackHoverState::new(buffer_snapshot, &range);
+                            (range, Some(fallback_state))
+                        },
+                        |range| (range, None),
+                    );
 
                 let blocks = hover_result.contents;
                 let language = hover_result.language;
@@ -582,44 +583,36 @@ fn fallback_hover_range(buffer_snapshot: &MultiBufferSnapshot, anchor: Anchor) -
 
 fn same_info_hover(editor: &mut Editor, snapshot: &EditorSnapshot, anchor: Anchor) -> bool {
     editor.hover_state.info_popovers.iter_mut().any(|InfoPopover { symbol_range, fallback_state, .. }| {
-        symbol_range
-            .as_text_range()
-            .map(|range| {
-                let buffer_snapshot = snapshot.buffer_snapshot();
-                let hover_range = range.to_offset(buffer_snapshot);
-                let offset = anchor.to_offset(buffer_snapshot);
-                if let Some(fallback_state) = fallback_state {
-                    if fallback_state.edit_count != buffer_snapshot.edit_count() {
-                        return false;
-                    }
-                    if offset == hover_range.end {
-                        if fallback_state.non_text_state_update_count != buffer_snapshot.non_text_state_update_count() {
-                            *fallback_state = FallbackHoverState::new(buffer_snapshot, &range);
-                        }
-                        return fallback_state.includes_end;
-                    }
+        symbol_range.as_text_range().is_some_and(|range| {
+            let buffer_snapshot = snapshot.buffer_snapshot();
+            let hover_range = range.to_offset(buffer_snapshot);
+            let offset = anchor.to_offset(buffer_snapshot);
+            if let Some(fallback_state) = fallback_state {
+                if fallback_state.edit_count != buffer_snapshot.edit_count() {
+                    return false;
                 }
-                // LSP returns a hover result for the end index of ranges that should be hovered, so we need to
-                // use an inclusive range here to check if we should dismiss the popover
-                (hover_range.start..=hover_range.end).contains(&offset)
-            })
-            .unwrap_or(false)
+                if offset == hover_range.end {
+                    if fallback_state.non_text_state_update_count != buffer_snapshot.non_text_state_update_count() {
+                        *fallback_state = FallbackHoverState::new(buffer_snapshot, &range);
+                    }
+                    return fallback_state.includes_end;
+                }
+            }
+            // LSP returns a hover result for the end index of ranges that should be hovered, so we need to
+            // use an inclusive range here to check if we should dismiss the popover
+            (hover_range.start..=hover_range.end).contains(&offset)
+        })
     })
 }
 
 fn same_diagnostic_hover(editor: &Editor, snapshot: &EditorSnapshot, anchor: Anchor) -> bool {
-    editor
-        .hover_state
-        .diagnostic_popover
-        .as_ref()
-        .map(|diagnostic| {
-            let hover_range = diagnostic.local_diagnostic.range.to_offset(snapshot.buffer_snapshot());
-            let offset = anchor.to_offset(snapshot.buffer_snapshot());
+    editor.hover_state.diagnostic_popover.as_ref().is_some_and(|diagnostic| {
+        let hover_range = diagnostic.local_diagnostic.range.to_offset(snapshot.buffer_snapshot());
+        let offset = anchor.to_offset(snapshot.buffer_snapshot());
 
-            // Here we do basically the same as in `same_info_hover`, see comment there for an explanation
-            (hover_range.start..=hover_range.end).contains(&offset)
-        })
-        .unwrap_or(false)
+        // Here we do basically the same as in `same_info_hover`, see comment there for an explanation
+        (hover_range.start..=hover_range.end).contains(&offset)
+    })
 }
 
 fn parse_blocks(
@@ -932,10 +925,10 @@ pub fn diagnostics_markdown_style(window: &Window, cx: &App) -> MarkdownStyle {
 fn parse_file_link(link: &str) -> Option<(PathBuf, Option<String>)> {
     let uri = Url::parse(link).ok().filter(|uri| uri.scheme() == "file")?;
     let fragment = uri.fragment().map(ToOwned::to_owned);
-    let path = uri.to_file_path().unwrap_or_else(|_| {
+    let path = uri.to_file_path().unwrap_or_else(|()| {
         let encoded = uri.path();
 
-        urlencoding::decode(encoded).map(Cow::into_owned).map(PathBuf::from).unwrap_or_else(|_| PathBuf::from(encoded))
+        urlencoding::decode(encoded).map(Cow::into_owned).map_or_else(|_| PathBuf::from(encoded), PathBuf::from)
     });
 
     Some((path, fragment))
@@ -1192,7 +1185,7 @@ impl InfoPopover {
                             bounds_cell.set(Some(bounds));
                         }
                     },
-                    |_, _, _, _| {},
+                    |_, (), _, _| {},
                 )
                 .absolute()
                 .size_full(),
@@ -1207,7 +1200,7 @@ impl InfoPopover {
                         editor.hover_state.hint_hover_task = None;
                     })
                     .ok();
-                    cx.stop_propagation()
+                    cx.stop_propagation();
                 }
             })
             .on_mouse_down(MouseButton::Left, move |_, _, cx| {
@@ -1236,7 +1229,7 @@ impl InfoPopover {
                                         link,
                                         window,
                                         cx,
-                                    )
+                                    );
                                 })
                                 .p_2(),
                         ),
@@ -1326,7 +1319,7 @@ impl DiagnosticPopover {
                             bounds_cell.set(Some(bounds));
                         }
                     },
-                    |_, _, _, _| {},
+                    |_, (), _, _| {},
                 )
                 .absolute()
                 .size_full(),
@@ -1345,7 +1338,7 @@ impl DiagnosticPopover {
                         editor.hover_state.hint_hover_task = None;
                     })
                     .ok();
-                    cx.stop_propagation()
+                    cx.stop_propagation();
                 }
             })
             // Prevent a mouse down on the popover from being propagated to the editor,

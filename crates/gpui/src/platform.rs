@@ -656,14 +656,14 @@ impl PlatformTextSystem for NoopTextSystem {
                     position += em_width;
                 }
             } else {
-                position += em_width
+                position += em_width;
             }
         }
         let mut runs = Vec::default();
-        if !glyphs.is_empty() {
-            runs.push(ShapedRun { font_id: FontId(0), glyphs });
-        } else {
+        if glyphs.is_empty() {
             position = px(0.);
+        } else {
+            runs.push(ShapedRun { font_id: FontId(0), glyphs });
         }
 
         LineLayout {
@@ -995,7 +995,7 @@ impl PlatformInputHandler {
     ) {
         self.cx
             .update(|window, cx| {
-                self.handler.replace_and_mark_text_in_range(range_utf16, new_text, new_selected_range, window, cx)
+                self.handler.replace_and_mark_text_in_range(range_utf16, new_text, new_selected_range, window, cx);
             })
             .ok();
     }
@@ -1747,7 +1747,7 @@ impl ClipboardItem {
             }
         }
 
-        if !answer.is_empty() { Some(answer) } else { None }
+        if answer.is_empty() { None } else { Some(answer) }
     }
 
     /// If this item is one ClipboardEntry::String, returns its metadata.
@@ -1959,12 +1959,12 @@ impl Image {
 
     /// Use the GPUI `use_asset` API to make this image renderable
     pub fn use_render_image(self: Arc<Self>, window: &mut Window, cx: &mut App) -> Option<Arc<RenderImage>> {
-        ImageSource::Image(self).use_data(None, window, cx).and_then(|result| result.ok())
+        ImageSource::Image(self).use_data(None, window, cx).and_then(Result::ok)
     }
 
     /// Use the GPUI `get_asset` API to make this image renderable
     pub fn get_render_image(self: Arc<Self>, window: &mut Window, cx: &mut App) -> Option<Arc<RenderImage>> {
-        ImageSource::Image(self).get_data(None, window, cx).and_then(|result| result.ok())
+        ImageSource::Image(self).get_data(None, window, cx).and_then(Result::ok)
     }
 
     /// Use the GPUI `remove_asset` API to drop this image, if possible.

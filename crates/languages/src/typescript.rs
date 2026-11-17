@@ -123,7 +123,7 @@ impl PackageJsonData {
                 ..TaskTemplate::default()
             });
             task_templates.0.push(TaskTemplate {
-                label: format!("{} test {}", "vitest".to_owned(), VariableName::Symbol.template_value(),),
+                label: format!("{} test {}", "vitest".to_owned(), VariableName::Symbol.template_value()),
                 command: TYPESCRIPT_RUNNER_VARIABLE.template_value(),
                 args: vec![
                     "exec".to_owned(),
@@ -150,7 +150,7 @@ impl PackageJsonData {
                 ..TaskTemplate::default()
             });
             task_templates.0.push(TaskTemplate {
-                label: format!("{} test {}", "mocha".to_owned(), VariableName::Symbol.template_value(),),
+                label: format!("{} test {}", "mocha".to_owned(), VariableName::Symbol.template_value()),
                 command: TYPESCRIPT_RUNNER_VARIABLE.template_value(),
                 args: vec![
                     "exec".to_owned(),
@@ -180,7 +180,7 @@ impl PackageJsonData {
                 ..TaskTemplate::default()
             });
             task_templates.0.push(TaskTemplate {
-                label: format!("{} test {}", "jasmine".to_owned(), VariableName::Symbol.template_value(),),
+                label: format!("{} test {}", "jasmine".to_owned(), VariableName::Symbol.template_value()),
                 command: TYPESCRIPT_RUNNER_VARIABLE.template_value(),
                 args: vec![
                     "exec".to_owned(),
@@ -204,7 +204,7 @@ impl PackageJsonData {
                 ..TaskTemplate::default()
             });
             task_templates.0.push(TaskTemplate {
-                label: format!("bun test {}", VariableName::Symbol.template_value(),),
+                label: format!("bun test {}", VariableName::Symbol.template_value()),
                 command: "bun".to_owned(),
                 args: vec![
                     "test".to_owned(),
@@ -318,22 +318,21 @@ impl TypeScriptContextProvider {
                     .filter(|package_json| package_json.mtime == mtime)
                     .map(|package_json| package_json.data.clone())
             };
-            match existing_data {
-                Some(existing_data) => Ok(existing_data),
-                None => {
-                    let package_json_string = fs
-                        .load(&package_json_path)
-                        .await
-                        .with_context(|| format!("loading package.json from {package_json_path:?}"))?;
-                    let package_json: FxHashMap<String, serde_json::Value> = serde_json::from_str(&package_json_string)
-                        .with_context(|| format!("parsing package.json from {package_json_path:?}"))?;
-                    let new_data = PackageJsonData::new(package_json_path.as_path().into(), package_json);
-                    {
-                        let mut contents = existing_package_json.0.write().await;
-                        contents.insert(package_json_path, PackageJson { mtime, data: new_data.clone() });
-                    }
-                    Ok(new_data)
+            if let Some(existing_data) = existing_data {
+                Ok(existing_data)
+            } else {
+                let package_json_string = fs
+                    .load(&package_json_path)
+                    .await
+                    .with_context(|| format!("loading package.json from {package_json_path:?}"))?;
+                let package_json: FxHashMap<String, serde_json::Value> = serde_json::from_str(&package_json_string)
+                    .with_context(|| format!("parsing package.json from {package_json_path:?}"))?;
+                let new_data = PackageJsonData::new(package_json_path.as_path().into(), package_json);
+                {
+                    let mut contents = existing_package_json.0.write().await;
+                    contents.insert(package_json_path, PackageJson { mtime, data: new_data.clone() });
                 }
+                Ok(new_data)
             }
         })
     }

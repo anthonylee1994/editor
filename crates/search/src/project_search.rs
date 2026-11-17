@@ -219,18 +219,18 @@ pub fn init(cx: &mut App) {
             search_bar.toggle_search_option(SearchOptions::REGEX, window, cx);
         });
         register_workspace_action(workspace, move |search_bar, action: &ToggleReplace, window, cx| {
-            search_bar.toggle_replace(action, window, cx)
+            search_bar.toggle_replace(action, window, cx);
         });
         register_workspace_action(workspace, move |search_bar, action: &SelectPreviousMatch, window, cx| {
-            search_bar.select_prev_match(action, window, cx)
+            search_bar.select_prev_match(action, window, cx);
         });
         register_workspace_action(workspace, move |search_bar, action: &SelectNextMatch, window, cx| {
-            search_bar.select_next_match(action, window, cx)
+            search_bar.select_next_match(action, window, cx);
         });
 
         // Only handle search_in_new if there is a search present
         register_workspace_action_for_present_search(workspace, |workspace, action, window, cx| {
-            ProjectSearchView::search_in_new(workspace, action, window, cx)
+            ProjectSearchView::search_in_new(workspace, action, window, cx);
         });
 
         register_workspace_action_for_present_search(
@@ -258,7 +258,7 @@ pub fn init(cx: &mut App) {
                     if search_is_focused {
                         project_search_bar.move_focus_to_results(window, cx);
                     } else {
-                        project_search_bar.focus_search(window, cx)
+                        project_search_bar.focus_search(window, cx);
                     }
                 });
             } else {
@@ -552,7 +552,7 @@ impl ProjectSearch {
     fn clear(&mut self, cx: &mut Context<Self>) {
         self.pending_search = None;
         self.match_ranges.clear();
-        self.excerpts.update(cx, |excerpts, cx| excerpts.clear(cx));
+        self.excerpts.update(cx, editor::MultiBuffer::clear);
         self.search_state = SearchState::Idle;
         self.phase = SearchPhase::Idle;
         self.reuses_excerpts = false;
@@ -691,13 +691,13 @@ async fn consume_search_stream(
                 project_search
                     .update(cx, |project_search, cx| {
                         let workspace = project_search.workspace.upgrade();
-                        if !is_buffer_stale(workspace.as_ref(), &buffer, cx) {
-                            project_search.match_ranges.extend(new_ranges);
-                        } else {
+                        if is_buffer_stale(workspace.as_ref(), &buffer, cx) {
                             let buffer_id = buffer.read(cx).buffer_id();
                             project_search
                                 .excerpts
                                 .update(cx, |excerpts, cx| excerpts.remove_excerpts_for_buffer(buffer_id, cx));
+                        } else {
+                            project_search.match_ranges.extend(new_ranges);
                         }
                         cx.notify();
                     })
@@ -1066,7 +1066,7 @@ impl Item for ProjectSearchView {
     }
 
     fn for_each_project_item(&self, cx: &App, f: &mut dyn FnMut(EntityId, &dyn project::ProjectItem)) {
-        self.results_editor.for_each_project_item(cx, f)
+        self.results_editor.for_each_project_item(cx, f);
     }
 
     fn active_project_path(&self, cx: &App) -> Option<ProjectPath> {
@@ -1138,7 +1138,7 @@ impl Item for ProjectSearchView {
                 Editor::to_item_events(editor_event, f);
             }
             ViewEvent::Dismiss => f(ItemEvent::CloseItem),
-            _ => {}
+            ViewEvent::Activate => {}
         }
     }
 }
@@ -1243,7 +1243,7 @@ impl ProjectSearchView {
                     editor.replace(mat, &query, SearchToken::default(), window, cx);
                 }
             });
-            self.select_match(Direction::Next, window, cx)
+            self.select_match(Direction::Next, window, cx);
         }
     }
 
@@ -1356,7 +1356,7 @@ impl ProjectSearchView {
                                 if this.panels_with_errors.remove(&InputPanel::Query).is_some() {
                                     cx.notify();
                                 }
-                                this.entity.update(cx, |model, cx| model.clear(cx));
+                                this.entity.update(cx, ProjectSearch::clear);
                                 this.results_editor.update(cx, |editor, cx| {
                                     editor.scroll(Point::default(), window, cx);
                                 });
@@ -1368,7 +1368,7 @@ impl ProjectSearchView {
                     this.schedule_search_on_type(cx);
                 }
             }
-            cx.emit(ViewEvent::EditorEvent(event.clone()))
+            cx.emit(ViewEvent::EditorEvent(event.clone()));
         }));
         let replacement_editor = cx.new(|cx| {
             let mut editor = Editor::auto_height(1, 4, window, cx);
@@ -1407,7 +1407,7 @@ impl ProjectSearchView {
         // Subscribe to include_files_editor in order to reraise editor events for workspace item activation purposes
         subscriptions.push(cx.subscribe(&included_files_editor, |this, _, event: &EditorEvent, cx| {
             this.schedule_search_on_type_for_filter_edit(event, cx);
-            cx.emit(ViewEvent::EditorEvent(event.clone()))
+            cx.emit(ViewEvent::EditorEvent(event.clone()));
         }));
 
         let excluded_files_editor = cx.new(|cx| {
@@ -1419,7 +1419,7 @@ impl ProjectSearchView {
         // Subscribe to excluded_files_editor in order to reraise editor events for workspace item activation purposes
         subscriptions.push(cx.subscribe(&excluded_files_editor, |this, _, event: &EditorEvent, cx| {
             this.schedule_search_on_type_for_filter_edit(event, cx);
-            cx.emit(ViewEvent::EditorEvent(event.clone()))
+            cx.emit(ViewEvent::EditorEvent(event.clone()));
         }));
 
         let focus_handle = cx.focus_handle();
@@ -1478,7 +1478,7 @@ impl ProjectSearchView {
         search.update(cx, |search, cx| {
             search.included_files_editor.update(cx, |editor, cx| editor.set_text(filter_str, window, cx));
             search.filters_enabled = true;
-            search.focus_query_editor(window, cx)
+            search.focus_query_editor(window, cx);
         });
     }
 
@@ -1537,7 +1537,7 @@ impl ProjectSearchView {
         window: &mut Window,
         cx: &mut Context<Workspace>,
     ) {
-        Self::existing_or_new_search(workspace, None, &DeploySearch::default(), window, cx)
+        Self::existing_or_new_search(workspace, None, &DeploySearch::default(), window, cx);
     }
 
     fn existing_or_new_search(
@@ -1604,7 +1604,7 @@ impl ProjectSearchView {
                 search.excluded_files_editor.update(cx, |editor, cx| editor.set_text(excluded_files, window, cx));
                 search.filters_enabled = true;
             }
-            search.focus_query_editor(window, cx)
+            search.focus_query_editor(window, cx);
         });
     }
 
@@ -1759,7 +1759,7 @@ impl ProjectSearchView {
             included_opened_only: self.included_opened_only,
             opened_buffers: self.included_opened_only.then(|| {
                 let mut buffer_ids =
-                    open_buffers.unwrap_or_default().iter().map(|buffer| buffer.entity_id()).collect::<Vec<_>>();
+                    open_buffers.unwrap_or_default().iter().map(gpui::Entity::entity_id).collect::<Vec<_>>();
                 buffer_ids.sort_unstable();
                 buffer_ids.dedup();
                 buffer_ids
@@ -1863,7 +1863,7 @@ impl ProjectSearchView {
         if !self.panels_with_errors.is_empty() {
             return None;
         }
-        if query.as_ref().is_some_and(|query| query.is_empty()) {
+        if query.as_ref().is_some_and(|x| x.is_empty()) {
             return None;
         }
         query
@@ -1920,7 +1920,7 @@ impl ProjectSearchView {
                 let autoscroll = Autoscroll::fit();
                 editor.unfold_ranges(slice::from_ref(&range_to_select), false, true, cx);
                 editor.change_selections(SelectionEffects::scroll(autoscroll), window, cx, |s| {
-                    s.select_ranges([range_to_select])
+                    s.select_ranges([range_to_select]);
                 });
             });
             self.highlight_matches(&match_ranges, Some(new_index), cx);
@@ -2010,7 +2010,7 @@ impl ProjectSearchView {
                 let range_to_select = editor.range_for_match(first_match);
                 if editor.selections.newest_anchor().range() != range_to_select {
                     editor.change_selections(SelectionEffects::no_scroll().nav_history(false), window, cx, |s| {
-                        s.select_ranges([range_to_select])
+                        s.select_ranges([range_to_select]);
                     });
                 }
             });
@@ -2039,7 +2039,7 @@ impl ProjectSearchView {
                     self.results_editor.update(cx, |editor, cx| {
                         let range_to_select = match_ranges.first().map(|range| editor.range_for_match(range));
                         editor.change_selections(SelectionEffects::default(), window, cx, |s| {
-                            s.select_ranges(range_to_select)
+                            s.select_ranges(range_to_select);
                         });
                         editor.scroll(Point::default(), window, cx);
                     });
@@ -2159,7 +2159,7 @@ impl ProjectSearchView {
     fn move_focus_to_results(&self, window: &mut Window, cx: &mut Context<Self>) {
         if !self.results_editor.focus_handle(cx).is_focused(window) && !self.entity.read(cx).match_ranges.is_empty() {
             cx.stop_propagation();
-            self.focus_results_editor(window, cx)
+            self.focus_results_editor(window, cx);
         }
     }
 
@@ -2276,9 +2276,8 @@ impl ProjectSearchBar {
     }
 
     fn cycle_field(&self, direction: Direction, window: &mut Window, cx: &mut Context<Self>) {
-        let active_project_search = match &self.active_project_search {
-            Some(active_project_search) => active_project_search,
-            None => return,
+        let Some(active_project_search) = &self.active_project_search else {
+            return;
         };
 
         active_project_search.update(cx, |project_view, cx| {
@@ -2292,9 +2291,8 @@ impl ProjectSearchBar {
                     project_view.excluded_files_editor.focus_handle(cx),
                 ]);
             }
-            let current_index = match views.iter().position(|focus| focus.is_focused(window)) {
-                Some(index) => index,
-                None => return,
+            let Some(current_index) = views.iter().position(|focus| focus.is_focused(window)) else {
+                return;
             };
 
             let new_index = match direction {
@@ -2319,11 +2317,11 @@ impl ProjectSearchBar {
                 search_view.update(cx, |search_view, cx| {
                     search_view.toggle_search_option(option, cx);
                     search_view.entity.read(cx).active_query.as_ref()?;
-                    if !search_view.is_dirty(cx) {
+                    if search_view.is_dirty(cx) {
+                        Some(search_view.prompt_to_save_if_dirty_then_search(window, cx))
+                    } else {
                         search_view.search(SearchMode::Refresh, cx);
                         None
-                    } else {
-                        Some(search_view.prompt_to_save_if_dirty_then_search(window, cx))
                     }
                 })
             })?;
@@ -2378,11 +2376,11 @@ impl ProjectSearchBar {
                 search_view.update(cx, |search_view, cx| {
                     search_view.toggle_opened_only(window, cx);
                     search_view.entity.read(cx).active_query.as_ref()?;
-                    if !search_view.is_dirty(cx) {
+                    if search_view.is_dirty(cx) {
+                        Some(search_view.prompt_to_save_if_dirty_then_search(window, cx))
+                    } else {
                         search_view.search(SearchMode::Refresh, cx);
                         None
-                    } else {
-                        Some(search_view.prompt_to_save_if_dirty_then_search(window, cx))
                     }
                 })
             })?;
@@ -2499,7 +2497,7 @@ impl ProjectSearchBar {
         if let Some(search) = self.active_project_search.as_ref() {
             search.update(cx, |this, cx| {
                 this.select_match(Direction::Next, window, cx);
-            })
+            });
         }
     }
 
@@ -2507,7 +2505,7 @@ impl ProjectSearchBar {
         if let Some(search) = self.active_project_search.as_ref() {
             search.update(cx, |this, cx| {
                 this.select_match(Direction::Prev, window, cx);
-            })
+            });
         }
     }
 
@@ -2662,10 +2660,7 @@ impl Render for ProjectSearchBar {
                         this.toggle_filters(window, cx);
                     }))
                     .toggle_state(
-                        self.active_project_search
-                            .as_ref()
-                            .map(|search| search.read(cx).filters_enabled)
-                            .unwrap_or_default(),
+                        self.active_project_search.as_ref().is_some_and(|search| search.read(cx).filters_enabled),
                     )
                     .tooltip({
                         let focus_handle = focus_handle.clone();
@@ -2830,7 +2825,9 @@ impl ToolbarItemView for ProjectSearchBar {
         cx.notify();
         self.subscription = None;
         self.active_project_search = None;
-        if let Some(search) = active_pane_item.and_then(|i| i.downcast::<ProjectSearchView>()) {
+        if let Some(search) =
+            active_pane_item.and_then(<dyn workspace::ItemHandle + 'static>::downcast::<ProjectSearchView>)
+        {
             self.subscription = Some(cx.observe(&search, |_, _, cx| cx.notify()));
             self.active_project_search = Some(search);
             ToolbarItemLocation::PrimaryLeft {}
@@ -2863,7 +2860,7 @@ fn register_workspace_action<A: Action>(
                     });
                 }
             });
-        })
+        });
     });
 }
 
@@ -2883,8 +2880,7 @@ fn register_workspace_action_for_present_search<A: Action>(
             .toolbar()
             .read(cx)
             .item_of_type::<ProjectSearchBar>()
-            .map(|search_bar| search_bar.read(cx).active_project_search.is_some())
-            .unwrap_or(false);
+            .is_some_and(|search_bar| search_bar.read(cx).active_project_search.is_some());
         if should_notify {
             callback(workspace, action, window, cx);
             cx.notify();

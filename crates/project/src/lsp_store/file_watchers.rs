@@ -237,11 +237,8 @@ impl LocalLspStore {
             lsp::GlobPattern::String(s) => {
                 let watcher_path = SanitizedPath::new(s);
                 let path = glob_literal_prefix(watcher_path.as_path());
-                let pattern = watcher_path
-                    .as_path()
-                    .strip_prefix(&path)
-                    .map(|p| p.to_string_lossy().into_owned())
-                    .unwrap_or_else(|e| {
+                let pattern = watcher_path.as_path().strip_prefix(&path).map_or_else(
+                    |e| {
                         log::error!(
                             "Failed to strip prefix for string pattern: {}, with prefix: {}, with error: {}",
                             s,
@@ -249,7 +246,9 @@ impl LocalLspStore {
                             e
                         );
                         watcher_path.as_path().to_string_lossy().into_owned()
-                    });
+                    },
+                    |p| p.to_string_lossy().into_owned(),
+                );
                 (path, pattern)
             }
             lsp::GlobPattern::Relative(rp) => {
@@ -262,10 +261,8 @@ impl LocalLspStore {
                 };
 
                 let path = glob_literal_prefix(Path::new(&rp.pattern));
-                let pattern = Path::new(&rp.pattern)
-                    .strip_prefix(&path)
-                    .map(|p| p.to_string_lossy().into_owned())
-                    .unwrap_or_else(|e| {
+                let pattern = Path::new(&rp.pattern).strip_prefix(&path).map_or_else(
+                    |e| {
                         log::error!(
                             "Failed to strip prefix for relative pattern: {}, with prefix: {}, with error: {}",
                             rp.pattern,
@@ -273,14 +270,24 @@ impl LocalLspStore {
                             e
                         );
                         rp.pattern.clone()
-                    });
+                    },
+                    |p| p.to_string_lossy().into_owned(),
+                );
                 base_uri.push(path);
                 (base_uri, pattern)
             }
         };
 
         if let Some(glob) = Glob::new(&pattern).log_err() {
-            if !path.components().any(|c| matches!(c, path::Component::Normal(_))) {
+            if path.components().any(|c| matches!(c, path::Component::Normal(_))) {
+                let abs_path: Arc<Path> = path.into();
+                let fs = self.fs.clone();
+                let entry = watched.abs_paths.entry(abs_path.clone()).or_insert_with(|| {
+                    let task = LanguageServerWatchedPaths::spawn_abs_path_watcher(abs_path, fs, language_server_id, cx);
+                    (LazyGlobSet::default(), task)
+                });
+                entry.0.add(registration_id, glob);
+            } else {
                 // For an unrooted glob like `**/Cargo.toml`, watch it within each worktree,
                 // rather than adding a new watcher for `/`.
                 for worktree in worktrees {
@@ -290,14 +297,6 @@ impl LocalLspStore {
                         .or_default()
                         .add(registration_id, glob.clone());
                 }
-            } else {
-                let abs_path: Arc<Path> = path.into();
-                let fs = self.fs.clone();
-                let entry = watched.abs_paths.entry(abs_path.clone()).or_insert_with(|| {
-                    let task = LanguageServerWatchedPaths::spawn_abs_path_watcher(abs_path, fs, language_server_id, cx);
-                    (LazyGlobSet::default(), task)
-                });
-                entry.0.add(registration_id, glob);
             }
         }
     }
@@ -344,7 +343,7 @@ impl LocalLspStore {
         params: DidChangeWatchedFilesRegistrationOptions,
         cx: &mut Context<LspStore>,
     ) {
-        log::trace!("Processing new watcher paths for language server with id {}", language_server_id);
+        log::trace!("Processing new watcher paths for language server with id {language_server_id}");
 
         let worktrees: Vec<Entity<Worktree>> = self
             .worktree_store
@@ -379,15 +378,11 @@ impl LocalLspStore {
 
         if registrations.did_change_watched_files.remove(registration_id) {
             log::info!(
-                "language server {}: unregistered workspace/DidChangeWatchedFiles capability with id {}",
-                language_server_id,
-                registration_id
+                "language server {language_server_id}: unregistered workspace/DidChangeWatchedFiles capability with id {registration_id}"
             );
         } else {
             log::warn!(
-                "language server {}: failed to unregister workspace/DidChangeWatchedFiles capability with id {}. not registered.",
-                language_server_id,
-                registration_id
+                "language server {language_server_id}: failed to unregister workspace/DidChangeWatchedFiles capability with id {registration_id}. not registered."
             );
             return;
         }

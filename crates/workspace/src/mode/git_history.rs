@@ -52,13 +52,12 @@ impl Workspace {
         let pane = self.active_git_history_pane.clone();
         let zoomed_pane = self.zoomed_pane(WorkspaceMode::GitHistory, cx);
         let side_card = self.git_history_side_card(cx);
-        let panes = match zoomed_pane {
-            Some(zoomed_pane) => self.git_history_center.render_zoomed(&zoomed_pane, cx).into_any_element(),
-            None => {
-                let weak_handle = self.weak_handle();
-                let render_cx = PaneRenderContext { active_pane: &pane, workspace: &weak_handle };
-                self.git_history_center.render(None, None, &render_cx, window, cx).into_any_element()
-            }
+        let panes = if let Some(zoomed_pane) = zoomed_pane {
+            self.git_history_center.render_zoomed(&zoomed_pane, cx).into_any_element()
+        } else {
+            let weak_handle = self.weak_handle();
+            let render_cx = PaneRenderContext { active_pane: &pane, workspace: &weak_handle };
+            self.git_history_center.render(None, None, &render_cx, window, cx).into_any_element()
         };
         let content = h_flex()
             .size_full()
@@ -274,7 +273,7 @@ impl Workspace {
                 self.switch_mode(WorkspaceMode::GitHistory, cx);
             }
             pane::Event::ChangeItemTitle | pane::Event::ActivateItem { .. } | pane::Event::RemovedItem { .. } => {
-                self.notify_mode(WorkspaceMode::GitHistory, cx)
+                self.notify_mode(WorkspaceMode::GitHistory, cx);
             }
             _ => {}
         }

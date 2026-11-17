@@ -69,7 +69,7 @@ impl Editor {
                                     ..Default::default()
                                 },
                                 cx,
-                            )
+                            );
                         }
                     })
                     .ok();

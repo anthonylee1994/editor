@@ -102,7 +102,7 @@ impl gpui::Global for GlobalDiffViewStyle {}
 
 impl DiffViewStyle {
     pub fn global(cx: &App) -> DiffViewStyle {
-        cx.try_global::<GlobalDiffViewStyle>().map(|style| style.0).unwrap_or_default()
+        cx.try_global::<GlobalDiffViewStyle>().map_or_default(|style| style.0)
     }
 
     pub fn set_global(style: DiffViewStyle, cx: &mut App) {
@@ -475,7 +475,7 @@ impl RenderOnce for DiffStyleControls {
                     .toggle_state(is_split_set)
                     .tooltip(move |_, cx| {
                         let message = if is_split_pending {
-                            format!("Split when wider than {} columns", min_columns).into()
+                            format!("Split when wider than {min_columns} columns").into()
                         } else {
                             SharedString::from("Split")
                         };
@@ -648,10 +648,10 @@ impl SplittableEditor {
 
         let rhs_has_headers = self.rhs_multibuffer.read(cx).snapshot(cx).show_headers();
         let lhs_multibuffer = cx.new(|cx| {
-            let mut multibuffer = if !rhs_has_headers {
-                MultiBuffer::without_headers(Capability::ReadOnly)
-            } else {
+            let mut multibuffer = if rhs_has_headers {
                 MultiBuffer::new(Capability::ReadOnly)
+            } else {
+                MultiBuffer::without_headers(Capability::ReadOnly)
             };
             multibuffer.set_all_diff_hunks_expanded(cx);
             multibuffer
@@ -759,7 +759,7 @@ impl SplittableEditor {
             editor.buffer().update(cx, |rhs_multibuffer, cx| {
                 rhs_multibuffer.set_show_deleted_hunks(false, cx);
                 rhs_multibuffer.set_use_extended_diff_range(true, cx);
-            })
+            });
         });
 
         self.lhs = Some(lhs);
@@ -790,7 +790,7 @@ impl SplittableEditor {
                         this.sync_cursor_to_other_side(true, cursor_position, window, cx);
                     })
                     .ok();
-                })
+                });
             })));
         });
         lhs.editor.update(cx, |editor, _cx| {
@@ -802,7 +802,7 @@ impl SplittableEditor {
                         this.sync_cursor_to_other_side(false, cursor_position, window, cx);
                     })
                     .ok();
-                })
+                });
             })));
         });
 
@@ -830,13 +830,13 @@ impl SplittableEditor {
 
     fn activate_pane_left(&mut self, _: &ActivatePaneLeft, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(lhs) = &self.lhs {
-            if !lhs.was_last_focused {
+            if lhs.was_last_focused {
+                cx.propagate();
+            } else {
                 lhs.editor.read(cx).focus_handle(cx).focus(window, cx);
                 lhs.editor.update(cx, |editor, cx| {
                     editor.request_autoscroll(Autoscroll::fit(), cx);
                 });
-            } else {
-                cx.propagate();
             }
         } else {
             cx.propagate();
@@ -1190,11 +1190,11 @@ impl Item for SplittableEditor {
     }
 
     fn to_item_events(event: &EditorEvent, f: &mut dyn FnMut(ItemEvent)) {
-        Editor::to_item_events(event, f)
+        Editor::to_item_events(event, f);
     }
 
     fn for_each_project_item(&self, cx: &App, f: &mut dyn FnMut(gpui::EntityId, &dyn project::ProjectItem)) {
-        self.rhs_editor.read(cx).for_each_project_item(cx, f)
+        self.rhs_editor.read(cx).for_each_project_item(cx, f);
     }
 
     fn buffer_kind(&self, cx: &App) -> ItemBufferKind {
@@ -1314,7 +1314,7 @@ impl SearchableItem for SplittableEditor {
         if let Some(lhs_editor) = self.lhs_editor() {
             lhs_editor.update(cx, |editor, cx| {
                 editor.clear_matches(window, cx);
-            })
+            });
         }
     }
 
@@ -1495,7 +1495,7 @@ impl Render for SplittableEditor {
                             .ok();
                         });
                     },
-                    |_, _, _, _| {},
+                    |_, (), _, _| {},
                 )
                 .absolute()
                 .size_full(),

@@ -128,12 +128,12 @@ fn format_relative_time(timestamp: OffsetDateTime, reference: OffsetDateTime) ->
     match minutes {
         0 => Some("Just now".to_string()),
         1 => Some("1 minute ago".to_string()),
-        2..=59 => Some(format!("{} minutes ago", minutes)),
+        2..=59 => Some(format!("{minutes} minutes ago")),
         _ => {
             let hours = difference.whole_hours();
             match hours {
                 1 => Some("1 hour ago".to_string()),
-                2..=23 => Some(format!("{} hours ago", hours)),
+                2..=23 => Some(format!("{hours} hours ago")),
                 _ => None,
             }
         }
@@ -148,17 +148,17 @@ fn format_relative_date(timestamp: OffsetDateTime, reference: OffsetDateTime) ->
     match days {
         0 => "Today".to_string(),
         1 => "Yesterday".to_string(),
-        2..=6 => format!("{} days ago", days),
+        2..=6 => format!("{days} days ago"),
         _ => {
             let weeks = difference.whole_weeks();
             match weeks {
                 1 => "1 week ago".to_string(),
-                2..=4 => format!("{} weeks ago", weeks),
+                2..=4 => format!("{weeks} weeks ago"),
                 _ => {
                     let month_diff = calculate_month_difference(timestamp, reference);
                     match month_diff {
                         0..=1 => "1 month ago".to_string(),
-                        2..=11 => format!("{} months ago", month_diff),
+                        2..=11 => format!("{month_diff} months ago"),
                         // Match git's `show_date_relative` behavior: for dates under 5 years old,
                         // include both years and months so, for example, 22 months is shown as
                         // "1 year, 10 months ago" instead of being collapsed to "1 year ago".
@@ -221,28 +221,27 @@ mod macos {
     use objc2_core_foundation::CFRetained;
 
     pub fn format_time(timestamp: &time::OffsetDateTime) -> String {
-        TIME_FORMATTER.with(|f| format_with_date_formatter(timestamp, f))
+        TIME_FORMATTER.with(|f| format_with_date_formatter(timestamp, f.as_ref()))
     }
 
     pub fn format_date(timestamp: &time::OffsetDateTime) -> String {
-        DATE_FORMATTER.with(|f| format_with_date_formatter(timestamp, f))
+        DATE_FORMATTER.with(|f| format_with_date_formatter(timestamp, f.as_ref()))
     }
 
     pub fn format_date_medium(timestamp: &time::OffsetDateTime) -> String {
-        MEDIUM_DATE_FORMATTER.with(|f| format_with_date_formatter(timestamp, f))
+        MEDIUM_DATE_FORMATTER.with(|f| format_with_date_formatter(timestamp, f.as_ref()))
     }
 
     fn format_with_date_formatter(
         timestamp: &time::OffsetDateTime,
-        fmt: &Option<CFRetained<CFDateFormatter>>,
+        fmt: Option<&CFRetained<CFDateFormatter>>,
     ) -> String {
         const UNIX_TO_CF_ABSOLUTE_TIME_OFFSET: i64 = 978307200;
         // Convert timestamp to macOS absolute time
         let timestamp_macos = timestamp.unix_timestamp() - UNIX_TO_CF_ABSOLUTE_TIME_OFFSET;
         let cf_absolute_time = timestamp_macos as CFAbsoluteTime;
-        unsafe { CFDateFormatter::new_string_with_absolute_time(None, fmt.as_deref(), cf_absolute_time) }
-            .map(|s| s.to_string())
-            .unwrap_or_default()
+        unsafe { CFDateFormatter::new_string_with_absolute_time(None, fmt.map(|f| &**f), cf_absolute_time) }
+            .map_or_default(|s| s.to_string())
     }
 
     fn new_formatter(

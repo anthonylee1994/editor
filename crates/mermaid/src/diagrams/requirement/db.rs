@@ -259,7 +259,7 @@ impl RequirementDb {
                 continue;
             };
             for name in class_names {
-                let styles = self.classes.get(name).map(|class| class.styles.clone()).unwrap_or_default();
+                let styles = self.classes.get(name).map_or_default(|class| class.styles.clone());
                 if let Some((_, classes)) = self.node_mut(node) {
                     classes.push((*name).to_owned());
                 }

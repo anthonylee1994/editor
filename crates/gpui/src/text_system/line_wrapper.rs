@@ -88,7 +88,7 @@ impl LineWrapper {
         let mut last_wrap_ix = 0;
         let mut prev_c = '\0';
         let mut index = 0;
-        let mut candidates = fragments.iter().flat_map(move |fragment| fragment.wrap_boundary_candidates());
+        let mut candidates = fragments.iter().flat_map(LineFragment::wrap_boundary_candidates);
         iter::from_fn(move || {
             for candidate in candidates.by_ref() {
                 let ix = index;
@@ -317,9 +317,8 @@ impl LineWrapper {
                 let mut runs = runs.to_vec();
                 update_runs_after_middle_truncation(truncation_affix, &mut runs, front_end_ix, back_start_ix);
                 return (result, Cow::Owned(runs));
-            } else {
-                return (line, Cow::Borrowed(runs));
             }
+            return (line, Cow::Borrowed(runs));
         }
 
         if let Some(truncate_ix) = self.should_truncate_line(&line, truncate_width, truncation_affix, truncate_from) {

@@ -927,7 +927,7 @@ impl MultiBuffer {
                         buffer.edit_non_coalesce(deletions, deletion_autoindent_mode, cx);
                         buffer.edit_non_coalesce(insertions, insertion_autoindent_mode, cx);
                     }
-                })
+                });
             }
 
             cx.emit(Event::BuffersEdited { buffer_ids });
@@ -1082,7 +1082,7 @@ impl MultiBuffer {
 
                 this.buffers[&buffer_id].buffer.update(cx, |buffer, cx| {
                     buffer.autoindent_ranges(ranges, cx);
-                })
+                });
             }
 
             cx.emit(Event::BuffersEdited { buffer_ids });
@@ -1331,12 +1331,10 @@ impl MultiBuffer {
 
     pub fn language_settings(&self, cx: &App) -> Arc<LanguageSettings> {
         let snapshot = self.snapshot(cx);
-        snapshot
-            .excerpts
-            .first()
-            .and_then(|excerpt| self.buffer(excerpt.range.context.start.buffer_id))
-            .map(|buffer| LanguageSettings::for_buffer(buffer.read(cx), cx))
-            .unwrap_or_else(move || self.language_settings_at(MultiBufferOffset::default(), cx))
+        snapshot.excerpts.first().and_then(|excerpt| self.buffer(excerpt.range.context.start.buffer_id)).map_or_else(
+            move || self.language_settings_at(MultiBufferOffset::default(), cx),
+            |buffer| LanguageSettings::for_buffer(buffer.read(cx), cx),
+        )
     }
 
     pub fn language_settings_at<T: ToOffset>(&self, point: T, cx: &App) -> Arc<LanguageSettings> {
@@ -1348,7 +1346,7 @@ impl MultiBuffer {
     }
 
     pub fn for_each_buffer(&self, f: &mut dyn FnMut(&Entity<Buffer>)) {
-        self.buffers.values().for_each(|state| f(&state.buffer))
+        self.buffers.values().for_each(|state| f(&state.buffer));
     }
 
     /// The title used for buffers not backed by a file and with no title of their own.
@@ -1369,7 +1367,7 @@ impl MultiBuffer {
             if let Some(title) = self.buffer_content_title(buffer) {
                 return title;
             }
-        };
+        }
 
         Self::DEFAULT_TITLE.into()
     }
@@ -1577,7 +1575,7 @@ impl MultiBuffer {
                     let excerpt_end = snapshot.excerpt_offset_for_anchor(&excerpt_end_anchor);
                     start = start.min(excerpt_end);
                     end = end.min(excerpt_end);
-                };
+                }
                 last_hunk_row = Some(diff_hunk.row_range.start);
                 excerpt_edits.push(text::Edit { old: start..end, new: start..end });
             }
@@ -1593,10 +1591,8 @@ impl MultiBuffer {
                 .excerpt_containing(range.end..range.end)
                 .and_then(|(_, excerpt_range)| snapshot.anchor_in_excerpt(excerpt_range.context.end));
             let range = range.to_point(&snapshot);
-            let mut peek_end = range.end;
-            if range.end.row < snapshot.max_row().0 {
-                peek_end = Point::new(range.end.row + 1, 0);
-            };
+            let peek_end =
+                if range.end.row < snapshot.max_row().0 { Point::new(range.end.row + 1, 0) } else { range.end };
             (range.start..peek_end, excerpt_end)
         });
         let edits = self.expand_or_collapse_diff_hunks_inner(ranges, expand, cx);
@@ -2036,7 +2032,7 @@ impl MultiBufferSnapshot {
         if let Some(region) = cursor.region().filter(|region| !region.is_main_buffer)
             && region.range.start > MBD::default()
         {
-            cursor.prev()
+            cursor.prev();
         } else if let Some(region) = cursor.region()
             && region.is_main_buffer
             && region.diff_hunk_status.is_some()
@@ -2072,7 +2068,7 @@ impl MultiBufferSnapshot {
                         buffer_start = buffer_start.min(region.buffer_range.end);
                     } else {
                         buffer_start = cursor.main_buffer_position()?;
-                    };
+                    }
                     let mut buffer_end = excerpt.range.context.end.summary::<MBD::TextDimension>(buffer_snapshot);
                     if let Some((end_excerpt, end_buffer_offset)) = &range_end
                         && &excerpt.range == end_excerpt
@@ -2205,13 +2201,12 @@ impl MultiBufferSnapshot {
                 let hunk_start = buffer.anchor_after(hunk.diff_base_byte_range.start);
                 let start = Anchor::in_buffer(excerpt.path_key_index, hunk_start).to_point(self);
                 return Some(MultiBufferRow(start.row));
-            } else {
-                let Some(hunk) = diff.hunks_intersecting_range_rev(excerpt.range.context.clone(), buffer).next() else {
-                    continue;
-                };
-                let start = Anchor::in_buffer(excerpt.path_key_index, hunk.buffer_range.start).to_point(self);
-                return Some(MultiBufferRow(start.row));
             }
+            let Some(hunk) = diff.hunks_intersecting_range_rev(excerpt.range.context.clone(), buffer).next() else {
+                continue;
+            };
+            let start = Anchor::in_buffer(excerpt.path_key_index, hunk.buffer_range.start).to_point(self);
+            return Some(MultiBufferRow(start.row));
         }
     }
 
@@ -2322,7 +2317,7 @@ impl MultiBufferSnapshot {
             chunk = &[][..];
             excerpt_bytes = None;
             has_trailing_newline = false;
-        };
+        }
 
         MultiBufferBytes { range, cursor: excerpts, excerpt_bytes, has_trailing_newline, chunk }
     }
@@ -2590,7 +2585,7 @@ impl MultiBufferSnapshot {
                 let mut summary = base_text.text_summary_for_range::<MBD::TextDimension, _>(buffer_start..buffer_end);
 
                 if include_trailing_newline {
-                    summary.add_assign(&<MBD::TextDimension>::from_text_summary(&TextSummary::newline()))
+                    summary.add_assign(&<MBD::TextDimension>::from_text_summary(&TextSummary::newline()));
                 }
 
                 let mut result = MBD::default();
@@ -2624,7 +2619,7 @@ impl MultiBufferSnapshot {
                 let mut suffix =
                     base_text.text_summary_for_range::<MBD::TextDimension, _>(base_text_byte_range.start..buffer_end);
                 if *has_trailing_newline && buffer_end == base_text_byte_range.end + 1 {
-                    suffix.add_assign(&<MBD::TextDimension>::from_text_summary(&TextSummary::from("\n")))
+                    suffix.add_assign(&<MBD::TextDimension>::from_text_summary(&TextSummary::from("\n")));
                 }
 
                 let mut result = MBD::default();
@@ -2781,7 +2776,7 @@ impl MultiBufferSnapshot {
 
                 prev_excerpt = Some(next_excerpt);
 
-                return Some(ExcerptBoundary { row, prev, next });
+                return Some(ExcerptBoundary { prev, next, row });
             }
         })
     }
@@ -3244,7 +3239,7 @@ impl DiffTransform {
 impl sum_tree::Item for DiffTransform {
     type Summary = DiffTransformSummary;
 
-    fn summary(&self, _: <Self::Summary as sum_tree::Summary>::Context<'_>) -> Self::Summary {
+    fn summary(&self, (): <Self::Summary as sum_tree::Summary>::Context<'_>) -> Self::Summary {
         match self {
             DiffTransform::BufferContent { summary, .. } => DiffTransformSummary { input: *summary, output: *summary },
             &DiffTransform::DeletedHunk { summary, .. } => {
@@ -3272,7 +3267,7 @@ impl sum_tree::ContextLessSummary for DiffTransformSummary {
 }
 
 impl sum_tree::Dimension<'_, ExcerptSummary> for PathKey {
-    fn zero(_: <ExcerptSummary as sum_tree::Summary>::Context<'_>) -> Self {
+    fn zero((): <ExcerptSummary as sum_tree::Summary>::Context<'_>) -> Self {
         PathKey::min()
     }
 
@@ -3282,12 +3277,12 @@ impl sum_tree::Dimension<'_, ExcerptSummary> for PathKey {
 }
 
 impl sum_tree::Dimension<'_, ExcerptSummary> for MultiBufferOffset {
-    fn zero(_: <ExcerptSummary as sum_tree::Summary>::Context<'_>) -> Self {
+    fn zero((): <ExcerptSummary as sum_tree::Summary>::Context<'_>) -> Self {
         MultiBufferOffset::ZERO
     }
 
     fn add_summary(&mut self, summary: &'_ ExcerptSummary, _cx: <ExcerptSummary as sum_tree::Summary>::Context<'_>) {
-        *self += summary.text.len
+        *self += summary.text.len;
     }
 }
 
@@ -3359,11 +3354,11 @@ impl<'a, MBD> sum_tree::Dimension<'a, ExcerptSummary> for ExcerptDimension<MBD>
 where
     MBD: MultiBufferDimension + Default,
 {
-    fn zero(_: ()) -> Self {
+    fn zero((): ()) -> Self {
         ExcerptDimension(MBD::default())
     }
 
-    fn add_summary(&mut self, summary: &'a ExcerptSummary, _: ()) {
-        MultiBufferDimension::add_mb_text_summary(&mut self.0, &summary.text)
+    fn add_summary(&mut self, summary: &'a ExcerptSummary, (): ()) {
+        MultiBufferDimension::add_mb_text_summary(&mut self.0, &summary.text);
     }
 }

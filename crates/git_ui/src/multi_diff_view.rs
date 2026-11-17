@@ -89,7 +89,7 @@ async fn load_entries(
 fn register_entry(
     multibuffer: &Entity<MultiBuffer>,
     entry: Entry,
-    common_root: &Option<PathBuf>,
+    common_root: Option<&PathBuf>,
     context_lines: u32,
     cx: &mut Context<Workspace>,
 ) {
@@ -99,23 +99,25 @@ fn register_entry(
     let ranges: Vec<Range<language::Point>> =
         diff_snapshot.hunks(&snapshot).map(|hunk| hunk.buffer_range.to_point(&snapshot)).collect();
 
-    let display_rel = common_root
-        .as_ref()
-        .and_then(|root| entry.new_path.strip_prefix(root).ok())
-        .map(|rel| {
-            RelPath::new(rel)
-                .map(|r| r.into_owned().into())
-                .unwrap_or_else(|_| RelPath::new(Path::new(MultiBuffer::DEFAULT_TITLE)).unwrap().into_owned().into())
-        })
-        .unwrap_or_else(|| {
+    let display_rel = common_root.and_then(|root| entry.new_path.strip_prefix(root).ok()).map_or_else(
+        || {
             entry
                 .new_path
                 .file_name()
                 .and_then(|n| n.to_str())
                 .and_then(|s| RelPath::new(Path::new(s)).ok())
-                .map(|r| r.into_owned().into())
-                .unwrap_or_else(|| RelPath::new(Path::new(MultiBuffer::DEFAULT_TITLE)).unwrap().into_owned().into())
-        });
+                .map_or_else(
+                    || RelPath::new(Path::new(MultiBuffer::DEFAULT_TITLE)).unwrap().into_owned().into(),
+                    |r| r.into_owned().into(),
+                )
+        },
+        |rel| {
+            RelPath::new(rel).map_or_else(
+                |_| RelPath::new(Path::new(MultiBuffer::DEFAULT_TITLE)).unwrap().into_owned().into(),
+                |r| r.into_owned().into(),
+            )
+        },
+    );
 
     let path_key = PathKey::with_sort_prefix(entry.index as u64, display_rel);
 
@@ -163,7 +165,7 @@ impl MultiDiffView {
 
                 let file_count = entries.len();
                 for entry in entries {
-                    register_entry(&multibuffer, entry, &common_root, context_lines, cx);
+                    register_entry(&multibuffer, entry, common_root.as_ref(), context_lines, cx);
                 }
 
                 let workspace_handle = cx.entity();
@@ -209,7 +211,7 @@ impl MultiDiffView {
 
         let editor_event_subscription = cx.subscribe(&editor, |_, _, event: &EditorEvent, cx| {
             if event == &(EditorEvent::SelectionsChanged { local: true }) {
-                cx.emit(event.clone())
+                cx.emit(event.clone());
             }
         });
 
@@ -273,7 +275,7 @@ impl Item for MultiDiffView {
     }
 
     fn to_item_events(event: &EditorEvent, f: &mut dyn FnMut(ItemEvent)) {
-        Editor::to_item_events(event, f)
+        Editor::to_item_events(event, f);
     }
 
     fn deactivated(&mut self, window: &mut Window, cx: &mut Context<Self>) {

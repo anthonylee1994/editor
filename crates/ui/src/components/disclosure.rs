@@ -109,22 +109,16 @@ impl VisibleOnHover for Disclosure {
 
 impl RenderOnce for Disclosure {
     fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
-        IconButton::new(
-            self.id,
-            match self.is_open {
-                true => self.opened_icon,
-                false => self.closed_icon,
-            },
-        )
-        .icon_color(Color::Muted)
-        .icon_size(IconSize::Small)
-        .disabled(self.disabled)
-        .when_some(self.shape, |this, shape| this.shape(shape))
-        .toggle_state(self.selected)
-        .when_some(self.visible_on_hover.clone(), |this, group_name| this.visible_on_hover(group_name))
-        .when_some(self.tooltip, |this, tooltip| this.tooltip(tooltip))
-        .when_some(self.on_toggle_expanded, move |this, on_toggle| {
-            this.on_click(move |event, window, cx| on_toggle(event, window, cx))
-        })
+        IconButton::new(self.id, if self.is_open { self.opened_icon } else { self.closed_icon })
+            .icon_color(Color::Muted)
+            .icon_size(IconSize::Small)
+            .disabled(self.disabled)
+            .when_some(self.shape, |this, shape| this.shape(shape))
+            .toggle_state(self.selected)
+            .when_some(self.visible_on_hover.clone(), |this, group_name| this.visible_on_hover(group_name))
+            .when_some(self.tooltip, |this, tooltip| this.tooltip(tooltip))
+            .when_some(self.on_toggle_expanded, move |this, on_toggle| {
+                this.on_click(move |event, window, cx| on_toggle(event, window, cx))
+            })
     }
 }

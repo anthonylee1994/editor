@@ -123,7 +123,7 @@ impl TextDiffView {
         let source_buffer_snapshot = source_buffer.read(cx).snapshot();
         let mut clipboard_text = diff_data.clipboard_text.clone();
 
-        if !clipboard_text.ends_with("\n") {
+        if !clipboard_text.ends_with('\n') {
             clipboard_text.push('\n');
         }
 
@@ -217,7 +217,7 @@ impl TextDiffView {
         let title = editor.buffer().read(cx).title(cx).to_string();
         let selection_location_text = selection_location_text(editor, cx);
         let selection_location_title =
-            selection_location_text.as_ref().map(|text| format!("{} @ {}", title, text)).unwrap_or(title);
+            selection_location_text.as_ref().map(|text| format!("{title} @ {text}")).unwrap_or(title);
 
         let path = editor
             .buffer()
@@ -226,8 +226,7 @@ impl TextDiffView {
             .and_then(|b| b.read(cx).file().map(|f| f.full_path(cx).compact().to_string_lossy().into_owned()))
             .unwrap_or_else(|| MultiBuffer::DEFAULT_TITLE.into());
 
-        let selection_location_path =
-            selection_location_text.map(|text| format!("{} @ {}", path, text)).unwrap_or(path);
+        let selection_location_path = selection_location_text.map(|text| format!("{path} @ {text}")).unwrap_or(path);
 
         Self {
             diff_editor,
@@ -240,8 +239,8 @@ impl TextDiffView {
                         let mut timer = cx.background_executor().timer(RECALCULATE_DIFF_DEBOUNCE).fuse();
                         let mut recv = pin!(buffer_changes_rx.recv().fuse());
                         select_biased! {
-                            _ = timer => break,
-                            _ = recv => continue,
+                            () = timer => break,
+                            _ = recv => {}
                         }
                     }
 
@@ -323,7 +322,7 @@ impl Item for TextDiffView {
     }
 
     fn to_item_events(event: &EditorEvent, f: &mut dyn FnMut(ItemEvent)) {
-        Editor::to_item_events(event, f)
+        Editor::to_item_events(event, f);
     }
 
     fn deactivated(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -352,7 +351,7 @@ impl Item for TextDiffView {
     }
 
     fn for_each_project_item(&self, cx: &App, f: &mut dyn FnMut(gpui::EntityId, &dyn project::ProjectItem)) {
-        self.diff_editor.read(cx).for_each_project_item(cx, f)
+        self.diff_editor.read(cx).for_each_project_item(cx, f);
     }
 
     fn active_project_path(&self, cx: &App) -> Option<ProjectPath> {

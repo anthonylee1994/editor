@@ -91,7 +91,7 @@ impl GoToLine {
                 workspace.update(cx, |workspace, cx| {
                     workspace
                         .toggle_modal(window, cx, move |window, cx| GoToLine::new(editor_handle, buffer, window, cx));
-                })
+                });
             })
             .detach();
     }
@@ -169,7 +169,7 @@ impl GoToLine {
                 editor.set_scroll_position(scroll_position, window, cx);
             }
             cx.notify();
-        })
+        });
     }
 
     fn on_line_editor_event(
@@ -182,7 +182,7 @@ impl GoToLine {
         match event {
             editor::EditorEvent::Blurred if window.is_window_active() => {
                 self.prev_scroll_position.take();
-                cx.emit(DismissEvent)
+                cx.emit(DismissEvent);
             }
             editor::EditorEvent::BufferEdited => self.highlight_current_line(cx),
             _ => {}
@@ -288,10 +288,10 @@ impl GoToLine {
                 return;
             };
             editor.change_selections(SelectionEffects::scroll(Autoscroll::center()).unfold(), window, cx, |s| {
-                s.select_anchor_ranges([start..start])
+                s.select_anchor_ranges([start..start]);
             });
             editor.focus_handle(cx).focus(window, cx);
-            cx.notify()
+            cx.notify();
         });
         self.prev_scroll_position.take();
 

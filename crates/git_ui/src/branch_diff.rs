@@ -94,7 +94,7 @@ impl Addon for BranchDiffAddon {
 impl BranchDiff {
     pub(crate) fn register(workspace: &mut Workspace, cx: &mut Context<Workspace>) {
         workspace.register_action(|workspace, _: &DeployBranchDiff, window, cx| {
-            Self::deploy_branch_diff(workspace, window, cx)
+            Self::deploy_branch_diff(workspace, window, cx);
         });
         workspace.register_action(Self::compare_with_branch);
         workspace::register_serializable_item::<Self>(cx);
@@ -306,7 +306,7 @@ impl Item for BranchDiff {
     }
 
     fn to_item_events(event: &EditorEvent, f: &mut dyn FnMut(ItemEvent)) {
-        Editor::to_item_events(event, f)
+        Editor::to_item_events(event, f);
     }
 
     fn deactivated(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -323,7 +323,7 @@ impl Item for BranchDiff {
 
     fn tab_content_text(&self, _detail: usize, cx: &App) -> SharedString {
         match self.diff_base(cx) {
-            DiffBase::Merge { base_ref } => format!("Changes since {}", base_ref).into(),
+            DiffBase::Merge { base_ref } => format!("Changes since {base_ref}").into(),
             DiffBase::Head | DiffBase::Index | DiffBase::Staged => "Changes".into(),
         }
     }

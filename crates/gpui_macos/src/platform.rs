@@ -743,7 +743,7 @@ impl Platform for MacPlatform {
         unsafe {
             let ns_url: id = msg_send![class!(NSURL), URLWithString: ns_string(url)];
             if ns_url.is_null() {
-                log::error!("Failed to create NSURL from string: {}", url);
+                log::error!("Failed to create NSURL from string: {url}");
                 return;
             }
             let url = ns_url;
@@ -1204,7 +1204,7 @@ fn on_screen_parameters_change(this: &AnyObject, _: id) {
     // as NSNotificationCenter delivers this notification synchronously and it may fire while
     // the App is already borrowed (same pattern as quit() above).
     let platform = unsafe { get_mac_platform(this) };
-    let platform_ptr = platform as *const MacPlatform as *mut c_void;
+    let platform_ptr = std::ptr::from_ref::<MacPlatform>(platform) as *mut c_void;
     unsafe {
         DispatchQueue::main().exec_async_f(platform_ptr, on_screen_parameters_change);
     }
@@ -1225,7 +1225,7 @@ fn on_screen_parameters_change(this: &AnyObject, _: id) {
 fn on_system_sleep(this: &AnyObject, _: id) {
     // SAFETY: this is the registered app delegate carrying the platform ivar.
     let platform = unsafe { get_mac_platform(this) };
-    let platform_ptr = platform as *const MacPlatform as *mut c_void;
+    let platform_ptr = std::ptr::from_ref::<MacPlatform>(platform) as *mut c_void;
     // SAFETY: platform lives for the process lifetime while callbacks are registered.
     unsafe {
         DispatchQueue::main().exec_async_f(platform_ptr, on_system_sleep);
@@ -1246,7 +1246,7 @@ fn on_system_sleep(this: &AnyObject, _: id) {
 fn on_system_wake(this: &AnyObject, _: id) {
     // SAFETY: this is the registered app delegate carrying the platform ivar.
     let platform = unsafe { get_mac_platform(this) };
-    let platform_ptr = platform as *const MacPlatform as *mut c_void;
+    let platform_ptr = std::ptr::from_ref::<MacPlatform>(platform) as *mut c_void;
     // SAFETY: platform lives for the process lifetime while callbacks are registered.
     unsafe {
         DispatchQueue::main().exec_async_f(platform_ptr, on_system_wake);
@@ -1273,7 +1273,7 @@ fn open_urls(this: &AnyObject, _: id, urls: id) {
                 match CStr::from_ptr(utf8).to_str() {
                     Ok(string) => Some(string.to_string()),
                     Err(err) => {
-                        log::error!("error converting path to string: {}", err);
+                        log::error!("error converting path to string: {err}");
                         None
                     }
                 }

@@ -354,7 +354,7 @@ impl BlockRenderer {
                     .relative()
                     .cursor_pointer()
                     .child(
-                        canvas(move |image_bounds, _window, _cx| bounds.set(Some(image_bounds)), |_, _, _, _| {})
+                        canvas(move |image_bounds, _window, _cx| bounds.set(Some(image_bounds)), |_, (), _, _| {})
                             .size_full()
                             .absolute()
                             .top_0()
@@ -549,7 +549,7 @@ impl BlockRenderer {
         } else {
             let mut metadata_block = div().w_full().rounded_md();
             metadata_block.style().refine(&self.style.code_block);
-            builder.push_text_style(self.style.code_block.text.to_owned());
+            builder.push_text_style(self.style.code_block.text.clone());
             builder.push_code_block(None);
             builder.push_div(metadata_block, content_range, markdown_end);
             builder.push_text(&source[content_range.clone()], content_range.clone());
@@ -578,8 +578,8 @@ impl BlockRenderer {
                 .px_2()
                 .py_1()
                 .border_color(cx.theme().colors().border)
-                .when(cell_style.row_index > 0, |this| this.border_t_1())
-                .when(!cell_style.is_key, |this| this.border_l_1())
+                .when(cell_style.row_index > 0, gpui::Styled::border_t_1)
+                .when(!cell_style.is_key, gpui::Styled::border_l_1)
                 .when(cell_style.is_key, |this| this.bg(cx.theme().colors().panel_background)),
             block_range,
             markdown_end,
@@ -640,7 +640,7 @@ impl BlockRenderer {
         let is_hovering_clickable = hitbox.is_hovered(window)
             && !self.markdown.read(cx).selection.pending
             && (rendered_text.image_link_for_position(window.mouse_position()).is_some()
-                || rendered_text.source_index_for_position(window.mouse_position()).ok().is_some_and(|source_index| {
+                || rendered_text.source_index_for_position(window.mouse_position()).is_ok_and(|source_index| {
                     rendered_text.link_for_source_index(source_index).is_some()
                         || rendered_text.footnote_ref_for_source_index(source_index).is_some()
                 }));
@@ -953,7 +953,7 @@ impl Element for MarkdownBlock {
         &mut self,
         _id: Option<&GlobalElementId>,
         bounds: Bounds<Pixels>,
-        _: &mut Self::RequestLayoutState,
+        (): &mut Self::RequestLayoutState,
         window: &mut Window,
         cx: &mut App,
     ) -> Hitbox {
@@ -975,7 +975,7 @@ impl Element for MarkdownBlock {
         &mut self,
         _id: Option<&GlobalElementId>,
         _bounds: Bounds<Pixels>,
-        _: &mut Self::RequestLayoutState,
+        (): &mut Self::RequestLayoutState,
         hitbox: &mut Hitbox,
         window: &mut Window,
         cx: &mut App,
@@ -1105,7 +1105,7 @@ impl RenderPass<'_> {
                 }
             }
             MarkdownEvent::Start(tag) => self.start(index, range, tag, window, cx),
-            MarkdownEvent::End(tag) => self.end(range, tag, cx),
+            MarkdownEvent::End(tag) => self.end(range, *tag, cx),
             MarkdownEvent::Text => {
                 self.push_text(index, &parsed.source[range.clone()], range);
             }
@@ -1124,7 +1124,7 @@ impl RenderPass<'_> {
                     range,
                     self.markdown_end,
                 );
-                self.builder.pop_div()
+                self.builder.pop_div();
             }
             MarkdownEvent::SoftBreak if !renderer.style.soft_break_as_hard_break => {
                 self.builder.push_soft_break(range.clone());
@@ -1191,7 +1191,7 @@ impl RenderPass<'_> {
                         .as_ref()
                         .and_then(|callback| callback(dest_url, cx))
                         .unwrap_or_else(|| renderer.style.link.clone());
-                    builder.push_text_style(style)
+                    builder.push_text_style(style);
                 }
             }
             MarkdownTag::FootnoteDefinition(label) => self.start_footnote_definition(range, label),
@@ -1211,11 +1211,11 @@ impl RenderPass<'_> {
             }
             MarkdownTag::TableRow => builder.table.start_row(),
             MarkdownTag::TableCell => self.start_table_cell(range, cx),
-            _ => log::debug!("unsupported markdown tag {:?}", tag),
+            _ => log::debug!("unsupported markdown tag {tag:?}"),
         }
     }
 
-    fn end(&mut self, range: &Range<usize>, tag: &MarkdownTagEnd, cx: &App) {
+    fn end(&mut self, range: &Range<usize>, tag: MarkdownTagEnd, cx: &App) {
         let renderer = self.renderer;
         let builder = &mut self.builder;
         match tag {
@@ -1233,12 +1233,12 @@ impl RenderPass<'_> {
             }
             MarkdownTagEnd::Item => renderer.pop_markdown_list_item(builder),
             MarkdownTagEnd::Emphasis | MarkdownTagEnd::Strong | MarkdownTagEnd::Strikethrough => {
-                builder.pop_text_style()
+                builder.pop_text_style();
             }
             MarkdownTagEnd::Link => {
                 if builder.code_block_stack.is_empty() {
                     builder.link_depth = builder.link_depth.saturating_sub(1);
-                    builder.pop_text_style()
+                    builder.pop_text_style();
                 }
             }
             MarkdownTagEnd::Table => {
@@ -1263,7 +1263,7 @@ impl RenderPass<'_> {
                 builder.pop_div();
             }
             MarkdownTagEnd::MetadataBlock(_) => {}
-            _ => log::debug!("unsupported markdown tag end: {:?}", tag),
+            _ => log::debug!("unsupported markdown tag end: {tag:?}"),
         }
     }
 
@@ -1353,7 +1353,7 @@ impl RenderPass<'_> {
 
         // This is a parent container that we can position the copy button inside.
         let mut parent_container =
-            div().group("code_block").relative().w_full().when(scroll_handle.is_some(), |this| this.rounded_lg());
+            div().group("code_block").relative().w_full().when(scroll_handle.is_some(), gpui::Styled::rounded_lg);
 
         // Styles must be final before `custom_scrollbars`, which reads the
         // corner radii and borders to round the scrollbar track.
@@ -1384,7 +1384,7 @@ impl RenderPass<'_> {
             }
         });
 
-        builder.push_text_style(renderer.style.code_block.text.to_owned());
+        builder.push_text_style(renderer.style.code_block.text.clone());
         builder.push_code_block(language);
         builder.push_div(code_block, range, markdown_end);
     }
@@ -1440,7 +1440,7 @@ impl RenderPass<'_> {
             // first line, even when the item wraps.
             div().h(line_height).flex().items_center().child(checkbox).into_any_element()
         } else if let Some(bullet_index) = self.builder.next_bullet_index() {
-            div().child(format!("{}.", bullet_index)).into_any_element()
+            div().child(format!("{bullet_index}.")).into_any_element()
         } else {
             div().child("•").into_any_element()
         };
@@ -1468,7 +1468,7 @@ impl RenderPass<'_> {
                 .h_flex()
                 .items_start()
                 .gap_2()
-                .child(div().text_size(rems(0.85)).child(format!("{}.", label))),
+                .child(div().text_size(rems(0.85)).child(format!("{label}."))),
             range,
             markdown_end,
         );
@@ -1522,8 +1522,8 @@ impl RenderPass<'_> {
             .flex()
             .flex_col()
             .h_full()
-            .when(col_index > 0, |this| this.border_l_1())
-            .when(row_index > 0, |this| this.border_t_1())
+            .when(col_index > 0, gpui::Styled::border_l_1)
+            .when(row_index > 0, gpui::Styled::border_t_1)
             .border_color(cx.theme().colors().border)
             .px(style.table_cell_padding.x)
             .py(style.table_cell_padding.y)
@@ -1688,7 +1688,7 @@ impl Element for MarkdownElement {
             move |_, phase, window, cx| {
                 if phase == DispatchPhase::Bubble {
                     let text = text.as_ref().map(|text| text.borrow().clone());
-                    entity.update(cx, |this, cx| this.copy(text.as_ref(), window, cx))
+                    entity.update(cx, |this, cx| this.copy(text.as_ref(), window, cx));
                 }
             }
         });
@@ -1696,7 +1696,7 @@ impl Element for MarkdownElement {
             let entity = markdown.clone();
             move |_, phase, window, cx| {
                 if phase == DispatchPhase::Bubble {
-                    entity.update(cx, move |this, cx| this.copy_as_markdown(window, cx))
+                    entity.update(cx, move |this, cx| this.copy_as_markdown(window, cx));
                 }
             }
         });

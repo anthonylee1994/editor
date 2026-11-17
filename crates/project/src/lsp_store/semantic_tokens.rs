@@ -445,7 +445,7 @@ impl SemanticTokenStylizer {
     }
 
     pub fn rules_for_token(&self, token_type: TokenType) -> Option<&[SemanticTokenRule]> {
-        self.rules_by_token_type.get(&token_type).map(|v| v.as_slice())
+        self.rules_by_token_type.get(&token_type).map(Vec::as_slice)
     }
 }
 

@@ -87,9 +87,8 @@ impl OpenPathDelegate {
                 {
                     if i == 0 {
                         return Some(CandidateInfo { path: user_input.file.clone(), is_dir: false });
-                    } else {
-                        i -= 1;
                     }
+                    i -= 1;
                 }
                 let id = self.string_matches.get(i)?.candidate_id;
                 entries.iter().find(|entry| entry.path.id == id).cloned()
@@ -261,7 +260,7 @@ impl PickerDelegate for OpenPathDelegate {
                                         !exists || is_dir
                                     });
 
-                                    let new_id = new_id.map(|id| id + 1).unwrap_or(0);
+                                    let new_id = new_id.map_or(0, |id| id + 1);
                                     let user_input = if suffix.is_empty() {
                                         None
                                     } else {
@@ -420,8 +419,7 @@ impl PickerDelegate for OpenPathDelegate {
                     DirectoryState::Create { user_input, .. } => {
                         let (new_id, exists, is_dir) = user_input
                             .as_ref()
-                            .map(|input| (input.file.id, input.exists, input.is_dir))
-                            .unwrap_or_else(|| (0, false, false));
+                            .map_or_else(|| (0, false, false), |input| (input.file.id, input.exists, input.is_dir));
                         DirectoryState::Create {
                             entries: new_entries,
                             parent_path: dir.clone(),
@@ -571,7 +569,7 @@ impl PickerDelegate for OpenPathDelegate {
         if let Some(tx) = self.tx.take() {
             tx.send(None).ok();
         }
-        cx.emit(gpui::DismissEvent)
+        cx.emit(gpui::DismissEvent);
     }
 
     fn render_match(
@@ -604,8 +602,7 @@ impl PickerDelegate for OpenPathDelegate {
             .filter(|string_match| {
                 string_match.candidate_id == candidate.path.id && string_match.string == candidate.path.string
             })
-            .map(|string_match| string_match.positions.clone())
-            .unwrap_or_default();
+            .map_or_default(|string_match| string_match.positions.clone());
 
         let is_current_dir_candidate = candidate.path.string == self.current_dir();
 
@@ -614,9 +611,8 @@ impl PickerDelegate for OpenPathDelegate {
             let icon = if candidate.is_dir {
                 if is_current_dir_candidate {
                     return Some(Icon::new(IconName::ReplyArrowRight).color(Color::Muted));
-                } else {
-                    FileIcons::get_folder_icon(false, path, cx)?
                 }
+                FileIcons::get_folder_icon(false, path, cx)?
             } else {
                 FileIcons::get_icon(path, cx)?
             };
@@ -628,9 +624,9 @@ impl PickerDelegate for OpenPathDelegate {
                 let (label, indices) = if is_current_dir_candidate {
                     ("open this directory".to_string(), vec![])
                 } else if *parent_path == self.prompt_root {
-                    match_positions.iter_mut().for_each(|position| {
+                    for position in &mut match_positions {
                         *position += self.prompt_root.len();
-                    });
+                    }
                     (format!("{}{}", self.prompt_root, candidate.path.string), match_positions)
                 } else {
                     (candidate.path.string.to_string(), match_positions)
@@ -646,9 +642,9 @@ impl PickerDelegate for OpenPathDelegate {
             }
             DirectoryState::Create { parent_path, user_input, .. } => {
                 let (label, delta) = if *parent_path == self.prompt_root {
-                    match_positions.iter_mut().for_each(|position| {
+                    for position in &mut match_positions {
                         *position += self.prompt_root.len();
-                    });
+                    }
                     (format!("{}{}", self.prompt_root, candidate.path.string), self.prompt_root.len())
                 } else {
                     (candidate.path.string.to_string(), 0)

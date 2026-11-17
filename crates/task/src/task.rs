@@ -222,11 +222,11 @@ impl TaskVariables {
     }
     /// Get the value associated with given variable name, if there is one.
     pub fn get(&self, key: &VariableName) -> Option<&str> {
-        self.0.get(key).map(|s| s.as_str())
+        self.0.get(key).map(String::as_str)
     }
     /// Clear out variables obtained from tree-sitter queries, which are prefixed with '_' character
     pub fn sweep(&mut self) {
-        self.0.retain(|name, _| if let VariableName::Custom(name) = name { !name.starts_with('_') } else { true })
+        self.0.retain(|name, _| if let VariableName::Custom(name) = name { !name.starts_with('_') } else { true });
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (&VariableName, &String)> {

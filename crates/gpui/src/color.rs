@@ -214,7 +214,7 @@ impl TryFrom<&'_ str> for Rgba {
             RRGGBB | RRGGBBAA => {
                 let r = u8::from_str_radix(
                     hex.get(0..2).with_context(|| {
-                        format!("{}: r component of #rrggbb/#rrggbbaa for value: '{}'", INVALID_UNICODE, value)
+                        format!("{INVALID_UNICODE}: r component of #rrggbb/#rrggbbaa for value: '{value}'")
                     })?,
                     16,
                 )?;
@@ -467,7 +467,7 @@ impl From<Rgba> for Hsla {
         let min = r.min(g.min(b));
         let delta = max - min;
 
-        let l = (max + min) / 2.0;
+        let l = f32::midpoint(max, min);
         let s = if l == 0.0 || l == 1.0 {
             0.0
         } else if l < 0.5 {

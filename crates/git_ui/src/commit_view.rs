@@ -201,11 +201,10 @@ pub(crate) fn open_file_in_project(
         return;
     };
     let project_path = project_file_path(workspace.read(cx).project(), repository, repo_path, cx);
-    workspace.update(cx, |workspace, cx| match project_path {
-        Some(project_path) => {
+    workspace.update(cx, |workspace, cx| {
+        if let Some(project_path) = project_path {
             workspace.open_path_preview(project_path, None, true, false, true, window, cx).detach_and_log_err(cx);
-        }
-        None => {
+        } else {
             let message = project_file_not_found_message(repo_path);
             workspace.show_toast(Toast::new(NotificationId::unique::<ProjectFileNotFound>(), message), cx);
         }
@@ -327,7 +326,7 @@ impl CommitView {
         window: &mut Window,
         cx: &mut App,
     ) {
-        Self::open_with_options(commit_sha, repo, workspace, stash, file_filter, false, None, None, window, cx)
+        Self::open_with_options(commit_sha, repo, workspace, stash, file_filter, false, None, None, window, cx);
     }
 
     /// Opens the commit view scrolled to `reveal_file` when given, at the top otherwise.
@@ -368,7 +367,7 @@ impl CommitView {
             commit_diff,
             window,
             cx,
-        )
+        );
     }
 
     /// Opens the commit view and `repo_path`'s revision tab as soon as its
@@ -394,7 +393,7 @@ impl CommitView {
             commit_diff,
             window,
             cx,
-        )
+        );
     }
 
     fn open_with_options(
@@ -749,7 +748,7 @@ impl CommitView {
                                                     None,
                                                     window,
                                                     cx,
-                                                )
+                                                );
                                             })
                                         })
                                         .detach_and_log_err(cx);
@@ -847,7 +846,7 @@ impl CommitView {
                 editor.change_selections(SelectionEffects::scroll(Autoscroll::focused()), window, cx, |s| {
                     s.select_ranges([position..position]);
                 });
-            })
+            });
         });
         true
     }
@@ -884,7 +883,7 @@ impl CommitView {
                 let scroll_anchor =
                     ScrollAnchor { anchor: position, offset: gpui::point(0., -ScrollOffset::from(header_rows)) };
                 editor.set_scroll_anchor(scroll_anchor, window, cx);
-            })
+            });
         });
         let focus_handle = self.editor.read(cx).rhs_editor().read(cx).focus_handle(cx);
         // Bring this tab forward, since the click may come from the sidebar of
@@ -918,7 +917,7 @@ impl CommitView {
             return;
         }
         self.editor.update(cx, |editor, cx| {
-            editor.rhs_editor().update(cx, |editor, cx| editor.open_excerpt_at_newest_cursor(window, cx))
+            editor.rhs_editor().update(cx, |editor, cx| editor.open_excerpt_at_newest_cursor(window, cx));
         });
     }
 
@@ -961,7 +960,7 @@ impl CommitView {
                         Self::close_commit_view(commit_view, workspace, cx).await?;
                         return Err(err);
                     }
-                };
+                }
                 Self::close_commit_view(commit_view, workspace, cx).await?;
                 anyhow::Ok(())
             },
@@ -988,7 +987,7 @@ impl CommitView {
                         Self::close_commit_view(commit_view, workspace, cx).await?;
                         return Err(err);
                     }
-                };
+                }
                 Self::close_commit_view(commit_view, workspace, cx).await?;
                 anyhow::Ok(())
             },
@@ -1015,7 +1014,7 @@ impl CommitView {
                         Self::close_commit_view(commit_view, workspace, cx).await?;
                         return Err(err);
                     }
-                };
+                }
                 Self::close_commit_view(commit_view, workspace, cx).await?;
                 anyhow::Ok(())
             },
@@ -1050,7 +1049,7 @@ impl CommitView {
         let sha = commit_view.read(cx).commit.sha.clone();
         let answer = window.prompt(
             PromptLevel::Info,
-            &format!("{} stash@{{{}}}?", str_action, stash),
+            &format!("{str_action} stash@{{{stash}}}?"),
             None,
             &[str_action, "Cancel"],
             cx,
@@ -1151,8 +1150,7 @@ async fn load_commit_file(
     let worktree_id = repository
         .read_with(&cx, |repository, cx| worktree_id_for_repo_path(repository, project.read(cx), &file.path, cx))
         .context("project has no worktrees")?;
-    let file_name =
-        file.path.file_name().map(|name| name.to_string()).unwrap_or_else(|| file.path.display().to_string());
+    let file_name = file.path.file_name().map_or_else(|| file.path.display().to_string(), |name| name.to_string());
     let blob = Arc::new(GitBlob {
         path: file.path.clone(),
         is_deleted: file.new_text.is_none(),
@@ -1297,7 +1295,7 @@ impl Item for CommitView {
     }
 
     fn to_item_events(event: &EditorEvent, f: &mut dyn FnMut(ItemEvent)) {
-        Editor::to_item_events(event, f)
+        Editor::to_item_events(event, f);
     }
 
     fn deactivated(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -1326,7 +1324,7 @@ impl Item for CommitView {
     }
 
     fn for_each_project_item(&self, cx: &App, f: &mut dyn FnMut(gpui::EntityId, &dyn project::ProjectItem)) {
-        self.editor.read(cx).for_each_project_item(cx, f)
+        self.editor.read(cx).for_each_project_item(cx, f);
     }
 
     fn active_project_path(&self, cx: &App) -> Option<ProjectPath> {
@@ -1446,7 +1444,7 @@ impl ToolbarItemView for CommitViewToolbar {
 }
 
 fn stash_matches_index(sha: &str, stash_index: usize, repo: &Repository) -> bool {
-    repo.stash_entries.entries.get(stash_index).map(|entry| entry.oid.to_string() == sha).unwrap_or(false)
+    repo.stash_entries.entries.get(stash_index).is_some_and(|entry| entry.oid.to_string() == sha)
 }
 
 /// Whether a click on a file in the commit sidebar should open its revision

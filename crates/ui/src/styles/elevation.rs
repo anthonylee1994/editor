@@ -67,7 +67,7 @@ impl ElevationIndex {
                 BoxShadow::new(px(0.), px(1.), hsla(0., 0., 0., if is_light { 0.04 } else { 0.12 })),
             ],
 
-            _ => vec![],
+            ElevationIndex::Background => vec![],
         }
     }
 

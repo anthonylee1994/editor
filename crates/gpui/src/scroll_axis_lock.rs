@@ -37,7 +37,7 @@ impl OngoingScroll {
     /// Gestures are delimited by their touch phase when available, with a timeout
     /// fallback for platforms that only emit [`TouchPhase::Moved`].
     pub fn filter(&mut self, delta: &mut Point<Pixels>, touch_phase: TouchPhase) {
-        self.filter_at(delta, touch_phase, Instant::now())
+        self.filter_at(delta, touch_phase, Instant::now());
     }
 
     fn filter_at(&mut self, delta: &mut Point<Pixels>, touch_phase: TouchPhase, now: Instant) {

@@ -428,14 +428,14 @@ impl<'a> ChunkBrackets<'a> {
                 .candidates
                 .iter()
                 .filter(|candidate| candidate.pattern == *pattern)
-                .map(|candidate| candidate.open_delimiter())
+                .map(BracketMatchCandidate::open_delimiter)
                 .filter(|open| self.chunk_range.contains(&open.start))
                 .collect::<FxHashSet<_>>();
             let query_closes = self
                 .candidates
                 .iter()
                 .filter(|candidate| candidate.pattern == *pattern)
-                .map(|candidate| candidate.close_delimiter())
+                .map(BracketMatchCandidate::close_delimiter)
                 .filter(|close| self.chunk_range.contains(&close.start))
                 .collect::<FxHashSet<_>>();
             let has_missing_open = !syntax_opens.is_subset(&query_opens);
@@ -519,13 +519,13 @@ impl<'a> ChunkBrackets<'a> {
             .collect::<FxHashMap<_, _>>();
         let sorted_opens = self.repairable_delimiters(
             bogus_candidates(&self.candidates, &self.bogus_patterns)
-                .map(|candidate| candidate.open_delimiter())
+                .map(BracketMatchCandidate::open_delimiter)
                 .collect(),
             &self.syntax_opens_by_pattern,
         );
         let unique_closes = self.repairable_delimiters(
             bogus_candidates(&self.candidates, &self.bogus_patterns)
-                .map(|candidate| candidate.close_delimiter())
+                .map(BracketMatchCandidate::close_delimiter)
                 .collect(),
             &self.syntax_closes_by_pattern,
         );
@@ -534,7 +534,7 @@ impl<'a> ChunkBrackets<'a> {
                 !self.chunk_range.contains(&candidate.bracket_match.open_range.start)
                     && pair_counts.uniquely_paired(&candidate.open_delimiter(), &candidate.close_delimiter())
             })
-            .map(|candidate| candidate.close_delimiter())
+            .map(BracketMatchCandidate::close_delimiter)
             .collect::<FxHashSet<_>>();
 
         let mut valid_pairs = FxHashSet::default();
@@ -549,7 +549,7 @@ impl<'a> ChunkBrackets<'a> {
             }
 
             // Try to match with most recent open
-            if let Some(open) = open_stacks.get_mut(&close.pattern).and_then(|open_stack| open_stack.pop()) {
+            if let Some(open) = open_stacks.get_mut(&close.pattern).and_then(Vec::pop) {
                 valid_pairs.insert((open, *close));
             } else if !closes_with_cross_chunk_opens.contains(close)
                 && let Some(&open_len) = close_to_open_len.get(close)

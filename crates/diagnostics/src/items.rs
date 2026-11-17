@@ -82,7 +82,7 @@ impl Render for DiagnosticIndicator {
             let message =
                 diagnostic.message.as_str().split_once('\n').map_or(diagnostic.message.as_str(), |(first, _)| first);
             let diagnostics_already_active = self.any_active_diagnostics(cx);
-            let tooltip = if !diagnostics_already_active { "Expand Diagnostics" } else { "Next Diagnostic" };
+            let tooltip = if diagnostics_already_active { "Next Diagnostic" } else { "Expand Diagnostics" };
             Some(
                 Button::new("diagnostic_message", SharedString::new(message))
                     .label_size(LabelSize::Small)
@@ -104,8 +104,8 @@ impl Render for DiagnosticIndicator {
                     .on_click(cx.listener(|this, _, window, cx| {
                         if let Some(workspace) = this.workspace.upgrade() {
                             workspace.update(cx, |workspace, cx| {
-                                ProjectDiagnosticsEditor::deploy(workspace, &Deploy, window, cx)
-                            })
+                                ProjectDiagnosticsEditor::deploy(workspace, &Deploy, window, cx);
+                            });
                         }
                     })),
             )
@@ -154,7 +154,7 @@ impl DiagnosticIndicator {
     }
 
     fn any_active_diagnostics(&self, cx: &Context<Self>) -> bool {
-        if let Some(editor) = self.active_editor.as_ref().and_then(|e| e.upgrade()) {
+        if let Some(editor) = self.active_editor.as_ref().and_then(gpui::WeakEntity::upgrade) {
             editor.read(cx).any_active_diagnostics()
         } else {
             false
@@ -162,7 +162,7 @@ impl DiagnosticIndicator {
     }
 
     fn go_to_next_diagnostic(&self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(editor) = self.active_editor.as_ref().and_then(|e| e.upgrade()) {
+        if let Some(editor) = self.active_editor.as_ref().and_then(gpui::WeakEntity::upgrade) {
             editor.update(cx, |editor, cx| {
                 editor.go_to_diagnostic_at_cursor(
                     editor::Direction::Next,
@@ -170,7 +170,7 @@ impl DiagnosticIndicator {
                     window,
                     cx,
                 );
-            })
+            });
         }
     }
 
@@ -211,7 +211,7 @@ impl StatusItemView for DiagnosticIndicator {
     ) {
         self.diagnostics_active =
             active_pane_item.is_some_and(|item| item.downcast::<ProjectDiagnosticsEditor>().is_some());
-        if let Some(editor) = active_pane_item.and_then(|item| item.downcast::<Editor>()) {
+        if let Some(editor) = active_pane_item.and_then(<dyn workspace::ItemHandle + 'static>::downcast::<Editor>) {
             self.active_editor = Some(editor.downgrade());
             self._observe_active_editor = Some(cx.observe_in(&editor, window, Self::update));
             self.update(editor, window, cx);

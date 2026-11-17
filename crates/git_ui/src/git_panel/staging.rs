@@ -163,7 +163,7 @@ impl GitPanel {
                         this.show_error_toast(if stage { "add" } else { "reset" }, err, cx);
                     }
                     this.update_counts(active_repository.read(cx));
-                    cx.notify()
+                    cx.notify();
                 })
             }
         })

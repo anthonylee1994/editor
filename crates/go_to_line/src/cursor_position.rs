@@ -166,7 +166,7 @@ impl CursorPosition {
 impl Render for CursorPosition {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         div().when_some(self.position, |el, position| {
-            let mut text = format!("{}{FILE_ROW_COLUMN_DELIMITER}{}", position.line, position.character,);
+            let mut text = format!("{}{FILE_ROW_COLUMN_DELIMITER}{}", position.line, position.character);
             write_selection_stats(self.selected_count, &mut text);
 
             let context = self.context.clone();
@@ -184,7 +184,7 @@ impl Render for CursorPosition {
                                 {
                                     workspace.toggle_modal(window, cx, |window, cx| {
                                         crate::GoToLine::new(editor, buffer, window, cx)
-                                    })
+                                    });
                                 }
                             });
                         }
@@ -211,7 +211,7 @@ impl StatusItemView for CursorPosition {
             self._observe_active_editor =
                 Some(cx.subscribe_in(&editor, window, |cursor_position, editor, event, window, cx| {
                     if let EditorEvent::SelectionsChanged { .. } = event {
-                        Self::update_position(cursor_position, editor, Some(UPDATE_DEBOUNCE), window, cx)
+                        Self::update_position(cursor_position, editor, Some(UPDATE_DEBOUNCE), window, cx);
                     }
                 }));
             self.update_position(&editor, None, window, cx);

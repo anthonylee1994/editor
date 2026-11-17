@@ -105,7 +105,7 @@ impl TabSwitcher {
             };
 
             tab_switcher.update(cx, |tab_switcher, cx| {
-                tab_switcher.picker.update(cx, |picker, cx| picker.cycle_selection(window, cx))
+                tab_switcher.picker.update(cx, |picker, cx| picker.cycle_selection(window, cx));
             });
         });
         workspace.register_action(|workspace, _action: &ToggleAll, window, cx| {
@@ -115,7 +115,7 @@ impl TabSwitcher {
             };
 
             tab_switcher.update(cx, |tab_switcher, cx| {
-                tab_switcher.picker.update(cx, |picker, cx| picker.cycle_selection(window, cx))
+                tab_switcher.picker.update(cx, |picker, cx| picker.cycle_selection(window, cx));
             });
         });
         workspace.register_action(|workspace, _action: &OpenInActivePane, window, cx| {
@@ -125,7 +125,7 @@ impl TabSwitcher {
             };
 
             tab_switcher.update(cx, |tab_switcher, cx| {
-                tab_switcher.picker.update(cx, |picker, cx| picker.cycle_selection(window, cx))
+                tab_switcher.picker.update(cx, |picker, cx| picker.cycle_selection(window, cx));
             });
         });
     }
@@ -149,7 +149,7 @@ impl TabSwitcher {
                 if let Some(pane) = panel.pane(cx) {
                     weak_pane = pane.downgrade();
                 }
-            })
+            });
         }
 
         let weak_workspace = workspace.weak_handle();
@@ -196,7 +196,7 @@ impl TabSwitcher {
         if !event.modified() || !init_modifiers.is_subset_of(event) {
             self.init_modifiers = None;
             if self.picker.read(cx).delegate.matches.is_empty() {
-                cx.emit(DismissEvent)
+                cx.emit(DismissEvent);
             } else {
                 window.dispatch_action(menu::Confirm.boxed_clone(), cx);
             }
@@ -261,8 +261,7 @@ impl TabMatch {
                 .git_store()
                 .read(cx)
                 .status_for_project_path(&path, cx)
-                .map(|status| status.summary())
-                .unwrap_or_default();
+                .map_or_default(|status| status.summary());
             Some(entry_git_aware_label_color(git_status, entry.is_ignored, selected))
         });
         Some(icon.color(git_status_color.unwrap_or_default()))
@@ -310,7 +309,7 @@ impl TabSwitcherDelegate {
                         let query = picker.query(cx);
                         picker.delegate.update_matches(query, window, cx);
                         cx.notify();
-                    })
+                    });
                 }
                 WorkspaceEvent::ItemRemoved { .. } => {
                     tab_switcher.picker.update(cx, |picker, cx| {
@@ -324,10 +323,10 @@ impl TabSwitcherDelegate {
                         // updated to match the pane's state.
                         picker.delegate.sync_selected_index(cx);
                         cx.notify();
-                    })
+                    });
                 }
                 _ => {}
-            };
+            }
         })
         .detach();
     }
@@ -392,7 +391,7 @@ impl TabSwitcherDelegate {
             window.defer(cx, move |window, cx| {
                 this.update(cx, |this, cx| {
                     this.delegate.update_all_pane_matches(query, window, cx);
-                })
+                });
             });
             return;
         }
@@ -623,7 +622,7 @@ impl PickerDelegate for TabSwitcherDelegate {
         for (pane, index) in &self.original_items {
             pane.update(cx, |this, cx| {
                 this.activate_item(*index, false, false, window, cx);
-            })
+            });
         }
 
         if self.open_in_active_pane {
@@ -645,7 +644,7 @@ impl PickerDelegate for TabSwitcherDelegate {
             for (pane, index) in &self.original_items {
                 pane.update(cx, |this, cx| {
                     this.activate_item(*index, false, false, window, cx);
-                })
+                });
             }
         }
 

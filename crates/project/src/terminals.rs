@@ -37,7 +37,7 @@ impl Project {
         let entry = worktree.entry_for_id(entry_id)?;
 
         let absolute_path = worktree.absolutize(entry.path.as_ref());
-        if entry.is_dir() { Some(absolute_path) } else { absolute_path.parent().map(|p| p.to_path_buf()) }
+        if entry.is_dir() { Some(absolute_path) } else { absolute_path.parent().map(|x| x.to_path_buf()) }
     }
 
     pub fn active_project_directory(&self, cx: &App) -> Option<Arc<Path>> {

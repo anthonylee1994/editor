@@ -189,8 +189,8 @@ impl FileDiffView {
                         let mut timer = cx.background_executor().timer(RECALCULATE_DIFF_DEBOUNCE).fuse();
                         let mut recv = pin!(buffer_changes_rx.recv().fuse());
                         select_biased! {
-                            _ = timer => break,
-                            _ = recv => continue,
+                            () = timer => break,
+                            _ = recv => {}
                         }
                     }
 
@@ -265,11 +265,10 @@ impl Item for FileDiffView {
 
     fn tab_tooltip_text(&self, cx: &App) -> Option<ui::SharedString> {
         let path = |buffer: &Entity<Buffer>| {
-            buffer
-                .read(cx)
-                .file()
-                .map(|file| file.full_path(cx).compact().to_string_lossy().into_owned())
-                .unwrap_or_else(|| MultiBuffer::DEFAULT_TITLE.into())
+            buffer.read(cx).file().map_or_else(
+                || MultiBuffer::DEFAULT_TITLE.into(),
+                |file| file.full_path(cx).compact().to_string_lossy().into_owned(),
+            )
         };
         let old_path = path(&self.old_buffer);
         let new_path = path(&self.new_buffer);
@@ -278,7 +277,7 @@ impl Item for FileDiffView {
     }
 
     fn to_item_events(event: &EditorEvent, f: &mut dyn FnMut(ItemEvent)) {
-        Editor::to_item_events(event, f)
+        Editor::to_item_events(event, f);
     }
 
     fn deactivated(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -303,7 +302,7 @@ impl Item for FileDiffView {
     }
 
     fn for_each_project_item(&self, cx: &App, f: &mut dyn FnMut(gpui::EntityId, &dyn project::ProjectItem)) {
-        self.editor.for_each_project_item(cx, f)
+        self.editor.for_each_project_item(cx, f);
     }
 
     fn active_project_path(&self, cx: &App) -> Option<ProjectPath> {
@@ -314,7 +313,7 @@ impl Item for FileDiffView {
         self.editor.update(cx, |editor, cx| {
             editor.rhs_editor().update(cx, |editor, _| {
                 editor.set_nav_history(Some(nav_history));
-            })
+            });
         });
     }
 
@@ -325,7 +324,7 @@ impl Item for FileDiffView {
 
     fn added_to_workspace(&mut self, workspace: &mut Workspace, window: &mut Window, cx: &mut Context<Self>) {
         self.editor.update(cx, |editor, cx| {
-            editor.rhs_editor().update(cx, |editor, cx| editor.added_to_workspace(workspace, window, cx))
+            editor.rhs_editor().update(cx, |editor, cx| editor.added_to_workspace(workspace, window, cx));
         });
     }
 

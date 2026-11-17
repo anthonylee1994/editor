@@ -161,11 +161,11 @@ where
     }
 
     fn set_zoomed(&self, zoomed: bool, window: &mut Window, cx: &mut App) {
-        self.update(cx, |this, cx| this.set_zoomed(zoomed, window, cx))
+        self.update(cx, |this, cx| this.set_zoomed(zoomed, window, cx));
     }
 
     fn set_active(&self, active: bool, window: &mut Window, cx: &mut App) {
-        self.update(cx, |this, cx| this.set_active(active, window, cx))
+        self.update(cx, |this, cx| this.set_active(active, window, cx));
     }
 
     fn pane(&self, cx: &App) -> Option<Entity<Pane>> {
@@ -185,7 +185,7 @@ where
     }
 
     fn size_state_changed(&self, window: &mut Window, cx: &mut App) {
-        self.update(cx, |this, cx| this.size_state_changed(window, cx))
+        self.update(cx, |this, cx| this.size_state_changed(window, cx));
     }
 
     fn icon(&self, window: &Window, cx: &App) -> Option<ui::IconName> {
@@ -280,7 +280,7 @@ pub enum DockPosition {
 }
 
 impl DockPosition {
-    const fn label(&self) -> &'static str {
+    const fn label(self) -> &'static str {
         match self {
             Self::Left => "Left",
             Self::Bottom => "Bottom",
@@ -335,7 +335,7 @@ impl Dock {
         let dock = cx.new(|cx| {
             let focus_subscription = cx.on_focus(&focus_handle, window, |dock: &mut Dock, window, cx| {
                 if let Some(active_entry) = dock.active_panel_entry() {
-                    active_entry.panel.activation_focus_handle(cx).focus(window, cx)
+                    active_entry.panel.activation_focus_handle(cx).focus(window, cx);
                 }
             });
             let zoom_subscription = cx.subscribe(&workspace, |dock, workspace, e: &Event, cx| {
@@ -624,7 +624,7 @@ impl Dock {
         if serialized.zoom
             && let Some(panel) = self.active_panel()
         {
-            panel.set_zoomed(true, window, cx)
+            panel.set_zoomed(true, window, cx);
         }
         self.set_open_internal(serialized.visible, window, cx);
     }
@@ -677,9 +677,7 @@ impl Dock {
     /// Panel buttons focus this before dispatching their action. A zoomed panel isn't rendered inside
     /// its dock, so the dock's own handle would be outside the frame and the action would be dropped.
     pub(crate) fn panel_button_focus_handle(&self, window: &Window, cx: &App) -> FocusHandle {
-        self.zoomed_panel(window, cx)
-            .map(|panel| panel.panel_focus_handle(cx))
-            .unwrap_or_else(|| self.focus_handle.clone())
+        self.zoomed_panel(window, cx).map_or_else(|| self.focus_handle.clone(), |panel| panel.panel_focus_handle(cx))
     }
 
     pub fn stored_panel_size_state(&self, panel: &dyn PanelHandle) -> Option<PanelSizeState> {
@@ -921,7 +919,7 @@ impl Render for PanelButtons {
                         let action = action.boxed_clone();
                         move |_, window, cx| {
                             window.focus(&focus_handle, cx);
-                            window.dispatch_action(action.boxed_clone(), cx)
+                            window.dispatch_action(action.boxed_clone(), cx);
                         }
                     })
                     .tooltip(move |_window, cx| Tooltip::for_action(tooltip.clone(), &*action, cx));

@@ -114,7 +114,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Workspace>,
     ) {
-        Self::new_file_in_direction(workspace, SplitDirection::Right, window, cx)
+        Self::new_file_in_direction(workspace, SplitDirection::Right, window, cx);
     }
 
     pub(super) fn new_file_horizontal(
@@ -123,7 +123,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Workspace>,
     ) {
-        Self::new_file_in_direction(workspace, SplitDirection::Down, window, cx)
+        Self::new_file_in_direction(workspace, SplitDirection::Down, window, cx);
     }
 
     pub(super) fn new_file_split(
@@ -132,7 +132,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Workspace>,
     ) {
-        Self::new_file_in_direction(workspace, action.0, window, cx)
+        Self::new_file_in_direction(workspace, action.0, window, cx);
     }
 
     fn new_file_in_direction(
@@ -152,7 +152,7 @@ impl Editor {
                     Box::new(cx.new(|cx| Editor::for_buffer(buffer, Some(project.clone()), window, cx))),
                     window,
                     cx,
-                )
+                );
             })?;
             anyhow::Ok(())
         })
@@ -194,14 +194,14 @@ impl Editor {
             let workspace = workspace.downgrade();
             cx.defer_in(window, move |_, window, cx| {
                 cx.spawn_in(window, async move |editor, cx| {
-                    Self::open_project_transaction(&editor, workspace, transaction, title, cx).await.ok()
+                    Self::open_project_transaction(&editor, workspace, transaction, title, cx).ok()
                 })
                 .detach();
             });
         }
     }
 
-    pub async fn open_project_transaction(
+    pub fn open_project_transaction(
         editor: &WeakEntity<Editor>,
         workspace: WeakEntity<Workspace>,
         transaction: ProjectTransaction,

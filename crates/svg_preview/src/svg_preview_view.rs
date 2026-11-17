@@ -337,8 +337,7 @@ impl Item for SvgPreviewView {
         self.buffer
             .as_ref()
             .and_then(|svg_path| svg_path.read(cx).file())
-            .map(|name| format!("Preview {}", name.file_name(cx)).into())
-            .unwrap_or_else(|| "SVG Preview".into())
+            .map_or_else(|| "SVG Preview".into(), |name| format!("Preview {}", name.file_name(cx)).into())
     }
 
     fn to_item_events(_event: &Self::Event, _f: &mut dyn FnMut(ItemEvent)) {}

@@ -180,7 +180,7 @@ impl Read for DecodingReader<'_> {
                 return Ok(0);
             }
             match self.fill_output() {
-                Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+                Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
                 result => result?,
             }
         }

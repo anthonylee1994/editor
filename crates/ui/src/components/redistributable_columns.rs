@@ -147,7 +147,7 @@ impl RedistributableColumnsState {
 
     pub fn preview_fractions(&self, rem_size: Pixels) -> TableRow<f32> {
         if self.cached_container_width > px(0.) {
-            self.preview_widths.map_ref(|length| Self::get_fraction(length, self.cached_container_width, rem_size))
+            self.preview_widths.map_ref(|length| Self::get_fraction(*length, self.cached_container_width, rem_size))
         } else {
             self.preview_widths.map_ref(|length| match length {
                 DefiniteLength::Fraction(fraction) => *fraction,
@@ -171,19 +171,19 @@ impl RedistributableColumnsState {
         }
 
         let rem_size = window.rem_size();
-        let initial_sizes = self.initial_widths.map_ref(|length| Self::get_fraction(length, bounds_width, rem_size));
-        let widths = self.committed_widths.map_ref(|length| Self::get_fraction(length, bounds_width, rem_size));
+        let initial_sizes = self.initial_widths.map_ref(|length| Self::get_fraction(*length, bounds_width, rem_size));
+        let widths = self.committed_widths.map_ref(|length| Self::get_fraction(*length, bounds_width, rem_size));
 
         let updated_widths = Self::reset_to_initial_size(column_index, widths, initial_sizes, &self.resize_behavior);
         self.committed_widths = updated_widths.map(DefiniteLength::Fraction);
         self.preview_widths = self.committed_widths.clone();
     }
 
-    fn get_fraction(length: &DefiniteLength, bounds_width: Pixels, rem_size: Pixels) -> f32 {
+    fn get_fraction(length: DefiniteLength, bounds_width: Pixels, rem_size: Pixels) -> f32 {
         match length {
-            DefiniteLength::Absolute(AbsoluteLength::Pixels(pixels)) => *pixels / bounds_width,
+            DefiniteLength::Absolute(AbsoluteLength::Pixels(pixels)) => pixels / bounds_width,
             DefiniteLength::Absolute(AbsoluteLength::Rems(rems_width)) => rems_width.to_pixels(rem_size) / bounds_width,
-            DefiniteLength::Fraction(fraction) => *fraction,
+            DefiniteLength::Fraction(fraction) => fraction,
         }
     }
 
@@ -200,17 +200,17 @@ impl RedistributableColumnsState {
 
         let go_left_first = if diff < 0.0 { left_diff > right_diff } else { left_diff < right_diff };
 
-        if !go_left_first {
-            let diff_remaining = Self::propagate_resize_diff(diff, col_idx, &mut widths, resize_behavior, 1);
-
-            if diff_remaining != 0.0 && col_idx > 0 {
-                Self::propagate_resize_diff(diff_remaining, col_idx, &mut widths, resize_behavior, -1);
-            }
-        } else {
+        if go_left_first {
             let diff_remaining = Self::propagate_resize_diff(diff, col_idx, &mut widths, resize_behavior, -1);
 
             if diff_remaining != 0.0 {
                 Self::propagate_resize_diff(diff_remaining, col_idx, &mut widths, resize_behavior, 1);
+            }
+        } else {
+            let diff_remaining = Self::propagate_resize_diff(diff, col_idx, &mut widths, resize_behavior, 1);
+
+            if diff_remaining != 0.0 && col_idx > 0 {
+                Self::propagate_resize_diff(diff_remaining, col_idx, &mut widths, resize_behavior, -1);
             }
         }
 
@@ -235,12 +235,12 @@ impl RedistributableColumnsState {
         let col_idx = drag_event.drag(cx).col_idx;
 
         let divider_width = Self::get_fraction(
-            &DefiniteLength::Absolute(AbsoluteLength::Pixels(px(RESIZE_DIVIDER_WIDTH))),
+            DefiniteLength::Absolute(AbsoluteLength::Pixels(px(RESIZE_DIVIDER_WIDTH))),
             bounds_width,
             rem_size,
         );
 
-        let widths = self.committed_widths.map_ref(|length| Self::get_fraction(length, bounds_width, rem_size));
+        let widths = self.committed_widths.map_ref(|length| Self::get_fraction(*length, bounds_width, rem_size));
 
         let drag_fraction = (drag_position.x - bounds.left()) / bounds_width;
 

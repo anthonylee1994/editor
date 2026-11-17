@@ -153,7 +153,7 @@ impl<V: EntityInputHandler> InputHandler for ElementInputHandler<V> {
         cx: &mut App,
     ) {
         self.view.update(cx, |view, cx| {
-            view.replace_and_mark_text_in_range(range_utf16, new_text, new_selected_range, window, cx)
+            view.replace_and_mark_text_in_range(range_utf16, new_text, new_selected_range, window, cx);
         });
     }
 

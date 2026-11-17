@@ -96,9 +96,8 @@ pub(crate) fn find_from_grid_point<T: EventListener>(
             let new_min_index = min_index.sub(term, Boundary::Cursor, 1);
             if new_min_index == min_index || grid.index(new_min_index).hyperlink() != link {
                 break;
-            } else {
-                min_index = new_min_index
             }
+            min_index = new_min_index;
         }
 
         let mut max_index = point;
@@ -106,9 +105,8 @@ pub(crate) fn find_from_grid_point<T: EventListener>(
             let new_max_index = max_index.add(term, Boundary::Cursor, 1);
             if new_max_index == max_index || grid.index(new_max_index).hyperlink() != link {
                 break;
-            } else {
-                max_index = new_max_index
             }
+            max_index = new_max_index;
         }
 
         let url = url.uri().to_owned();

@@ -295,7 +295,7 @@ where
                     end += overshoot;
                     buffer_end = excerpt.range.context.end.summary::<BD>(buffer);
                     has_trailing_newline = excerpt.has_trailing_newline;
-                };
+                }
 
                 let diff_hunk_status = inserted_hunk_info.map(|info| {
                     if info.is_logically_deleted {
@@ -341,7 +341,7 @@ where
                     let overshoot = self.excerpts.end() - self.diff_transforms.start().excerpt_dimension;
                     end = self.diff_transforms.start().output_dimension.0;
                     end += overshoot;
-                };
+                }
 
                 Some((excerpt, start..end))
             }
@@ -354,11 +354,11 @@ where
 }
 
 impl<'a> sum_tree::Dimension<'a, DiffTransformSummary> for MultiBufferOffset {
-    fn zero(_: ()) -> Self {
+    fn zero((): ()) -> Self {
         MultiBufferOffset::ZERO
     }
 
-    fn add_summary(&mut self, summary: &'a DiffTransformSummary, _: ()) {
+    fn add_summary(&mut self, summary: &'a DiffTransformSummary, (): ()) {
         *self += summary.output.len;
     }
 }
@@ -367,7 +367,7 @@ impl<MBD> sum_tree::SeekTarget<'_, DiffTransformSummary, DiffTransformSummary> f
 where
     MBD: MultiBufferDimension + Ord,
 {
-    fn cmp(&self, cursor_location: &DiffTransformSummary, _: ()) -> cmp::Ordering {
+    fn cmp(&self, cursor_location: &DiffTransformSummary, (): ()) -> cmp::Ordering {
         Ord::cmp(&self.0, &MBD::from_summary(&cursor_location.input))
     }
 }
@@ -376,18 +376,18 @@ impl<MBD> sum_tree::SeekTarget<'_, DiffTransformSummary, DiffTransforms<MBD>> fo
 where
     MBD: MultiBufferDimension + Ord,
 {
-    fn cmp(&self, cursor_location: &DiffTransforms<MBD>, _: ()) -> cmp::Ordering {
+    fn cmp(&self, cursor_location: &DiffTransforms<MBD>, (): ()) -> cmp::Ordering {
         Ord::cmp(&self.0, &cursor_location.excerpt_dimension.0)
     }
 }
 
 impl<'a, MBD: MultiBufferDimension> sum_tree::Dimension<'a, DiffTransformSummary> for ExcerptDimension<MBD> {
-    fn zero(_: ()) -> Self {
+    fn zero((): ()) -> Self {
         ExcerptDimension(MBD::default())
     }
 
-    fn add_summary(&mut self, summary: &'a DiffTransformSummary, _: ()) {
-        self.0.add_mb_text_summary(&summary.input)
+    fn add_summary(&mut self, summary: &'a DiffTransformSummary, (): ()) {
+        self.0.add_mb_text_summary(&summary.input);
     }
 }
 
@@ -395,17 +395,17 @@ impl<MBD> sum_tree::SeekTarget<'_, DiffTransformSummary, DiffTransforms<MBD>> fo
 where
     MBD: MultiBufferDimension + Ord,
 {
-    fn cmp(&self, cursor_location: &DiffTransforms<MBD>, _: ()) -> cmp::Ordering {
+    fn cmp(&self, cursor_location: &DiffTransforms<MBD>, (): ()) -> cmp::Ordering {
         Ord::cmp(&self.0, &cursor_location.output_dimension.0)
     }
 }
 
 impl<'a, MBD: MultiBufferDimension> sum_tree::Dimension<'a, DiffTransformSummary> for OutputDimension<MBD> {
-    fn zero(_: ()) -> Self {
+    fn zero((): ()) -> Self {
         OutputDimension(MBD::default())
     }
 
-    fn add_summary(&mut self, summary: &'a DiffTransformSummary, _: ()) {
-        self.0.add_mb_text_summary(&summary.output)
+    fn add_summary(&mut self, summary: &'a DiffTransformSummary, (): ()) {
+        self.0.add_mb_text_summary(&summary.output);
     }
 }

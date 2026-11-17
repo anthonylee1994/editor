@@ -216,7 +216,7 @@ impl GitBlame {
                 }
             }
             multi_buffer::Event::BufferRangesUpdated { .. } | multi_buffer::Event::BuffersEdited { .. } => {
-                git_blame.regenerate_on_edit(cx)
+                git_blame.regenerate_on_edit(cx);
             }
             _ => {}
         });
@@ -231,7 +231,7 @@ impl GitBlame {
                     };
                     let project_entry_id = multi_buffer.read(cx).as_singleton().and_then(|it| it.read(cx).entry_id(cx));
                     if updated.iter().any(|(_, entry_id, _)| project_entry_id == Some(*entry_id)) {
-                        log::debug!("Updated buffers. Regenerating blame data...",);
+                        log::debug!("Updated buffers. Regenerating blame data...");
                         git_blame.generate(cx);
                     }
                 }
@@ -243,7 +243,7 @@ impl GitBlame {
             GitStoreEvent::RepositoryUpdated(_, _, _)
             | GitStoreEvent::RepositoryAdded
             | GitStoreEvent::RepositoryRemoved(_) => {
-                log::debug!("Status of git repositories updated. Regenerating blame data...",);
+                log::debug!("Status of git repositories updated. Regenerating blame data...");
                 this.generate(cx);
             }
             _ => {}
@@ -389,7 +389,7 @@ impl GitBlame {
         };
         let snapshot = multi_buffer.read(cx).snapshot(cx);
         for id in snapshot.all_buffer_ids() {
-            self.sync(cx, id)
+            self.sync(cx, id);
         }
     }
 
@@ -572,7 +572,7 @@ impl GitBlame {
                     })
                     .await;
                 all_results.extend(results);
-                all_errors.extend(errors)
+                all_errors.extend(errors);
             }
 
             this.update(cx, |this, cx| {
@@ -609,7 +609,7 @@ impl GitBlame {
                             // notifications.
                             log::debug!("failed to get git blame data: {all_errors}");
                         }
-                    })
+                    });
                 }
             })
         });

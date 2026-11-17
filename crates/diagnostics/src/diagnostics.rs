@@ -248,7 +248,7 @@ impl ProjectDiagnosticsEditor {
             if retain_selections && selected_buffers.contains(&buffer_id) {
                 continue;
             }
-            let has_no_blocks = self.blocks.get(&buffer_id).is_none_or(|blocks| blocks.is_empty());
+            let has_no_blocks = self.blocks.get(&buffer_id).is_none_or(Vec::is_empty);
             if !has_no_blocks {
                 continue;
             }
@@ -314,7 +314,7 @@ impl ProjectDiagnosticsEditor {
 
     fn focus_in(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.focus_handle.is_focused(window) && !self.multibuffer.read(cx).is_empty() {
-            self.editor.focus_handle(cx).focus(window, cx)
+            self.editor.focus_handle(cx).focus(window, cx);
         }
     }
 
@@ -399,7 +399,7 @@ impl ProjectDiagnosticsEditor {
                 grouped.entry(entry.diagnostic.group_id).or_default().push(DiagnosticEntryRef {
                     range: entry.range.to_point(&buffer_snapshot),
                     diagnostic: entry.diagnostic,
-                })
+                });
             }
             let mut blocks: Vec<DiagnosticBlock> = Vec::new();
 
@@ -469,9 +469,9 @@ impl ProjectDiagnosticsEditor {
                 if let Some(block_ids) = this.blocks.remove(&buffer_id) {
                     this.editor.update(cx, |editor, cx| {
                         editor.display_map.update(cx, |display_map, cx| {
-                            display_map.remove_blocks(block_ids.into_iter().collect(), cx)
+                            display_map.remove_blocks(block_ids.into_iter().collect(), cx);
                         });
-                    })
+                    });
                 }
                 let buffer_snapshot = buffer.read(cx).snapshot();
                 let excerpt_ranges: Vec<_> = excerpt_ranges
@@ -507,7 +507,7 @@ impl ProjectDiagnosticsEditor {
                     this.editor.update(cx, |editor, cx| {
                         editor.change_selections(editor::SelectionEffects::default(), window, cx, |s| {
                             s.select_anchor_ranges([range_to_select]);
-                        })
+                        });
                     });
                     if this.focus_handle.is_focused(window) {
                         this.editor.read(cx).focus_handle(cx).focus(window, cx);
@@ -531,7 +531,7 @@ impl ProjectDiagnosticsEditor {
                 });
 
                 this.blocks.insert(buffer_id, block_ids);
-                cx.notify()
+                cx.notify();
             })
         })
     }
@@ -552,7 +552,7 @@ impl Item for ProjectDiagnosticsEditor {
     type Event = EditorEvent;
 
     fn to_item_events(event: &EditorEvent, f: &mut dyn FnMut(ItemEvent)) {
-        Editor::to_item_events(event, f)
+        Editor::to_item_events(event, f);
     }
 
     fn deactivated(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -602,7 +602,7 @@ impl Item for ProjectDiagnosticsEditor {
     }
 
     fn for_each_project_item(&self, cx: &App, f: &mut dyn FnMut(gpui::EntityId, &dyn project::ProjectItem)) {
-        self.editor.for_each_project_item(cx, f)
+        self.editor.for_each_project_item(cx, f);
     }
 
     fn active_project_path(&self, cx: &App) -> Option<ProjectPath> {
@@ -743,7 +743,7 @@ async fn heuristic_syntactic_expand(
         // Remove blank lines from start and end
         if let Some(start_row) = (outline_range.start.row..outline_range.end.row)
             .find(|row| !snapshot.line_indent_for_row(*row).is_line_blank())
-            && let Some(end_row) = (outline_range.start.row..outline_range.end.row + 1)
+            && let Some(end_row) = (outline_range.start.row..=outline_range.end.row)
                 .rev()
                 .find(|row| !snapshot.line_indent_for_row(*row).is_line_blank())
         {
@@ -828,7 +828,7 @@ async fn heuristic_syntactic_expand(
 
         // TODO: doing this instead of walking a cursor as that doesn't work - why?
         let Some(parent) = node.parent() else {
-            log::info!("Expanding to ancestor reached the top node, so using default context line count.",);
+            log::info!("Expanding to ancestor reached the top node, so using default context line count.");
             return None;
         };
         node = parent;

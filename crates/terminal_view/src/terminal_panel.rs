@@ -149,12 +149,12 @@ impl TerminalPanel {
         }
     }
 
-    pub async fn load(workspace: WeakEntity<Workspace>, mut cx: AsyncWindowContext) -> Result<Entity<Self>> {
-        let terminal_panel = workspace
-            .update_in(&mut cx, |workspace, window, cx| cx.new(|cx| TerminalPanel::new(workspace, window, cx)))?;
+    pub fn load(workspace: &WeakEntity<Workspace>, cx: &mut AsyncWindowContext) -> Result<Entity<Self>> {
+        let terminal_panel =
+            workspace.update_in(cx, |workspace, window, cx| cx.new(|cx| TerminalPanel::new(workspace, window, cx)))?;
 
         workspace
-            .update(&mut cx, |workspace, _| workspace.set_terminal_provider(TerminalProvider(terminal_panel.clone())))
+            .update(cx, |workspace, _| workspace.set_terminal_provider(TerminalProvider(terminal_panel.clone())))
             .ok();
 
         Ok(terminal_panel)
@@ -184,7 +184,7 @@ impl TerminalPanel {
                 for pane in self.center.panes() {
                     pane.update(cx, |pane, cx| {
                         pane.set_zoomed(true, cx);
-                    })
+                    });
                 }
                 cx.emit(PanelEvent::ZoomIn);
                 cx.notify();
@@ -193,14 +193,14 @@ impl TerminalPanel {
                 for pane in self.center.panes() {
                     pane.update(cx, |pane, cx| {
                         pane.set_zoomed(false, cx);
-                    })
+                    });
                 }
                 cx.emit(PanelEvent::ZoomOut);
                 cx.notify();
             }
             pane::Event::AddItem { item } => {
                 if let Some(workspace) = self.workspace.upgrade() {
-                    workspace.update(cx, |workspace, cx| item.added_to_pane(workspace, pane.clone(), window, cx))
+                    workspace.update(cx, |workspace, cx| item.added_to_pane(workspace, pane.clone(), window, cx));
                 }
             }
             &pane::Event::Split { direction, mode } => {
@@ -443,7 +443,7 @@ impl TerminalPanel {
         window: &mut Window,
         cx: &mut App,
     ) {
-        pane.update(cx, |pane, cx| pane.activate_item(item_index, true, focus, window, cx))
+        pane.update(cx, |pane, cx| pane.activate_item(item_index, true, focus, window, cx));
     }
 
     pub fn add_terminal_task(
@@ -561,7 +561,7 @@ impl TerminalPanel {
             let cx = cx.to_async();
             move || {
                 cx.spawn(async move |cx| {
-                    terminal_panel.update(cx, |terminal_panel, cx| terminal_panel.finish_pending_terminal(cx)).ok();
+                    terminal_panel.update(cx, TerminalPanel::finish_pending_terminal).ok();
                 })
                 .detach();
             }
@@ -569,7 +569,7 @@ impl TerminalPanel {
         cx.spawn_in(window, async move |terminal_panel, cx| {
             let result = create_terminal(terminal_panel.clone(), cx).await;
             decrement_when_cancelled.abort();
-            terminal_panel.update(cx, |terminal_panel, cx| terminal_panel.finish_pending_terminal(cx)).ok();
+            terminal_panel.update(cx, TerminalPanel::finish_pending_terminal).ok();
             result
         })
     }
@@ -602,25 +602,21 @@ impl TerminalPanel {
             match reveal {
                 RevealStrategy::Always => {
                     terminal_panel.update_in(cx, |terminal_panel, window, cx| {
-                        terminal_panel.activate_terminal_view(&task_pane, terminal_item_index, true, window, cx)
+                        terminal_panel.activate_terminal_view(&task_pane, terminal_item_index, true, window, cx);
                     })?;
 
                     cx.spawn(async move |cx| {
-                        task_workspace
-                            .update_in(cx, |workspace, window, cx| workspace.focus_panel::<Self>(window, cx))
-                            .ok()
+                        task_workspace.update_in(cx, workspace::Workspace::focus_panel::<Self>).ok()
                     })
                     .detach();
                 }
                 RevealStrategy::NoFocus => {
                     terminal_panel.update_in(cx, |terminal_panel, window, cx| {
-                        terminal_panel.activate_terminal_view(&task_pane, terminal_item_index, false, window, cx)
+                        terminal_panel.activate_terminal_view(&task_pane, terminal_item_index, false, window, cx);
                     })?;
 
                     cx.spawn(async move |cx| {
-                        task_workspace
-                            .update_in(cx, |workspace, window, cx| workspace.open_panel::<Self>(window, cx))
-                            .ok()
+                        task_workspace.update_in(cx, workspace::Workspace::open_panel::<Self>).ok()
                     })
                     .detach();
                 }
@@ -819,7 +815,7 @@ impl Render for FailedToSpawnTerminal {
                     .justify_center()
                     .text_center()
                     .child(Label::new("Failed to spawn terminal"))
-                    .child(Label::new(self.error.to_string()).size(LabelSize::Small).color(Color::Muted).mb_4())
+                    .child(Label::new(self.error.clone()).size(LabelSize::Small).color(Color::Muted).mb_4())
                     .child(
                         Label::new("Check the built-in terminal shell settings.")
                             .size(LabelSize::Small)
@@ -845,8 +841,7 @@ impl Render for TerminalPanel {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let registrar = cx
             .try_global::<workspace::PaneSearchBarCallbacks>()
-            .map(|callbacks| (callbacks.wrap_div_with_search_actions)(div(), self.active_pane.clone()))
-            .unwrap_or_else(div);
+            .map_or_else(div, |callbacks| (callbacks.wrap_div_with_search_actions)(div(), self.active_pane.clone()));
         let no_items_in_panes = self.center.panes().into_iter().all(|pane| pane.read(cx).items_len() == 0);
         let starting_placeholder = (self.pending_terminals_to_add > 0 && no_items_in_panes).then(|| {
             h_flex()
@@ -881,7 +876,7 @@ impl Render for TerminalPanel {
                     .children(starting_placeholder)
             })
             .ok()
-            .map(|div| {
+            .map_or_else(div, |div| {
                 div.on_action({
                     cx.listener(|terminal_panel, _: &ActivatePaneLeft, window, cx| {
                         terminal_panel.activate_pane_in_direction(SplitDirection::Left, window, cx);
@@ -976,11 +971,10 @@ impl Render for TerminalPanel {
                             terminal_panel.center.find_pane_in_direction(source_pane, action.direction, cx)
                         {
                             move_active_item(source_pane, destination_pane, action.focus, true, window, cx);
-                        };
+                        }
                     },
                 ))
             })
-            .unwrap_or_else(div)
     }
 }
 
@@ -1011,7 +1005,7 @@ impl Panel for TerminalPanel {
         for pane in self.center.panes() {
             pane.update(cx, |pane, cx| {
                 pane.set_zoomed(zoomed, cx);
-            })
+            });
         }
         cx.notify();
     }
@@ -1027,8 +1021,8 @@ impl Panel for TerminalPanel {
                 return;
             };
 
-            this.add_terminal_shell(kind, RevealStrategy::Always, window, cx).detach_and_log_err(cx)
-        })
+            this.add_terminal_shell(kind, RevealStrategy::Always, window, cx).detach_and_log_err(cx);
+        });
     }
 
     fn persistent_name() -> &'static str {
@@ -1072,8 +1066,7 @@ impl workspace::TerminalProvider for TerminalProvider {
                 .await;
             match terminal {
                 Ok(terminal) => {
-                    let exit_status =
-                        terminal.read_with(cx, |terminal, cx| terminal.wait_for_completed_task(cx)).ok()?.await?;
+                    let exit_status = terminal.read_with(cx, terminal::Terminal::wait_for_completed_task).ok()?.await?;
                     Some(Ok(exit_status))
                 }
                 Err(e) => Some(Err(e)),

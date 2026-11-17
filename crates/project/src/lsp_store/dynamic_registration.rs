@@ -89,7 +89,7 @@ impl LspStore {
         options: T,
         document_selector: Option<lsp::DocumentSelector>,
         capability_of: impl Fn(&mut lsp::ServerCapabilities) -> &mut Option<T>,
-    ) -> anyhow::Result<CapabilityRegistrationChange> {
+    ) -> CapabilityRegistrationChange {
         let server_id = server.server_id();
         let local = &mut self.local;
         let mut server_capabilities = lsp::ServerCapabilities::default();
@@ -105,11 +105,11 @@ impl LspStore {
         let Some(applicable_set_changed) =
             insert_text_document_registration(registrations, method, registration_id, new_registration)
         else {
-            return Ok(CapabilityRegistrationChange {
+            return CapabilityRegistrationChange {
                 active_capability_changed: false,
                 text_document_registration_changed: false,
                 registration_changed: false,
-            });
+            };
         };
         let new_active = active_text_document_capability(
             registrations,
@@ -119,11 +119,11 @@ impl LspStore {
         let active_changed = update_active_capability(server, new_active, &capability_of);
         // Remote clients track registrations by id, so any stored change is notified.
         self.notify_server_capabilities_updated(server);
-        Ok(CapabilityRegistrationChange {
+        CapabilityRegistrationChange {
             active_capability_changed: active_changed,
             text_document_registration_changed: applicable_set_changed,
             registration_changed: true,
-        })
+        }
     }
 
     fn unregister_dynamic_text_document_capability<T: Clone + PartialEq>(
@@ -131,7 +131,7 @@ impl LspStore {
         server: &LanguageServer,
         unregistration: &lsp::Unregistration,
         capability_of: impl Fn(&mut lsp::ServerCapabilities) -> &mut Option<T>,
-    ) -> anyhow::Result<Option<CapabilityRegistrationChange>> {
+    ) -> Option<CapabilityRegistrationChange> {
         let server_id = server.server_id();
         let local = &mut self.local;
         let Some((registrations, applicable_set_changed)) = local
@@ -144,7 +144,7 @@ impl LspStore {
             })
         else {
             log_unknown_unregistration(unregistration);
-            return Ok(None);
+            return None;
         };
         let new_active = active_text_document_capability(
             registrations,
@@ -153,11 +153,11 @@ impl LspStore {
         );
         let active_changed = update_active_capability(server, new_active, &capability_of);
         self.notify_server_capabilities_updated(server);
-        Ok(Some(CapabilityRegistrationChange {
+        Some(CapabilityRegistrationChange {
             active_capability_changed: active_changed,
             text_document_registration_changed: applicable_set_changed,
             registration_changed: true,
-        }))
+        })
     }
 
     /// Returns `true` when the registration changed the server's active capability value:
@@ -171,7 +171,7 @@ impl LspStore {
         options: T,
         registrations_of: impl FnOnce(&mut DynamicRegistrations) -> &mut CapabilityRegistrations<T>,
         capability_of: impl Fn(&mut lsp::ServerCapabilities) -> &mut Option<T>,
-    ) -> anyhow::Result<bool> {
+    ) -> bool {
         let server_id = server.server_id();
         let local = &mut self.local;
         let dynamic_registrations = local.language_server_dynamic_registrations.entry(server_id).or_default();
@@ -183,12 +183,12 @@ impl LspStore {
             }
         }
         if !insert_capability_registration(registrations, method, registration_id, options) {
-            return Ok(false);
+            return false;
         }
         let active = registrations.last().map(|(_, options)| options.clone());
         server.update_capabilities(|capabilities| *capability_of(capabilities) = active);
         self.notify_server_capabilities_updated(server);
-        Ok(true)
+        true
     }
 
     fn unregister_dynamic_capability<T: Clone + PartialEq>(
@@ -197,7 +197,7 @@ impl LspStore {
         unregistration: &lsp::Unregistration,
         registrations_of: impl FnOnce(&mut DynamicRegistrations) -> &mut CapabilityRegistrations<T>,
         capability_of: impl FnOnce(&mut lsp::ServerCapabilities) -> &mut Option<T>,
-    ) -> anyhow::Result<Option<bool>> {
+    ) -> Option<bool> {
         let server_id = server.server_id();
         let local = &mut self.local;
         let Some((registrations, active_changed)) =
@@ -209,15 +209,15 @@ impl LspStore {
             )
         else {
             log_unknown_unregistration(unregistration);
-            return Ok(None);
+            return None;
         };
         if !active_changed {
-            return Ok(Some(false));
+            return Some(false);
         }
         let restored = registrations.last().map(|(_, options)| options.clone());
         server.update_capabilities(|capabilities| *capability_of(capabilities) = restored);
         self.notify_server_capabilities_updated(server);
-        Ok(Some(true))
+        Some(true)
     }
 
     fn update_paths_watched_for_rename(&mut self, server: &LanguageServer) {
@@ -252,7 +252,11 @@ impl LspStore {
         let mut buffers_with_language_server = Vec::new();
         for handle in self.buffer_store.read(cx).buffers() {
             let buffer_id = handle.read(cx).buffer_id();
-            if local.buffers_opened_in_servers.get(&buffer_id).filter(|servers| servers.contains(&server_id)).is_some()
+            if local
+                .buffers_opened_in_servers
+                .get(&buffer_id)
+                .as_ref()
+                .is_some_and(|servers| servers.contains(&server_id))
             {
                 buffers_with_language_server.push(handle);
             }
@@ -303,7 +307,7 @@ impl LspStore {
                         caps,
                         |registrations| &mut registrations.workspace_folders,
                         |capabilities| &mut capabilities.workspace.get_or_insert_default().workspace_folders,
-                    )?;
+                    );
                 }
                 "workspace/symbol" => {
                     let options = parse_register_capabilities(reg.register_options)?;
@@ -314,7 +318,7 @@ impl LspStore {
                         options,
                         |registrations| &mut registrations.workspace_symbol,
                         |capabilities| &mut capabilities.workspace_symbol_provider,
-                    )?;
+                    );
                 }
                 "workspace/fileOperations" => {
                     if let Some(options) = reg.register_options {
@@ -326,7 +330,7 @@ impl LspStore {
                             caps,
                             |registrations| &mut registrations.file_operations,
                             |capabilities| &mut capabilities.workspace.get_or_insert_default().file_operations,
-                        )? {
+                        ) {
                             self.update_paths_watched_for_rename(&server);
                         }
                     }
@@ -341,7 +345,7 @@ impl LspStore {
                             options,
                             |registrations| &mut registrations.execute_command,
                             |capabilities| &mut capabilities.execute_command_provider,
-                        )?;
+                        );
                     }
                 }
                 "textDocument/rangeFormatting" => {
@@ -354,7 +358,7 @@ impl LspStore {
                         options,
                         document_selector,
                         |capabilities| &mut capabilities.document_range_formatting_provider,
-                    )?;
+                    );
                 }
                 "textDocument/onTypeFormatting" => {
                     let document_selector = parse_text_document_registration(reg.register_options.as_ref())?;
@@ -366,7 +370,7 @@ impl LspStore {
                             options,
                             document_selector,
                             |capabilities| &mut capabilities.document_on_type_formatting_provider,
-                        )?;
+                        );
                     }
                 }
                 "textDocument/formatting" => {
@@ -379,7 +383,7 @@ impl LspStore {
                         options,
                         document_selector,
                         |capabilities| &mut capabilities.document_formatting_provider,
-                    )?;
+                    );
                 }
                 "textDocument/rename" => {
                     let document_selector = parse_text_document_registration(reg.register_options.as_ref())?;
@@ -391,7 +395,7 @@ impl LspStore {
                         options,
                         document_selector,
                         |capabilities| &mut capabilities.rename_provider,
-                    )?;
+                    );
                 }
                 "textDocument/inlayHint" => {
                     let document_selector = parse_text_document_registration(reg.register_options.as_ref())?;
@@ -404,7 +408,7 @@ impl LspStore {
                             options,
                             document_selector,
                             |capabilities| &mut capabilities.inlay_hint_provider,
-                        )?
+                        )
                         .applicability_may_have_changed()
                     {
                         self.refresh_inlay_hints(server_id, cx);
@@ -421,7 +425,7 @@ impl LspStore {
                             options,
                             document_selector,
                             |capabilities| &mut capabilities.document_symbol_provider,
-                        )?
+                        )
                         .applicability_may_have_changed()
                     {
                         self.refresh_document_symbols(Some(server_id), cx);
@@ -441,7 +445,7 @@ impl LspStore {
                         provider,
                         document_selector,
                         |capabilities| &mut capabilities.code_action_provider,
-                    )?;
+                    );
                 }
                 "textDocument/definition" => {
                     let document_selector = parse_text_document_registration(reg.register_options.as_ref())?;
@@ -453,7 +457,7 @@ impl LspStore {
                         options,
                         document_selector,
                         |capabilities| &mut capabilities.definition_provider,
-                    )?;
+                    );
                 }
                 "textDocument/documentHighlight" => {
                     let document_selector = parse_text_document_registration(reg.register_options.as_ref())?;
@@ -466,7 +470,7 @@ impl LspStore {
                             options,
                             document_selector,
                             |capabilities| &mut capabilities.document_highlight_provider,
-                        )?
+                        )
                         .applicability_may_have_changed()
                     {
                         self.refresh_document_highlights(Some(server_id), cx);
@@ -485,7 +489,7 @@ impl LspStore {
                             registration_options.completion_options,
                             registration_options.text_document_registration_options.document_selector,
                             |capabilities| &mut capabilities.completion_provider,
-                        )?;
+                        );
                         self.apply_completion_triggers(server_id, cx);
                     }
                 }
@@ -503,7 +507,7 @@ impl LspStore {
                         provider,
                         document_selector,
                         |capabilities| &mut capabilities.hover_provider,
-                    )?;
+                    );
                 }
                 "textDocument/didChange" => {
                     if let Some(sync_kind) = reg
@@ -558,7 +562,7 @@ impl LspStore {
                                 options,
                                 document_selector,
                                 |capabilities| &mut capabilities.code_lens_provider,
-                            )?
+                            )
                             .applicability_may_have_changed()
                     {
                         self.refresh_code_lens(Some(server_id), cx);
@@ -577,7 +581,7 @@ impl LspStore {
                             caps.clone(),
                             document_selector,
                             |capabilities| &mut capabilities.diagnostic_provider,
-                        )?;
+                        );
 
                         let supports_workspace_diagnostics =
                             |capabilities: &DiagnosticServerCapabilities| match capabilities {
@@ -626,7 +630,7 @@ impl LspStore {
                             provider,
                             document_selector,
                             |capabilities| &mut capabilities.color_provider,
-                        )?
+                        )
                         .applicability_may_have_changed()
                     {
                         self.refresh_document_colors(Some(server_id), cx);
@@ -647,7 +651,7 @@ impl LspStore {
                             provider,
                             document_selector,
                             |capabilities| &mut capabilities.folding_range_provider,
-                        )?
+                        )
                         .applicability_may_have_changed()
                     {
                         self.refresh_folding_ranges(Some(server_id), cx);
@@ -664,7 +668,7 @@ impl LspStore {
                                 caps,
                                 document_selector,
                                 |capabilities| &mut capabilities.document_link_provider,
-                            )?
+                            )
                             .applicability_may_have_changed()
                     {
                         self.refresh_document_links(Some(server_id), cx);
@@ -684,7 +688,7 @@ impl LspStore {
                                 lsp::SemanticTokensServerCapabilities::SemanticTokensRegistrationOptions(caps),
                                 document_selector,
                                 |capabilities| &mut capabilities.semantic_tokens_provider,
-                            )?
+                            )
                             .ordered_capability_may_have_changed()
                     {
                         // Re-query already-open buffers, which would otherwise keep
@@ -727,7 +731,7 @@ impl LspStore {
                         unreg,
                         |registrations| &mut registrations.workspace_folders,
                         |capabilities| &mut capabilities.workspace.get_or_insert_default().workspace_folders,
-                    )?;
+                    );
                 }
                 "workspace/symbol" => {
                     self.unregister_dynamic_capability(
@@ -735,7 +739,7 @@ impl LspStore {
                         unreg,
                         |registrations| &mut registrations.workspace_symbol,
                         |capabilities| &mut capabilities.workspace_symbol_provider,
-                    )?;
+                    );
                 }
                 "workspace/fileOperations" => {
                     if self.unregister_dynamic_capability(
@@ -743,7 +747,7 @@ impl LspStore {
                         unreg,
                         |registrations| &mut registrations.file_operations,
                         |capabilities| &mut capabilities.workspace.get_or_insert_default().file_operations,
-                    )? == Some(true)
+                    ) == Some(true)
                     {
                         self.update_paths_watched_for_rename(&server);
                     }
@@ -754,43 +758,43 @@ impl LspStore {
                         unreg,
                         |registrations| &mut registrations.execute_command,
                         |capabilities| &mut capabilities.execute_command_provider,
-                    )?;
+                    );
                 }
                 "textDocument/rangeFormatting" => {
                     self.unregister_dynamic_text_document_capability(&server, unreg, |capabilities| {
                         &mut capabilities.document_range_formatting_provider
-                    })?;
+                    });
                 }
                 "textDocument/onTypeFormatting" => {
                     self.unregister_dynamic_text_document_capability(&server, unreg, |capabilities| {
                         &mut capabilities.document_on_type_formatting_provider
-                    })?;
+                    });
                 }
                 "textDocument/formatting" => {
                     self.unregister_dynamic_text_document_capability(&server, unreg, |capabilities| {
                         &mut capabilities.document_formatting_provider
-                    })?;
+                    });
                 }
                 "textDocument/rename" => {
                     self.unregister_dynamic_text_document_capability(&server, unreg, |capabilities| {
                         &mut capabilities.rename_provider
-                    })?;
+                    });
                 }
                 "textDocument/codeAction" => {
                     self.unregister_dynamic_text_document_capability(&server, unreg, |capabilities| {
                         &mut capabilities.code_action_provider
-                    })?;
+                    });
                 }
                 "textDocument/definition" => {
                     self.unregister_dynamic_text_document_capability(&server, unreg, |capabilities| {
                         &mut capabilities.definition_provider
-                    })?;
+                    });
                 }
                 "textDocument/documentHighlight" => {
                     if self
                         .unregister_dynamic_text_document_capability(&server, unreg, |capabilities| {
                             &mut capabilities.document_highlight_provider
-                        })?
+                        })
                         .is_some_and(CapabilityRegistrationChange::applicability_may_have_changed)
                     {
                         self.refresh_document_highlights(Some(server_id), cx);
@@ -800,7 +804,7 @@ impl LspStore {
                     if self
                         .unregister_dynamic_text_document_capability(&server, unreg, |capabilities| {
                             &mut capabilities.completion_provider
-                        })?
+                        })
                         .is_some()
                     {
                         self.apply_completion_triggers(server_id, cx);
@@ -809,13 +813,13 @@ impl LspStore {
                 "textDocument/hover" => {
                     self.unregister_dynamic_text_document_capability(&server, unreg, |capabilities| {
                         &mut capabilities.hover_provider
-                    })?;
+                    });
                 }
                 "textDocument/semanticTokens" => {
                     if self
                         .unregister_dynamic_text_document_capability(&server, unreg, |capabilities| {
                             &mut capabilities.semantic_tokens_provider
-                        })?
+                        })
                         .is_some_and(CapabilityRegistrationChange::ordered_capability_may_have_changed)
                     {
                         self.refresh_semantic_tokens(server_id, cx);
@@ -841,7 +845,7 @@ impl LspStore {
                     if self
                         .unregister_dynamic_text_document_capability(&server, unreg, |capabilities| {
                             &mut capabilities.inlay_hint_provider
-                        })?
+                        })
                         .is_some_and(CapabilityRegistrationChange::applicability_may_have_changed)
                     {
                         self.refresh_inlay_hints(server_id, cx);
@@ -851,7 +855,7 @@ impl LspStore {
                     if self
                         .unregister_dynamic_text_document_capability(&server, unreg, |capabilities| {
                             &mut capabilities.document_symbol_provider
-                        })?
+                        })
                         .is_some_and(CapabilityRegistrationChange::applicability_may_have_changed)
                     {
                         self.refresh_document_symbols(Some(server_id), cx);
@@ -861,7 +865,7 @@ impl LspStore {
                     if self
                         .unregister_dynamic_text_document_capability(&server, unreg, |capabilities| {
                             &mut capabilities.code_lens_provider
-                        })?
+                        })
                         .is_some_and(CapabilityRegistrationChange::applicability_may_have_changed)
                     {
                         self.refresh_code_lens(Some(server_id), cx);
@@ -871,7 +875,7 @@ impl LspStore {
                     if self
                         .unregister_dynamic_text_document_capability(&server, unreg, |capabilities| {
                             &mut capabilities.diagnostic_provider
-                        })?
+                        })
                         .is_some()
                     {
                         let local = &mut self.local;
@@ -890,7 +894,7 @@ impl LspStore {
                     if self
                         .unregister_dynamic_text_document_capability(&server, unreg, |capabilities| {
                             &mut capabilities.color_provider
-                        })?
+                        })
                         .is_some_and(CapabilityRegistrationChange::applicability_may_have_changed)
                     {
                         self.refresh_document_colors(Some(server_id), cx);
@@ -900,7 +904,7 @@ impl LspStore {
                     if self
                         .unregister_dynamic_text_document_capability(&server, unreg, |capabilities| {
                             &mut capabilities.folding_range_provider
-                        })?
+                        })
                         .is_some_and(CapabilityRegistrationChange::applicability_may_have_changed)
                     {
                         self.refresh_folding_ranges(Some(server_id), cx);
@@ -910,7 +914,7 @@ impl LspStore {
                     if self
                         .unregister_dynamic_text_document_capability(&server, unreg, |capabilities| {
                             &mut capabilities.document_link_provider
-                        })?
+                        })
                         .is_some_and(CapabilityRegistrationChange::applicability_may_have_changed)
                     {
                         self.refresh_document_links(Some(server_id), cx);
@@ -1002,20 +1006,19 @@ fn insert_capability_registration<T: PartialEq>(
     registration_id: String,
     options: T,
 ) -> bool {
-    match registrations.iter().position(|(source, _)| source.registration_id() == Some(registration_id.as_str())) {
-        Some(index) => {
-            if registrations[index].1 == options {
-                return false;
-            }
-            log::debug!("Replacing {method} registration with duplicate ID {registration_id}");
-            registrations[index].1 = options;
-            index + 1 == registrations.len()
+    if let Some(index) =
+        registrations.iter().position(|(source, _)| source.registration_id() == Some(registration_id.as_str()))
+    {
+        if registrations[index].1 == options {
+            return false;
         }
-        None => {
-            let active_changed = registrations.last().is_none_or(|(_, active)| active != &options);
-            registrations.push((RegistrationSource::Dynamic(registration_id), options));
-            active_changed
-        }
+        log::debug!("Replacing {method} registration with duplicate ID {registration_id}");
+        registrations[index].1 = options;
+        index + 1 == registrations.len()
+    } else {
+        let active_changed = registrations.last().is_none_or(|(_, active)| active != &options);
+        registrations.push((RegistrationSource::Dynamic(registration_id), options));
+        active_changed
     }
 }
 
@@ -1084,8 +1087,8 @@ mod tests {
         }
     }
 
-    fn rust_selector() -> Option<lsp::DocumentSelector> {
-        Some(vec![lsp::DocumentFilter { language: Some("rust".to_owned()), scheme: None, pattern: None }])
+    fn rust_selector() -> lsp::DocumentSelector {
+        vec![lsp::DocumentFilter { language: Some("rust".to_owned()), scheme: None, pattern: None }]
     }
 
     fn capability_registrations(entries: &[(Option<&str>, i32)]) -> CapabilityRegistrations<i32> {
@@ -1142,12 +1145,12 @@ mod tests {
                 &mut registrations,
                 "m",
                 "a".to_owned(),
-                definition_registration(rust_selector())
+                definition_registration(Some(rust_selector()))
             ),
             Some(true)
         );
         assert_eq!(registrations.len(), 2);
-        assert_eq!(registrations["a"], definition_registration(rust_selector()));
+        assert_eq!(registrations["a"], definition_registration(Some(rust_selector())));
         // Replacing with a value that both existed before and still remains is not a set change.
         assert_eq!(
             insert_text_document_registration(&mut registrations, "m", "b".to_owned(), definition_registration(None)),
@@ -1159,7 +1162,7 @@ mod tests {
                 &mut registrations,
                 "m",
                 "c".to_owned(),
-                definition_registration(rust_selector())
+                definition_registration(Some(rust_selector()))
             ),
             Some(false)
         );

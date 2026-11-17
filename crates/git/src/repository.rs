@@ -94,7 +94,7 @@ pub const GRAPH_CHUNK_SIZE: usize = 1000;
 /// Returns `None` if `common_dir` doesn't end with `.git` (e.g. bare repos),
 /// because there is no working-tree root to resolve to in that case.
 pub fn original_repo_path_from_common_dir(common_dir: &Path) -> Option<PathBuf> {
-    if common_dir.file_name() == Some(OsStr::new(".git")) { common_dir.parent().map(|p| p.to_path_buf()) } else { None }
+    if common_dir.file_name() == Some(OsStr::new(".git")) { common_dir.parent().map(|x| x.to_path_buf()) } else { None }
 }
 
 fn linked_worktree_git_dir(worktree_path: &Path) -> Result<PathBuf> {
@@ -167,7 +167,7 @@ impl CommitDataReader {
     }
 }
 
-fn parse_cat_file_commit(sha: Oid, content: &str) -> Option<CommitData> {
+fn parse_cat_file_commit(sha: Oid, content: &str) -> CommitData {
     let mut parents = SmallVec::new();
     let mut author_name = SharedString::default();
     let mut author_email = SharedString::default();
@@ -207,7 +207,7 @@ fn parse_cat_file_commit(sha: Oid, content: &str) -> Option<CommitData> {
         }
     }
 
-    Some(CommitData {
+    CommitData {
         sha,
         parents,
         author_name,
@@ -215,7 +215,7 @@ fn parse_cat_file_commit(sha: Oid, content: &str) -> Option<CommitData> {
         commit_timestamp,
         subject: subject.unwrap_or_default(),
         message: SharedString::from(message_lines.join("\n")),
-    })
+    }
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
@@ -252,7 +252,7 @@ impl Branch {
     }
 
     pub fn remote_name(&self) -> Option<&str> {
-        self.ref_name.strip_prefix("refs/remotes/").and_then(|stripped| stripped.split("/").next())
+        self.ref_name.strip_prefix("refs/remotes/").and_then(|stripped| stripped.split('/').next())
     }
 }
 
@@ -384,7 +384,7 @@ impl Upstream {
     }
 
     pub fn remote_name(&self) -> Option<&str> {
-        self.ref_name.strip_prefix("refs/remotes/").and_then(|stripped| stripped.split("/").next())
+        self.ref_name.strip_prefix("refs/remotes/").and_then(|stripped| stripped.split('/').next())
     }
 
     pub fn branch_name(&self) -> Option<&str> {
@@ -1217,7 +1217,7 @@ impl GitRepository for RealGitRepository {
                 let new_content = new_object.map(|object| object.content);
                 let old_content = old_object.map(|object| object.content);
 
-                files.push(CommitFile { path: RepoPath(Arc::from(rel_path)), old_content, new_content, is_binary })
+                files.push(CommitFile { path: RepoPath(Arc::from(rel_path)), old_content, new_content, is_binary });
             }
 
             Ok(CommitDiff { files, is_shallow_boundary: false })
@@ -1235,7 +1235,7 @@ impl GitRepository for RealGitRepository {
             };
 
             let output = git.build_command(&["reset", mode_flag, &commit]).envs(env.iter()).output().await?;
-            anyhow::ensure!(output.status.success(), "Failed to reset:\n{}", String::from_utf8_lossy(&output.stderr),);
+            anyhow::ensure!(output.status.success(), "Failed to reset:\n{}", String::from_utf8_lossy(&output.stderr));
             Ok(())
         }
         .boxed()
@@ -1647,9 +1647,8 @@ impl GitRepository for RealGitRepository {
 
                 for (path, old) in recreated {
                     let full_path = working_directory.join(path.as_std_path());
-                    let metadata = match async_macos::fs::symlink_metadata(&full_path).await {
-                        Ok(metadata) => metadata,
-                        Err(_) => continue,
+                    let Ok(metadata) = async_macos::fs::symlink_metadata(&full_path).await else {
+                        continue;
                     };
                     let base_entry = git
                         .build_command(&["ls-tree", merge_base, "--", path.as_unix_str()].map(OsString::from))
@@ -1760,7 +1759,7 @@ impl GitRepository for RealGitRepository {
                 };
 
                 let input = String::from_utf8_lossy(&output.stdout);
-                let mut branches = parse_branch_input(&input)?;
+                let mut branches = parse_branch_input(&input);
                 if branches.is_empty() {
                     let args = vec!["symbolic-ref", "--quiet", "HEAD"];
 
@@ -1948,7 +1947,7 @@ impl GitRepository for RealGitRepository {
                     return anyhow::Ok(());
                 }
 
-                anyhow::bail!("Branch '{}' not found", name);
+                anyhow::bail!("Branch '{name}' not found");
             })
             .boxed()
     }
@@ -2098,7 +2097,7 @@ impl GitRepository for RealGitRepository {
                     let output = git
                         .build_command(&["reset", "--quiet", "--"])
                         .envs(env.iter())
-                        .args(paths.iter().map(|p| p.as_std_path()))
+                        .args(paths.iter().map(RepoPath::as_std_path))
                         .output()
                         .await?;
 
@@ -2175,7 +2174,7 @@ impl GitRepository for RealGitRepository {
                 let git = git?;
                 let mut args = vec!["stash".to_string(), "pop".to_string()];
                 if let Some(index) = index {
-                    args.push(format!("stash@{{{}}}", index));
+                    args.push(format!("stash@{{{index}}}"));
                 }
                 let output = git.build_command(&args).envs(env.iter()).output().await?;
 
@@ -2196,7 +2195,7 @@ impl GitRepository for RealGitRepository {
                 let git = git?;
                 let mut args = vec!["stash".to_string(), "apply".to_string()];
                 if let Some(index) = index {
-                    args.push(format!("stash@{{{}}}", index));
+                    args.push(format!("stash@{{{index}}}"));
                 }
                 let output = git.build_command(&args).envs(env.iter()).output().await?;
 
@@ -2217,7 +2216,7 @@ impl GitRepository for RealGitRepository {
                 let git = git?;
                 let mut args = vec!["stash".to_string(), "drop".to_string()];
                 if let Some(index) = index {
-                    args.push(format!("stash@{{{}}}", index));
+                    args.push(format!("stash@{{{index}}}"));
                 }
                 let output = git.build_command(&args).envs(env.iter()).output().await?;
 
@@ -2319,7 +2318,7 @@ impl GitRepository for RealGitRepository {
                     PushOptions::Force => "--force-with-lease",
                 }))
                 .arg(remote_name)
-                .arg(format!("{}:{}", branch_name, remote_branch_name))
+                .arg(format!("{branch_name}:{remote_branch_name}"))
                 .stdin(Stdio::null())
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped());
@@ -2374,7 +2373,7 @@ impl GitRepository for RealGitRepository {
         _cx: AsyncApp,
     ) -> BoxFuture<'_, Result<RemoteCommandOutput>> {
         let working_directory = self.command_directory();
-        let remote_name = format!("{}", fetch_options);
+        let remote_name = format!("{fetch_options}");
         let git_binary_path = self.git_binary_path.clone();
         async move {
             let git = GitBinary::new(git_binary_path, working_directory);
@@ -2486,7 +2485,7 @@ impl GitRepository for RealGitRepository {
 
                 Ok(output
                     .lines()
-                    .map(|line| line.trim())
+                    .map(str::trim)
                     .filter(|line| !line.ends_with("/HEAD"))
                     .filter_map(|line| line.strip_prefix("refs/remotes/"))
                     .map(SharedString::from)
@@ -2557,7 +2556,7 @@ impl GitRepository for RealGitRepository {
         async move {
             let log_source_args = log_source.get_args();
             let mut git_log_command = vec!["log", GRAPH_COMMIT_FORMAT, log_order.as_arg()];
-            git_log_command.extend(log_source_args.iter().map(|arg| arg.as_ref()));
+            git_log_command.extend(log_source_args.iter().map(AsRef::as_ref));
             let mut command = git.build_command(&git_log_command);
             command.stdout(Stdio::piped());
             command.stderr(Stdio::piped());
@@ -2576,7 +2575,7 @@ impl GitRepository for RealGitRepository {
 
                 if bytes_read == 0 {
                     if !lines.is_empty() {
-                        let commits = parse_initial_graph_output(lines.iter().map(|s| s.as_str()));
+                        let commits = parse_initial_graph_output(lines.iter().map(String::as_str));
                         if request_tx.send(commits).await.is_err() {
                             log::warn!("initial_graph_data: receiver dropped while sending commits");
                         }
@@ -2588,7 +2587,7 @@ impl GitRepository for RealGitRepository {
                 lines.push(line);
 
                 if lines.len() >= GRAPH_CHUNK_SIZE {
-                    let commits = parse_initial_graph_output(lines.iter().map(|s| s.as_str()));
+                    let commits = parse_initial_graph_output(lines.iter().map(String::as_str));
                     if request_tx.send(commits).await.is_err() {
                         log::warn!("initial_graph_data: receiver dropped while streaming commits");
                         break;
@@ -2603,10 +2602,9 @@ impl GitRepository for RealGitRepository {
                 BufReader::new(stderr).read_to_string(&mut stderr_output).await.log_err();
 
                 if stderr_output.is_empty() {
-                    anyhow::bail!("git log command failed with {}", status);
-                } else {
-                    anyhow::bail!("git log command failed with {}: {}", status, stderr_output);
+                    anyhow::bail!("git log command failed with {status}");
                 }
+                anyhow::bail!("git log command failed with {status}: {stderr_output}");
             }
             Ok(())
         }
@@ -2624,8 +2622,7 @@ impl GitRepository for RealGitRepository {
         async move {
             let log_source_args = log_source.get_args();
             let mut args = vec!["log", SEARCH_COMMIT_FORMAT];
-            let hash_query =
-                commit_hash_search_query(search_args.query.as_str()).map(|query| query.to_ascii_lowercase());
+            let hash_query = commit_hash_search_query(search_args.query.as_str()).map(str::to_ascii_lowercase);
 
             if hash_query.is_none() {
                 args.push("--fixed-strings");
@@ -2638,7 +2635,7 @@ impl GitRepository for RealGitRepository {
                 args.push(search_args.query.as_str());
             }
 
-            args.extend(log_source_args.iter().map(|arg| arg.as_ref()));
+            args.extend(log_source_args.iter().map(AsRef::as_ref));
             let mut command = git.build_command(&args);
             command.stdout(Stdio::piped());
             command.stderr(Stdio::null());
@@ -2712,10 +2709,9 @@ impl GitRepository for RealGitRepository {
             let output = git.build_command(&args).output().await?;
             anyhow::ensure!(output.status.success(), "git log failed:\n{}", String::from_utf8_lossy(&output.stderr));
 
-            let shallow_boundary_oids = read_shallow_file(&shallow_file_path)
-                .await?
-                .map(|contents| contents.lines().map(|line| line.trim().to_string()).collect::<HashSet<_>>())
-                .unwrap_or_default();
+            let shallow_boundary_oids = read_shallow_file(&shallow_file_path).await?.map_or_default(|contents| {
+                contents.lines().map(|line| line.trim().to_string()).collect::<HashSet<_>>()
+            });
 
             let stdout = String::from_utf8_lossy(&output.stdout);
             Ok(parse_file_history_changed_files_output(&stdout, &paths, &shallow_boundary_oids))
@@ -2792,7 +2788,7 @@ async fn read_single_commit_response<R: AsyncBufRead + Unpin>(stdout: &mut R, sh
 
     let object_type = parts[1];
     if object_type == "missing" {
-        bail!("object not found: {}", sha);
+        bail!("object not found: {sha}");
     }
 
     if object_type != "commit" {
@@ -2808,7 +2804,7 @@ async fn read_single_commit_response<R: AsyncBufRead + Unpin>(stdout: &mut R, sh
     stdout.read_exact(&mut newline).await?;
 
     let content_str = String::from_utf8_lossy(&content);
-    parse_cat_file_commit(*sha, &content_str).ok_or_else(|| anyhow!("failed to parse commit {}", sha))
+    Ok(parse_cat_file_commit(*sha, &content_str))
 }
 
 fn parse_file_history_changed_files_output(
@@ -3059,7 +3055,7 @@ impl Deref for RepoPath {
     }
 }
 
-fn parse_branch_input(input: &str) -> Result<Vec<Branch>> {
+fn parse_branch_input(input: &str) -> Vec<Branch> {
     let mut branches = Vec::new();
     for line in input.split('\n') {
         if line.is_empty() {
@@ -3072,13 +3068,13 @@ fn parse_branch_input(input: &str) -> Result<Vec<Branch>> {
         let Some(head_sha) = fields.next().map(|f| f.to_string().into()) else {
             continue;
         };
-        let Some(parent_sha) = fields.next().map(|f| f.to_string()) else {
+        let Some(parent_sha) = fields.next().map(ToString::to_string) else {
             continue;
         };
         let Some(ref_name) = fields.next().map(|f| f.to_string().into()) else {
             continue;
         };
-        let Some(upstream_name) = fields.next().map(|f| f.to_string()) else {
+        let Some(upstream_name) = fields.next().map(ToString::to_string) else {
             continue;
         };
         let Some(upstream_tracking) = fields.next().and_then(|f| parse_upstream_track(f).ok()) else {
@@ -3109,10 +3105,10 @@ fn parse_branch_input(input: &str) -> Result<Vec<Branch>> {
             } else {
                 Some(Upstream { ref_name: upstream_name.into(), tracking: upstream_tracking })
             },
-        })
+        });
     }
 
-    Ok(branches)
+    branches
 }
 
 fn format_branch_scan_error(output: &Output) -> String {

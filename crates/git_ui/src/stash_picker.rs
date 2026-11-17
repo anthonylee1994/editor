@@ -83,7 +83,7 @@ actions!(
 pub fn open(workspace: &mut Workspace, _: &ViewStash, window: &mut Window, cx: &mut Context<Workspace>) {
     let repository = workspace.project().read(cx).active_repository(cx);
     let weak_workspace = workspace.weak_handle();
-    workspace.toggle_modal(window, cx, |window, cx| StashList::new(repository, weak_workspace, rems(34.), window, cx))
+    workspace.toggle_modal(window, cx, |window, cx| StashList::new(repository, weak_workspace, rems(34.), window, cx));
 }
 
 pub fn create_embedded(
@@ -142,17 +142,17 @@ impl StashList {
                         this.refresh(window, cx);
                     });
                 }
-            }))
+            }));
         }
 
         cx.spawn_in(window, async move |this, cx| {
-            let stash_entries = stash_request.map(|git_stash| git_stash.entries.to_vec()).unwrap_or_default();
+            let stash_entries = stash_request.map_or_default(|git_stash| git_stash.entries.to_vec());
 
             this.update_in(cx, |this, window, cx| {
                 this.picker.update(cx, |picker, cx| {
                     picker.delegate.all_stash_entries = Some(stash_entries);
                     picker.refresh(window, cx);
-                })
+                });
             })?;
 
             anyhow::Ok(())
@@ -172,7 +172,7 @@ impl StashList {
             picker.delegate.show_footer = !embedded;
         });
 
-        Self { picker, picker_focus_handle, width, _subscriptions }
+        Self { width, picker, picker_focus_handle, _subscriptions }
     }
 
     fn new_embedded(
@@ -209,7 +209,7 @@ impl StashList {
     }
 
     pub fn handle_modifiers_changed(&mut self, ev: &ModifiersChangedEvent, _: &mut Window, cx: &mut Context<Self>) {
-        self.picker.update(cx, |picker, _| picker.delegate.modifiers = ev.modifiers)
+        self.picker.update(cx, |picker, _| picker.delegate.modifiers = ev.modifiers);
     }
 }
 
@@ -278,7 +278,7 @@ impl StashListDelegate {
     }
 
     fn format_message(ix: usize, message: &String) -> String {
-        format!("#{}: {}", ix, message)
+        format!("#{ix}: {message}")
     }
 
     fn format_timestamp(timestamp: i64, timezone: UtcOffset) -> String {
@@ -580,7 +580,7 @@ impl PickerDelegate for StashListDelegate {
                                 .map(|kb| kb.size(rems_from_px(12_f32))),
                         )
                         .on_click(|_, window, cx| {
-                            window.dispatch_action(stash_picker::DropStashItem.boxed_clone(), cx)
+                            window.dispatch_action(stash_picker::DropStashItem.boxed_clone(), cx);
                         }),
                 )
                 .child(

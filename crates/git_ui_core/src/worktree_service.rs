@@ -415,7 +415,7 @@ fn start_worktree_creations(
     let mut scheduled_paths: FxHashSet<PathBuf> = FxHashSet::default();
 
     let worktree_name = worktree_name.unwrap_or_else(|| {
-        let existing_refs: Vec<&str> = existing_worktree_names.iter().map(|s| s.as_str()).collect();
+        let existing_refs: Vec<&str> = existing_worktree_names.iter().map(String::as_str).collect();
         worktree_names::generate_worktree_name(&existing_refs, rng).unwrap_or_else(|| "worktree".to_string())
     });
 
@@ -518,7 +518,7 @@ pub async fn await_and_rollback_on_failure(
                 fs.remove_dir(&path, fs::RemoveOptions { recursive: true, ignore_if_not_exists: true }).await
         {
             let msg = format!("{}: failed to remove directory: {fs_err}", path.display());
-            log::error!("{}", msg);
+            log::error!("{msg}");
             rollback_failures.push(msg);
         }
     }

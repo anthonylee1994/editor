@@ -114,8 +114,7 @@ pub fn document_link_target_to_hover_link(target: &str, server_id: LanguageServe
         let position = url
             .fragment()
             .and_then(source_position_from_fragment)
-            .map(|(line, character)| lsp::Position { line, character })
-            .unwrap_or_default();
+            .map_or_default(|(line, character)| lsp::Position { line, character });
         return HoverLink::LspLocation(lsp::Location { uri, range: lsp::Range::new(position, position) }, server_id);
     }
     HoverLink::Url(target.to_string())
@@ -225,7 +224,7 @@ impl Editor {
                 || (matches!(state.last_trigger_point, TriggerPoint::Text(_))
                     && (state.preferred_kind != kind || state.task.as_ref().is_some_and(|task| !task.is_ready())))
         });
-        let mut links = cached.map(|state| state.links).unwrap_or_default();
+        let mut links = cached.map_or_default(|state| state.links);
         if refresh || !self.lsp_data_enabled() {
             links.retain(|link| {
                 matches!(link, HoverLink::Url(_) | HoverLink::File(_))
@@ -380,7 +379,7 @@ pub fn show_link_definition(
             return;
         }
     } else {
-        editor.hide_hovered_link(cx)
+        editor.hide_hovered_link(cx);
     }
     let project = editor.project.clone();
     let provider = editor.semantics_provider.clone();
@@ -525,10 +524,10 @@ pub fn show_link_definition(
 
                         match highlight_range {
                             RangeInEditor::Text(text_range) => {
-                                editor.highlight_text(HighlightKey::HoveredLinkState, vec![text_range], style, cx)
+                                editor.highlight_text(HighlightKey::HoveredLinkState, vec![text_range], style, cx);
                             }
                             RangeInEditor::Inlay(highlight) => {
-                                editor.highlight_inlays(HighlightKey::HoveredLinkState, vec![highlight], style, cx)
+                                editor.highlight_inlays(HighlightKey::HoveredLinkState, vec![highlight], style, cx);
                             }
                         }
                     }
@@ -928,12 +927,11 @@ fn surrounding_filename(
             if inside_quotes {
                 found_end = true;
                 break;
-            } else {
-                // Otherwise, we skip the quote
-                inside_quotes = true;
-                token_end += ch.len_utf8();
-                continue;
             }
+            // Otherwise, we skip the quote
+            inside_quotes = true;
+            token_end += ch.len_utf8();
+            continue;
         }
         filename.push(ch);
         token_end += ch.len_utf8();

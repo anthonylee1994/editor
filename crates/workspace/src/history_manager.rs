@@ -56,7 +56,7 @@ impl HistoryManager {
             this.update(cx, |this, cx| {
                 this.history = recent_folders;
                 this.update_jump_list(cx);
-            })
+            });
         })
         .detach();
     }
@@ -121,7 +121,7 @@ impl HistoryManager {
 
 impl HistoryManagerEntry {
     pub fn new(paths: &PathList) -> HistoryManagerEntry {
-        let path = paths.ordered_paths().map(|path| path.compact()).collect::<SmallVec<[PathBuf; 2]>>();
+        let path = paths.ordered_paths().map(|p| p.compact()).collect::<SmallVec<[PathBuf; 2]>>();
         HistoryManagerEntry { paths: paths.clone(), path }
     }
 }

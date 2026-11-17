@@ -179,7 +179,7 @@ impl EditorElement {
                     } else if let Some((layout, axis)) =
                         scrollbars_layout.get_hovered_axis(window).filter(|_| !event.dragging())
                     {
-                        if layout.thumb_hovered(&event.position) {
+                        if layout.thumb_hovered(event.position) {
                             editor.scroll_manager.set_hovered_scroll_thumb_axis(axis, cx);
                         } else {
                             editor.scroll_manager.reset_scrollbar_state(cx);
@@ -191,7 +191,7 @@ impl EditorElement {
                     }
 
                     mouse_position = event.position;
-                })
+                });
             }
         });
 
@@ -495,7 +495,7 @@ impl ScrollbarLayout {
         Bounds::new(thumb_origin, scrollbar_track.size.apply_along(axis, |_| thumb_size))
     }
 
-    fn thumb_hovered(&self, position: &gpui::Point<Pixels>) -> bool {
-        self.thumb_bounds.is_some_and(|bounds| bounds.contains(position))
+    fn thumb_hovered(&self, position: gpui::Point<Pixels>) -> bool {
+        self.thumb_bounds.is_some_and(|bounds| bounds.contains(&position))
     }
 }

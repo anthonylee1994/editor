@@ -103,13 +103,13 @@ pub(crate) fn up_by_rows(
         SelectionGoal::HorizontalPosition(x) => x.into(),
         SelectionGoal::WrappedHorizontalPosition((_, x)) => x.into(),
         SelectionGoal::HorizontalRange { end, .. } => end.into(),
-        _ => map.x_for_display_point(start, text_layout_details),
+        SelectionGoal::None => map.x_for_display_point(start, text_layout_details),
     };
 
     let prev_row = DisplayRow(start.row().0.saturating_sub(row_count));
     let mut point = map.clip_point(DisplayPoint::new(prev_row, map.line_len(prev_row)), Bias::Left);
     if point.row() < start.row() {
-        *point.column_mut() = map.display_column_for_x(point.row(), goal_x, text_layout_details)
+        *point.column_mut() = map.display_column_for_x(point.row(), goal_x, text_layout_details);
     } else if preserve_column_at_start {
         return (start, goal);
     } else {
@@ -135,13 +135,13 @@ pub(crate) fn down_by_rows(
         SelectionGoal::HorizontalPosition(x) => x.into(),
         SelectionGoal::WrappedHorizontalPosition((_, x)) => x.into(),
         SelectionGoal::HorizontalRange { end, .. } => end.into(),
-        _ => map.x_for_display_point(start, text_layout_details),
+        SelectionGoal::None => map.x_for_display_point(start, text_layout_details),
     };
 
     let new_row = DisplayRow(start.row().0 + row_count);
     let mut point = map.clip_point(DisplayPoint::new(new_row, 0), Bias::Right);
     if point.row() > start.row() {
-        *point.column_mut() = map.display_column_for_x(point.row(), goal_x, text_layout_details)
+        *point.column_mut() = map.display_column_for_x(point.row(), goal_x, text_layout_details);
     } else if preserve_column_at_end {
         return (start, goal);
     } else {
@@ -434,7 +434,7 @@ pub fn start_of_paragraph(map: &DisplaySnapshot, display_point: DisplayPoint, mu
     }
 
     let mut found_non_blank_line = false;
-    for row in (0..point.row + 1).rev() {
+    for row in (0..=point.row).rev() {
         let blank = map.buffer_snapshot().is_line_blank(MultiBufferRow(row));
         if found_non_blank_line && blank {
             if count <= 1 {
@@ -494,7 +494,7 @@ fn is_comment_paragraph_line(snapshot: &MultiBufferSnapshot, row: u32) -> bool {
     let indent_end = Point::new(row, indent_len);
     let in_comment = snapshot
         .language_scope_at(indent_end)
-        .is_some_and(|scope| matches!(scope.override_name(), Some("comment") | Some("comment.inclusive")));
+        .is_some_and(|scope| matches!(scope.override_name(), Some("comment" | "comment.inclusive")));
     if !in_comment {
         return false;
     }
@@ -696,9 +696,8 @@ pub fn find_boundary_point(
             if return_point_before_boundary {
                 let point = prev_offset.to_point(map.buffer_snapshot());
                 return map.clip_point(map.point_to_display_point(point, Bias::Right), Bias::Right);
-            } else {
-                break;
             }
+            break;
         }
         prev_offset = offset;
         offset += ch.len_utf8();

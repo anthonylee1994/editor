@@ -149,7 +149,7 @@ impl InstanceBufferPool {
 
     pub(crate) fn release(&mut self, buffer: InstanceBuffer) {
         if buffer.size == self.buffer_size {
-            self.buffers.push(buffer.metal_buffer)
+            self.buffers.push(buffer.metal_buffer);
         }
     }
 }
@@ -384,7 +384,7 @@ impl MetalRenderer {
     }
 
     pub fn layer_ptr(&self) -> *mut CAMetalLayer {
-        self.layer.as_ref().map(|l| Retained::as_ptr(l).cast_mut()).unwrap_or(ptr::null_mut())
+        self.layer.as_ref().map_or(ptr::null_mut(), |l| Retained::as_ptr(l).cast_mut())
     }
 
     pub const fn sprite_atlas(&self) -> &Arc<MetalAtlas> {
@@ -493,12 +493,11 @@ impl MetalRenderer {
     }
 
     pub fn draw(&mut self, scene: &Scene) {
-        let layer = match &self.layer {
-            Some(l) => l.clone(),
-            None => {
-                log::error!("draw() called on headless renderer - use render_scene_to_image() instead");
-                return;
-            }
+        let layer = if let Some(l) = &self.layer {
+            l.clone()
+        } else {
+            log::error!("draw() called on headless renderer - use render_scene_to_image() instead");
+            return;
         };
         let drawable = match &mut self.display_link_mode {
             DisplayLinkMode::Attached { drawable } => {
@@ -649,10 +648,10 @@ impl MetalRenderer {
         for batch in scene.batches() {
             match batch {
                 PrimitiveBatch::Shadows(range) => {
-                    self.draw_shadows(range, instance_bindings, viewport_size, &command_encoder)
+                    self.draw_shadows(range, instance_bindings, viewport_size, &command_encoder);
                 }
                 PrimitiveBatch::Quads(range) => {
-                    self.draw_quads(range, instance_bindings, viewport_size, &command_encoder)
+                    self.draw_quads(range, instance_bindings, viewport_size, &command_encoder);
                 }
                 PrimitiveBatch::Paths(range) => {
                     let paths = &scene.paths[range];
@@ -671,13 +670,13 @@ impl MetalRenderer {
                     }
                 }
                 PrimitiveBatch::Underlines(range) => {
-                    self.draw_underlines(range, instance_bindings, viewport_size, &command_encoder)
+                    self.draw_underlines(range, instance_bindings, viewport_size, &command_encoder);
                 }
                 PrimitiveBatch::MonochromeSprites { texture_id, range } => {
-                    self.draw_monochrome_sprites(texture_id, range, instance_bindings, viewport_size, &command_encoder)
+                    self.draw_monochrome_sprites(texture_id, range, instance_bindings, viewport_size, &command_encoder);
                 }
                 PrimitiveBatch::PolychromeSprites { texture_id, range } => {
-                    self.draw_polychrome_sprites(texture_id, range, instance_bindings, viewport_size, &command_encoder)
+                    self.draw_polychrome_sprites(texture_id, range, instance_bindings, viewport_size, &command_encoder);
                 }
                 PrimitiveBatch::SubpixelSprites { .. } => unreachable!(),
             }
@@ -766,21 +765,21 @@ impl MetalRenderer {
                 Some(&self.unit_vertices),
                 0,
                 ShadowInputIndex::Vertices as usize,
-            )
+            );
         };
         unsafe {
             command_encoder.setVertexBuffer_offset_atIndex(
                 Some(&instance_bindings.shadows.buffer),
                 instance_bindings.shadows.offset,
                 ShadowInputIndex::Shadows as usize,
-            )
+            );
         };
         unsafe {
             command_encoder.setFragmentBuffer_offset_atIndex(
                 Some(&instance_bindings.shadows.buffer),
                 instance_bindings.shadows.offset,
                 ShadowInputIndex::Shadows as usize,
-            )
+            );
         };
         unsafe { set_vertex_bytes(command_encoder, ShadowInputIndex::ViewportSize as usize, &viewport_size) };
 
@@ -791,7 +790,7 @@ impl MetalRenderer {
                 6,
                 shadows.len(),
                 shadows.start,
-            )
+            );
         };
     }
 
@@ -812,21 +811,21 @@ impl MetalRenderer {
                 Some(&self.unit_vertices),
                 0,
                 QuadInputIndex::Vertices as usize,
-            )
+            );
         };
         unsafe {
             command_encoder.setVertexBuffer_offset_atIndex(
                 Some(&instance_bindings.quads.buffer),
                 instance_bindings.quads.offset,
                 QuadInputIndex::Quads as usize,
-            )
+            );
         };
         unsafe {
             command_encoder.setFragmentBuffer_offset_atIndex(
                 Some(&instance_bindings.quads.buffer),
                 instance_bindings.quads.offset,
                 QuadInputIndex::Quads as usize,
-            )
+            );
         };
         unsafe { set_vertex_bytes(command_encoder, QuadInputIndex::ViewportSize as usize, &viewport_size) };
 
@@ -837,7 +836,7 @@ impl MetalRenderer {
                 6,
                 quads.len(),
                 quads.start,
-            )
+            );
         };
     }
 
@@ -860,13 +859,13 @@ impl MetalRenderer {
                 Some(&self.unit_vertices),
                 0,
                 SpriteInputIndex::Vertices as usize,
-            )
+            );
         };
         unsafe { set_vertex_bytes(command_encoder, SpriteInputIndex::ViewportSize as usize, &viewport_size) };
 
         unsafe {
             command_encoder
-                .setFragmentTexture_atIndex(Some(intermediate_texture), SpriteInputIndex::AtlasTexture as usize)
+                .setFragmentTexture_atIndex(Some(intermediate_texture), SpriteInputIndex::AtlasTexture as usize);
         };
 
         // When copying paths from the intermediate texture to the drawable,
@@ -893,7 +892,7 @@ impl MetalRenderer {
                 Some(&sprite_instance_bindings.buffer),
                 sprite_instance_bindings.offset,
                 SpriteInputIndex::Sprites as usize,
-            )
+            );
         };
 
         unsafe {
@@ -902,7 +901,7 @@ impl MetalRenderer {
                 0,
                 6,
                 sprites.len(),
-            )
+            );
         };
         Ok(())
     }
@@ -924,21 +923,21 @@ impl MetalRenderer {
                 Some(&self.unit_vertices),
                 0,
                 UnderlineInputIndex::Vertices as usize,
-            )
+            );
         };
         unsafe {
             command_encoder.setVertexBuffer_offset_atIndex(
                 Some(&instance_bindings.underlines.buffer),
                 instance_bindings.underlines.offset,
                 UnderlineInputIndex::Underlines as usize,
-            )
+            );
         };
         unsafe {
             command_encoder.setFragmentBuffer_offset_atIndex(
                 Some(&instance_bindings.underlines.buffer),
                 instance_bindings.underlines.offset,
                 UnderlineInputIndex::Underlines as usize,
-            )
+            );
         };
         unsafe { set_vertex_bytes(command_encoder, UnderlineInputIndex::ViewportSize as usize, &viewport_size) };
 
@@ -949,7 +948,7 @@ impl MetalRenderer {
                 6,
                 underlines.len(),
                 underlines.start,
-            )
+            );
         };
     }
 
@@ -978,14 +977,14 @@ impl MetalRenderer {
                 Some(&self.unit_vertices),
                 0,
                 SpriteInputIndex::Vertices as usize,
-            )
+            );
         };
         unsafe {
             command_encoder.setVertexBuffer_offset_atIndex(
                 Some(&instance_bindings.monochrome_sprites.buffer),
                 instance_bindings.monochrome_sprites.offset,
                 SpriteInputIndex::Sprites as usize,
-            )
+            );
         };
         unsafe { set_vertex_bytes(command_encoder, SpriteInputIndex::ViewportSize as usize, &viewport_size) };
         unsafe { set_vertex_bytes(command_encoder, SpriteInputIndex::AtlasTextureSize as usize, &texture_size) };
@@ -994,7 +993,7 @@ impl MetalRenderer {
                 Some(&instance_bindings.monochrome_sprites.buffer),
                 instance_bindings.monochrome_sprites.offset,
                 SpriteInputIndex::Sprites as usize,
-            )
+            );
         };
         unsafe { command_encoder.setFragmentTexture_atIndex(Some(&texture), SpriteInputIndex::AtlasTexture as usize) };
 
@@ -1005,7 +1004,7 @@ impl MetalRenderer {
                 6,
                 sprites.len(),
                 sprites.start,
-            )
+            );
         };
     }
 
@@ -1034,14 +1033,14 @@ impl MetalRenderer {
                 Some(&self.unit_vertices),
                 0,
                 SpriteInputIndex::Vertices as usize,
-            )
+            );
         };
         unsafe {
             command_encoder.setVertexBuffer_offset_atIndex(
                 Some(&instance_bindings.polychrome_sprites.buffer),
                 instance_bindings.polychrome_sprites.offset,
                 SpriteInputIndex::Sprites as usize,
-            )
+            );
         };
         unsafe { set_vertex_bytes(command_encoder, SpriteInputIndex::ViewportSize as usize, &viewport_size) };
         unsafe { set_vertex_bytes(command_encoder, SpriteInputIndex::AtlasTextureSize as usize, &texture_size) };
@@ -1050,7 +1049,7 @@ impl MetalRenderer {
                 Some(&instance_bindings.polychrome_sprites.buffer),
                 instance_bindings.polychrome_sprites.offset,
                 SpriteInputIndex::Sprites as usize,
-            )
+            );
         };
         unsafe { command_encoder.setFragmentTexture_atIndex(Some(&texture), SpriteInputIndex::AtlasTexture as usize) };
 
@@ -1061,7 +1060,7 @@ impl MetalRenderer {
                 6,
                 sprites.len(),
                 sprites.start,
-            )
+            );
         };
     }
 }
@@ -1390,7 +1389,8 @@ mod tests {
     fn display_link_mode_consumes_and_clears_drawables() {
         let mut renderer = MetalRenderer::new(Arc::default(), false);
         renderer.update_drawable_size(size(DevicePixels(64), DevicePixels(64)));
-        let drawable = renderer.layer().and_then(|layer| layer.nextDrawable()).expect("window renderer drawable");
+        let drawable =
+            renderer.layer().and_then(objc2_quartz_core::CAMetalLayer::nextDrawable).expect("window renderer drawable");
 
         renderer.set_display_link_attached(true);
         assert!(matches!(renderer.display_link_mode, DisplayLinkMode::Attached { drawable: None }));

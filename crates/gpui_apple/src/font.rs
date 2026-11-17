@@ -75,14 +75,12 @@ pub fn family_fonts(family_name: &str) -> Result<Vec<CFRetained<CTFont>>> {
     let descriptor = unsafe { CTFontDescriptor::with_attributes(attributes.as_opaque()) };
     let descriptors = CFArray::from_objects(&[&*descriptor]);
     let collection = unsafe { CTFontCollection::with_font_descriptors(Some(descriptors.as_opaque()), None) };
-    let fonts: Vec<CFRetained<CTFont>> = matching_descriptors(&collection)
-        .map(|descriptors| {
-            descriptors
-                .iter()
-                .map(|descriptor| unsafe { CTFont::with_font_descriptor(&descriptor, LOAD_POINT_SIZE, ptr::null()) })
-                .collect()
-        })
-        .unwrap_or_default();
+    let fonts: Vec<CFRetained<CTFont>> = matching_descriptors(&collection).map_or_default(|descriptors| {
+        descriptors
+            .iter()
+            .map(|descriptor| unsafe { CTFont::with_font_descriptor(&descriptor, LOAD_POINT_SIZE, ptr::null()) })
+            .collect()
+    });
     if fonts.is_empty() { Err(anyhow!("no font family named {family_name:?}")) } else { Ok(fonts) }
 }
 

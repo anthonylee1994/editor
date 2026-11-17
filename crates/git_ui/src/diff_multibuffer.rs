@@ -144,14 +144,14 @@ impl DiffMultibuffer {
                     this._task = window.spawn(cx, {
                         let this = cx.weak_entity();
                         async |cx| Self::refresh(this, cx).await
-                    })
+                    });
                 }
                 BranchDiffEvent::DiffBaseChanged => {
                     this.pending_scroll.take();
                     this._task = window.spawn(cx, {
                         let this = cx.weak_entity();
                         async |cx| Self::refresh(this, cx).await
-                    })
+                    });
                 }
             });
 
@@ -159,7 +159,7 @@ impl DiffMultibuffer {
             this._task = window.spawn(cx, {
                 let this = cx.weak_entity();
                 async |cx| Self::refresh(this, cx).await
-            })
+            });
         })
         .detach();
 
@@ -219,7 +219,7 @@ impl DiffMultibuffer {
         let repo = git_repo.read(cx);
         let path_key = project_diff_path_key(repo, &entry.repo_path, entry.status, cx);
 
-        self.move_to_path(path_key, window, cx)
+        self.move_to_path(path_key, window, cx);
     }
 
     pub(crate) fn move_to_beginning(&self, window: &mut Window, cx: &mut Context<Self>) {
@@ -238,8 +238,8 @@ impl DiffMultibuffer {
                 editor.rhs_editor().update(cx, |editor, cx| {
                     editor.change_selections(SelectionEffects::scroll(Autoscroll::focused()), window, cx, |s| {
                         s.select_ranges([position..position]);
-                    })
-                })
+                    });
+                });
             });
         } else {
             self.pending_scroll = Some(path_key);
@@ -250,8 +250,8 @@ impl DiffMultibuffer {
         self.editor.update(cx, |editor, cx| {
             editor.rhs_editor().update(cx, |editor, cx| {
                 editor.request_autoscroll(Autoscroll::fit(), cx);
-            })
-        })
+            });
+        });
     }
 
     pub(crate) fn calculate_changed_lines(&self, cx: &App) -> (u32, u32) {
@@ -280,7 +280,7 @@ impl DiffMultibuffer {
                 ranges = vec![range];
             } else {
                 ranges = Vec::default();
-            };
+            }
         }
 
         (selection, ranges)
@@ -353,7 +353,7 @@ impl DiffMultibuffer {
                     .update(cx, |workspace, cx| {
                         if let Some(git_panel) = workspace.panel::<GitPanel>(cx) {
                             git_panel
-                                .update(cx, |git_panel, cx| git_panel.select_entry_by_path(project_path, window, cx))
+                                .update(cx, |git_panel, cx| git_panel.select_entry_by_path(project_path, window, cx));
                         }
                     })
                     .ok();
@@ -365,7 +365,7 @@ impl DiffMultibuffer {
             _ => {}
         }
         if editor.focus_handle(cx).contains_focused(window, cx) && self.multibuffer.read(cx).is_empty() {
-            self.focus_handle.focus(window, cx)
+            self.focus_handle.focus(window, cx);
         }
     }
 
@@ -424,7 +424,7 @@ impl DiffMultibuffer {
                         conflict_set.clone(),
                         window,
                         cx,
-                    )
+                    );
                 }
             })
         });
@@ -481,13 +481,13 @@ impl DiffMultibuffer {
             editor.rhs_editor().update(cx, |editor, cx| {
                 if was_empty {
                     editor.change_selections(SelectionEffects::no_scroll(), window, cx, |selections| {
-                        selections.select_ranges([multi_buffer::Anchor::Min..multi_buffer::Anchor::Min])
+                        selections.select_ranges([multi_buffer::Anchor::Min..multi_buffer::Anchor::Min]);
                     });
                 }
                 if is_excerpt_newly_added && file_status.is_deleted() {
                     needs_fold = true;
                 }
-            })
+            });
         });
 
         if self.multibuffer.read(cx).is_empty() && self.editor.read(cx).focus_handle(cx).contains_focused(window, cx) {
@@ -654,7 +654,7 @@ impl DiffMultibuffer {
         self.editor.update(cx, |editor, cx| {
             editor.rhs_editor().update(cx, |primary_editor, cx| {
                 primary_editor.deactivated(window, cx);
-            })
+            });
         });
     }
 
@@ -668,12 +668,12 @@ impl DiffMultibuffer {
         self.editor.update(cx, |editor, cx| {
             editor.rhs_editor().update(cx, |primary_editor, _| {
                 primary_editor.set_nav_history(Some(nav_history));
-            })
+            });
         });
     }
 
     pub(crate) fn for_each_project_item(&self, cx: &App, f: &mut dyn FnMut(gpui::EntityId, &dyn project::ProjectItem)) {
-        self.editor.read(cx).rhs_editor().read(cx).for_each_project_item(cx, f)
+        self.editor.read(cx).rhs_editor().read(cx).for_each_project_item(cx, f);
     }
 
     pub(crate) fn save(
@@ -819,7 +819,7 @@ fn name_sort_path(repo_path: &RelPath) -> Arc<RelPath> {
         return repo_path.into_arc();
     };
     let synthetic = format!("{}/{}", file_name, repo_path.as_unix_str());
-    RelPath::from_unix_str(&synthetic).map(|path| path.into_arc()).unwrap_or_else(|_| repo_path.into_arc())
+    RelPath::from_unix_str(&synthetic).map_or_else(|_| repo_path.into_arc(), |path| path.into_arc())
 }
 
 /// Builds a synthetic path whose natural component-wise ordering reproduces a
@@ -842,5 +842,5 @@ fn tree_sort_path(repo_path: &RelPath) -> Arc<RelPath> {
         }
         synthetic.push_str(component);
     }
-    RelPath::from_unix_str(&synthetic).map(|path| path.into_arc()).unwrap_or_else(|_| repo_path.into_arc())
+    RelPath::from_unix_str(&synthetic).map_or_else(|_| repo_path.into_arc(), |path| path.into_arc())
 }

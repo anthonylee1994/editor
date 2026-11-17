@@ -480,7 +480,7 @@ impl<M: ManagedView> Element for PopoverMenu<M> {
                         }
                         cx.stop_propagation();
                     }
-                })
+                });
             }
         }
     }

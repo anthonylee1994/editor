@@ -180,7 +180,7 @@ impl<M: ManagedView> Element for RightClickMenu<M> {
             }
             let layout_id = window.request_layout(style, menu_layout_id.into_iter().chain(child_layout_id), cx);
 
-            (layout_id, RequestLayoutState { child_element, child_layout_id, menu_element })
+            (layout_id, RequestLayoutState { child_layout_id, child_element, menu_element })
         })
     }
 
@@ -281,7 +281,7 @@ impl<M: ManagedView> Element for RightClickMenu<M> {
                     window.refresh();
                 }
             });
-        })
+        });
     }
 }
 

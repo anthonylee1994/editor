@@ -605,13 +605,13 @@ impl LogStore {
         message: &str,
         observed_at: Instant,
         cx: &mut Context<Self>,
-    ) -> Option<()> {
+    ) {
         let is_received = match io_kind {
             IoKind::StdOut => true,
             IoKind::StdIn => false,
             IoKind::StdErr => {
                 self.add_language_server_log(key, MessageType::LOG, message, cx);
-                return Some(());
+                return;
             }
         };
 
@@ -619,7 +619,6 @@ impl LogStore {
 
         self.add_language_server_rpc(key, kind, message, observed_at, cx);
         cx.notify();
-        Some(())
     }
 
     pub fn retain_view_log_stream(&mut self, key: &LanguageServerLogKey, log_kind: LogKind) -> Option<()> {

@@ -71,7 +71,7 @@ impl<'a> CustomHighlightsChunks<'a> {
         self.offset = new_range.start;
         self.buffer_chunks.seek(new_range);
         self.buffer_chunk.take();
-        self.active_highlights.clear()
+        self.active_highlights.clear();
     }
 }
 

@@ -109,7 +109,9 @@ impl ConflictSet {
     }
 
     pub fn set_has_conflict(&mut self, has_conflict: bool, cx: &mut Context<Self>) -> bool {
-        if has_conflict != self.has_conflict {
+        if has_conflict == self.has_conflict {
+            false
+        } else {
             self.has_conflict = has_conflict;
             if !self.has_conflict {
                 cx.emit(ConflictSetUpdate {
@@ -120,8 +122,6 @@ impl ConflictSet {
                 self.snapshot.conflicts = Arc::default();
             }
             true
-        } else {
-            false
         }
     }
 

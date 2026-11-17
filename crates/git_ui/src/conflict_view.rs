@@ -171,22 +171,21 @@ fn conflicts_updated(
         let Some(buffer_conflicts) = conflict_addon.buffers.get(&buffer_id) else {
             return;
         };
-        match buffer_conflicts.block_ids.get(event.old_range.clone()) {
-            Some(_) => Some(event.old_range.clone()),
-            None => {
-                log::error!(
-                    "conflicts updated event old range is invalid for buffer conflicts view (block_ids len is {:?}, old_range is {:?})",
-                    buffer_conflicts.block_ids.len(),
-                    event.old_range,
-                );
-                if event.old_range.start <= event.old_range.end {
-                    Some(
-                        event.old_range.start.min(buffer_conflicts.block_ids.len())
-                            ..event.old_range.end.min(buffer_conflicts.block_ids.len()),
-                    )
-                } else {
-                    None
-                }
+        if buffer_conflicts.block_ids.get(event.old_range.clone()).is_some() {
+            Some(event.old_range.clone())
+        } else {
+            log::error!(
+                "conflicts updated event old range is invalid for buffer conflicts view (block_ids len is {:?}, old_range is {:?})",
+                buffer_conflicts.block_ids.len(),
+                event.old_range,
+            );
+            if event.old_range.start <= event.old_range.end {
+                Some(
+                    event.old_range.start.min(buffer_conflicts.block_ids.len())
+                        ..event.old_range.end.min(buffer_conflicts.block_ids.len()),
+                )
+            } else {
+                None
             }
         }
     };
@@ -251,7 +250,7 @@ fn conflicts_updated(
                     move |cx| render_conflict_buttons(&conflict, editor_handle.clone(), cx)
                 }),
                 priority: 0,
-            })
+            });
         }
     }
     let new_block_ids = editor.insert_blocks(blocks, None, cx);
@@ -308,7 +307,7 @@ fn render_conflict_buttons(conflict: &ConflictRegion, editor: WeakEntity<Editor>
                 let conflict = conflict.clone();
                 let ours = conflict.ours.clone();
                 move |_, window, cx| {
-                    resolve_conflict(editor.clone(), conflict.clone(), vec![ours.clone()], window, cx).detach()
+                    resolve_conflict(editor.clone(), conflict.clone(), vec![ours.clone()], window, cx).detach();
                 }
             },
         ))
@@ -320,7 +319,7 @@ fn render_conflict_buttons(conflict: &ConflictRegion, editor: WeakEntity<Editor>
                     let conflict = conflict.clone();
                     let theirs = conflict.theirs.clone();
                     move |_, window, cx| {
-                        resolve_conflict(editor.clone(), conflict.clone(), vec![theirs.clone()], window, cx).detach()
+                        resolve_conflict(editor.clone(), conflict.clone(), vec![theirs.clone()], window, cx).detach();
                     }
                 }),
         )
@@ -330,7 +329,7 @@ fn render_conflict_buttons(conflict: &ConflictRegion, editor: WeakEntity<Editor>
             let theirs = conflict.theirs.clone();
             move |_, window, cx| {
                 resolve_conflict(editor.clone(), conflict.clone(), vec![ours.clone(), theirs.clone()], window, cx)
-                    .detach()
+                    .detach();
             }
         }))
         .into_any()

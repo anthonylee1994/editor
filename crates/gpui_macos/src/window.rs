@@ -677,9 +677,10 @@ static SIMPLE_FULLSCREEN_APP_STATE: Mutex<Option<SimpleFullscreenAppState>> = Mu
 
 unsafe fn push_simple_fullscreen_presentation_options() {
     let mut app_state = SIMPLE_FULLSCREEN_APP_STATE.lock();
-    match app_state.as_mut() {
-        Some(app_state) => app_state.window_count += 1,
-        None => unsafe {
+    if let Some(app_state) = app_state.as_mut() {
+        app_state.window_count += 1;
+    } else {
+        unsafe {
             let app = shared_application();
             let saved_presentation_options: NSUInteger = msg_send![app, presentationOptions];
             let _: () = msg_send![
@@ -688,7 +689,7 @@ unsafe fn push_simple_fullscreen_presentation_options() {
                     | NS_APPLICATION_PRESENTATION_AUTO_HIDE_MENU_BAR
             ];
             *app_state = Some(SimpleFullscreenAppState { window_count: 1, saved_presentation_options });
-        },
+        }
     }
 }
 
@@ -1397,7 +1398,7 @@ impl PlatformWindow for MacWindow {
             .spawn(async move {
                 if_window_not_closed(closed, || unsafe {
                     let _: () = msg_send![window, setContentSize: NSSize { width: size.width.as_f32() as f64, height: size.height.as_f32() as f64, }];
-                })
+                });
             })
             .detach();
     }
@@ -1457,7 +1458,7 @@ impl PlatformWindow for MacWindow {
         unsafe {
             let data: id = msg_send![
                 class!(NSData),
-                dataWithBytes: state.as_ptr() as *const c_void,
+                dataWithBytes: state.as_ptr().cast::<c_void>(),
                 length: state.len()
             ];
             if data.is_null() {
@@ -1694,7 +1695,7 @@ impl PlatformWindow for MacWindow {
     fn get_title(&self) -> String {
         unsafe {
             let title: id = msg_send![self.0.lock().native_window, title];
-            if title.is_null() { "".to_string() } else { title.to_str().to_string() }
+            if title.is_null() { String::new() } else { title.to_str().to_string() }
         }
     }
 
@@ -1750,7 +1751,7 @@ impl PlatformWindow for MacWindow {
     fn set_edited(&mut self, edited: bool) {
         unsafe {
             let window = self.0.lock().native_window;
-            msg_send![window, setDocumentEdited: edited]
+            let _: () = msg_send![window, setDocumentEdited: edited];
         }
 
         // Changing the document edited state resets the traffic light position,
@@ -1798,7 +1799,7 @@ impl PlatformWindow for MacWindow {
             .spawn(async move {
                 if_window_not_closed(closed, || unsafe {
                     let _: () = msg_send![window, zoom: nil];
-                })
+                });
             })
             .detach();
     }
@@ -1811,7 +1812,7 @@ impl PlatformWindow for MacWindow {
             .spawn(async move {
                 if_window_not_closed(closed, || unsafe {
                     let _: () = msg_send![window, toggleFullScreen: nil];
-                })
+                });
             })
             .detach();
     }
@@ -1832,7 +1833,7 @@ impl PlatformWindow for MacWindow {
                     if let Some(plan) = plan {
                         unsafe { apply_simple_fullscreen_plan(native_window, native_view, plan) };
                     }
-                })
+                });
             })
             .detach();
     }
@@ -1936,7 +1937,7 @@ impl PlatformWindow for MacWindow {
                     let _: () = msg_send![input_context, invalidateCharacterCoordinates];
                 }
             })
-            .detach()
+            .detach();
     }
 
     fn titlebar_double_click(&self, is_resizable: bool, is_minimizable: bool) {
@@ -1955,9 +1956,9 @@ impl PlatformWindow for MacWindow {
                         let key = ns_string("AppleActionOnDoubleClick");
 
                         let dict: id = msg_send![defaults, persistentDomainForName: domain];
-                        let action: id = if !dict.is_null() { msg_send![dict, objectForKey: key] } else { nil };
+                        let action: id = if dict.is_null() { nil } else { msg_send![dict, objectForKey: key] };
 
-                        let action_str = if !action.is_null() { action.to_str() } else { "" };
+                        let action_str = if action.is_null() { "" } else { action.to_str() };
 
                         match action_str {
                             "None" => {
@@ -1993,7 +1994,7 @@ impl PlatformWindow for MacWindow {
                             }
                         }
                     }
-                })
+                });
             })
             .detach();
     }
@@ -2013,7 +2014,7 @@ impl PlatformWindow for MacWindow {
     }
 
     fn play_system_bell(&self) {
-        NSBeep()
+        NSBeep();
     }
 }
 
@@ -2212,11 +2213,11 @@ unsafe fn is_ime_input_source_active() -> bool {
             return false;
         }
 
-        let source_type = TISGetInputSourceProperty(source, kTISPropertyInputSourceType as *const c_void);
+        let source_type = TISGetInputSourceProperty(source, kTISPropertyInputSourceType.cast::<c_void>());
         let is_input_mode =
             !source_type.is_null() && *source_type.cast::<CFType>() == *kTISTypeKeyboardInputMode.cast::<CFType>();
 
-        let is_ascii = TISGetInputSourceProperty(source, kTISPropertyInputSourceIsASCIICapable as *const c_void);
+        let is_ascii = TISGetInputSourceProperty(source, kTISPropertyInputSourceIsASCIICapable.cast::<c_void>());
         let is_ascii_capable = !is_ascii.is_null() && (*is_ascii.cast::<CFBoolean>()).value();
 
         let _: () = msg_send![source, release];
@@ -2411,7 +2412,7 @@ fn handle_view_event(this: &AnyObject, native_event: id) {
             }
 
             _ => {}
-        };
+        }
 
         match &event {
             PlatformInput::MouseDown(_) => {
@@ -2615,7 +2616,7 @@ fn update_window_scale_factor(window_state: &Arc<Mutex<MacWindowState>>) {
         drop(lock);
         callback(content_size, scale_factor);
         window_state.as_ref().lock().resize_callback = Some(callback);
-    };
+    }
 }
 
 fn window_did_change_screen(this: &AnyObject, _: id) {
@@ -2712,7 +2713,7 @@ fn window_did_change_key_status(this: &AnyObject, selector: Sel, _: id) {
                 drop(lock);
                 callback(is_active);
                 window_state.lock().activate_callback = Some(callback);
-            };
+            }
         })
         .detach();
 }
@@ -2794,7 +2795,7 @@ fn set_frame_size(this: &AnyObject, size: NSSize) {
         drop(lock);
         callback(content_size, scale_factor);
         window_state.lock().resize_callback = Some(callback);
-    };
+    }
 }
 
 fn display_layer(this: &AnyObject, _: id) {
@@ -2905,7 +2906,7 @@ fn set_marked_text(this: &AnyObject, text: id, selected_range: NSRange, replacem
         let replacement_range = replacement_range.to_range();
         let text = text.to_str();
         with_input_handler(this, |input_handler| {
-            input_handler.replace_and_mark_text_in_range(replacement_range, text, selected_range)
+            input_handler.replace_and_mark_text_in_range(replacement_range, text, selected_range);
         });
     }
 }
@@ -3003,8 +3004,7 @@ fn character_index_for_point(this: &AnyObject, position: NSPoint) -> u64 {
     let position = screen_point_to_gpui_point(this, position);
     with_input_handler(this, |input_handler| input_handler.character_index_for_point(position))
         .flatten()
-        .map(|index| index as u64)
-        .unwrap_or(NSNotFound as u64)
+        .map_or(NSNotFound as u64, |index| index as u64)
 }
 
 fn screen_point_to_gpui_point(this: &AnyObject, position: NSPoint) -> Point<Pixels> {

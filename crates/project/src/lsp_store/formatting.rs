@@ -121,7 +121,7 @@ fn extend_formatting_transaction(
     operation: impl FnOnce(&mut Buffer, &mut Context<Buffer>),
 ) -> anyhow::Result<()> {
     buffer.handle.update(cx, |buffer, cx| {
-        let last_transaction_id = buffer.peek_undo_stack().map(|t| t.transaction_id());
+        let last_transaction_id = buffer.peek_undo_stack().map(text::HistoryEntry::transaction_id);
         if last_transaction_id != Some(formatting_transaction_id) {
             anyhow::bail!("Buffer edited while formatting. Aborting")
         }
@@ -551,7 +551,7 @@ impl LocalLspStore {
                         if let Some(document_changes) = edit.document_changes {
                             match document_changes {
                                 lsp::DocumentChanges::Edits(edits) => {
-                                    operations.extend(edits.into_iter().map(lsp::DocumentChangeOperation::Edit))
+                                    operations.extend(edits.into_iter().map(lsp::DocumentChangeOperation::Edit));
                                 }
                                 lsp::DocumentChanges::Operations(ops) => operations = ops,
                             }
@@ -665,8 +665,7 @@ impl LocalLspStore {
                     let available_commands = server_capabilities
                         .execute_command_provider
                         .as_ref()
-                        .map(|options| options.commands.as_slice())
-                        .unwrap_or_default();
+                        .map_or_default(|options| options.commands.as_slice());
                     if !available_commands.contains(&command.command) {
                         log::warn!(
                             "Cannot execute a command {} not listed in the language server capabilities of server {}",

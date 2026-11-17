@@ -254,8 +254,7 @@ impl TitleBar {
             "Open Recent Project".to_string()
         };
 
-        let focus_handle =
-            workspace.upgrade().map(|w| w.read(cx).focus_handle(cx)).unwrap_or_else(|| cx.focus_handle());
+        let focus_handle = workspace.upgrade().map_or_else(|| cx.focus_handle(), |w| w.read(cx).focus_handle(cx));
 
         PopoverMenu::new("recent-projects-menu")
             .with_handle(self.project_menu_handle.clone())

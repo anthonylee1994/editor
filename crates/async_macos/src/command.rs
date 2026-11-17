@@ -293,7 +293,7 @@ mod tests {
                 stdin.close().await.unwrap();
                 stdin.write(b"x").await.unwrap_err();
             };
-            let (_, output) = futures::join!(write, child.output());
+            let ((), output) = futures::join!(write, child.output());
             let output = output.unwrap();
             assert!(output.status.success());
             assert!(output.stdout == payload);

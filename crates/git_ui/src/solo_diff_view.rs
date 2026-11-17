@@ -323,8 +323,7 @@ impl SoloDiffView {
             .repository
             .read(cx)
             .status_for_path(&self.repo_path)
-            .map(|entry| entry.status.staging())
-            .unwrap_or(StageStatus::Unstaged);
+            .map_or(StageStatus::Unstaged, |entry| entry.status.staging());
 
         SoloDiffButtonStates {
             stage,
@@ -394,14 +393,16 @@ impl Item for SoloDiffView {
             self.buffer
                 .read(cx)
                 .file()
-                .map(|file| file.full_path(cx).compact().to_string_lossy().into_owned())
-                .unwrap_or_else(|| self.repo_path.as_ref().display().to_string())
+                .map_or_else(
+                    || self.repo_path.as_ref().display().to_string(),
+                    |file| file.full_path(cx).compact().to_string_lossy().into_owned(),
+                )
                 .into(),
         )
     }
 
     fn to_item_events(event: &EditorEvent, f: &mut dyn FnMut(ItemEvent)) {
-        Editor::to_item_events(event, f)
+        Editor::to_item_events(event, f);
     }
 
     fn deactivated(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -428,7 +429,7 @@ impl Item for SoloDiffView {
     }
 
     fn for_each_project_item(&self, cx: &App, f: &mut dyn FnMut(gpui::EntityId, &dyn project::ProjectItem)) {
-        self.editor.for_each_project_item(cx, f)
+        self.editor.for_each_project_item(cx, f);
     }
 
     fn active_project_path(&self, cx: &App) -> Option<ProjectPath> {
@@ -439,7 +440,7 @@ impl Item for SoloDiffView {
         self.editor.update(cx, |editor, cx| {
             editor.rhs_editor().update(cx, |editor, _| {
                 editor.set_nav_history(Some(nav_history));
-            })
+            });
         });
     }
 
@@ -450,7 +451,7 @@ impl Item for SoloDiffView {
 
     fn added_to_workspace(&mut self, workspace: &mut Workspace, window: &mut Window, cx: &mut Context<Self>) {
         self.editor.update(cx, |editor, cx| {
-            editor.rhs_editor().update(cx, |editor, cx| editor.added_to_workspace(workspace, window, cx))
+            editor.rhs_editor().update(cx, |editor, cx| editor.added_to_workspace(workspace, window, cx));
         });
     }
 
@@ -691,11 +692,9 @@ impl Render for SoloDiffGitToolbar {
                                     &UnstageAndNext,
                                     &focus_handle,
                                 ))
-                                .on_click(
-                                    cx.listener(|this, _, window, cx| {
-                                        this.dispatch_action(&UnstageAndNext, window, cx)
-                                    }),
-                                ),
+                                .on_click(cx.listener(|this, _, window, cx| {
+                                    this.dispatch_action(&UnstageAndNext, window, cx);
+                                })),
                         )
                     })
                     .child(
