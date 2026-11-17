@@ -27,7 +27,6 @@ use std::ffi::c_void;
 use std::ops::Range;
 
 pub(crate) use display::MacDisplay;
-pub(crate) use gpui_apple::AppleActivity;
 pub(crate) use gpui_apple::AppleDispatcher;
 pub(crate) use keyboard::MacKeyboardLayout;
 use ns::NSNotFound;

@@ -7,17 +7,10 @@ use dispatch2::DispatchQueue;
 use dispatch2::DispatchQueueGlobalPriority;
 use dispatch2::DispatchTime;
 use dispatch2::GlobalQueueIdentifier;
-use gpui::ActivityGuard;
 use gpui::PlatformDispatcher;
 use gpui::Priority;
 use gpui::RunnableMeta;
 use gpui::RunnableVariant;
-use objc2::rc::Retained;
-use objc2::runtime::ProtocolObject;
-use objc2_foundation::NSActivityOptions;
-use objc2_foundation::NSObjectProtocol;
-use objc2_foundation::NSProcessInfo;
-use objc2_foundation::NSString;
 use objc2_foundation::NSThread;
 
 pub struct AppleDispatcher;
@@ -67,35 +60,6 @@ impl PlatformDispatcher for AppleDispatcher {
         let when = DispatchTime::NOW.time(duration.as_nanos() as i64);
         unsafe {
             DispatchQueue::exec_after_f(when, &queue, context, trampoline);
-        }
-    }
-
-    fn prevent_app_nap(&self, reason: &str) -> ActivityGuard {
-        AppleActivity::begin(reason, NSActivityOptions::UserInitiatedAllowingIdleSystemSleep)
-    }
-}
-
-pub struct AppleActivity {
-    activity: Retained<ProtocolObject<dyn NSObjectProtocol>>,
-}
-
-// The activity token returned by NSProcessInfo is thread-safe
-unsafe impl Send for AppleActivity {}
-
-impl AppleActivity {
-    pub fn begin(reason: &str, options: NSActivityOptions) -> ActivityGuard {
-        let activity = Self {
-            activity: NSProcessInfo::processInfo()
-                .beginActivityWithOptions_reason(options, &NSString::from_str(reason)),
-        };
-        ActivityGuard::new(move || drop(activity))
-    }
-}
-
-impl Drop for AppleActivity {
-    fn drop(&mut self) {
-        unsafe {
-            NSProcessInfo::processInfo().endActivity(&self.activity);
         }
     }
 }

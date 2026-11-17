@@ -166,24 +166,6 @@ pub enum ActivationPolicy {
     Accessory,
 }
 
-/// Keeps an operating system activity, such as an idle sleep inhibitor, alive until dropped.
-pub struct ActivityGuard {
-    _release: gpui_util::Deferred<Box<dyn FnOnce() + Send>>,
-}
-
-impl ActivityGuard {
-    /// Runs `release` when the guard is dropped.
-    pub fn new(release: impl FnOnce() + Send + 'static) -> Self {
-        Self { _release: gpui_util::defer(Box::new(release)) }
-    }
-
-    /// A guard for platforms without a corresponding activity.
-    pub fn noop() -> Self {
-        Self::new(|| {})
-    }
-}
-
-#[expect(missing_docs)]
 pub trait Platform: 'static {
     fn background_executor(&self) -> BackgroundExecutor;
     fn foreground_executor(&self) -> ForegroundExecutor;
@@ -268,10 +250,6 @@ pub trait Platform: 'static {
     fn on_will_open_app_menu(&self, callback: Box<dyn FnMut()>);
     fn on_validate_app_menu_command(&self, callback: Box<dyn FnMut(&dyn Action) -> bool>);
 
-    fn thermal_state(&self) -> ThermalState;
-    fn on_thermal_state_change(&self, callback: Box<dyn FnMut()>);
-    fn prevent_idle_sleep(&self, reason: &str) -> Task<Result<ActivityGuard>>;
-
     fn app_path(&self) -> Result<PathBuf>;
 
     fn set_cursor_style(&self, style: CursorStyle);
@@ -345,19 +323,6 @@ pub trait PlatformDisplay: Debug {
         let origin = point(center.x - offset.width, center.y - offset.height);
         Bounds::new(origin, clipped_window_size)
     }
-}
-
-/// Thermal state of the system.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ThermalState {
-    /// System has no thermal constraints.
-    Nominal,
-    /// System is slightly constrained, reduce discretionary work.
-    Fair,
-    /// System is moderately constrained, reduce CPU/GPU intensive work.
-    Serious,
-    /// System is critically constrained, minimize all resource usage.
-    Critical,
 }
 
 /// An opaque identifier for a hardware display.
@@ -525,10 +490,6 @@ pub trait PlatformDispatcher: Send + Sync {
 
     fn increase_timer_resolution(&self) -> TimerResolutionGuard {
         gpui_util::defer(Box::new(|| {}))
-    }
-
-    fn prevent_app_nap(&self, _reason: &str) -> ActivityGuard {
-        ActivityGuard::noop()
     }
 }
 

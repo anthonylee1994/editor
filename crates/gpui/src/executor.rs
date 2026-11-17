@@ -21,7 +21,6 @@ pub use scheduler::Priority;
 use scheduler::Scheduler;
 pub use scheduler::Task;
 
-use crate::ActivityGuard;
 use crate::App;
 use crate::PlatformDispatcher;
 use crate::PlatformScheduler;
@@ -85,13 +84,6 @@ impl BackgroundExecutor {
     /// This is used by Ex to pass the executor to thread/worktree code.
     pub fn scheduler_executor(&self) -> scheduler::BackgroundExecutor {
         self.inner.clone()
-    }
-
-    /// Prevents App Nap-style throttling while the returned guard is held.
-    ///
-    /// This does not prevent the system from entering idle sleep.
-    pub fn prevent_app_nap(&self, reason: &str) -> ActivityGuard {
-        self.dispatcher.prevent_app_nap(reason)
     }
 
     /// Enqueues the given future to be run to completion on a background thread.

@@ -93,7 +93,6 @@ use crate::Task;
 use crate::TextRenderingMode;
 use crate::TextStyle;
 use crate::TextStyleRefinement;
-use crate::ThermalState;
 use crate::UiElement;
 use crate::UiText;
 use crate::WindowAppearance;
@@ -936,19 +935,13 @@ impl Window {
                 // force a second, redundant render on the next frame.
                 let force_render = mem::take(&mut deferred_force_render) || request_frame_options.force_render;
 
-                let thermal_state = handle.update(&mut cx, |_, _, cx| cx.thermal_state()).log_err();
-
-                // Throttle frame rate based on conditions:
-                // - Thermal pressure (Serious/Critical): cap to ~60fps
-                // - Inactive window (not focused): cap to ~30fps to save energy
+                // Cap an inactive (unfocused) window to ~30fps to save energy.
                 let min_frame_interval = if request_frame_options.require_presentation
                     || (!request_frame_options.force_render && next_frame_callbacks.borrow().is_empty())
                 {
                     None
                 } else if !active.get() && !input_rate_tracker.borrow_mut().is_high_rate() {
                     inactive_frame_interval
-                } else if let Some(ThermalState::Critical | ThermalState::Serious) = thermal_state {
-                    Some(Duration::from_micros(16667))
                 } else {
                     None
                 };

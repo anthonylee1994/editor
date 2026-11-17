@@ -44,7 +44,8 @@ Directions the fork deliberately doesn't follow, even in kept crates:
   persistent refresh, side placement, custom triggers, keyboard handling) or
   UI built on them. Nested menus are cumbersome; prefer flat menus or pickers.
 - `gpui_macos` objc2 migration, `PathStyle`/`join_path` path refactors,
-  Low Power Mode frame-pacing variants and Display P3.
+  Low Power Mode frame-pacing variants, thermal-state frame capping and
+  Display P3.
 - Large git panel modes and settings surfaces (branch-compare mode, date
   format settings) unless they're specifically asked for.
 

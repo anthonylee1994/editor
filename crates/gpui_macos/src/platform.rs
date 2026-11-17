@@ -20,7 +20,6 @@ use dispatch2::DispatchQueue;
 use futures::channel::oneshot;
 use gpui::Action;
 use gpui::ActivationPolicy;
-use gpui::ActivityGuard;
 use gpui::AnyWindowHandle;
 use gpui::BackgroundExecutor;
 use gpui::ClipboardItem;
@@ -42,14 +41,10 @@ use gpui::PlatformTextSystem;
 use gpui::PlatformWindow;
 use gpui::Result;
 use gpui::SystemMenuType;
-use gpui::Task;
-use gpui::ThermalState;
 use gpui::WindowAppearance;
 use gpui::WindowKind;
 use gpui::WindowParams;
 use gpui::popup::PopupNotSupportedError;
-use gpui_apple::thermal;
-use gpui_apple::thermal::ThermalObserver;
 use gpui_util::ResultExt as _;
 use gpui_util::new_std_command;
 use itertools::Itertools as _;
@@ -78,10 +73,8 @@ use objc2_app_kit::NSWorkspaceDidWakeNotification;
 use objc2_app_kit::NSWorkspaceWillSleepNotification;
 use objc2_core_foundation::CFRunLoop;
 use objc2_core_foundation::CFString;
-use objc2_foundation::NSActivityOptions;
 use parking_lot::Mutex;
 
-use crate::AppleActivity;
 use crate::AppleDispatcher;
 use crate::MacDisplay;
 use crate::MacKeyboardLayout;
@@ -248,7 +241,6 @@ pub(crate) struct MacPlatformState {
     find_pasteboard: Option<Pasteboard>,
     reopen: Option<Box<dyn FnMut()>>,
     on_keyboard_layout_change: Option<Box<dyn FnMut()>>,
-    thermal_observer: Option<ThermalObserver>,
     on_displays_changed: Option<Box<dyn FnMut()>>,
     on_system_sleep: Option<Box<dyn FnMut()>>,
     on_system_wake: Option<Box<dyn FnMut()>>,
@@ -332,7 +324,6 @@ impl MacPlatform {
             finish_launching: None,
             dock_menu: None,
             on_keyboard_layout_change: None,
-            thermal_observer: None,
             on_displays_changed: None,
             on_system_sleep: None,
             on_system_wake: None,
@@ -917,11 +908,6 @@ impl Platform for MacPlatform {
         self.0.lock().validate_menu_command = Some(callback);
     }
 
-    fn on_thermal_state_change(&self, callback: Box<dyn FnMut()>) {
-        let observer = ThermalObserver::new(&self.foreground_executor(), callback);
-        self.0.lock().thermal_observer = Some(observer);
-    }
-
     fn on_system_sleep(&self, callback: Box<dyn FnMut()>) {
         self.0.lock().on_system_sleep = Some(callback);
         self.ensure_system_power_observers();
@@ -930,14 +916,6 @@ impl Platform for MacPlatform {
     fn on_system_wake(&self, callback: Box<dyn FnMut()>) {
         self.0.lock().on_system_wake = Some(callback);
         self.ensure_system_power_observers();
-    }
-
-    fn thermal_state(&self) -> ThermalState {
-        thermal::thermal_state()
-    }
-
-    fn prevent_idle_sleep(&self, reason: &str) -> Task<Result<ActivityGuard>> {
-        Task::ready(Ok(AppleActivity::begin(reason, NSActivityOptions::UserInitiated)))
     }
 
     fn keyboard_layout(&self) -> Box<dyn PlatformKeyboardLayout> {
@@ -1223,7 +1201,7 @@ fn on_screen_parameters_change(this: &AnyObject, _: id) {
     }
 }
 
-// Deferred to the main queue like the wake and thermal notifications. The
+// Deferred to the main queue like the wake notification. The
 // machine keeps running the main run loop for well over a frame after the
 // observers return, so the block runs before it suspends.
 fn on_system_sleep(this: &AnyObject, _: id) {

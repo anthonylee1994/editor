@@ -56,7 +56,6 @@ use crate::Action;
 use crate::ActionBuildError;
 use crate::ActionRegistry;
 use crate::ActivationPolicy;
-use crate::ActivityGuard;
 use crate::Any;
 use crate::AnyView;
 use crate::AnyWindowHandle;
@@ -111,7 +110,6 @@ use crate::SvgRenderer;
 use crate::Task;
 use crate::TextRenderingMode;
 use crate::TextSystem;
-use crate::ThermalState;
 use crate::Window;
 use crate::WindowAppearance;
 use crate::WindowHandle;
@@ -472,7 +470,6 @@ pub struct App {
     pub(crate) keystroke_interceptors: SingleSubscriberSet<KeystrokeObserver>,
     pub(crate) keyboard_layout_observers: SingleSubscriberSet<Handler>,
     missing_glyph_callback: Rc<MissingGlyphCallbackSlot>,
-    pub(crate) thermal_state_observers: SingleSubscriberSet<Handler>,
     pub(crate) display_observers: SingleSubscriberSet<DisplayHandler>,
     /// The connected displays, as of the platform's last display change
     /// notification.
@@ -578,7 +575,6 @@ impl App {
                 keystroke_interceptors: SingleSubscriberSet::new(),
                 keyboard_layout_observers: SingleSubscriberSet::new(),
                 missing_glyph_callback: Rc::default(),
-                thermal_state_observers: SingleSubscriberSet::new(),
                 display_observers: SingleSubscriberSet::new(),
                 displays: read_displays(platform.as_ref()),
                 system_sleep_observers: SingleSubscriberSet::new(),
@@ -610,16 +606,6 @@ impl App {
                     cx.keyboard_layout = cx.platform.keyboard_layout();
                     cx.keyboard_mapper = cx.platform.keyboard_mapper();
                     cx.keyboard_layout_observers.clone().retain(move |callback| (callback)(cx));
-                }
-            }
-        }));
-
-        platform.on_thermal_state_change(Box::new({
-            let app = Rc::downgrade(&app);
-            move || {
-                if let Some(app) = app.upgrade() {
-                    let cx = &mut app.borrow_mut();
-                    cx.thermal_state_observers.clone().retain(move |callback| (callback)(cx));
                 }
             }
         }));
@@ -1005,27 +991,6 @@ impl App {
     /// Returns the display with the given ID, if one exists.
     pub fn find_display(&self, id: DisplayId) -> Option<Rc<dyn PlatformDisplay>> {
         self.displays().iter().find(|display| display.id() == id).cloned()
-    }
-
-    /// Returns the current thermal state of the system.
-    pub fn thermal_state(&self) -> ThermalState {
-        self.platform.thermal_state()
-    }
-
-    /// Prevents idle sleep while the returned guard is held.
-    pub fn prevent_idle_sleep(&self, reason: &str) -> Task<Result<ActivityGuard>> {
-        self.platform.prevent_idle_sleep(reason)
-    }
-
-    /// Invokes a handler when the thermal state changes.
-    pub fn on_thermal_state_change<F>(&self, mut callback: F) -> Subscription
-    where
-        F: 'static + FnMut(&mut App),
-    {
-        self.thermal_state_observers.insert(Box::new(move |cx| {
-            callback(cx);
-            true
-        }))
     }
 
     /// Invokes a handler when the system is about to sleep.
