@@ -72,10 +72,8 @@ Directions the fork deliberately doesn't follow, even in kept crates:
   #66811 (depth buffer to cut overdraw), the main Metal win; they trade
   2–8× stroke tessellation CPU and some ordering risk. #66810 (batching) and
   #66812 (shadow approximation) are optional on top.
-- Open candidates from earlier passes, worth taking if wanted: #66896
-  (animate SVG transforms without re-rendering views; the fork's spinners
-  re-render their parent every frame), #66227 (open absolute paths in the
-  file finder), #66103 (open single files in the same window), #65161
+- Open candidates from earlier passes, worth taking if wanted: #66103
+  (open single files in the same window), #65161
   (tabular preview range selection; needs #64916 first), #64624
   (UAX #14 line breaking), #53089 (git auto fetch), #66284 (no worktree hooks
   in restricted mode), #66423 (drag git panel files to the terminal), #66296
