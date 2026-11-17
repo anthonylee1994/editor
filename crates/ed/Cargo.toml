@@ -45,7 +45,6 @@ outline_panel.workspace = true
 paths.workspace = true
 project_panel.workspace = true
 project_symbols.workspace = true
-rayon.workspace = true
 recent_projects.workspace = true
 rustc-hash.workspace = true
 search.workspace = true

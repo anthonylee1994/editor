@@ -40,7 +40,7 @@ use super::UpdateVisibleEntriesTask;
 use super::VisibleEntriesForWorktree;
 use super::item_width_estimate;
 use super::libraries_header_entry;
-use super::par_sort_worktree_entries;
+use super::sort_worktree_entries;
 use crate::utils;
 
 impl ProjectPanel {
@@ -288,7 +288,7 @@ impl ProjectPanel {
                             entry_iter.advance();
                         }
 
-                        par_sort_worktree_entries(&mut visible_worktree_entries);
+                        sort_worktree_entries(&mut visible_worktree_entries);
                         new_state.visible_entries.push(VisibleEntriesForWorktree {
                             worktree_id,
                             depth_offset: usize::from(is_library),

@@ -19,8 +19,6 @@ use heapless::Vec as ArrayVec;
 pub use offset_utf16::OffsetUtf16;
 pub use point::Point;
 pub use point_utf16::PointUtf16;
-use rayon::iter::IntoParallelIterator;
-use rayon::iter::ParallelIterator as _;
 use sum_tree::Bias;
 use sum_tree::Dimension;
 use sum_tree::Dimensions;
@@ -210,13 +208,7 @@ impl Rope {
             text = remainder;
         }
 
-        const PARALLEL_THRESHOLD: usize = 84 * (2 * sum_tree::TREE_BASE);
-
-        if new_chunks.len() >= PARALLEL_THRESHOLD {
-            self.chunks.par_extend(new_chunks.into_par_iter().map(Chunk::new), ());
-        } else {
-            self.chunks.extend(new_chunks.into_iter().map(Chunk::new), ());
-        }
+        self.chunks.extend(new_chunks.into_iter().map(Chunk::new), ());
 
         self.check_invariants();
     }
@@ -1541,5 +1533,26 @@ where
 
     fn from_text_summary(summary: &TextSummary) -> Self {
         Self { key: K::from_text_summary(summary), value: Some(V::from_text_summary(summary)) }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn push_large_text_matches_source() {
+        // Multi-byte characters force chunk splits off the 128-byte grid.
+        let line = "2026-11-17 INFO request completed café ✓\n";
+        let text = line.repeat(8_000);
+        let mut rope = Rope::new();
+        rope.push(&text);
+        assert_eq!(rope.len(), text.len());
+        assert_eq!(rope.max_point(), Point::new(8_000, 0));
+        assert_eq!(rope.to_string(), text);
+
+        rope.push(&text);
+        assert_eq!(rope.len(), 2 * text.len());
+        assert_eq!(rope.max_point(), Point::new(16_000, 0));
     }
 }

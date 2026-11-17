@@ -9,7 +9,6 @@ path = "src/sum_tree.rs"
 
 [dependencies]
 heapless.workspace = true
-rayon.workspace = true
 
 [lints]
 workspace = true

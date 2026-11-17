@@ -4848,8 +4848,7 @@ async fn stream_utf8_into_rope(
     let mut eof = reached_eof;
 
     loop {
-        // Fill a whole block before decoding, so that each `Rope::push` gets a
-        // slice large enough to build its chunks in parallel.
+        // Fill a whole block before decoding.
         while !eof && pending.len() < STREAM_BLOCK_BYTES {
             let n = file.read(&mut buf).with_context(|| format!("reading bytes of the file {abs_path:?}"))?;
             if n == 0 {

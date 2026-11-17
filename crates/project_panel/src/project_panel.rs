@@ -87,7 +87,6 @@ use project::WorktreeId;
 use project::git_store::GitStoreEvent;
 use project::git_store::RepositoryEvent;
 use project::project_settings::GoToDiagnosticSeverityFilter;
-use rayon::slice::ParallelSliceMut;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use svg_preview::svg_preview_view::SvgPreviewView;
@@ -2693,10 +2692,6 @@ fn sort_worktree_entries(entries: &mut [impl AsRef<Entry>]) {
     entries.sort_by(|lhs, rhs| cmp_worktree_entries(lhs.as_ref(), rhs.as_ref()));
 }
 
-fn par_sort_worktree_entries(entries: &mut [GitEntry]) {
-    entries.par_sort_by(|lhs, rhs| cmp_worktree_entries(lhs, rhs));
-}
-
 /// Errors win over warnings; files with neither get no severity.
 const fn strongest_diagnostic_severity(error_count: usize, warning_count: usize) -> Option<DiagnosticSeverity> {
     if error_count > 0 {
@@ -2766,7 +2761,6 @@ mod tests {
     use super::context_menu_placement;
     use super::last_entry_in_subtree;
     use super::libraries_header_entry;
-    use super::par_sort_worktree_entries;
     use super::point;
     use super::px;
     use super::size;
@@ -2827,10 +2821,6 @@ mod tests {
         let expected = ["src", "Zed", "a2.txt", "a10.txt", "b.txt"];
 
         sort_worktree_entries(&mut entries);
-        assert_eq!(entries.iter().map(|e| e.path.as_unix_str()).collect::<Vec<_>>(), expected);
-
-        entries.reverse();
-        par_sort_worktree_entries(&mut entries);
         assert_eq!(entries.iter().map(|e| e.path.as_unix_str()).collect::<Vec<_>>(), expected);
     }
 }

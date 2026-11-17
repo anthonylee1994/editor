@@ -1962,18 +1962,12 @@ impl FragmentBuilder {
         // Appending a `Tree` chunk only touches the right spine and grafts the
         // subtree by cloning `Arc`s, so the untouched regions stay shared with
         // the previous fragment tree. `Loose` runs (newly inserted or rewritten
-        // fragments) are built in one pass, parallelizing the large ones.
+        // fragments) are built in one pass.
         let mut tree = SumTree::new(());
         for chunk in self.chunks {
             match chunk {
                 FragmentChunk::Tree(subtree) => tree.append(subtree, ()),
-                FragmentChunk::Loose(fragments) => {
-                    if fragments.len() > 1024 {
-                        tree.append(SumTree::from_par_iter(fragments, ()), ());
-                    } else {
-                        tree.append(SumTree::from_iter(fragments, ()), ());
-                    }
-                }
+                FragmentChunk::Loose(fragments) => tree.append(SumTree::from_iter(fragments, ()), ()),
             }
         }
         tree
@@ -2527,6 +2521,15 @@ mod tests {
         assert!(first < second);
         assert!(buffer.version().observed(first) && buffer.version().observed(second));
         assert_eq!(buffer.text(), "bcd");
+    }
+
+    #[test]
+    fn edit_with_many_ranges_rebuilds_fragments() {
+        let mut buffer = buffer(&"ab\n".repeat(2_000));
+        buffer.edit((0..2_000).map(|row| (row * 3..row * 3 + 1, "xy")));
+        assert_eq!(buffer.text(), "xyb\n".repeat(2_000));
+        assert!(buffer.undo().is_some());
+        assert_eq!(buffer.text(), "ab\n".repeat(2_000));
     }
 
     #[test]

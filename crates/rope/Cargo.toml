@@ -10,7 +10,6 @@ path = "src/rope.rs"
 gpui_util.workspace = true
 heapless.workspace = true
 log.workspace = true
-rayon.workspace = true
 sum_tree.workspace = true
 unicode-segmentation.workspace = true
 

@@ -163,13 +163,6 @@ fn main() {
 
     util::increase_open_file_limit().log_err();
 
-    rayon::ThreadPoolBuilder::new()
-        .num_threads(thread::available_parallelism().map_or(1, |n| n.get().div_ceil(2)))
-        .stack_size(10 * 1024 * 1024)
-        .thread_name(|ix| format!("RayonWorker{}", ix))
-        .build_global()
-        .unwrap();
-
     log::info!("========== starting ed version {} ==========", env!("CARGO_PKG_VERSION"));
 
     let app = build_application().with_assets(Assets);
