@@ -70,7 +70,6 @@ spell_check = { path = "crates/spell_check" }
 sum_tree = { path = "crates/sum_tree" }
 svg_preview = { path = "crates/svg_preview" }
 tab_switcher = { path = "crates/tab_switcher" }
-tabular_data_preview = { path = "crates/tabular_data_preview" }
 task = { path = "crates/task" }
 terminal = { path = "crates/terminal" }
 terminal_view = { path = "crates/terminal_view" }

@@ -226,7 +226,7 @@ blobs with no language server, so they are not mixed into editor panes.
   Format, Code Actions, Cut and Paste.
 - Focusing a dock panel or an editor pane (opening a file, Open File in Project
   from a commit, File Finder, …) switches back to Editor mode.
-- A preview (Markdown, tabular data) of a revision keeps its commit's sidebar,
+- A preview (e.g. Markdown) of a revision keeps its commit's sidebar,
   since the sidebar follows the commit the active tab belongs to.
 - The commit details panel (author, refs, email, SHA, message, changed files)
   is a flat, resizable sidebar on the left, like the project panel, with the

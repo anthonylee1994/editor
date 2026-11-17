@@ -73,8 +73,7 @@ Directions the fork deliberately doesn't follow, even in kept crates:
   2–8× stroke tessellation CPU and some ordering risk. #66810 (batching) and
   #66812 (shadow approximation) are optional on top.
 - Open candidates from earlier passes, worth taking if wanted: #66103
-  (open single files in the same window), #65161
-  (tabular preview range selection; needs #64916 first), #64624
+  (open single files in the same window), #64624
   (UAX #14 line breaking), #53089 (git auto fetch), #66284 (no worktree hooks
   in restricted mode), #66423 (drag git panel files to the terminal), #66296
   (mouse-wheel zoom in terminals and diffs), #66450 (hide the edit prediction

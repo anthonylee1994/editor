@@ -375,8 +375,8 @@ because it hurt readability; an opaque window is also cheaper to composite.
   `SplitRight` / `SplitDown` icons stay in the icon set. The remaining
   buttons come from one shared `pane::render_tab_bar_pane_buttons`, so every
   tab bar behaves the same. There is no search button: search is opened with
-  `cmd-f`, the menu or the action. Left of Zoom, an eye button opens the Markdown, SVG or
-  tabular data preview of the active file (Option-click opens it in a split),
+  `cmd-f`, the menu or the action. Left of Zoom, an eye button opens the Markdown or SVG
+  preview of the active file (Option-click opens it in a split),
   shown only for files that have one. Center (editor) panes and the terminal
   panel put a "+" before them: `workspace::NewFile` (an untitled file) and
   `NewTerminal`. A top-row tab bar's empty space is a titlebar, so its double

@@ -272,7 +272,6 @@ fn main() {
         title_bar::init(cx);
         git_ui::init(cx);
         markdown_preview::init(cx);
-        tabular_data_preview::init(cx);
         svg_preview::init(cx);
 
         app_state.languages.set_theme(cx.theme());

@@ -19,7 +19,7 @@ use crate::pane;
 actions!(
     preview,
     [
-        /// Opens a preview of the current file (Markdown/HTML, SVG or tabular data).
+        /// Opens a preview of the current file (Markdown/HTML or SVG).
         OpenPreview,
         /// Opens a preview of the current file in a split pane.
         OpenPreviewToTheSide,

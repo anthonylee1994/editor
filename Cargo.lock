@@ -801,7 +801,6 @@ dependencies = [
  "serde_json",
  "svg_preview",
  "tab_switcher",
- "tabular_data_preview",
  "terminal_view",
  "theme",
  "time",
@@ -3832,24 +3831,6 @@ dependencies = [
  "project",
  "rustc-hash",
  "serde",
- "ui",
- "util",
- "workspace",
-]
-
-[[package]]
-name = "tabular_data_preview"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "editor",
- "fuzzy",
- "gpui",
- "indexmap",
- "log",
- "picker",
- "serde_json",
- "text",
  "ui",
  "util",
  "workspace",
