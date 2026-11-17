@@ -1,10 +1,12 @@
 use std::collections::hash_map::DefaultHasher;
+use std::f32::consts::TAU;
 use std::fs;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::io;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 
 use gpui_util::ResultExt;
 
@@ -23,6 +25,7 @@ use crate::Point;
 use crate::Radians;
 use crate::SharedString;
 use crate::Size;
+use crate::SpriteAnimation;
 use crate::StyleRefinement;
 use crate::Styled;
 use crate::TransformationMatrix;
@@ -36,6 +39,7 @@ use crate::size;
 pub struct Svg {
     interactivity: Interactivity,
     transformation: Option<Transformation>,
+    rotation_period: Option<Duration>,
     path: Option<SharedString>,
     external_path: Option<SharedString>,
     data: Option<Arc<[u8]>>,
@@ -47,6 +51,7 @@ pub fn svg() -> Svg {
     Svg {
         interactivity: Interactivity::default(),
         transformation: None,
+        rotation_period: None,
         path: None,
         external_path: None,
         data: None,
@@ -84,6 +89,16 @@ impl Svg {
     /// Note that this won't effect the hitbox or layout of the element, only the rendering.
     pub const fn with_transformation(mut self, transformation: Transformation) -> Self {
         self.transformation = Some(transformation);
+        self
+    }
+
+    /// Rotate the SVG clockwise continuously, one full turn per `period`, starting from
+    /// [`Self::with_transformation`] and phase-locked to the app's shared animation clock.
+    ///
+    /// The SVG is painted once; the window turns it in the scene it already has and
+    /// presents that again, so no view re-renders to advance it.
+    pub const fn with_rotation_period(mut self, period: Duration) -> Self {
+        self.rotation_period = Some(period);
         self
     }
 }
@@ -131,24 +146,31 @@ impl Element for Svg {
         Self: Sized,
     {
         self.interactivity.paint(global_id, bounds, hitbox.as_ref(), window, cx, |style, window, cx| {
-            let transformation = self
-                .transformation
-                .as_ref()
-                .map(|transformation| transformation.into_matrix(bounds.center(), window.scale_factor()))
-                .unwrap_or_default();
+            let center = bounds.center();
+            let scale_factor = window.scale_factor();
+            let base = self.transformation.unwrap_or_default();
+            let transformation = base.into_matrix(center, scale_factor);
+            let animation = self
+                .rotation_period
+                .filter(|period| !period.is_zero())
+                .map(|period| SpriteAnimation::new(base, period, center, scale_factor));
 
             if let Some((data, path)) = self.data.as_ref().zip(self.data_path.as_ref()) {
                 if let Some(color) = style.text.color {
-                    window.paint_svg(bounds, path.clone(), Some(&**data), transformation, color, cx).log_err();
+                    window
+                        .paint_svg_sprite(bounds, path.clone(), Some(&**data), transformation, animation, color, cx)
+                        .log_err();
                 }
             } else if let Some((path, color)) = self.external_path.as_ref().zip(style.text.color) {
                 let Some(bytes) = window.use_asset::<SvgAsset>(path, cx).and_then(|asset| asset.log_err()) else {
                     return;
                 };
 
-                window.paint_svg(bounds, path.clone(), Some(&bytes), transformation, color, cx).log_err();
+                window
+                    .paint_svg_sprite(bounds, path.clone(), Some(&bytes), transformation, animation, color, cx)
+                    .log_err();
             } else if let Some((path, color)) = self.path.as_ref().zip(style.text.color) {
-                window.paint_svg(bounds, path.clone(), None, transformation, color, cx).log_err();
+                window.paint_svg_sprite(bounds, path.clone(), None, transformation, animation, color, cx).log_err();
             }
         })
     }
@@ -205,7 +227,15 @@ impl Transformation {
         Self { scale: size(1.0, 1.0), translate: point(px(0.0), px(0.0)), rotate }
     }
 
-    fn into_matrix(self, center: Point<Pixels>, scale_factor: f32) -> TransformationMatrix {
+    /// This transformation turned clockwise by as much of a full turn as `elapsed` is into `period`.
+    pub(crate) fn turned(self, period: Duration, elapsed: Duration) -> Self {
+        // Reduce modulo the period before f32 conversion, which loses sub-second precision at scale.
+        let turn =
+            Duration::from_nanos((elapsed.as_nanos() % period.as_nanos()) as u64).as_secs_f32() / period.as_secs_f32();
+        Self { rotate: radians(self.rotate.0 + TAU * turn), ..self }
+    }
+
+    pub(crate) fn into_matrix(self, center: Point<Pixels>, scale_factor: f32) -> TransformationMatrix {
         //Note: if you read this as a sequence of matrix multiplications, start from the bottom
         TransformationMatrix::unit()
             .translate(center.scale(scale_factor) + self.translate.scale(scale_factor))
@@ -228,5 +258,27 @@ impl Asset for SvgAsset {
             let bytes = Arc::from(bytes);
             Ok(bytes)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::f32::consts::FRAC_PI_2;
+    use std::f32::consts::PI;
+    use std::time::Duration;
+
+    use super::Transformation;
+    use crate::radians;
+
+    #[test]
+    fn turned_adds_the_elapsed_fraction_of_a_turn() {
+        let period = Duration::from_secs(2);
+        let base = Transformation::rotate(radians(FRAC_PI_2));
+        let rotation = |elapsed_ms| base.turned(period, Duration::from_millis(elapsed_ms)).rotate.0;
+
+        assert!((rotation(0) - FRAC_PI_2).abs() < 1e-5);
+        assert!((rotation(500) - PI).abs() < 1e-5);
+        // Whole periods don't accumulate, however long the clock has run.
+        assert!((rotation(3_600_000_500) - PI).abs() < 1e-5);
     }
 }

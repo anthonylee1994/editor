@@ -1,4 +1,3 @@
-use std::cell::Cell;
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -28,16 +27,13 @@ pub struct Animation {
     /// A function that maps normalized time to an animated value.
     /// The result may exceed 0..1 for easing functions that overshoot.
     pub easing: Rc<dyn Fn(f32) -> f32>,
-    /// The maximum number of times per second this animation re-renders.
-    /// When `None`, the animation re-renders on every frame.
-    pub max_fps: Option<f32>,
 }
 
 impl Animation {
     /// Create a new animation with the given duration.
     /// By default the animation will only run once and will use a linear easing function.
     pub fn new(duration: Duration) -> Self {
-        Self { duration, oneshot: true, synced: false, easing: Rc::new(linear), max_fps: None }
+        Self { duration, oneshot: true, synced: false, easing: Rc::new(linear) }
     }
 
     /// Set the animation to loop when it finishes.
@@ -59,15 +55,6 @@ impl Animation {
     /// springs to overshoot.
     pub fn with_easing(mut self, easing: impl Fn(f32) -> f32 + 'static) -> Self {
         self.easing = Rc::new(easing);
-        self
-    }
-
-    /// Limit how often this animation re-renders. Instead of re-rendering on
-    /// every frame, the animation schedules its next render `1 / max_fps`
-    /// seconds after the current one. Values that are not finite and positive
-    /// are ignored.
-    pub const fn with_max_fps(mut self, max_fps: f32) -> Self {
-        self.max_fps = Some(max_fps);
         self
     }
 }
@@ -151,9 +138,6 @@ impl<E: IntoElement + 'static> IntoElement for AnimationElement<E> {
 struct AnimationState {
     start: Instant,
     animation_ix: usize,
-    /// Whether a throttled re-render (see [`Animation::with_max_fps`]) is
-    /// already scheduled, so overlapping renders don't stack extra timers.
-    delayed_frame_pending: Rc<Cell<bool>>,
 }
 
 impl<E: IntoElement + 'static> Element for AnimationElement<E> {
@@ -171,11 +155,7 @@ impl<E: IntoElement + 'static> Element for AnimationElement<E> {
         cx: &mut App,
     ) -> (crate::LayoutId, Self::RequestLayoutState) {
         window.with_element_state(global_id.unwrap(), |state, window| {
-            let mut state = state.unwrap_or_else(|| AnimationState {
-                start: Instant::now(),
-                animation_ix: 0,
-                delayed_frame_pending: Rc::new(Cell::new(false)),
-            });
+            let mut state = state.unwrap_or_else(|| AnimationState { start: Instant::now(), animation_ix: 0 });
             let animation_ix = state.animation_ix;
             let duration = self.animations[animation_ix].duration;
 
@@ -208,24 +188,7 @@ impl<E: IntoElement + 'static> Element for AnimationElement<E> {
             let mut element = (self.animator)(element, animation_ix, delta).into_any_element();
 
             if !done {
-                match self.animations[animation_ix].max_fps {
-                    Some(max_fps) if max_fps.is_finite() && max_fps > 0.0 => {
-                        if !state.delayed_frame_pending.get() {
-                            state.delayed_frame_pending.set(true);
-                            let delayed_frame_pending = state.delayed_frame_pending.clone();
-                            let view = window.current_view();
-                            let interval = Duration::from_secs_f32(1.0 / max_fps);
-                            window
-                                .spawn(cx, async move |cx| {
-                                    cx.background_executor().timer(interval).await;
-                                    delayed_frame_pending.set(false);
-                                    cx.update(move |_, cx| cx.notify(view)).ok();
-                                })
-                                .detach();
-                        }
-                    }
-                    _ => window.request_animation_frame(),
-                }
+                window.request_animation_frame();
             }
 
             ((element.request_layout(window, cx), element), state)

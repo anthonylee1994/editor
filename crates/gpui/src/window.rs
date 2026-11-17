@@ -146,6 +146,11 @@ pub use paint::quad;
 pub use prompts::*;
 
 /// Default window size used when no explicit size is provided.
+/// How often a window presents again to advance its scene's animated sprites
+/// (rotating spinners) when nothing else draws. A spinner can show for minutes
+/// while a language server indexes, so this is well below the display rate.
+const SPRITE_ANIMATION_FRAME_INTERVAL: Duration = Duration::from_millis(100);
+
 pub const DEFAULT_WINDOW_SIZE: Size<Pixels> = size(px(1536.), px(1095.));
 
 /// Represents the two different phases when dispatching events.
@@ -695,6 +700,8 @@ pub struct Window {
     pub(crate) visibility_observers:
         SingleSubscriberSet<Box<dyn FnMut(WindowVisibility, &mut Window, &mut App) -> bool>>,
     pub(crate) needs_present: Rc<Cell<bool>>,
+    /// Whether the timer for the next present of the scene's animated sprites is running.
+    animation_frame_pending: Rc<Cell<bool>>,
     /// Collected only after `Window::reset_frame_stats`.
     pub(crate) frame_stats: Option<Box<FrameStats>>,
     /// Tracks recent input event timestamps to determine if input is arriving at a high rate.
@@ -996,12 +1003,18 @@ impl Window {
                                 window.refresh();
                             }
                             let arena_clear_needed = window.draw(cx);
+                            window.animate_scene(cx);
                             window.present();
                             arena_clear_needed.clear(cx);
                         })
                         .log_err();
                 } else if needs_present {
-                    handle.update(&mut cx, |_, window, _| window.present()).log_err();
+                    handle
+                        .update(&mut cx, |_, window, cx| {
+                            window.animate_scene(cx);
+                            window.present();
+                        })
+                        .log_err();
                 }
 
                 handle
@@ -1152,6 +1165,7 @@ impl Window {
             visibility,
             visibility_observers: SingleSubscriberSet::new(),
             needs_present,
+            animation_frame_pending: Rc::default(),
             frame_stats: None,
             input_rate_tracker,
             last_input_modality: InputModality::Mouse,
@@ -1970,6 +1984,32 @@ impl Window {
             self.mark_view_dirty(entity);
         }
         self.invalidator.replace_views(views);
+    }
+
+    /// Turns the rendered scene's animated sprites to the current time and, while it has any,
+    /// schedules the next present. Nothing is redrawn and no view is notified.
+    fn animate_scene(&mut self, cx: &App) {
+        let scene = &mut self.rendered_frame.scene;
+        if !scene.has_animations() {
+            return;
+        }
+        scene.advance_animations(cx.background_executor().now() - cx.synced_animation_epoch);
+        if self.animation_frame_pending.replace(true) {
+            return;
+        }
+        let pending = self.animation_frame_pending.clone();
+        self.spawn(cx, async move |cx| {
+            cx.background_executor().timer(SPRITE_ANIMATION_FRAME_INTERVAL).await;
+            pending.set(false);
+            cx.update(|window, _| {
+                if window.rendered_frame.scene.has_animations() {
+                    window.needs_present.set(true);
+                    window.platform_window.schedule_frame();
+                }
+            })
+            .ok();
+        })
+        .detach();
     }
 
     fn present(&mut self) {

@@ -42,9 +42,13 @@
   over the final layout rather than sizes that invalidate cached views (their
   cache key includes bounds). Dragging is never animated. A dock or pane
   animation frame costs about one cursor-move frame (~3–5 ms, no shaping).
-- Rotating spinners (`CommonAnimationExt::with_rotate_animation`) schedule
-  their own redraws at up to 10 Hz (`Animation::with_max_fps`) instead of every
-  vsync. Other updates can still render them sooner; phase follows the clock.
-  The status bar shows one while a language server reports progress, which
-  can last minutes; at display rate it redrew the whole window ~115 times a
-  second.
+- Rotating spinners (`CommonAnimationExt::with_rotate_animation`,
+  `Svg::with_rotation_period`) never re-render a view. The SVG is painted once
+  as a sprite tagged with a scene animation (kept across cached-view replay);
+  before each present the window turns those sprites to the shared animation
+  clock, and while the scene has any it presents again every 100 ms
+  (`SPRITE_ANIMATION_FRAME_INTERVAL`, a timer, not vsync ticks). Other draws
+  still advance them sooner. The status bar shows one while a language server
+  reports progress, which can last minutes. Only rotation is animated this
+  way; upstream's general `TimedTransformation` (easings, alpha, scale) isn't
+  ported. `Animation` has no frame-rate cap any more.

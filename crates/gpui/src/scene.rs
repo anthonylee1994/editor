@@ -4,6 +4,7 @@ use std::ops::Add;
 use std::ops::Range;
 use std::ops::Sub;
 use std::slice;
+use std::time::Duration;
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -21,6 +22,7 @@ use crate::Point;
 use crate::Radians;
 use crate::ScaledPixels;
 use crate::Size;
+use crate::Transformation;
 use crate::bounds_tree::BoundsTree;
 use crate::point;
 
@@ -58,6 +60,7 @@ pub struct Scene {
     pub monochrome_sprites: Vec<MonochromeSprite>,
     pub subpixel_sprites: Vec<SubpixelSprite>,
     pub polychrome_sprites: Vec<PolychromeSprite>,
+    animations: Vec<SpriteAnimation>,
 }
 
 #[expect(missing_docs)]
@@ -73,6 +76,35 @@ impl Scene {
         self.monochrome_sprites.clear();
         self.subpixel_sprites.clear();
         self.polychrome_sprites.clear();
+        self.animations.clear();
+    }
+
+    /// Inserts a sprite that [`Self::advance_animations`] keeps turning.
+    pub(crate) fn insert_animated_sprite(&mut self, mut sprite: MonochromeSprite, animation: SpriteAnimation) {
+        sprite.animation = self.animations.len() as u32 + 1;
+        let sprite_count = self.monochrome_sprites.len();
+        self.insert_primitive(sprite);
+        // A sprite that is clipped away isn't inserted.
+        if self.monochrome_sprites.len() > sprite_count {
+            self.animations.push(animation);
+        }
+    }
+
+    pub(crate) const fn has_animations(&self) -> bool {
+        !self.animations.is_empty()
+    }
+
+    /// Moves every animated sprite to its pose at `elapsed` time on the app's
+    /// synced animation clock, without the scene being rebuilt.
+    pub(crate) fn advance_animations(&mut self, elapsed: Duration) {
+        for animation in &self.animations {
+            if let Some(sprite) = self.monochrome_sprites.get_mut(animation.sprite_index) {
+                sprite.transformation = animation
+                    .base
+                    .turned(animation.period, elapsed)
+                    .into_matrix(animation.center, animation.scale_factor);
+            }
+        }
     }
 
     pub const fn len(&self) -> usize {
@@ -140,7 +172,16 @@ impl Scene {
     pub fn replay(&mut self, range: Range<usize>, prev_scene: &Scene) {
         for operation in &prev_scene.paint_operations[range] {
             match operation {
-                PaintOperation::Primitive(primitive) => self.insert_primitive(primitive.clone()),
+                PaintOperation::Primitive(primitive) => {
+                    // Animation ids index the scene they were inserted into.
+                    if let Primitive::MonochromeSprite(sprite) = primitive
+                        && let Some(animation) = prev_scene.animations.get((sprite.animation as usize).wrapping_sub(1))
+                    {
+                        self.insert_animated_sprite(*sprite, *animation);
+                    } else {
+                        self.insert_primitive(primitive.clone());
+                    }
+                }
                 PaintOperation::StartLayer(bounds) => self.push_layer(*bounds),
                 PaintOperation::EndLayer => self.pop_layer(),
             }
@@ -157,6 +198,15 @@ impl Scene {
         sort_in_place(&mut self.monochrome_sprites, keys, |sprite| (sprite.order, sprite.tile.texture_id.index));
         sort_in_place(&mut self.subpixel_sprites, keys, |sprite| (sprite.order, sprite.tile.texture_id.index));
         sort_in_place(&mut self.polychrome_sprites, keys, |sprite| (sprite.order, sprite.tile.texture_id.index));
+
+        // Sorting moved the sprites, so animations learn where theirs ended up.
+        if !self.animations.is_empty() {
+            for (index, sprite) in self.monochrome_sprites.iter().enumerate() {
+                if let Some(animation) = self.animations.get_mut((sprite.animation as usize).wrapping_sub(1)) {
+                    animation.sprite_index = index;
+                }
+            }
+        }
     }
 
     pub fn batches(&self) -> impl Iterator<Item = PrimitiveBatch> + '_ {
@@ -589,12 +639,32 @@ impl Default for TransformationMatrix {
 #[expect(missing_docs)]
 pub struct MonochromeSprite {
     pub order: DrawOrder,
-    pub pad: u32,
+    /// One more than the index of the sprite's [`SpriteAnimation`] in its scene, or 0 for none.
+    /// It sits in the instance's alignment padding; renderers ignore it.
+    pub animation: u32,
     pub tile: AtlasTile,
     pub bounds: Bounds<ScaledPixels>,
     pub content_mask: ContentMask<ScaledPixels>,
     pub color: Hsla,
     pub transformation: TransformationMatrix,
+}
+
+/// A continuous rotation the window applies to a sprite right before every
+/// present, so the scene can be presented again without being redrawn.
+#[derive(Copy, Clone, Debug)]
+pub(crate) struct SpriteAnimation {
+    base: Transformation,
+    period: Duration,
+    center: Point<Pixels>,
+    scale_factor: f32,
+    sprite_index: usize,
+}
+
+impl SpriteAnimation {
+    /// `period` must not be zero.
+    pub(crate) const fn new(base: Transformation, period: Duration, center: Point<Pixels>, scale_factor: f32) -> Self {
+        Self { base, period, center, scale_factor, sprite_index: usize::MAX }
+    }
 }
 
 impl From<MonochromeSprite> for Primitive {
@@ -812,7 +882,91 @@ fn sort_in_place<T: Copy>(primitives: &mut [T], keys: &mut Vec<(u64, u32)>, key:
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
+    use super::MonochromeSprite;
+    use super::Scene;
+    use super::SpriteAnimation;
+    use super::TransformationMatrix;
     use super::sort_in_place;
+    use crate::AtlasTextureId;
+    use crate::AtlasTextureKind;
+    use crate::AtlasTile;
+    use crate::Bounds;
+    use crate::ContentMask;
+    use crate::DevicePixels;
+    use crate::Hsla;
+    use crate::ScaledPixels;
+    use crate::TileId;
+    use crate::Transformation;
+    use crate::point;
+    use crate::px;
+    use crate::size;
+
+    fn sprite(x: f32, visible: bool) -> MonochromeSprite {
+        let bounds = Bounds {
+            origin: point(ScaledPixels(x), ScaledPixels(0.)),
+            size: size(ScaledPixels(16.), ScaledPixels(16.)),
+        };
+        MonochromeSprite {
+            order: 0,
+            animation: 0,
+            tile: AtlasTile {
+                texture_id: AtlasTextureId { index: 0, kind: AtlasTextureKind::Monochrome },
+                tile_id: TileId(0),
+                padding: 0,
+                bounds: Bounds::<DevicePixels>::default(),
+            },
+            bounds,
+            content_mask: ContentMask { bounds: if visible { bounds } else { Bounds::default() } },
+            color: Hsla::default(),
+            transformation: TransformationMatrix::unit(),
+        }
+    }
+
+    fn spin() -> SpriteAnimation {
+        SpriteAnimation::new(Transformation::default(), Duration::from_secs(2), point(px(0.), px(0.)), 1.)
+    }
+
+    fn animated_sprite_xs(scene: &Scene) -> Vec<f32> {
+        scene
+            .monochrome_sprites
+            .iter()
+            .filter(|sprite| sprite.animation != 0)
+            .map(|sprite| sprite.bounds.origin.x.0)
+            .collect()
+    }
+
+    #[test]
+    fn animated_sprites_turn_in_place_and_survive_replay() {
+        let mut scene = Scene::default();
+        // Overlapping sprites get increasing orders, so sorting keeps this order.
+        scene.insert_primitive(sprite(0., true));
+        scene.insert_animated_sprite(sprite(100., false), spin());
+        scene.insert_animated_sprite(sprite(4., true), spin());
+        scene.insert_primitive(sprite(8., true));
+        assert!(scene.has_animations());
+        assert_eq!(animated_sprite_xs(&scene), [4.], "a clipped sprite takes no animation");
+
+        // A cached view's primitives are replayed into the next scene, where
+        // animation ids are assigned afresh.
+        let mut next = Scene::default();
+        next.insert_animated_sprite(sprite(200., true), spin());
+        next.replay(0..scene.len(), &scene);
+        next.finish();
+        assert_eq!(animated_sprite_xs(&next), [200., 4.]);
+
+        // A quarter turn: only the animated sprites move.
+        next.advance_animations(Duration::from_millis(500));
+        for sprite in &next.monochrome_sprites {
+            let [[cos, _], [sin, _]] = sprite.transformation.rotation_scale;
+            let expected = if sprite.animation == 0 { (1., 0.) } else { (0., 1.) };
+            assert!((cos - expected.0).abs() < 1e-5 && (sin - expected.1).abs() < 1e-5);
+        }
+
+        next.clear();
+        assert!(!next.has_animations());
+    }
 
     #[test]
     fn sort_in_place_matches_stable_sort_by_key() {

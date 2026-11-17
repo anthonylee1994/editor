@@ -36,6 +36,7 @@ use crate::SUBPIXEL_VARIANTS_Y;
 use crate::ScaledPixels;
 use crate::Shadow;
 use crate::SharedString;
+use crate::SpriteAnimation;
 use crate::StrikethroughStyle;
 use crate::SubpixelSprite;
 use crate::TextRenderingMode;
@@ -506,7 +507,7 @@ impl Window {
             } else {
                 self.next_frame.scene.insert_primitive(MonochromeSprite {
                     order: 0,
-                    pad: 0,
+                    animation: 0,
                     bounds,
                     content_mask,
                     color: color.opacity(element_opacity),
@@ -609,6 +610,21 @@ impl Window {
         color: Hsla,
         cx: &App,
     ) -> Result<()> {
+        self.paint_svg_sprite(bounds, path, data, transformation, None, color, cx)
+    }
+
+    /// Like [`Self::paint_svg`], with an `animation` the window applies before every
+    /// present, so the view isn't re-rendered to advance it.
+    pub(crate) fn paint_svg_sprite(
+        &mut self,
+        bounds: Bounds<Pixels>,
+        path: SharedString,
+        data: Option<&[u8]>,
+        transformation: TransformationMatrix,
+        animation: Option<SpriteAnimation>,
+        color: Hsla,
+        cx: &App,
+    ) -> Result<()> {
         let element_opacity = self.element_opacity();
         let bounds = self.snap_bounds(bounds);
 
@@ -638,15 +654,19 @@ impl Window {
         let final_bounds =
             svg_bounds.map_origin(|value| ScaledPixels(round_half_toward_zero(value.0))).map_size(|size| size.ceil());
 
-        self.next_frame.scene.insert_primitive(MonochromeSprite {
+        let sprite = MonochromeSprite {
             order: 0,
-            pad: 0,
+            animation: 0,
             bounds: final_bounds,
             content_mask,
             color: color.opacity(element_opacity),
             tile,
             transformation,
-        });
+        };
+        match animation {
+            Some(animation) => self.next_frame.scene.insert_animated_sprite(sprite, animation),
+            None => self.next_frame.scene.insert_primitive(sprite),
+        }
 
         Ok(())
     }
