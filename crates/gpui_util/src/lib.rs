@@ -30,7 +30,6 @@ pub trait ResultExt<E> {
     type Ok;
 
     fn log_err(self) -> Option<Self::Ok>;
-    fn warn_on_err(self) -> Option<Self::Ok>;
     fn log_with_level(self, level: log::Level) -> Option<Self::Ok>;
 }
 
@@ -43,11 +42,6 @@ where
     #[track_caller]
     fn log_err(self) -> Option<T> {
         self.log_with_level(log::Level::Error)
-    }
-
-    #[track_caller]
-    fn warn_on_err(self) -> Option<T> {
-        self.log_with_level(log::Level::Warn)
     }
 
     #[track_caller]
@@ -91,35 +85,12 @@ fn log_error_with_caller(caller: panic::Location<'_>, arguments: fmt::Arguments<
     );
 }
 
-// Forces `{:?}` formatting through a `Display`-bounded logging helper so `anyhow::Error` emits a
-// backtrace instead of the single-line chained message produced by its `Display`/`{:#}` forms.
-struct DebugAsDisplay<'a, E>(&'a E);
-
-impl<E: fmt::Debug> fmt::Display for DebugAsDisplay<'_, E> {
-    #[expect(clippy::use_debug, reason = "intentionally renders Debug output")]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self.0)
-    }
-}
-
 pub trait TryFutureExt {
     fn log_err(self) -> LogErrorFuture<Self>
     where
         Self: Sized;
 
     fn log_tracked_err(self, location: panic::Location<'static>) -> LogErrorFuture<Self>
-    where
-        Self: Sized;
-
-    fn warn_on_err(self) -> LogErrorFuture<Self>
-    where
-        Self: Sized;
-}
-
-/// `{:?}`-formatting companion to [`TryFutureExt`]; emits a backtrace for `anyhow::Error`. Prefer
-/// [`TryFutureExt`] unless a backtrace is genuinely wanted.
-pub trait TryFutureExtBacktrace {
-    fn log_tracked_err_with_backtrace(self, location: panic::Location<'static>) -> LogErrorWithBacktraceFuture<Self>
     where
         Self: Sized;
 }
@@ -144,28 +115,6 @@ where
     {
         LogErrorFuture(self, log::Level::Error, location)
     }
-
-    #[track_caller]
-    fn warn_on_err(self) -> LogErrorFuture<Self>
-    where
-        Self: Sized,
-    {
-        let location = Location::caller();
-        LogErrorFuture(self, log::Level::Warn, *location)
-    }
-}
-
-impl<F, T, E> TryFutureExtBacktrace for F
-where
-    F: Future<Output = Result<T, E>>,
-    E: fmt::Debug,
-{
-    fn log_tracked_err_with_backtrace(self, location: panic::Location<'static>) -> LogErrorWithBacktraceFuture<Self>
-    where
-        Self: Sized,
-    {
-        LogErrorWithBacktraceFuture(self, log::Level::Error, location)
-    }
 }
 
 #[must_use]
@@ -187,33 +136,6 @@ where
                 Ok(output) => Some(output),
                 Err(error) => {
                     log_error_with_caller(location, format_args!("{error:#}"), level);
-                    None
-                }
-            }),
-            Poll::Pending => Poll::Pending,
-        }
-    }
-}
-
-#[must_use]
-pub struct LogErrorWithBacktraceFuture<F>(F, log::Level, panic::Location<'static>);
-
-impl<F, T, E> Future for LogErrorWithBacktraceFuture<F>
-where
-    F: Future<Output = Result<T, E>>,
-    E: fmt::Debug,
-{
-    type Output = Option<T>;
-
-    fn poll(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
-        let level = self.1;
-        let location = self.2;
-        let inner = unsafe { Pin::new_unchecked(&mut self.get_unchecked_mut().0) };
-        match inner.poll(cx) {
-            Poll::Ready(output) => Poll::Ready(match output {
-                Ok(output) => Some(output),
-                Err(error) => {
-                    log_error_with_caller(location, format_args!("{:#}", DebugAsDisplay(&error)), level);
                     None
                 }
             }),

@@ -1,4 +1,3 @@
-use std::fmt::Debug;
 use std::fmt::Display;
 use std::future::Future;
 use std::marker::PhantomData;
@@ -12,7 +11,6 @@ use futures::FutureExt as _;
 use futures::StreamExt as _;
 use futures::channel::mpsc;
 use gpui_util::TryFutureExt as _;
-use gpui_util::TryFutureExtBacktrace as _;
 pub use scheduler::DedicatedExecutor;
 pub use scheduler::FallibleTask;
 use scheduler::Instant;
@@ -48,26 +46,17 @@ pub struct ForegroundExecutor {
 pub trait TaskExt<T, E> {
     /// Run the task to completion in the background and log any errors that occur.
     fn detach_and_log_err(self, cx: &App);
-    /// Like [`Self::detach_and_log_err`], but uses `{:?}` formatting on failure so `anyhow::Error`
-    /// values emit their full backtrace. Prefer `detach_and_log_err` unless a backtrace is wanted.
-    fn detach_and_log_err_with_backtrace(self, cx: &App);
 }
 
 impl<T, E> TaskExt<T, E> for Task<Result<T, E>>
 where
     T: 'static,
-    E: 'static + Display + Debug,
+    E: 'static + Display,
 {
     #[track_caller]
     fn detach_and_log_err(self, cx: &App) {
         let location = core::panic::Location::caller();
         cx.foreground_executor().spawn(self.log_tracked_err(*location)).detach();
-    }
-
-    #[track_caller]
-    fn detach_and_log_err_with_backtrace(self, cx: &App) {
-        let location = *core::panic::Location::caller();
-        cx.foreground_executor().spawn(self.log_tracked_err_with_backtrace(location)).detach();
     }
 }
 
