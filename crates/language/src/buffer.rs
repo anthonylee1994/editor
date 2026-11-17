@@ -96,7 +96,6 @@ use crate::TreeSitterOptions;
 use crate::WorktreeId;
 use crate::diagnostic_set::DiagnosticEntry;
 use crate::diagnostic_set::DiagnosticEntryRef;
-use crate::diagnostic_set::DiagnosticGroup;
 pub use crate::diagnostic_set::DiagnosticSet;
 use crate::language_settings::LanguageSettings;
 use crate::outline::OutlineItem;
@@ -586,61 +585,11 @@ pub struct HighlightedTextBuilder {
     highlights: Vec<(Range<usize>, HighlightStyle)>,
 }
 
-impl HighlightedText {
-    pub fn from_buffer_range<T: ToOffset>(
-        range: Range<T>,
-        snapshot: &text::BufferSnapshot,
-        syntax_snapshot: &SyntaxSnapshot,
-        override_style: Option<HighlightStyle>,
-        syntax_theme: &SyntaxTheme,
-    ) -> Self {
-        let mut highlighted_text = HighlightedTextBuilder::default();
-        highlighted_text.add_text_from_buffer_range(range, snapshot, syntax_snapshot, override_style, syntax_theme);
-        highlighted_text.build()
-    }
-}
+impl HighlightedText {}
 
 impl HighlightedTextBuilder {
     pub fn build(self) -> HighlightedText {
         HighlightedText { text: self.text.into(), highlights: self.highlights }
-    }
-
-    pub fn add_text_from_buffer_range<T: ToOffset>(
-        &mut self,
-        range: Range<T>,
-        snapshot: &text::BufferSnapshot,
-        syntax_snapshot: &SyntaxSnapshot,
-        override_style: Option<HighlightStyle>,
-        syntax_theme: &SyntaxTheme,
-    ) {
-        let range = range.to_offset(snapshot);
-        for chunk in Self::highlighted_chunks(range, snapshot, syntax_snapshot) {
-            let start = self.text.len();
-            self.text.push_str(chunk.text);
-            let end = self.text.len();
-
-            if let Some(highlight_style) = chunk.syntax_highlight_id.and_then(|id| syntax_theme.get(id).copied()) {
-                let highlight_style =
-                    override_style.map_or(highlight_style, |override_style| highlight_style.highlight(override_style));
-                self.highlights.push((start..end, highlight_style));
-            } else if let Some(override_style) = override_style {
-                self.highlights.push((start..end, override_style));
-            }
-        }
-    }
-
-    fn highlighted_chunks<'a>(
-        range: Range<usize>,
-        snapshot: &'a text::BufferSnapshot,
-        syntax_snapshot: &'a SyntaxSnapshot,
-    ) -> BufferChunks<'a> {
-        let captures = syntax_snapshot.captures(range.clone(), snapshot, |grammar| {
-            grammar.highlights_config.as_ref().map(|config| &config.query)
-        });
-
-        let highlight_maps = captures.grammars().iter().map(|grammar| grammar.highlight_map()).collect();
-
-        BufferChunks::new(snapshot.as_rope(), range, Some((captures, highlight_maps)), false, None)
     }
 }
 
@@ -663,22 +612,6 @@ impl Buffer {
             Capability::ReadWrite,
             cx,
         )
-    }
-
-    /// Create a new buffer with the given base text that has proper line endings and other normalization applied.
-    pub fn local_normalized(base_text_normalized: Rope, line_ending: LineEnding, cx: &mut Context<Self>) -> Self {
-        Self::build(
-            TextBuffer::new_normalized(cx.entity_id().as_non_zero_u64().into(), line_ending, base_text_normalized),
-            None,
-            Capability::ReadWrite,
-            cx,
-        )
-    }
-
-    /// Assign a language to the buffer, returning the buffer.
-    pub fn with_language_async(mut self, language: Arc<Language>, cx: &mut Context<Self>) -> Self {
-        self.set_language_async(Some(language), cx);
-        self
     }
 
     /// Assign a language to the buffer, blocking for up to 1ms to reparse the buffer, returning the buffer.
@@ -765,27 +698,6 @@ impl Buffer {
 
     pub(crate) const fn resolved_settings(&self) -> Option<&Arc<LanguageSettings>> {
         self.resolved_settings.as_ref()
-    }
-
-    pub fn build_empty_snapshot(cx: &mut App) -> BufferSnapshot {
-        let entity_id = cx.reserve_entity::<Self>().entity_id();
-        let buffer_id = entity_id.as_non_zero_u64().into();
-        let text = TextBuffer::new_normalized(buffer_id, LineEnding::default(), Rope::new());
-        let text = text.into_snapshot();
-        let syntax = SyntaxMap::new(&text).snapshot();
-        let tree_sitter_data = TreeSitterData::new(&text);
-        BufferSnapshot {
-            text,
-            syntax,
-            tree_sitter_data: Arc::new(tree_sitter_data),
-            fallback_highlighter: None,
-            file: None,
-            diagnostics: TreeMap::default(),
-            language: None,
-            non_text_state_update_count: 0,
-            capability: Capability::ReadOnly,
-            resolved_settings: None,
-        }
     }
 
     /// Retrieve a snapshot of the buffer's current state. This is computationally
@@ -1182,13 +1094,6 @@ impl Buffer {
     /// written in a language that hasn't been loaded yet.
     pub fn contains_unknown_injections(&self) -> bool {
         self.syntax_map.lock().contains_unknown_injections()
-    }
-
-    /// Sets the sync parse timeout for this buffer.
-    ///
-    /// Setting this to `None` disables sync parsing entirely.
-    pub const fn set_sync_parse_timeout(&mut self, timeout: Option<Duration>) {
-        self.sync_parse_timeout = timeout;
     }
 
     fn invalidate_tree_sitter_data(tree_sitter_data: &mut Arc<TreeSitterData>, snapshot: &text::BufferSnapshot) {
@@ -1755,11 +1660,6 @@ impl Buffer {
         }
     }
 
-    /// Marks the buffer as having a conflict regardless of current buffer state.
-    pub const fn set_conflict(&mut self) {
-        self.has_conflict = true;
-    }
-
     /// Checks if the buffer and its file have both changed since the buffer
     /// was last saved or reloaded.
     pub fn has_conflict(&self) -> bool {
@@ -2172,43 +2072,6 @@ impl Buffer {
             ignore_empty_lines: true,
         }));
         self.request_autoindent(cx, Some(Duration::from_micros(300)));
-    }
-
-    // Inserts newlines at the given position to create an empty line, returning the start of the new line.
-    // You can also request the insertion of empty lines above and below the line starting at the returned point.
-    pub fn insert_empty_line(
-        &mut self,
-        position: impl ToPoint,
-        space_above: bool,
-        space_below: bool,
-        cx: &mut Context<Self>,
-    ) -> Point {
-        let mut position = position.to_point(self);
-
-        self.start_transaction();
-
-        self.edit([(position..position, "\n")], Some(AutoindentMode::EachLine), cx);
-
-        if position.column > 0 {
-            position += Point::new(1, 0);
-        }
-
-        if !self.is_line_blank(position.row) {
-            self.edit([(position..position, "\n")], Some(AutoindentMode::EachLine), cx);
-        }
-
-        if space_above && position.row > 0 && !self.is_line_blank(position.row - 1) {
-            self.edit([(position..position, "\n")], Some(AutoindentMode::EachLine), cx);
-            position.row += 1;
-        }
-
-        if space_below && (position.row == self.max_point().row || !self.is_line_blank(position.row + 1)) {
-            self.edit([(position..position, "\n")], Some(AutoindentMode::EachLine), cx);
-        }
-
-        self.end_transaction(cx);
-
-        position
     }
 
     /// Undoes the most recent transaction.
@@ -2946,15 +2809,6 @@ impl BufferSnapshot {
         ResolvedHighlights { sources, runs: runs.into() }
     }
 
-    pub fn highlighted_text_for_range<T: ToOffset>(
-        &self,
-        range: Range<T>,
-        override_style: Option<HighlightStyle>,
-        syntax_theme: &SyntaxTheme,
-    ) -> HighlightedText {
-        HighlightedText::from_buffer_range(range, &self.text, &self.syntax, override_style, syntax_theme)
-    }
-
     /// Invokes the given callback for each line of text in the given range of the buffer.
     /// Uses callback to avoid allocating a string for each line.
     fn for_each_line(&self, range: Range<Point>, mut callback: impl FnMut(u32, &str)) {
@@ -3325,33 +3179,6 @@ impl BufferSnapshot {
         result
     }
 
-    /// Returns the root syntax node within the given row.
-    pub fn syntax_root_ancestor(&self, position: Anchor) -> Option<tree_sitter::Node<'_>> {
-        let start_offset = position.to_offset(self);
-
-        let row = self.summary_for_anchor::<text::PointUtf16>(&position).row as usize;
-
-        let layer = self.syntax.layers_for_range(start_offset..start_offset, &self.text, true).next()?;
-
-        let mut cursor = layer.node().walk();
-
-        // Descend to the first leaf that touches the start of the range.
-        while cursor.goto_first_child_for_byte(start_offset).is_some() {
-            if cursor.node().end_byte() == start_offset {
-                cursor.goto_next_sibling();
-            }
-        }
-
-        // Ascend to the root node within the same row.
-        while cursor.goto_parent() {
-            if cursor.node().start_position().row != row {
-                break;
-            }
-        }
-
-        Some(cursor.node())
-    }
-
     /// Returns the outline for the buffer.
     ///
     /// This method allows passing an optional [`SyntaxTheme`] to
@@ -3433,26 +3260,6 @@ impl BufferSnapshot {
     ) -> Vec<OutlineItem<Anchor>> {
         self.outline_items_containing_internal(range, include_extra_context, theme, |this, range| {
             this.anchor_after(range.start)..this.anchor_before(range.end)
-        })
-    }
-
-    pub fn outline_items_as_points_containing<T: ToOffset>(
-        &self,
-        range: Range<T>,
-        include_extra_context: bool,
-        theme: Option<&SyntaxTheme>,
-    ) -> Vec<OutlineItem<Point>> {
-        self.outline_items_containing_internal(range, include_extra_context, theme, |_, range| range)
-    }
-
-    pub fn outline_items_as_offsets_containing<T: ToOffset>(
-        &self,
-        range: Range<T>,
-        include_extra_context: bool,
-        theme: Option<&SyntaxTheme>,
-    ) -> Vec<OutlineItem<usize>> {
-        self.outline_items_containing_internal(range, include_extra_context, theme, |buffer, range| {
-            range.to_offset(buffer)
         })
     }
 
@@ -3665,11 +3472,6 @@ impl BufferSnapshot {
         })
     }
 
-    pub fn function_body_fold_ranges<T: ToOffset>(&self, within: Range<T>) -> impl Iterator<Item = Range<usize>> + '_ {
-        self.text_object_ranges(within, TreeSitterOptions::default())
-            .filter_map(|(range, obj)| (obj == TextObject::InsideFunction).then_some(range))
-    }
-
     /// For each grammar in the language, runs the provided
     /// [`tree_sitter::Query`] against the given range.
     pub fn matches(
@@ -3766,33 +3568,6 @@ impl BufferSnapshot {
         (spell, nospell)
     }
 
-    pub fn injections_intersecting_range<T: ToOffset>(
-        &self,
-        range: Range<T>,
-    ) -> impl Iterator<Item = (Range<usize>, &Arc<Language>)> + '_ {
-        let offset_range = range.start.to_offset(self)..range.end.to_offset(self);
-
-        let mut syntax_matches = self
-            .syntax
-            .matches(offset_range, self, |grammar| grammar.injection_config.as_ref().map(|config| &config.query));
-
-        let configs =
-            syntax_matches.grammars().iter().map(|grammar| grammar.injection_config.as_ref()).collect::<Vec<_>>();
-
-        iter::from_fn(move || {
-            let ranges = syntax_matches.peek().and_then(|mat| {
-                let config = &configs[mat.grammar_index]?;
-                let content_capture_range = mat.captures.iter().find_map(|capture| {
-                    (capture.index == config.content_capture_ix).then(|| capture.node.byte_range())
-                })?;
-                let language = self.language_at(content_capture_range.start)?;
-                Some((content_capture_range, language))
-            });
-            syntax_matches.advance();
-            ranges
-        })
-    }
-
     pub fn runnable_ranges(&self, offset_range: Range<usize>) -> impl Iterator<Item = RunnableRange> + '_ {
         runnable::runnable_ranges(self, offset_range)
     }
@@ -3867,34 +3642,6 @@ impl BufferSnapshot {
         })
     }
 
-    /// Returns all the diagnostic groups associated with the given
-    /// language server ID. If no language server ID is provided,
-    /// all diagnostics groups are returned.
-    pub fn diagnostic_groups(
-        &self,
-        language_server_id: Option<LanguageServerId>,
-    ) -> Vec<(LanguageServerId, DiagnosticGroup<'_, Anchor>)> {
-        let mut groups = Vec::new();
-
-        if let Some(language_server_id) = language_server_id {
-            if let Some(set) = self.diagnostics.get(&language_server_id) {
-                set.groups(language_server_id, &mut groups, self);
-            }
-        } else {
-            for (language_server_id, diagnostics) in self.diagnostics.iter() {
-                diagnostics.groups(*language_server_id, &mut groups, self);
-            }
-        }
-
-        groups.sort_by(|(id_a, group_a), (id_b, group_b)| {
-            let a_start = &group_a.entries[group_a.primary_ix].range.start;
-            let b_start = &group_b.entries[group_b.primary_ix].range.start;
-            a_start.cmp(b_start, self).then_with(|| id_a.cmp(id_b))
-        });
-
-        groups
-    }
-
     /// Returns an iterator over the diagnostics for the given group.
     pub fn diagnostic_group<O>(&self, group_id: usize) -> impl Iterator<Item = DiagnosticEntryRef<'_, O>> + use<'_, O>
     where
@@ -3907,11 +3654,6 @@ impl BufferSnapshot {
     /// the buffer's text itself (which is versioned via a version vector).
     pub const fn non_text_state_update_count(&self) -> usize {
         self.non_text_state_update_count
-    }
-
-    /// An integer version that changes when the buffer's syntax changes.
-    pub const fn syntax_update_count(&self) -> usize {
-        self.syntax.update_count()
     }
 
     /// Returns a snapshot of underlying file.

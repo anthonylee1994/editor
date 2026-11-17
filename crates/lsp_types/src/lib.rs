@@ -228,11 +228,7 @@ impl fmt::Display for NumberOrString {
     }
 }
 
-impl NumberOrString {
-    pub fn from_string(s: String) -> Self {
-        s.parse().map_or(NumberOrString::String(s), NumberOrString::Number)
-    }
-}
+impl NumberOrString {}
 
 /* ----------------- Cancel support ----------------- */
 
@@ -393,14 +389,6 @@ impl DiagnosticMessage {
             DiagnosticMessage::MarkupContent(markup) => &markup.value,
         }
     }
-
-    /// Returns a mutable reference to the raw text of the message, regardless of its markup kind.
-    pub const fn as_mut_string(&mut self) -> &mut String {
-        match self {
-            DiagnosticMessage::String(message) => message,
-            DiagnosticMessage::MarkupContent(markup) => &mut markup.value,
-        }
-    }
 }
 
 impl Default for DiagnosticMessage {
@@ -524,21 +512,6 @@ impl Diagnostic {
             tags,
             ..Diagnostic::default()
         }
-    }
-
-    pub fn new_simple(range: Range, message: String) -> Diagnostic {
-        Self::new(range, None, None, None, message, None, None)
-    }
-
-    pub fn new_with_code_number(
-        range: Range,
-        severity: DiagnosticSeverity,
-        code_number: i32,
-        source: Option<String>,
-        message: String,
-    ) -> Diagnostic {
-        let code = Some(NumberOrString::Number(code_number));
-        Self::new(range, Some(severity), code, source, message, None, None)
     }
 }
 

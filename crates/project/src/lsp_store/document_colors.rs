@@ -3,28 +3,20 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Context as _;
-use anyhow::Result;
 use futures::FutureExt as _;
 use futures::future::Shared;
 use gpui::AppContext as _;
 use gpui::Context;
 use gpui::Entity;
-use gpui::SharedString;
 use gpui::Task;
 use language::Buffer;
-use language::LocalFile as _;
-use lsp::LSP_REQUEST_TIMEOUT;
 use lsp::LanguageServerId;
-use lsp::request::ColorPresentationRequest;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
-use worktree::File;
 
-use crate::ColorPresentation;
 use crate::DocumentColor;
 use crate::LspStore;
 use crate::lsp_command::GetDocumentColor;
-use crate::lsp_command::make_text_document_identifier;
 use crate::lsp_store::LspStoreEvent;
 use crate::lsp_store::RunningFetch;
 use crate::lsp_store::missing_servers_to_query;
@@ -177,58 +169,6 @@ impl LspStore {
             task: new_task.clone(),
         });
         Some(new_task)
-    }
-
-    pub fn resolve_color_presentation(
-        &mut self,
-        mut color: DocumentColor,
-        buffer: Entity<Buffer>,
-        server_id: LanguageServerId,
-        cx: &mut Context<Self>,
-    ) -> Task<Result<DocumentColor>> {
-        if color.resolved {
-            return Task::ready(Ok(color));
-        }
-
-        let path = match buffer
-            .update(cx, |buffer, cx| Some(File::from_dyn(buffer.file())?.abs_path(cx)))
-            .context("buffer with the missing path")
-        {
-            Ok(path) => path,
-            Err(e) => return Task::ready(Err(e)),
-        };
-        let Some(lang_server) = buffer.update(cx, |buffer, cx| {
-            self.language_server_for_local_buffer(buffer, server_id, cx).map(|(_, server)| Arc::clone(server))
-        }) else {
-            return Task::ready(Ok(color));
-        };
-
-        let request_timeout = LSP_REQUEST_TIMEOUT;
-        cx.background_spawn(async move {
-            let resolve_task = lang_server.request::<ColorPresentationRequest>(
-                lsp::ColorPresentationParams {
-                    text_document: make_text_document_identifier(&path)?,
-                    color: color.color,
-                    range: color.lsp_range,
-                    work_done_progress_params: lsp::WorkDoneProgressParams::default(),
-                    partial_result_params: lsp::PartialResultParams::default(),
-                },
-                request_timeout,
-            );
-            color.color_presentations = resolve_task
-                .await
-                .into_response()
-                .context("color presentation resolve LSP request")?
-                .into_iter()
-                .map(|presentation| ColorPresentation {
-                    label: SharedString::from(presentation.label),
-                    text_edit: presentation.text_edit,
-                    additional_text_edits: presentation.additional_text_edits.unwrap_or_default(),
-                })
-                .collect();
-            color.resolved = true;
-            Ok(color)
-        })
     }
 
     #[allow(clippy::type_complexity)]

@@ -4,7 +4,6 @@ use gpui::App;
 use gpui::FocusHandle;
 use gpui::Focusable;
 use gpui::Hsla;
-use gpui::Length;
 use ui::Tooltip;
 use ui::prelude::ActiveTheme as _;
 use ui::prelude::ButtonCommon as _;
@@ -56,17 +55,12 @@ pub struct InputField {
     ///
     /// For example, a magnifying glass icon in a search field.
     start_icon: Option<IconName>,
-    /// The minimum width of for the input.
-    min_width: Length,
     /// The tab index for keyboard navigation order.
     tab_index: Option<isize>,
     /// Whether this field is a tab stop (can be focused via Tab key).
     tab_stop: bool,
     /// Whether the field content is masked (for sensitive fields like passwords or API keys).
     masked: Option<bool>,
-    /// An optional validation error. When set, the field's border turns red
-    /// and the message is shown as hint subtext below the field.
-    error: Option<SharedString>,
 }
 
 impl Focusable for InputField {
@@ -87,11 +81,9 @@ impl InputField {
             placeholder: SharedString::new(placeholder_text),
             editor,
             start_icon: None,
-            min_width: px(192.).into(),
             tab_index: None,
             tab_stop: true,
             masked: None,
-            error: None,
         }
     }
 
@@ -110,11 +102,6 @@ impl InputField {
         self
     }
 
-    pub fn label_min_width(mut self, width: impl Into<Length>) -> Self {
-        self.min_width = width.into();
-        self
-    }
-
     pub const fn tab_index(mut self, index: isize) -> Self {
         self.tab_index = Some(index);
         self
@@ -129,14 +116,6 @@ impl InputField {
     pub const fn masked(mut self, masked: bool) -> Self {
         self.masked = Some(masked);
         self
-    }
-
-    /// Sets a validation error message, turning the field's border red and
-    /// showing the message as hint subtext below the field. Pass `None` to
-    /// clear the error.
-    pub fn set_error(&mut self, error: Option<impl Into<SharedString>>, cx: &mut Context<Self>) {
-        self.error = error.map(Into::into);
-        cx.notify();
     }
 
     pub fn is_empty(&self, cx: &App) -> bool {
@@ -182,9 +161,6 @@ impl Render for InputField {
 
         let focus_handle = self.editor.focus_handle(cx);
 
-        let has_error = self.error.is_some();
-        let error_border = cx.theme().status().error_border;
-
         let configured_handle = if let Some(tab_index) = self.tab_index {
             focus_handle.tab_index(tab_index).tab_stop(self.tab_stop)
         } else if !self.tab_stop {
@@ -201,7 +177,7 @@ impl Render for InputField {
             .child(
                 h_flex()
                     .track_focus(&configured_handle)
-                    .min_w(self.min_width)
+                    .min_w(px(192.))
                     .min_h_8()
                     .w_full()
                     .px_2()
@@ -215,7 +191,6 @@ impl Render for InputField {
                     .when(editor.focus_handle(cx).contains_focused(window, cx), |this| {
                         this.border_color(theme_color.border_focused)
                     })
-                    .when(has_error, |this| this.border_color(error_border))
                     .when_some(self.start_icon, |this, icon| {
                         this.gap_1().child(Icon::new(icon).size(IconSize::Small).color(Color::Muted))
                     })
@@ -236,8 +211,5 @@ impl Render for InputField {
                         )
                     }),
             )
-            .when_some(self.error.clone(), |this, error| {
-                this.child(Label::new(error).size(LabelSize::Small).color(Color::Error))
-            })
     }
 }

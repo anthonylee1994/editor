@@ -19,7 +19,6 @@ use alacritty_terminal::event_loop::Notifier;
 use alacritty_terminal::grid::Dimensions;
 use alacritty_terminal::grid::Grid;
 use alacritty_terminal::grid::GridIterator;
-use alacritty_terminal::grid::Row;
 use alacritty_terminal::grid::Scroll as AlacScroll;
 use alacritty_terminal::index::Boundary;
 use alacritty_terminal::index::Column;
@@ -531,12 +530,6 @@ impl Cell {
     }
 }
 
-impl<'a> RenderableCells<'a> {
-    pub(super) const fn new(cells: GridIterator<'a, AlacCell>) -> Self {
-        Self { cells }
-    }
-}
-
 impl Iterator for RenderableCells<'_> {
     type Item = IndexedCell;
 
@@ -750,12 +743,6 @@ pub(super) fn make_content(term: &Term<ZedListener>, last_content: &Content) -> 
     }
 }
 
-pub(super) fn content_text(term: &Term<ZedListener>) -> String {
-    let start = AlacPoint::new(term.topmost_line(), Column(0));
-    let end = AlacPoint::new(term.bottommost_line(), term.last_column());
-    term.bounds_to_string(start, end)
-}
-
 pub(super) fn total_lines(term: &Term<ZedListener>) -> usize {
     term.total_lines()
 }
@@ -768,27 +755,6 @@ pub(super) fn full_content_range(term: &Term<ZedListener>) -> Range {
     let start = AlacPoint::new(term.topmost_line(), Column(0));
     let end = AlacPoint::new(term.bottommost_line(), term.last_column());
     Range::from_alacritty(start..=end)
-}
-
-pub(super) fn last_non_empty_lines(term: &Term<ZedListener>, line_count: usize) -> Vec<String> {
-    let grid = term.grid();
-    let mut lines = Vec::new();
-
-    let mut current_line = grid.bottommost_line().0;
-    let topmost_line = grid.topmost_line().0;
-
-    while current_line >= topmost_line && lines.len() < line_count {
-        let (logical_line_start, logical_line) = logical_line_for_row(grid, current_line, topmost_line);
-
-        if let Some(line) = process_line(logical_line) {
-            lines.push(line);
-        }
-
-        current_line = logical_line_start - 1;
-    }
-
-    lines.reverse();
-    lines
 }
 
 pub(super) fn update_vi_cursor_for_scroll(term: &mut Term<ZedListener>, scroll: Scroll) {
@@ -830,37 +796,6 @@ pub(super) fn find_from_terminal_point(
 ) -> Option<HyperlinkMatch> {
     let point = point.to_alacritty().grid_clamp(term, Boundary::Grid);
     hyperlinks::find_from_grid_point(term, point, regex_searches)
-}
-
-fn logical_line_for_row(grid: &Grid<AlacCell>, current: i32, topmost: i32) -> (i32, String) {
-    let start = find_logical_line_start(grid, current, topmost);
-    let mut line = String::new();
-    for row in start..=current {
-        line.push_str(&row_to_string(&grid[Line(row)]));
-    }
-    (start, line)
-}
-
-fn find_logical_line_start(grid: &Grid<AlacCell>, current: i32, topmost: i32) -> i32 {
-    let mut line_start = current;
-    while line_start > topmost {
-        let previous_line = Line(line_start - 1);
-        let last_cell = &grid[previous_line][Column(grid.columns() - 1)];
-        if !last_cell.flags.contains(Flags::WRAPLINE) {
-            break;
-        }
-        line_start -= 1;
-    }
-    line_start
-}
-
-fn row_to_string(row: &Row<AlacCell>) -> String {
-    row[..Column(row.len())].iter().map(|cell| cell.c).collect::<String>()
-}
-
-fn process_line(line: String) -> Option<String> {
-    let trimmed = line.trim_end().to_owned();
-    if trimmed.is_empty() { None } else { Some(trimmed) }
 }
 
 pub(super) fn search_matches(term: &AlacrittyTerm, searcher: Search) -> Vec<Range> {

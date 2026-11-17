@@ -915,25 +915,6 @@ impl BufferSearchBar {
             .filter(|suggestion| !suggestion.is_empty())
     }
 
-    pub fn set_replacement(&mut self, replacement: Option<&str>, cx: &mut Context<Self>) {
-        let Some(replacement) = replacement else {
-            self.replace_enabled = false;
-            return;
-        };
-        self.replace_enabled = true;
-        self.replacement_editor.update(cx, |replacement_editor, cx| {
-            replacement_editor.buffer().update(cx, |replacement_buffer, cx| {
-                let len = replacement_buffer.len(cx);
-                replacement_buffer.edit([(MultiBufferOffset(0)..len, replacement)], None, cx);
-            });
-        });
-    }
-
-    pub fn focus_replace(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.focus(&self.replacement_editor.focus_handle(cx), window, cx);
-        cx.notify();
-    }
-
     pub fn search(
         &mut self,
         query: &str,
@@ -993,16 +974,6 @@ impl BufferSearchBar {
         cx.notify();
     }
 
-    pub const fn has_search_option(&mut self, search_option: SearchOptions) -> bool {
-        self.search_options.contains(search_option)
-    }
-
-    pub fn enable_search_option(&mut self, search_option: SearchOptions, window: &mut Window, cx: &mut Context<Self>) {
-        if !self.search_options.contains(search_option) {
-            self.toggle_search_option(search_option, window, cx);
-        }
-    }
-
     pub fn set_search_within_selection(
         &mut self,
         search_within_selection: Option<FilteredSearchRange>,
@@ -1020,12 +991,6 @@ impl BufferSearchBar {
         self.search_options = search_options;
         self.adjust_query_regex_language(cx);
         self.sync_select_search_options(cx);
-        cx.notify();
-    }
-
-    pub fn clear_search_within_ranges(&mut self, search_options: SearchOptions, cx: &mut Context<Self>) {
-        self.search_options = search_options;
-        self.adjust_query_regex_language(cx);
         cx.notify();
     }
 
@@ -1075,31 +1040,6 @@ impl BufferSearchBar {
                 searchable_item.match_index_for_direction(matches, index, direction, count, *token, window, cx);
             self.active_match_index = Some(new_match_index);
 
-            searchable_item.update_matches(matches, Some(new_match_index), *token, window, cx);
-            searchable_item.activate_match(new_match_index, matches, *token, window, cx);
-        }
-    }
-
-    pub fn select_first_match(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(searchable_item) = self.active_searchable_item.as_ref()
-            && let Some((matches, token)) = self.searchable_items_with_matches.get(&searchable_item.downgrade())
-        {
-            if matches.is_empty() {
-                return;
-            }
-            searchable_item.update_matches(matches, Some(0), *token, window, cx);
-            searchable_item.activate_match(0, matches, *token, window, cx);
-        }
-    }
-
-    pub fn select_last_match(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(searchable_item) = self.active_searchable_item.as_ref()
-            && let Some((matches, token)) = self.searchable_items_with_matches.get(&searchable_item.downgrade())
-        {
-            if matches.is_empty() {
-                return;
-            }
-            let new_match_index = matches.len() - 1;
             searchable_item.update_matches(matches, Some(new_match_index), *token, window, cx);
             searchable_item.activate_match(new_match_index, matches, *token, window, cx);
         }
@@ -1178,10 +1118,6 @@ impl BufferSearchBar {
             self.searchable_items_with_matches.remove(&active_searchable_item.downgrade());
             active_searchable_item.clear_matches(window, cx);
         }
-    }
-
-    pub const fn has_active_match(&self) -> bool {
-        self.active_match_index.is_some()
     }
 
     fn clear_matches(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -1444,11 +1380,6 @@ impl BufferSearchBar {
             let query = query.as_ref().clone().with_replacement(self.replacement(cx));
             searchable_item.replace_all(&mut matches.iter(), &query, *token, window, cx);
         }
-    }
-
-    pub fn match_exists(&mut self, window: &mut Window, cx: &mut Context<Self>) -> bool {
-        self.update_match_index(window, cx);
-        self.active_match_index.is_some()
     }
 
     fn adjust_query_regex_language(&self, cx: &mut App) {

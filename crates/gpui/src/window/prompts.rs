@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use futures::channel::oneshot;
 
 use super::Window;
@@ -79,9 +77,8 @@ pub struct RenderablePromptHandle {
     pub(crate) view: Box<dyn PromptViewHandle>,
 }
 
-/// Use this function in conjunction with [App::set_prompt_builder] to force
-/// GPUI to always use the fallback prompt renderer.
-pub fn fallback_prompt_renderer(
+/// Renders a prompt in the window, for platforms without native prompt dialogs.
+pub(crate) fn fallback_prompt_renderer(
     level: PromptLevel,
     message: &str,
     detail: Option<&str>,
@@ -179,41 +176,5 @@ pub(crate) trait PromptViewHandle {
 impl<V: Prompt + Render> PromptViewHandle for Entity<V> {
     fn any_view(&self) -> AnyView {
         self.clone().into()
-    }
-}
-
-pub(crate) enum PromptBuilder {
-    Default,
-    Custom(
-        Box<
-            dyn Fn(
-                PromptLevel,
-                &str,
-                Option<&str>,
-                &[PromptButton],
-                PromptHandle,
-                &mut Window,
-                &mut App,
-            ) -> RenderablePromptHandle,
-        >,
-    ),
-}
-
-impl Deref for PromptBuilder {
-    type Target = dyn Fn(
-        PromptLevel,
-        &str,
-        Option<&str>,
-        &[PromptButton],
-        PromptHandle,
-        &mut Window,
-        &mut App,
-    ) -> RenderablePromptHandle;
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            Self::Default => &fallback_prompt_renderer,
-            Self::Custom(f) => f.as_ref(),
-        }
     }
 }

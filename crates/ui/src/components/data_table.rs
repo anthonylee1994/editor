@@ -1,22 +1,17 @@
 use std::ops::Range;
 use std::rc::Rc;
 
-use gpui::AbsoluteLength;
 use gpui::DefiniteLength;
-use gpui::DragMoveEvent;
 use gpui::Entity;
 use gpui::EntityId;
 use gpui::FocusHandle;
 use gpui::Length;
 use gpui::ListHorizontalSizingBehavior;
 use gpui::ListSizingBehavior;
-use gpui::ListState;
 use gpui::Point;
-use gpui::ScrollHandle;
 use gpui::Stateful;
 use gpui::UniformListScrollHandle;
 use gpui::WeakEntity;
-use gpui::list;
 use gpui::transparent_black;
 use gpui::uniform_list;
 
@@ -25,7 +20,6 @@ use crate::AnyElement;
 use crate::App;
 use crate::Context;
 use crate::Div;
-use crate::DraggedColumn;
 use crate::ElementId;
 use crate::FluentBuilder as _;
 use crate::HeaderResizeInfo;
@@ -33,7 +27,6 @@ use crate::InteractiveElement as _;
 use crate::IntoElement;
 use crate::ParentElement as _;
 use crate::Pixels;
-use crate::RESIZE_DIVIDER_WIDTH;
 use crate::RedistributableColumnsState;
 use crate::RenderOnce;
 use crate::ScrollAxes;
@@ -44,15 +37,12 @@ use crate::StatefulInteractiveElement as _;
 use crate::Styled as _;
 use crate::StyledExt as _;
 use crate::StyledTypography as _;
-use crate::TableResizeBehavior;
 use crate::Window;
 use crate::WithScrollbar as _;
 use crate::bind_redistributable_columns;
 use crate::div;
 use crate::h_flex;
-use crate::px;
 use crate::redistribute_hidden_widths;
-use crate::render_column_resize_divider;
 use crate::render_redistributable_columns_resize_handles;
 use crate::table_row::IntoTableRow as _;
 use crate::table_row::TableRow;
@@ -63,100 +53,6 @@ pub mod table_row;
 /// Will be converted into `TableRow<T>` internally.
 pub type UncheckedTableRow<T> = Vec<T>;
 
-/// State for independently resizable columns (spreadsheet-style).
-///
-/// Each column has its own absolute width; dragging a resize handle changes only
-/// that column's width, growing or shrinking the overall table width.
-pub struct ResizableColumnsState {
-    initial_widths: TableRow<AbsoluteLength>,
-    widths: TableRow<AbsoluteLength>,
-    resize_behavior: TableRow<TableResizeBehavior>,
-}
-
-impl ResizableColumnsState {
-    pub fn new(
-        cols: usize,
-        initial_widths: Vec<impl Into<AbsoluteLength>>,
-        resize_behavior: Vec<TableResizeBehavior>,
-    ) -> Self {
-        let widths: TableRow<AbsoluteLength> =
-            initial_widths.into_iter().map(Into::into).collect::<Vec<_>>().into_table_row(cols);
-        Self { initial_widths: widths.clone(), widths, resize_behavior: resize_behavior.into_table_row(cols) }
-    }
-
-    pub const fn cols(&self) -> usize {
-        self.widths.cols()
-    }
-
-    pub const fn resize_behavior(&self) -> &TableRow<TableResizeBehavior> {
-        &self.resize_behavior
-    }
-
-    pub(crate) fn on_drag_move(
-        &mut self,
-        drag_event: &DragMoveEvent<DraggedColumn>,
-        h_scroll_offset: Pixels,
-        window: &Window,
-        cx: &mut Context<Self>,
-    ) {
-        let col_idx = drag_event.drag(cx).col_idx;
-        // h_scroll_offset is negative when scrolled right; subtracting it maps drag_x to the
-        // column's natural (unscrolled) position. Only scrollable columns reach this path —
-        // pinned dividers are rendered non-interactive.
-        let drag_x = drag_event.event.position.x - drag_event.bounds.left() - h_scroll_offset;
-        self.drag_to(col_idx, drag_x, window.rem_size());
-        cx.notify();
-    }
-
-    /// Resizes `col_idx` such that its right edge sits at `drag_x`, where `drag_x` is in the
-    /// column-strip's natural (unscrolled) coordinate space, relative to its left edge.
-    pub(crate) fn drag_to(&mut self, col_idx: usize, drag_x: Pixels, rem_size: Pixels) {
-        let left_edge: Pixels = self.widths.as_slice()[..col_idx]
-            .iter()
-            .map(|width| width.to_pixels(rem_size))
-            .fold(px(0.), |acc, x| acc + x);
-
-        let new_width = drag_x - left_edge;
-        let new_width = self.apply_min_size(new_width, self.resize_behavior[col_idx], rem_size);
-
-        self.widths[col_idx] = AbsoluteLength::Pixels(new_width);
-    }
-
-    pub fn set_column_configuration(
-        &mut self,
-        col_idx: usize,
-        width: impl Into<AbsoluteLength>,
-        resize_behavior: TableResizeBehavior,
-    ) {
-        let width = width.into();
-        self.initial_widths[col_idx] = width;
-        self.widths[col_idx] = width;
-        self.resize_behavior[col_idx] = resize_behavior;
-    }
-
-    pub fn reset_column_to_initial_width(&mut self, col_idx: usize) {
-        self.widths[col_idx] = self.initial_widths[col_idx];
-    }
-
-    pub fn pinned_width(&self, pinned_cols: usize, rem_size: Pixels) -> Pixels {
-        self.widths[..pinned_cols].iter().map(|w| w.to_pixels(rem_size)).fold(px(0.), |acc, x| acc + x)
-    }
-
-    pub fn scrollable_width(&self, pinned_cols: usize, rem_size: Pixels) -> Pixels {
-        self.widths[pinned_cols..].iter().map(|w| w.to_pixels(rem_size)).fold(px(0.), |acc, x| acc + x)
-    }
-
-    fn apply_min_size(&self, width: Pixels, behavior: TableResizeBehavior, rem_size: Pixels) -> Pixels {
-        match behavior.min_size() {
-            Some(min_rems) => {
-                let min_px = rem_size * min_rems;
-                width.max(min_px)
-            }
-            None => width,
-        }
-    }
-}
-
 struct UniformListData {
     #[allow(clippy::type_complexity)]
     render_list_of_rows_fn: Box<dyn Fn(Range<usize>, &mut Window, &mut App) -> Vec<UncheckedTableRow<AnyElement>>>,
@@ -164,18 +60,9 @@ struct UniformListData {
     row_count: usize,
 }
 
-struct VariableRowHeightListData {
-    /// Unlike UniformList, this closure renders only single row, allowing each one to have its own height.
-    #[allow(clippy::type_complexity)]
-    render_row_fn: Box<dyn Fn(usize, &mut Window, &mut App) -> UncheckedTableRow<AnyElement>>,
-    list_state: ListState,
-    row_count: usize,
-}
-
 enum TableContents {
     Vec(Vec<TableRow<AnyElement>>),
     UniformList(UniformListData),
-    VariableRowHeightList(VariableRowHeightListData),
 }
 
 impl TableContents {
@@ -183,7 +70,6 @@ impl TableContents {
         match self {
             TableContents::Vec(rows) => Some(rows),
             TableContents::UniformList(_) => None,
-            TableContents::VariableRowHeightList(_) => None,
         }
     }
 
@@ -191,7 +77,6 @@ impl TableContents {
         match self {
             TableContents::Vec(rows) => rows.len(),
             TableContents::UniformList(data) => data.row_count,
-            TableContents::VariableRowHeightList(data) => data.row_count,
         }
     }
 
@@ -203,23 +88,11 @@ impl TableContents {
 pub struct TableInteractionState {
     pub focus_handle: FocusHandle,
     pub scroll_handle: UniformListScrollHandle,
-    pub horizontal_scroll_handle: ScrollHandle,
-    pub custom_scrollbar: Option<Scrollbars>,
 }
 
 impl TableInteractionState {
     pub fn new(cx: &mut App) -> Self {
-        Self {
-            focus_handle: cx.focus_handle(),
-            scroll_handle: UniformListScrollHandle::new(),
-            horizontal_scroll_handle: ScrollHandle::new(),
-            custom_scrollbar: None,
-        }
-    }
-
-    pub fn with_custom_scrollbar(mut self, custom_scrollbar: Scrollbars) -> Self {
-        self.custom_scrollbar = Some(custom_scrollbar);
-        self
+        Self { focus_handle: cx.focus_handle(), scroll_handle: UniformListScrollHandle::new() }
     }
 
     pub fn scroll_offset(&self) -> Point<Pixels> {
@@ -251,9 +124,6 @@ pub enum ColumnWidthConfig {
     /// Redistributable columns — dragging redistributes the fixed available space
     /// among columns without changing the overall table width.
     Redistributable { columns_state: Entity<RedistributableColumnsState>, table_width: Option<DefiniteLength> },
-    /// Independently resizable columns — dragging changes absolute column widths
-    /// and thus the overall table width. Like spreadsheets.
-    Resizable(Entity<ResizableColumnsState>),
 }
 
 pub enum StaticColumnWidths {
@@ -295,37 +165,23 @@ impl ColumnWidthConfig {
             ColumnWidthConfig::Redistributable { columns_state: entity, .. } => {
                 Some(entity.read(cx).widths_to_render())
             }
-            ColumnWidthConfig::Resizable(entity) => {
-                let state = entity.read(cx);
-                Some(state.widths.map_cloned(|abs| Length::Definite(DefiniteLength::Absolute(abs))))
-            }
         }
     }
 
     /// Table-level width.
-    pub fn table_width(&self, window: &Window, cx: &App) -> Option<Length> {
+    pub fn table_width(&self) -> Option<Length> {
         match self {
             ColumnWidthConfig::Static { table_width, .. } | ColumnWidthConfig::Redistributable { table_width, .. } => {
                 table_width.map(Length::Definite)
-            }
-            ColumnWidthConfig::Resizable(entity) => {
-                let state = entity.read(cx);
-                let rem_size = window.rem_size();
-                let total: Pixels =
-                    state.widths.as_slice().iter().map(|abs| abs.to_pixels(rem_size)).fold(px(0.), |acc, x| acc + x);
-                Some(Length::Definite(DefiniteLength::Absolute(AbsoluteLength::Pixels(total))))
             }
         }
     }
 
     /// ListHorizontalSizingBehavior for uniform_list.
-    pub fn list_horizontal_sizing(&self, window: &Window, cx: &App) -> ListHorizontalSizingBehavior {
-        match self {
-            ColumnWidthConfig::Resizable(_) => ListHorizontalSizingBehavior::FitList,
-            _ => match self.table_width(window, cx) {
-                Some(_) => ListHorizontalSizingBehavior::Unconstrained,
-                None => ListHorizontalSizingBehavior::FitList,
-            },
+    pub fn list_horizontal_sizing(&self) -> ListHorizontalSizingBehavior {
+        match self.table_width() {
+            Some(_) => ListHorizontalSizingBehavior::Unconstrained,
+            None => ListHorizontalSizingBehavior::FitList,
         }
     }
 }
@@ -347,8 +203,6 @@ pub struct Table {
     empty_table_callback: Option<Rc<dyn Fn(&mut Window, &mut App) -> AnyElement>>,
     /// The number of columns in the table. Used to assert column numbers in `TableRow` collections.
     cols: usize,
-    disable_base_cell_style: bool,
-    pinned_cols: usize,
     /// Optional per-column visibility mask. When set, it overrides any filter derived from the
     /// column width config. Columns whose entry is `true` are hidden.
     column_filter: Option<TableRow<bool>>,
@@ -368,9 +222,7 @@ impl Table {
             map_row: None,
             use_ui_font: true,
             empty_table_callback: None,
-            disable_base_cell_style: false,
             column_width_config: ColumnWidthConfig::auto(),
-            pinned_cols: 0,
             column_filter: None,
         }
     }
@@ -382,15 +234,6 @@ impl Table {
     /// any filter derived from the column width config.
     pub fn column_filter(mut self, filter: TableRow<bool>) -> Self {
         self.column_filter = Some(filter);
-        self
-    }
-
-    /// Disables based styling of row cell (paddings, text ellipsis, nowrap, etc), keeping width settings.
-    ///
-    /// Doesn't affect base style of header cell.
-    /// Doesn't remove overflow-hidden.
-    pub const fn disable_base_style(mut self) -> Self {
-        self.disable_base_cell_style = true;
         self
     }
 
@@ -408,29 +251,6 @@ impl Table {
             element_id: id.into(),
             row_count,
             render_list_of_rows_fn: Box::new(render_item_fn),
-        });
-        self
-    }
-
-    /// Enables rendering of tables with variable row heights, allowing each row to have its own height.
-    ///
-    /// This mode is useful for displaying content such as CSV data or multiline cells, where rows may not have uniform heights.
-    /// It is generally slower than [`Table::uniform_list`] due to the need to measure each row individually, but it provides correct layout for non-uniform or multiline content.
-    ///
-    /// # Parameters
-    /// - `row_count`: The total number of rows in the table.
-    /// - `list_state`: The [`ListState`] used for managing scroll position and virtualization. This must be initialized and managed by the caller, and should be kept in sync with the number of rows.
-    /// - `render_row_fn`: A closure that renders a single row, given the row index, a mutable reference to [`Window`], and a mutable reference to [`App`]. It should return an array of [`AnyElement`]s, one for each column.
-    pub fn variable_row_height_list(
-        mut self,
-        row_count: usize,
-        list_state: ListState,
-        render_row_fn: impl Fn(usize, &mut Window, &mut App) -> UncheckedTableRow<AnyElement> + 'static,
-    ) -> Self {
-        self.rows = TableContents::VariableRowHeightList(VariableRowHeightListData {
-            render_row_fn: Box::new(render_row_fn),
-            list_state,
-            row_count,
         });
         self
     }
@@ -479,16 +299,6 @@ impl Table {
         self
     }
 
-    /// Pins the first `n` columns so they remain visible during horizontal scrolling.
-    ///
-    /// Pinned columns are rendered in the same list item as scrollable columns, so row heights
-    /// remain consistent across all columns including variable-height rows.
-    /// Only supported when using `ColumnWidthConfig::Resizable`.
-    pub const fn pin_cols(mut self, n: usize) -> Self {
-        self.pinned_cols = n;
-        self
-    }
-
     pub fn map_row(
         mut self,
         callback: impl Fn((usize, Stateful<Div>), &mut Window, &mut App) -> AnyElement + 'static,
@@ -503,12 +313,6 @@ impl Table {
         self.show_row_hover = false;
         self
     }
-}
-
-/// True when the table should render a pinned section and a separate scrollable section.
-/// `pinned_cols == 0` and `pinned_cols >= cols` both fall back to a single-section layout.
-const fn is_pinned_layout(pinned_cols: usize, cols: usize) -> bool {
-    pinned_cols > 0 && pinned_cols < cols
 }
 
 fn base_cell_style(width: Option<Length>) -> Div {
@@ -526,15 +330,7 @@ fn base_cell_style_text(width: Option<Length>, use_ui_font: bool, cx: &App) -> D
 }
 
 fn render_cell(width: Option<Length>, cell: AnyElement, ctx: &TableRenderContext, cx: &App) -> Div {
-    if ctx.disable_base_cell_style {
-        div()
-            .when_some(width, |this, width| this.w(width))
-            .when(width.is_none(), |this| this.flex_1())
-            .overflow_hidden()
-            .child(cell)
-    } else {
-        base_cell_style_text(width, ctx.use_ui_font, cx).px_1().py_0p5().child(cell)
-    }
+    base_cell_style_text(width, ctx.use_ui_font, cx).px_1().py_0p5().child(cell)
 }
 
 fn render_header_cell(
@@ -579,7 +375,7 @@ pub fn render_table_row(
         Some(widths) => widths.clone().map(Some),
         None => vec![None; cols].into_table_row(cols),
     };
-    let mut row = div()
+    let row = div()
         // NOTE: `h_flex()` sneakily applies `items_center()` which is not default behavior for div element.
         // Applying `.flex().flex_row()` manually to overcome that
         .flex()
@@ -589,10 +385,9 @@ pub fn render_table_row(
         .when_some(bg, |row, bg| row.bg(bg))
         .when(table_context.show_row_hover, |row| row.hover(|s| s.bg(cx.theme().colors().element_hover.opacity(0.6))));
 
-    let pinned_cols = table_context.pinned_cols;
     let column_filter = table_context.column_filter.as_ref();
 
-    // Only `Resizable` columns (independent absolute pixel widths) should leave the wrapper
+    // Only absolute pixel widths should leave the wrapper
     // hugging their combined width so the row border stops at the last column. Percentage
     // widths (`Redistributable`) need a full-size ancestor for their fractions to resolve
     // against, and `flex_1`/auto cells are meant to stretch across the whole row anyway.
@@ -600,16 +395,16 @@ pub fn render_table_row(
         widths.as_slice().iter().all(|width| matches!(width, Length::Definite(DefiniteLength::Absolute(_))))
     });
 
-    let cell_iter = items
+    let cells = items
         .into_vec()
         .into_iter()
         .map(IntoElement::into_any_element)
         .zip(column_widths.into_vec())
         .enumerate()
         .filter(|(idx, _)| column_is_visible(column_filter, *idx))
-        .map(|(_, pair)| pair);
+        .map(|(_, (cell, width))| render_cell(width, cell, &table_context, cx));
 
-    let render_section = |cells: Box<dyn Iterator<Item = (AnyElement, Option<Length>)>>| {
+    let row = row.child(
         div()
             .flex()
             .flex_row()
@@ -622,38 +417,9 @@ pub fn render_table_row(
                     }
                 })
             })
-            .children(cells.map(|(cell, width)| render_cell(width, cell, &table_context, cx)))
-    };
-
-    if is_pinned_layout(pinned_cols, cols) && is_absolute_width_table {
-        // Drop filtered columns before splitting into pinned/scrollable sections. The number of
-        // pinned columns that survive filtering determines where the kept cells are split.
-        let pinned_visible = (0..pinned_cols).filter(|&idx| column_is_visible(column_filter, idx)).count();
-
-        let mut cells: Vec<_> = cell_iter.collect();
-        let scrollable_cells = cells.split_off(pinned_visible);
-
-        // Scrollable section: overflow_x_scroll + track_scroll so GPUI handles the visual
-        // shift natively without requiring per-scroll re-renders of list items.
-        // restrict_scroll_to_axis lets vertical scroll events pass through to the list.
-        let mut scrollable_section = div()
-            .id(("table-row-scrollable", row_index as u64))
-            .flex_grow_1()
-            .overflow_x_scroll()
-            .restrict_scroll_to_axis()
-            .flex()
-            .child(render_section(Box::new(scrollable_cells.into_iter())));
-
-        if let Some(ref handle) = table_context.h_scroll_handle {
-            scrollable_section = scrollable_section.track_scroll(handle);
-        }
-
-        let pinned_section = render_section(Box::new(cells.into_iter())).flex_shrink_0();
-
-        row = row.child(pinned_section).child(scrollable_section);
-    } else {
-        row = row.child(render_section(Box::new(cell_iter)).when(!is_absolute_width_table, |this| this.size_full()));
-    }
+            .children(cells)
+            .when(!is_absolute_width_table, |this| this.size_full()),
+    );
 
     let row = if let Some(map_row) = table_context.map_row {
         map_row((row_index, row), window, cx)
@@ -678,74 +444,33 @@ pub fn render_table_header(
     let element_id = entity_id.map_or_default(|entity| entity.to_string());
 
     let shared_element_id: SharedString = format!("table-{element_id}").into();
-    let pinned_cols = table_context.pinned_cols;
-
     let outer = h_flex().py_1().w_full().border_b_1().border_color(cx.theme().colors().border_variant);
 
     let use_ui_font = table_context.use_ui_font;
     let resize_info_ref = resize_info.as_ref();
     let column_filter = table_context.column_filter.as_ref();
 
-    if is_pinned_layout(pinned_cols, cols) {
-        let headers_vec: Vec<AnyElement> = headers.into_vec().into_iter().map(IntoElement::into_any_element).collect();
-        let widths_vec: Vec<Option<Length>> = column_widths.into_vec();
-
-        // Keep the original column index alongside each visible header so that resize info
-        // (which is indexed by original column position) stays correct after filtering.
-        let pinned_visible = (0..pinned_cols).filter(|&idx| column_is_visible(column_filter, idx)).count();
-        let mut kept: Vec<(usize, AnyElement, Option<Length>)> = headers_vec
-            .into_iter()
-            .zip(widths_vec)
-            .enumerate()
-            .filter(|(idx, _)| column_is_visible(column_filter, *idx))
-            .map(|(idx, (h, width))| (idx, h, width))
-            .collect();
-        let scrollable = kept.split_off(pinned_visible);
-
-        let pinned_section =
-            div().flex().flex_row().flex_shrink_0().children(kept.into_iter().map(|(header_idx, h, width)| {
-                render_header_cell(h, width, header_idx, &shared_element_id, resize_info_ref, use_ui_font, cx)
-            }));
-
-        let inner = div().flex().flex_row().children(scrollable.into_iter().map(|(header_idx, h, width)| {
-            render_header_cell(h, width, header_idx, &shared_element_id, resize_info_ref, use_ui_font, cx)
-        }));
-        let mut scrollable_section = div()
-            .id("table-header-scrollable")
-            .flex_grow_1()
-            .overflow_x_scroll()
-            .restrict_scroll_to_axis()
-            .flex()
-            .child(inner);
-
-        if let Some(ref handle) = table_context.h_scroll_handle {
-            scrollable_section = scrollable_section.track_scroll(handle);
-        }
-
-        outer.child(pinned_section).child(scrollable_section).into_any_element()
-    } else {
-        outer
-            .children(
-                headers
-                    .into_vec()
-                    .into_iter()
-                    .enumerate()
-                    .zip(column_widths.into_vec())
-                    .filter(|((idx, _), _)| column_is_visible(column_filter, *idx))
-                    .map(|((header_idx, h), width)| {
-                        render_header_cell(
-                            h.into_any_element(),
-                            width,
-                            header_idx,
-                            &shared_element_id,
-                            resize_info_ref,
-                            use_ui_font,
-                            cx,
-                        )
-                    }),
-            )
-            .into_any_element()
-    }
+    outer
+        .children(
+            headers
+                .into_vec()
+                .into_iter()
+                .enumerate()
+                .zip(column_widths.into_vec())
+                .filter(|((idx, _), _)| column_is_visible(column_filter, *idx))
+                .map(|((header_idx, h), width)| {
+                    render_header_cell(
+                        h.into_any_element(),
+                        width,
+                        header_idx,
+                        &shared_element_id,
+                        resize_info_ref,
+                        use_ui_font,
+                        cx,
+                    )
+                }),
+        )
+        .into_any_element()
 }
 
 #[derive(Clone)]
@@ -758,19 +483,13 @@ pub struct TableRenderContext {
     #[allow(clippy::type_complexity)]
     pub map_row: Option<Rc<dyn Fn((usize, Stateful<Div>), &mut Window, &mut App) -> AnyElement>>,
     pub use_ui_font: bool,
-    pub disable_base_cell_style: bool,
-    pub pinned_cols: usize,
     /// Per-column visibility mask. When `Some`, columns whose entry is `true` are filtered
     /// out (hidden) and not rendered. Indices map to the table's original column positions.
     pub column_filter: Option<TableRow<bool>>,
-    /// Scroll handle shared by all scrollable sections in rows and headers.
-    /// When `pinned_cols > 0`, each row's scrollable section tracks this handle so all rows
-    /// scroll together without requiring per-scroll re-renders.
-    pub h_scroll_handle: Option<ScrollHandle>,
 }
 
 impl TableRenderContext {
-    fn new(table: &Table, h_scroll_handle: Option<ScrollHandle>, cx: &App) -> Self {
+    fn new(table: &Table, cx: &App) -> Self {
         Self {
             striped: table.striped,
             show_row_borders: table.show_row_borders,
@@ -782,10 +501,7 @@ impl TableRenderContext {
                 .map(|widths| redistribute_hidden_widths(&widths, table.column_filter.as_ref())),
             map_row: table.map_row.clone(),
             use_ui_font: table.use_ui_font,
-            disable_base_cell_style: table.disable_base_cell_style,
-            pinned_cols: table.pinned_cols,
             column_filter: table.column_filter.clone(),
-            h_scroll_handle,
         }
     }
 
@@ -798,10 +514,7 @@ impl TableRenderContext {
             column_widths,
             map_row: None,
             use_ui_font,
-            disable_base_cell_style: false,
-            pinned_cols: 0,
             column_filter: None,
-            h_scroll_handle: None,
         }
     }
 
@@ -817,192 +530,34 @@ fn column_is_visible(filter: Option<&TableRow<bool>>, col_idx: usize) -> bool {
     filter.is_none_or(|mask| !mask.get(col_idx).copied().unwrap_or(false))
 }
 
-/// Builds resize dividers for the given column range, positioned absolutely from `left: 0`.
-/// When `interactive` is false, dividers render as plain visual lines with no drag/click handlers.
-fn build_resize_dividers(
-    columns_state: &Entity<ResizableColumnsState>,
-    widths: &TableRow<AbsoluteLength>,
-    resize_behavior: &TableRow<TableResizeBehavior>,
-    range: Range<usize>,
-    interactive: bool,
-    rem_size: Pixels,
-    window: &mut Window,
-    cx: &mut App,
-) -> Vec<AnyElement> {
-    let entity_id = columns_state.entity_id();
-    let last = range.end.saturating_sub(1);
-    let mut dividers = Vec::with_capacity(range.end - range.start);
-    let mut accumulated = px(0.);
-
-    for col_idx in range {
-        accumulated += widths[col_idx].to_pixels(rem_size);
-
-        // Add a resize divider after every column, including the last.
-        // For the last column the divider is pulled 1px inward so it isn't clipped
-        // by the overflow_hidden content container.
-        let divider_left = if col_idx == last { accumulated - px(RESIZE_DIVIDER_WIDTH) } else { accumulated };
-        let divider = div().id(col_idx).absolute().top_0().left(divider_left);
-        #[allow(clippy::type_complexity)]
-        let on_reset: Rc<dyn Fn(&mut Window, &mut App)> = {
-            let columns_state = columns_state.clone();
-            Rc::new(move |_window, cx| {
-                columns_state.update(cx, |state, cx| {
-                    state.reset_column_to_initial_width(col_idx);
-                    cx.notify();
-                });
-            })
-        };
-        let is_resizable = interactive && resize_behavior[col_idx].is_resizable();
-        dividers.push(render_column_resize_divider(
-            divider,
-            col_idx,
-            is_resizable,
-            entity_id,
-            on_reset,
-            None,
-            window,
-            cx,
-        ));
-    }
-    dividers
-}
-
-fn render_resize_handles_resizable(
-    columns_state: &Entity<ResizableColumnsState>,
-    pinned_cols: usize,
-    h_scroll_handle: Option<&ScrollHandle>,
-    window: &mut Window,
-    cx: &mut App,
-) -> AnyElement {
-    let state = columns_state.read(cx);
-    let widths = state.widths.clone();
-    let resize_behavior = state.resize_behavior().clone();
-
-    let rem_size = window.rem_size();
-    let n_cols = widths.cols();
-    let pinned_cols = pinned_cols.min(n_cols);
-
-    if pinned_cols == 0 {
-        let dividers =
-            build_resize_dividers(columns_state, &widths, &resize_behavior, 0..n_cols, true, rem_size, window, cx);
-        return div().id("resize-handles").absolute().inset_0().w_full().children(dividers).into_any_element();
-    }
-
-    let pinned_width = state.pinned_width(pinned_cols, rem_size);
-    let total_scrollable_width = state.scrollable_width(pinned_cols, rem_size);
-
-    // Non-interactive: pinned columns don't visually shift with scroll, so resizing them would
-    // need separate drag-math from the scrollable columns. Header double-click reset still works.
-    let pinned_dividers =
-        build_resize_dividers(columns_state, &widths, &resize_behavior, 0..pinned_cols, false, rem_size, window, cx);
-    let pinned_overlay = div()
-        .id("resize-handles-pinned")
-        .absolute()
-        .top_0()
-        .bottom_0()
-        .left_0()
-        .w(pinned_width)
-        .children(pinned_dividers);
-
-    let scrollable_dividers = build_resize_dividers(
-        columns_state,
-        &widths,
-        &resize_behavior,
-        pinned_cols..n_cols,
-        true,
-        rem_size,
-        window,
-        cx,
-    );
-
-    // Sized inner div gives the overflow container something to scroll against.
-    let inner = div().relative().w(total_scrollable_width).h_full().children(scrollable_dividers);
-
-    let mut overlay = div()
-        .id("resize-handles")
-        .absolute()
-        .top_0()
-        .bottom_0()
-        .left(pinned_width)
-        .right_0()
-        .overflow_x_scroll()
-        .restrict_scroll_to_axis()
-        .child(inner);
-
-    if let Some(handle) = h_scroll_handle {
-        overlay = overlay.track_scroll(handle);
-    }
-
-    div().id("resize-handles-wrapper").absolute().inset_0().child(pinned_overlay).child(overlay).into_any_element()
-}
-
 impl RenderOnce for Table {
     fn render(mut self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let interaction_state = self.interaction_state.clone().and_then(|state| state.upgrade());
-        let uses_pinned_layout = is_pinned_layout(self.pinned_cols, self.cols);
-        let pinned_cols = if uses_pinned_layout { self.pinned_cols } else { 0 };
-
-        // Shared by every row's scrollable section so they scroll in lockstep, and read by
-        // on_drag_move to compensate drag_x for the horizontal scroll offset.
-        let h_scroll_handle = if uses_pinned_layout {
-            interaction_state.as_ref().map(|s| s.read(cx).horizontal_scroll_handle.clone())
-        } else {
-            None
-        };
-
-        let table_context = TableRenderContext::new(&self, h_scroll_handle.clone(), cx);
+        let table_context = TableRenderContext::new(&self, cx);
 
         let header_resize_info = interaction_state.as_ref().and_then(|_| match &self.column_width_config {
             ColumnWidthConfig::Redistributable { columns_state, .. } => {
                 Some(HeaderResizeInfo::from_redistributable(columns_state, cx))
             }
-            ColumnWidthConfig::Resizable(entity) => Some(HeaderResizeInfo::from_resizable(entity, cx)),
             ColumnWidthConfig::Static { .. } => None,
         });
 
-        // Pinned mode sizes each row internally, so no fixed table_width or h_scroll_container.
-        let table_width = if uses_pinned_layout { None } else { self.column_width_config.table_width(window, cx) };
-
-        let horizontal_sizing = if uses_pinned_layout {
-            ListHorizontalSizingBehavior::FitList
-        } else {
-            self.column_width_config.list_horizontal_sizing(window, cx)
-        };
+        let table_width = self.column_width_config.table_width();
+        let horizontal_sizing = self.column_width_config.list_horizontal_sizing();
 
         let no_rows_rendered = self.rows.is_empty();
-        let variable_list_state = if let TableContents::VariableRowHeightList(data) = &self.rows {
-            Some(data.list_state.clone())
-        } else {
-            None
+        let (redistributable_entity, body_resize_handles) = match &self.column_width_config {
+            ColumnWidthConfig::Redistributable { columns_state, .. } if interaction_state.is_some() => (
+                Some(columns_state.clone()),
+                Some(render_redistributable_columns_resize_handles(
+                    columns_state,
+                    self.column_filter.as_ref(),
+                    window,
+                    cx,
+                )),
+            ),
+            _ => (None, None),
         };
-
-        let (redistributable_entity, resizable_entity, resize_handles) = if interaction_state.as_ref().is_some() {
-            match &self.column_width_config {
-                ColumnWidthConfig::Redistributable { columns_state, .. } => (
-                    Some(columns_state.clone()),
-                    None,
-                    Some(render_redistributable_columns_resize_handles(
-                        columns_state,
-                        self.column_filter.as_ref(),
-                        window,
-                        cx,
-                    )),
-                ),
-                ColumnWidthConfig::Resizable(entity) => (
-                    None,
-                    Some(entity.clone()),
-                    Some(render_resize_handles_resizable(entity, pinned_cols, h_scroll_handle.as_ref(), window, cx)),
-                ),
-                ColumnWidthConfig::Static { .. } => (None, None, None),
-            }
-        } else {
-            (None, None, None)
-        };
-
-        let is_resizable = resizable_entity.is_some();
-        // Resizable handles span the header too, so a column can be dragged from its header edge.
-        let (body_resize_handles, table_resize_handles) =
-            if is_resizable { (None, resize_handles) } else { (resize_handles, None) };
 
         let table = div()
             .when_some(table_width, |this, width| this.w(width))
@@ -1019,16 +574,6 @@ impl RenderOnce for Table {
             })
             .when_some(redistributable_entity, |this, widths| {
                 bind_redistributable_columns(this, widths, self.column_filter.clone())
-            })
-            .when_some(resizable_entity, |this, entity| {
-                let scroll_handle_for_drag = h_scroll_handle.clone();
-                this.on_drag_move::<DraggedColumn>(move |event, window, cx| {
-                    if event.drag(cx).state_id != entity.entity_id() {
-                        return;
-                    }
-                    let h_scroll_offset = scroll_handle_for_drag.as_ref().map_or(px(0.), |h| h.offset().x);
-                    entity.update(cx, |state, cx| state.on_drag_move(event, h_scroll_offset, window, cx));
-                })
             })
             .child({
                 let content = div()
@@ -1067,18 +612,6 @@ impl RenderOnce for Table {
                                 this.track_scroll(&state.read_with(cx, |s, _| s.scroll_handle.clone()))
                             }),
                         ),
-                        TableContents::VariableRowHeightList(variable_list_data) => parent.child(
-                            list(variable_list_data.list_state.clone(), {
-                                let render_item_fn = variable_list_data.render_row_fn;
-                                move |row_index: usize, window: &mut Window, cx: &mut App| {
-                                    let row = render_item_fn(row_index, window, cx).into_table_row(self.cols);
-                                    render_table_row(row_index, row, table_context.clone(), window, cx)
-                                }
-                            })
-                            .size_full()
-                            .flex_grow_1()
-                            .with_sizing_behavior(ListSizingBehavior::Auto),
-                        ),
                     })
                     .when_some(body_resize_handles, |parent, handles| parent.child(handles));
 
@@ -1086,60 +619,16 @@ impl RenderOnce for Table {
             })
             .when_some(no_rows_rendered.then_some(self.empty_table_callback).flatten(), |this, callback| {
                 this.child(h_flex().size_full().p_3().items_start().justify_center().child(callback(window, cx)))
-            })
-            .when_some(table_resize_handles, |this, handles| this.relative().child(handles));
+            });
 
         if let Some(state) = interaction_state.as_ref() {
-            let content = if is_resizable && !uses_pinned_layout {
-                let h_scroll_container = div()
-                    .id("table-h-scroll")
-                    .overflow_x_scroll()
-                    .restrict_scroll_to_axis()
-                    .flex_grow_1()
-                    .h_full()
-                    .track_scroll(&state.read(cx).horizontal_scroll_handle)
-                    .child(table);
-                div().size_full().child(h_scroll_container)
-            } else {
-                table
-            };
-
-            // Attach vertical scrollbars (converts Div → Stateful<Div>)
-            let scrollbars =
-                state.read(cx).custom_scrollbar.clone().unwrap_or_else(|| Scrollbars::new(ScrollAxes::Both));
-            let mut content = if let Some(list_state) = variable_list_state {
-                content.custom_scrollbars(scrollbars.tracked_scroll_handle(&list_state), window, cx)
-            } else {
-                content.custom_scrollbars(scrollbars.tracked_scroll_handle(&state.read(cx).scroll_handle), window, cx)
-            };
-
-            // Works for both modes since they share horizontal_scroll_handle.
-            if is_resizable {
-                if let ColumnWidthConfig::Resizable(rc_state) = self.column_width_config {
-                    let pinned_width = rc_state.read(cx).pinned_width(pinned_cols, window.rem_size());
-                    // With pinned columns the scrollbar should only span the scrollable area.
-                    // An absolute overlay inset on all sides then overriding left to pinned_width
-                    // gives the correct bounds (full height via top+bottom, correct width via
-                    // right+left) without needing to hardcode the scrollbar thickness.
-                    let h_scrollbar = div().absolute().inset_0().left(pinned_width);
-                    let h_scrollbar = h_scrollbar.custom_scrollbars(
-                        Scrollbars::new(ScrollAxes::Horizontal)
-                            .tracked_scroll_handle(&state.read(cx).horizontal_scroll_handle),
-                        window,
-                        cx,
-                    );
-                    content = content.child(h_scrollbar);
-                } else {
-                    content = content.custom_scrollbars(
-                        Scrollbars::new(ScrollAxes::Horizontal)
-                            .tracked_scroll_handle(&state.read(cx).horizontal_scroll_handle),
-                        window,
-                        cx,
-                    );
-                }
-            }
-
-            content
+            // Attach scrollbars (converts Div → Stateful<Div>)
+            table
+                .custom_scrollbars(
+                    Scrollbars::new(ScrollAxes::Both).tracked_scroll_handle(&state.read(cx).scroll_handle),
+                    window,
+                    cx,
+                )
                 .restrict_scroll_to_axis()
                 .track_focus(&state.read(cx).focus_handle)
                 .id(("table", state.entity_id()))
@@ -1147,60 +636,5 @@ impl RenderOnce for Table {
         } else {
             table.into_any_element()
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    use super::Pixels;
-    use super::ResizableColumnsState;
-    use super::TableResizeBehavior;
-    use super::px;
-
-    fn widths_px(state: &ResizableColumnsState, rem_size: Pixels) -> Vec<Pixels> {
-        state.widths.as_slice().iter().map(|width| width.to_pixels(rem_size)).collect()
-    }
-
-    #[test]
-    fn drag_to_resizes_only_dragged_column() {
-        let rem_size = px(16.);
-        let mut state = ResizableColumnsState::new(
-            3,
-            vec![px(40.), px(150.), px(150.)],
-            vec![TableResizeBehavior::None, TableResizeBehavior::Resizable, TableResizeBehavior::Resizable],
-        );
-
-        // Right edge of column 1 moves from 190px to 290px.
-        state.drag_to(1, px(290.), rem_size);
-        assert_eq!(widths_px(&state, rem_size), vec![px(40.), px(250.), px(150.)]);
-
-        state.drag_to(2, px(340.), rem_size);
-        assert_eq!(widths_px(&state, rem_size), vec![px(40.), px(250.), px(50.)]);
-    }
-
-    #[test]
-    fn drag_to_clamps_to_min_size() {
-        let rem_size = px(16.);
-        let mut state = ResizableColumnsState::new(
-            2,
-            vec![px(100.), px(100.)],
-            vec![TableResizeBehavior::Resizable, TableResizeBehavior::MinSize(4.)],
-        );
-
-        state.drag_to(0, px(-50.), rem_size);
-        state.drag_to(1, px(0.), rem_size);
-        let min_resizable = rem_size * TableResizeBehavior::Resizable.min_size().unwrap();
-        assert_eq!(widths_px(&state, rem_size), vec![min_resizable, px(64.)]);
-    }
-
-    #[test]
-    fn reset_column_to_initial_width() {
-        let rem_size = px(16.);
-        let mut state = ResizableColumnsState::new(1, vec![px(150.)], vec![TableResizeBehavior::Resizable]);
-
-        state.drag_to(0, px(300.), rem_size);
-        state.reset_column_to_initial_width(0);
-        assert_eq!(widths_px(&state, rem_size), vec![px(150.)]);
     }
 }

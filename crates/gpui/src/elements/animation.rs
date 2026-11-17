@@ -42,13 +42,6 @@ impl Animation {
         self
     }
 
-    /// Set the animation to loop when it finishes, phase-locked to a clock shared by the whole [`App`].
-    pub const fn repeat_synced(mut self) -> Self {
-        self.oneshot = false;
-        self.synced = true;
-        self
-    }
-
     /// Sets the easing function used to map normalized time to an animated value.
     ///
     /// The output is not clamped, allowing physical easing functions such as
@@ -225,11 +218,6 @@ mod easing {
     /// The linear easing function, or delta itself.
     pub const fn linear(delta: f32) -> f32 {
         delta
-    }
-
-    /// The quadratic easing function, delta * delta.
-    pub fn quadratic(delta: f32) -> f32 {
-        delta * delta
     }
 
     /// The quadratic ease-in-out function, which starts and ends slowly but speeds up in the middle.

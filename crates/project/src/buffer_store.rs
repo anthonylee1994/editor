@@ -2,7 +2,6 @@ use std::collections::hash_map;
 use std::io;
 use std::sync::Arc;
 
-use anyhow::Context as _;
 use anyhow::Result;
 use anyhow::anyhow;
 use futures::FutureExt as _;
@@ -538,10 +537,6 @@ impl BufferStore {
 
     pub fn get(&self, buffer_id: BufferId) -> Option<Entity<Buffer>> {
         self.opened_buffers.get(&buffer_id)?.upgrade()
-    }
-
-    pub fn get_existing(&self, buffer_id: BufferId) -> Result<Entity<Buffer>> {
-        self.get(buffer_id).with_context(|| format!("unknown buffer id {buffer_id}"))
     }
 
     fn buffer_changed_file(&mut self, buffer: Entity<Buffer>, cx: &App) -> Option<()> {

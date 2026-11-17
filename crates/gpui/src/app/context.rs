@@ -27,7 +27,6 @@ use crate::FocusOutEvent;
 use crate::Focusable;
 use crate::Global;
 use crate::KeystrokeObserver;
-use crate::Priority;
 use crate::Reservation;
 use crate::SingleSubscriberSet;
 use crate::Subscription;
@@ -36,7 +35,6 @@ use crate::WeakEntity;
 use crate::WeakFocusHandle;
 use crate::Window;
 use crate::WindowHandle;
-use crate::WindowVisibility;
 
 /// The app context, with specialized behavior for the given entity.
 pub struct Context<'a, T> {
@@ -259,11 +257,6 @@ impl<'a, T: 'static> Context<'a, T> {
         })
     }
 
-    /// Focus the given view in the given window. View type is required to implement Focusable.
-    pub fn focus_view<W: Focusable>(&mut self, view: &Entity<W>, window: &mut Window) {
-        window.focus(&view.focus_handle(self), self);
-    }
-
     /// Sets a given callback to be run on the next frame.
     pub fn on_next_frame(&self, window: &mut Window, f: impl FnOnce(&mut T, &mut Window, &mut Context<T>) + 'static)
     where
@@ -382,45 +375,6 @@ impl<'a, T: 'static> Context<'a, T> {
         let view = self.weak_entity();
         window
             .activation_observers
-            .insert(Box::new(move |window, cx| view.update(cx, |view, cx| callback(view, window, cx)).is_ok()))
-    }
-
-    /// Registers a callback to be invoked when the window's visibility changes
-    /// (see [`WindowVisibility`]).
-    pub fn observe_window_visibility(
-        &self,
-        window: &mut Window,
-        mut callback: impl FnMut(&mut T, WindowVisibility, &mut Window, &mut Context<T>) + 'static,
-    ) -> Subscription {
-        let view = self.weak_entity();
-        window.visibility_observers.insert(Box::new(move |visibility, window, cx| {
-            view.update(cx, |view, cx| callback(view, visibility, window, cx)).is_ok()
-        }))
-    }
-
-    /// Registers a callback to be invoked when the window appearance changes.
-    pub fn observe_window_appearance(
-        &self,
-        window: &mut Window,
-        mut callback: impl FnMut(&mut T, &mut Window, &mut Context<T>) + 'static,
-    ) -> Subscription {
-        let view = self.weak_entity();
-        window
-            .appearance_observers
-            .insert(Box::new(move |window, cx| view.update(cx, |view, cx| callback(view, window, cx)).is_ok()))
-    }
-
-    /// Registers a callback invoked when the window moves to another display
-    /// or its display's refresh interval changes. See
-    /// [`Window::observe_window_display`].
-    pub fn observe_window_display(
-        &self,
-        window: &mut Window,
-        mut callback: impl FnMut(&mut T, &mut Window, &mut Context<T>) + 'static,
-    ) -> Subscription {
-        let view = self.weak_entity();
-        window
-            .display_observers
             .insert(Box::new(move |window, cx| view.update(cx, |view, cx| callback(view, window, cx)).is_ok()))
     }
 
@@ -590,21 +544,6 @@ impl<'a, T: 'static> Context<'a, T> {
     {
         let view = self.weak_entity();
         window.spawn(self, async move |cx| f(view, cx).await)
-    }
-
-    /// Schedule a future to be run asynchronously with the given priority.
-    /// The given callback is invoked with a [`WeakEntity<V>`] to avoid leaking the entity for a long-running process.
-    /// It's also given an [`AsyncWindowContext`], which can be used to access the state of the entity across await points.
-    /// The returned future will be polled on the main thread.
-    #[track_caller]
-    #[inline(always)]
-    pub fn spawn_in_with_priority<AsyncFn, R>(&self, priority: Priority, window: &Window, f: AsyncFn) -> Task<R>
-    where
-        R: 'static,
-        AsyncFn: AsyncFnOnce(WeakEntity<T>, &mut AsyncWindowContext) -> R + 'static,
-    {
-        let view = self.weak_entity();
-        window.spawn_with_priority(priority, self, async move |cx| f(view, cx).await)
     }
 
     /// Register a callback to be invoked when the given global state changes.

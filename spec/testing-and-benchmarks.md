@@ -37,6 +37,9 @@ builds, or another target in the same package must remain available.
 Default and all-feature workspace checks must have no unused-dependency warnings.
 Keep the workspace lint enabled; exceptions for dependencies shared between a
 library and its binary are confined to the affected target.
+`cargo lint` also rejects `pub` functions whose name is mentioned nowhere else
+in the workspace: remove them, along with any state only they reached, rather
+than keeping unused API.
 No crate has `[dev-dependencies]`: unit tests use only what the crate's own
 code depends on (std scratch dirs instead of `tempfile`), and a test lives in
 the crate that owns the dependency it exercises (e.g. markdown runnable queries

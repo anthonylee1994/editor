@@ -9,7 +9,6 @@ mod data_table;
 mod diff_stat;
 mod disclosure;
 mod divider;
-mod dropdown_menu;
 mod facepile;
 mod gradient_fade;
 mod group;
@@ -60,8 +59,6 @@ pub use diff_stat::*;
 pub use disclosure::*;
 #[allow(clippy::wildcard_imports)]
 pub use divider::*;
-#[allow(clippy::wildcard_imports)]
-pub use dropdown_menu::*;
 #[allow(clippy::wildcard_imports)]
 pub use facepile::*;
 #[allow(clippy::wildcard_imports)]

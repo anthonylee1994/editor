@@ -25,12 +25,9 @@ use std::ops::BitOr;
 use std::ops::BitOrAssign;
 use std::ops::Deref;
 use std::ops::Range as StdRange;
-use std::path::Path;
 use std::path::PathBuf;
 use std::process::ExitStatus;
 use std::sync::Arc;
-use std::sync::atomic::AtomicU64;
-use std::sync::atomic::Ordering;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -111,12 +108,10 @@ use crate::alacritty::PtySender;
 use crate::alacritty::RegexSearches;
 use crate::alacritty::apply_config;
 use crate::alacritty::clear_saved_screen;
-use crate::alacritty::content_text;
 use crate::alacritty::current_child_signal_mask;
 use crate::alacritty::display_offset;
 use crate::alacritty::find_from_terminal_point;
 use crate::alacritty::full_content_range;
-use crate::alacritty::last_non_empty_lines;
 use crate::alacritty::make_content;
 use crate::alacritty::new_term;
 use crate::alacritty::open_pty;
@@ -783,21 +778,6 @@ impl Display for TerminalError {
 // https://github.com/alacritty/alacritty/blob/cb3a79dbf6472740daca8440d5166c1d4af5029e/extra/man/alacritty.5.scd?plain=1#L207-L213
 const DEFAULT_SCROLL_HISTORY_LINES: usize = 10_000;
 pub const MAX_SCROLL_HISTORY_LINES: usize = 100_000;
-static NEXT_INIT_COMMAND_STARTUP_MARKER_ID: AtomicU64 = AtomicU64::new(1);
-
-const INIT_COMMAND_STARTUP_MARKER_PREFIX: &str = "__ed_init_command_ready_";
-const INIT_COMMAND_STARTUP_MARKER_SUFFIX: &str = "__";
-const INIT_COMMAND_STARTUP_MARKER_SEARCH_LINES: usize = 64;
-
-fn init_command_startup_marker(marker_id: u64) -> String {
-    format!("{INIT_COMMAND_STARTUP_MARKER_PREFIX}{marker_id}{INIT_COMMAND_STARTUP_MARKER_SUFFIX}")
-}
-
-fn init_command_startup_marker_command(marker_id: u64) -> String {
-    // Split the marker across the command so its echo can't satisfy the
-    // handshake; only the command's output contains the contiguous marker.
-    format!("printf '%s%s%s\\n' {INIT_COMMAND_STARTUP_MARKER_PREFIX} {marker_id} {INIT_COMMAND_STARTUP_MARKER_SUFFIX}")
-}
 
 /// Configures whether a terminal runs an interactive shell or a tracked task.
 ///
@@ -1011,8 +991,6 @@ impl TerminalBuilder {
                 },
                 child_exited: None,
                 keyboard_input_sent: false,
-                init_command_startup_marker: None,
-                init_command_startup_tx: None,
                 event_loop_task: Task::ready(Ok(())),
                 background_executor,
                 cwd_history: working_directory.as_ref().map_or_default(|working_directory| {
@@ -1136,8 +1114,6 @@ pub struct Terminal {
     template: CopyTemplate,
     child_exited: Option<ExitStatus>,
     keyboard_input_sent: bool,
-    init_command_startup_marker: Option<String>,
-    init_command_startup_tx: Option<Sender<()>>,
     event_loop_task: Task<Result<(), anyhow::Error>>,
     background_executor: BackgroundExecutor,
     cwd_history: Vec<CwdHistoryEntry>,
@@ -1242,7 +1218,6 @@ impl Terminal {
                 //NOOP, Handled in render
             }
             TerminalBackendEvent::Wakeup => {
-                self.detect_init_command_startup_marker();
                 cx.emit(Event::Wakeup);
 
                 if let TerminalType::Pty { info, .. } = &self.terminal_type {
@@ -1475,61 +1450,6 @@ impl Terminal {
         apply_config(&self.term, &self.term_config);
     }
 
-    /// Normalizes line endings so text captured outside a PTY starts each line at column zero.
-    pub fn write_output(&mut self, bytes: &[u8], cx: &mut Context<Self>) {
-        let mut previous_byte_was_cr = false;
-        let converted = convert_lf_to_crlf(bytes, &mut previous_byte_was_cr);
-        self.write_raw_output(&converted, cx);
-    }
-
-    /// Terminal byte streams already contain their control sequences and must not be normalized.
-    pub fn write_raw_output(&mut self, bytes: &[u8], cx: &mut Context<Self>) {
-        let mut term = self.term.lock();
-        self.output_processor.get_or_insert_with(Processor::<StdSyncHandler>::new).advance(&mut *term, bytes);
-        drop(term);
-        self.detect_init_command_startup_marker();
-        cx.emit(Event::Wakeup);
-    }
-
-    /// Replaces all display-only output while retaining the terminal entity and its dimensions.
-    pub fn replace_display_output(&mut self, bytes: &[u8], cx: &mut Context<Self>) -> Result<()> {
-        if !matches!(self.terminal_type, TerminalType::DisplayOnly) || self.subprocess.is_some() {
-            bail!("cannot replace output of a process-backed terminal");
-        }
-        let Some(events_tx) = &self.output_events_tx else {
-            bail!("display-only terminal has no output event channel");
-        };
-        let Some(generation) = self.output_generation.checked_add(1) else {
-            bail!("display output generation exhausted");
-        };
-        let bounds = self.last_content.terminal_bounds;
-        let term = new_term(&self.term_config, bounds, events_tx.clone(), generation);
-        self.output_generation = generation;
-        self.term = term;
-        self.output_processor = None;
-        // The new emulator already has the latest requested size; older resizes can truncate it.
-        self.events.clear();
-        self.last_content = Content { terminal_bounds: bounds, ..Default::default() };
-        self.last_mouse = None;
-        self.mouse_down_position = None;
-        self.matches.clear();
-        self.selection_head = None;
-        self.scroll_px = px(0.);
-        self.next_link_id = 0;
-        self.selection_phase = SelectionPhase::Ended;
-        self.hyperlink_regex_searches =
-            RegexSearches::new(&self.template.path_hyperlink_regexes, self.template.path_hyperlink_timeout);
-        self.vi_mode_enabled = false;
-        self.last_hyperlink_search_position = None;
-        self.mouse_down_hyperlink = None;
-        self.cwd_history.clear();
-        self.pending_cwd_boundary = None;
-        self.write_raw_output(bytes, cx);
-        cx.emit(Event::NewNavigationTarget(None));
-        cx.emit(Event::OutputReplaced);
-        Ok(())
-    }
-
     pub fn total_lines(&self) -> usize {
         total_lines(&self.term.lock_unfair())
     }
@@ -1666,102 +1586,7 @@ impl Terminal {
 
     pub fn input(&mut self, input: impl Into<Cow<'static, [u8]>>) {
         self.keyboard_input_sent = true;
-        self.complete_init_command_startup_handshake();
         self.write_input(input);
-    }
-
-    /// Sends a shell-level marker command and returns a task that completes when
-    /// the marker appears in terminal output. Already complete for non-PTY
-    /// terminals or those whose child has exited.
-    ///
-    /// Call at most once per terminal: a second handshake drops the previous
-    /// `Sender`, which would write the init command twice.
-    pub fn start_init_command_startup_handshake(&mut self) -> Task<()> {
-        if !self.is_pty() || self.child_exited.is_some() {
-            return Task::ready(());
-        }
-
-        let (startup_tx, startup_rx) = async_channel::bounded(1);
-        let startup_task = self.background_executor.spawn(async move {
-            match startup_rx.recv().await {
-                Ok(()) | Err(_) => {}
-            }
-        });
-
-        let marker_id = NEXT_INIT_COMMAND_STARTUP_MARKER_ID.fetch_add(1, Ordering::Relaxed);
-        self.init_command_startup_marker = Some(init_command_startup_marker(marker_id));
-        self.init_command_startup_tx = Some(startup_tx);
-
-        let mut input = init_command_startup_marker_command(marker_id).into_bytes();
-        input.push(b'\x0d');
-        self.write_to_pty(input);
-
-        startup_task
-    }
-
-    fn detect_init_command_startup_marker(&mut self) {
-        let Some(marker) = self.init_command_startup_marker.as_deref() else {
-            return;
-        };
-
-        let has_marker = {
-            let term = self.term.lock_unfair();
-            last_non_empty_lines(&term, INIT_COMMAND_STARTUP_MARKER_SEARCH_LINES)
-                .iter()
-                .any(|line| line.contains(marker))
-        };
-
-        if has_marker {
-            self.complete_init_command_startup_handshake();
-        }
-    }
-
-    fn complete_init_command_startup_handshake(&mut self) {
-        self.init_command_startup_marker = None;
-        if let Some(startup_tx) = self.init_command_startup_tx.take() {
-            match startup_tx.try_send(()) {
-                Ok(()) | Err(async_channel::TrySendError::Full(())) => {}
-                Err(async_channel::TrySendError::Closed(())) => {}
-            }
-        }
-    }
-
-    /// Write a programmatically-generated command to the PTY as if it had been
-    /// typed, without marking the terminal as having received user keyboard
-    /// input.
-    pub fn write_init_command(&mut self, input: impl Into<Cow<'static, [u8]>>) {
-        self.write_input(input);
-    }
-
-    pub const fn is_pty(&self) -> bool {
-        matches!(self.terminal_type, TerminalType::Pty { .. })
-    }
-
-    pub fn write_init_command_after_startup(
-        &mut self,
-        input: impl Into<Cow<'static, [u8]>>,
-        cx: &mut Context<Self>,
-    ) -> bool {
-        // Ends the handshake even if the marker was never seen (timeout
-        // fallback), so detection stops scanning on every wakeup.
-        self.complete_init_command_startup_handshake();
-
-        if self.keyboard_input_sent || self.child_exited.is_some() {
-            return false;
-        }
-
-        self.clear_for_init_command(cx);
-        self.write_init_command(input);
-        true
-    }
-
-    fn clear_for_init_command(&mut self, cx: &mut Context<Self>) {
-        let mut term = self.term.lock_unfair();
-        clear_saved_screen(&mut term);
-        self.last_content = make_content(&term, &self.last_content);
-        drop(term);
-        self.reset_cwd_history();
-        cx.emit(Event::Wakeup);
     }
 
     fn write_input(&mut self, input: impl Into<Cow<'static, [u8]>>) {
@@ -1930,22 +1755,6 @@ impl Terminal {
                 cx.emit(Event::Wakeup);
             }
         }
-    }
-
-    pub fn with_renderable_cells<R>(&self, f: impl for<'a> FnOnce(RenderableCells<'a>) -> R) -> R {
-        let term = self.term.lock_unfair();
-        let content = term.renderable_content();
-        f(RenderableCells::new(content.display_iter))
-    }
-
-    pub fn get_content(&self) -> String {
-        let term = self.term.lock_unfair();
-        content_text(&term)
-    }
-
-    pub fn last_n_non_empty_lines(&self, n: usize) -> Vec<String> {
-        let terminal = self.term.lock_unfair();
-        last_non_empty_lines(&terminal, n)
     }
 
     pub fn focus_in(&self) {
@@ -2281,16 +2090,6 @@ impl Terminal {
         }
     }
 
-    /// Normalizes the command name of the foreground process, if one is known.
-    pub fn foreground_process_command_name(&self) -> Option<String> {
-        match &self.terminal_type {
-            TerminalType::Pty { info, .. } => {
-                info.current.read().as_ref().and_then(|process| foreground_process_command_from_argv(&process.argv))
-            }
-            TerminalType::DisplayOnly => None,
-        }
-    }
-
     /// Whether an unfinished task or a foreground job of the shell runs here.
     pub fn has_running_process(&self) -> bool {
         match (&self.task, &self.terminal_type) {
@@ -2374,33 +2173,6 @@ impl Terminal {
         }
     }
 
-    pub fn kill_active_task(&mut self) {
-        if let Some(task) = self.task()
-            && task.status == TaskStatus::Running
-        {
-            match &self.terminal_type {
-                TerminalType::Pty { info, .. } => {
-                    // First kill the foreground process group (the command running in the shell)
-                    info.kill_current_process();
-                    // Then kill the shell itself so that the terminal exits properly
-                    // and wait_for_completed_task can complete
-                    info.kill_child_process();
-                }
-                TerminalType::DisplayOnly => {
-                    // Non-PTY task terminals own their subprocess directly.
-                    if let Some(subprocess) = &self.subprocess {
-                        subprocess.kill();
-                    }
-                }
-            }
-        }
-    }
-
-    /// Returns whether this terminal still owns its live PTY sender.
-    pub const fn has_active_pty_resources(&self) -> bool {
-        matches!(self.terminal_type, TerminalType::Pty { resources: PtyResources::Active(_), .. })
-    }
-
     /// Releases live PTY resources, including the parse buffer used by
     /// [`Terminal::write_output`], while retaining process metadata and buffered
     /// output.
@@ -2468,7 +2240,6 @@ impl Terminal {
         if let Some(e) = exit_status {
             self.child_exited = Some(e);
         }
-        self.complete_init_command_startup_handshake();
         let Some(task) = &mut self.task else {
             // For interactive shells (no task), we need to differentiate:
             // 1. User-initiated exits (typed "exit", Ctrl+D, etc.) - always close,
@@ -2656,63 +2427,6 @@ impl Drop for Terminal {
 }
 
 impl EventEmitter<Event> for Terminal {}
-
-fn normalize_path_command_name(command: &str) -> Option<String> {
-    const MAX_COMMAND_NAME_LENGTH: usize = 64;
-
-    let command = command.trim();
-    if command.is_empty()
-        || command.len() > MAX_COMMAND_NAME_LENGTH
-        || command.starts_with('.')
-        || command.starts_with('-')
-        || command.contains('/')
-        || command.contains('\\')
-    {
-        return None;
-    }
-
-    let mut command = command.to_ascii_lowercase();
-    for suffix in [".exe", ".cmd", ".bat", ".ps1"] {
-        if command.ends_with(suffix) {
-            command.truncate(command.len() - suffix.len());
-            break;
-        }
-    }
-
-    if command.is_empty()
-        || !command.chars().all(|character| character.is_ascii_alphanumeric() || matches!(character, '-' | '_' | '.'))
-    {
-        return None;
-    }
-
-    Some(command)
-}
-
-fn foreground_process_command_from_argv(argv: &[String]) -> Option<String> {
-    let command = argv.first().and_then(|command| normalize_path_command_name(command));
-
-    if !matches!(command.as_deref(), Some("node" | "python" | "python3" | "bun" | "deno")) {
-        return command;
-    }
-
-    argv.iter().skip(1).find_map(|argument| normalize_script_command_name(argument)).or(command)
-}
-
-fn normalize_script_command_name(argument: &str) -> Option<String> {
-    let path = Path::new(argument);
-    let file_stem = path.file_stem().and_then(|file_stem| file_stem.to_str()).and_then(normalize_path_command_name)?;
-
-    if file_stem != "index" {
-        return Some(file_stem);
-    }
-
-    path.parent()
-        .and_then(|parent| parent.parent())
-        .and_then(|package_path| package_path.file_name())
-        .and_then(|package_name| package_name.to_str())
-        .and_then(|package_name| package_name.strip_suffix("-cli").or(Some(package_name)))
-        .and_then(normalize_path_command_name)
-}
 
 fn content_index_for_mouse(pos: GpuiPoint<Pixels>, terminal_bounds: &TerminalBounds) -> usize {
     let col = (pos.x / terminal_bounds.cell_width()).round() as usize;

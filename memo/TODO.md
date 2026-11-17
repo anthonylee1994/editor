@@ -18,3 +18,6 @@
 ```
 sudo sfltool resetbtm
 ```
+
+# git history
+select multiple revision, merge the file change into one?

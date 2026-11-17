@@ -4,7 +4,6 @@ use std::mem;
 use std::time::Duration;
 
 use gpui_util::ResultExt as _;
-use scheduler::Instant;
 use smallvec::SmallVec;
 
 use super::DispatchPhase;
@@ -17,8 +16,6 @@ use crate::App;
 use crate::CursorHideMode;
 use crate::DispatchActionListener;
 use crate::DispatchNodeId;
-use crate::Entity;
-use crate::EntityId;
 use crate::InputPreference;
 use crate::KeyBinding;
 use crate::KeyContext;
@@ -30,126 +27,15 @@ use crate::MouseMoveEvent;
 use crate::MouseUpEvent;
 use crate::PlatformInput;
 use crate::Replay;
-use crate::Subscription;
 use crate::Task;
 
 const PENDING_INPUT_TIMEOUT: Duration = Duration::from_secs(1);
-
-/// Pending input for a potential multi-stroke key binding.
-pub struct PendingInputStatus<'a> {
-    keystrokes: &'a [Keystroke],
-    timeout: Option<PendingInputTimeoutStatus>,
-}
-
-impl<'a> PendingInputStatus<'a> {
-    /// Returns the keystrokes entered so far.
-    pub const fn keystrokes(&self) -> &'a [Keystroke] {
-        self.keystrokes
-    }
-
-    /// Returns the timeout state for flushing this input, if it needs a timeout.
-    pub const fn timeout(&self) -> Option<PendingInputTimeoutStatus> {
-        self.timeout
-    }
-}
-
-/// The timeout state for pending input.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct PendingInputTimeoutStatus {
-    duration: Duration,
-    remaining: Duration,
-    started_at: Option<Instant>,
-    paused: bool,
-}
-
-impl PendingInputTimeoutStatus {
-    /// Returns the full timeout duration.
-    pub const fn duration(&self) -> Duration {
-        self.duration
-    }
-
-    /// Returns the duration remaining before pending input is flushed.
-    pub fn remaining(&self, cx: &App) -> Duration {
-        self.started_at.map_or(self.remaining, |started_at| {
-            self.remaining.saturating_sub(cx.background_executor().now() - started_at)
-        })
-    }
-}
-
-#[derive(Debug)]
-pub(super) struct PendingInputTimeout {
-    duration: Duration,
-    remaining: Duration,
-    state: PendingInputTimeoutState,
-}
-
-#[derive(Debug)]
-pub(super) enum PendingInputTimeoutState {
-    Running { started_at: Instant, task: Task<()> },
-    Paused { pause: PendingInputTimeoutPause },
-}
-
-#[derive(Debug)]
-pub(super) struct PendingInputTimeoutPause {
-    owner_id: EntityId,
-    _release_subscription: Subscription,
-}
-
-impl PendingInputTimeout {
-    const fn is_paused(&self) -> bool {
-        matches!(&self.state, PendingInputTimeoutState::Paused { .. })
-    }
-
-    fn pause(&mut self, pause: PendingInputTimeoutPause, now: Instant) -> bool {
-        match mem::replace(&mut self.state, PendingInputTimeoutState::Paused { pause }) {
-            PendingInputTimeoutState::Running { started_at, task } => {
-                self.remaining = self.remaining.saturating_sub(now - started_at);
-                drop(task);
-                true
-            }
-            previous_state @ PendingInputTimeoutState::Paused { .. } => {
-                self.state = previous_state;
-                false
-            }
-        }
-    }
-
-    const fn pause_owner_id(&self) -> Option<EntityId> {
-        match &self.state {
-            PendingInputTimeoutState::Running { .. } => None,
-            PendingInputTimeoutState::Paused { pause } => Some(pause.owner_id),
-        }
-    }
-
-    fn resume(&mut self, owner_id: EntityId, started_at: Instant, task: Task<()>) -> bool {
-        match mem::replace(&mut self.state, PendingInputTimeoutState::Running { started_at, task }) {
-            PendingInputTimeoutState::Paused { pause } if pause.owner_id == owner_id => true,
-            previous_state => {
-                self.state = previous_state;
-                false
-            }
-        }
-    }
-
-    const fn reset_duration(&mut self, duration: Duration) {
-        self.duration = duration;
-        self.remaining = duration;
-    }
-
-    const fn status(&self) -> PendingInputTimeoutStatus {
-        let (started_at, paused) = match &self.state {
-            PendingInputTimeoutState::Running { started_at, .. } => (Some(*started_at), false),
-            PendingInputTimeoutState::Paused { .. } => (None, true),
-        };
-        PendingInputTimeoutStatus { duration: self.duration, remaining: self.remaining, started_at, paused }
-    }
-}
 
 #[derive(Default, Debug)]
 pub(super) struct PendingInput {
     keystrokes: SmallVec<[Keystroke; 1]>,
     focus: Option<FocusId>,
-    timeout: Option<PendingInputTimeout>,
+    timeout: Option<Task<()>>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -185,15 +71,6 @@ impl Window {
         }
 
         false
-    }
-
-    /// Return a key binding string for an action, to display in the UI. Uses the highest precedence
-    /// binding for the action (last binding added to the keymap).
-    pub fn keystroke_text_for(&self, action: &dyn Action) -> String {
-        self.highest_precedence_binding_for_action(action).map_or_else(
-            || action.name().to_owned(),
-            |binding| binding.keystrokes().iter().map(ToString::to_string).collect::<Vec<_>>().join(" "),
-        )
     }
 
     /// Dispatch a mouse or keyboard event on the window.
@@ -392,21 +269,7 @@ impl Window {
             return;
         };
 
-        let input_preference = self.input_preference(event, cx);
-
         cx.propagate_event = true;
-        self.dispatch_keystroke_interceptors(&keystroke, input_preference, self.context_stack(), cx);
-        if !cx.propagate_event {
-            self.finish_dispatch_key_event(
-                event,
-                Some(&keystroke),
-                input_preference,
-                dispatch_path,
-                self.context_stack(),
-                cx,
-            );
-            return;
-        }
 
         let mut currently_pending = self.pending_input.take().unwrap_or_default();
         if currently_pending.focus.is_some() && currently_pending.focus != self.focus {
@@ -448,27 +311,15 @@ impl Window {
                 || match_result.pending_has_binding
                 || text_input_requires_timeout
                 || standalone_modifier;
-            currently_pending.timeout = if needs_timeout {
-                match previous_timeout {
-                    Some(mut timeout) if timeout.is_paused() => {
-                        timeout.reset_duration(PENDING_INPUT_TIMEOUT);
-                        Some(timeout)
-                    }
-                    previous_timeout => {
-                        drop(previous_timeout);
-                        Some(self.new_pending_input_timeout(PENDING_INPUT_TIMEOUT, cx))
-                    }
-                }
-            } else {
-                None
-            };
+            // Dropping the previous task cancels it, so each keystroke restarts the timeout.
+            currently_pending.timeout = needs_timeout.then(|| self.start_pending_input_timeout(cx));
             self.pending_input = Some(currently_pending);
             self.pending_input_changed(cx);
             cx.propagate_event = false;
             return;
         }
 
-        // Interceptors or replayed actions may have changed whether the input handler accepts text.
+        // Replayed actions may have changed whether the input handler accepts text.
         let input_preference = self.input_preference(event, cx);
         if input_preference == InputPreference::KeyBindings {
             for binding in match_result.bindings {
@@ -498,19 +349,9 @@ impl Window {
         self.pending_input_changed(cx);
     }
 
-    fn new_pending_input_timeout(&self, duration: Duration, cx: &App) -> PendingInputTimeout {
-        let (started_at, task) = self.start_pending_input_timeout(duration, cx);
-        PendingInputTimeout {
-            duration,
-            remaining: duration,
-            state: PendingInputTimeoutState::Running { started_at, task },
-        }
-    }
-
-    fn start_pending_input_timeout(&self, remaining: Duration, cx: &App) -> (Instant, Task<()>) {
-        let started_at = cx.background_executor().now();
-        let task = self.spawn(cx, async move |cx| {
-            cx.background_executor.timer(remaining).await;
+    fn start_pending_input_timeout(&self, cx: &App) -> Task<()> {
+        self.spawn(cx, async move |cx| {
+            cx.background_executor.timer(PENDING_INPUT_TIMEOUT).await;
             cx.update(move |window, cx| {
                 let Some(currently_pending) =
                     window.pending_input.take().filter(|pending| pending.focus == window.focus)
@@ -528,8 +369,7 @@ impl Window {
                 window.replay_pending_input(to_replay, cx);
             })
             .log_err();
-        });
-        (started_at, task)
+        })
     }
 
     fn finish_dispatch_key_event(
@@ -626,7 +466,7 @@ impl Window {
 
     /// Determine whether a potential multi-stroke key binding is in progress on this window.
     pub fn has_pending_keystrokes(&self) -> bool {
-        self.pending_input().is_some()
+        self.pending_input_keystrokes().is_some()
     }
 
     pub(crate) fn clear_pending_keystrokes(&mut self, cx: &mut App) {
@@ -635,90 +475,13 @@ impl Window {
         }
     }
 
-    /// Returns pending input that can still complete a multi-stroke key binding. Input left over
-    /// from a previous focus can never complete one.
-    pub fn pending_input(&self) -> Option<PendingInputStatus<'_>> {
-        self.pending_input.as_ref().filter(|pending_input| pending_input.focus == self.focus).map(|pending_input| {
-            PendingInputStatus {
-                keystrokes: pending_input.keystrokes.as_slice(),
-                timeout: pending_input.timeout.as_ref().map(PendingInputTimeout::status),
-            }
-        })
-    }
-
-    /// Pauses or resumes the current pending input timeout on behalf of `owner`.
-    ///
-    /// A paused timeout resumes automatically if `owner` is released. Returns whether the timeout
-    /// state changed. A timeout paused by one owner cannot be resumed by another.
-    pub fn set_pending_input_timeout_paused<T: 'static>(
-        &mut self,
-        owner: &Entity<T>,
-        paused: bool,
-        cx: &mut App,
-    ) -> bool {
-        let owner_id = owner.entity_id();
-        if !paused {
-            return self.resume_pending_input_timeout(owner_id, cx);
-        }
-
-        let timeout = self
-            .pending_input
-            .as_ref()
-            .filter(|pending_input| pending_input.focus == self.focus)
-            .and_then(|pending_input| pending_input.timeout.as_ref());
-        let Some(timeout) = timeout else {
-            return false;
-        };
-        if timeout.is_paused() {
-            return false;
-        }
-
-        let release_subscription = self.observe_release(owner, cx, move |_, window, cx| {
-            window.resume_pending_input_timeout(owner_id, cx);
-        });
-        let now = cx.background_executor().now();
-        let changed = self
-            .pending_input
-            .as_mut()
-            .filter(|pending_input| pending_input.focus == self.focus)
-            .and_then(|pending_input| pending_input.timeout.as_mut())
-            .is_some_and(|timeout| {
-                timeout.pause(PendingInputTimeoutPause { owner_id, _release_subscription: release_subscription }, now)
-            });
-
-        if changed {
-            self.defer_pending_input_changed(cx);
-        }
-        changed
-    }
-
-    fn resume_pending_input_timeout(&mut self, owner_id: EntityId, cx: &mut App) -> bool {
-        let Some(remaining) = self
-            .pending_input
-            .as_ref()
-            .and_then(|pending_input| pending_input.timeout.as_ref())
-            .filter(|timeout| timeout.pause_owner_id() == Some(owner_id))
-            .map(|timeout| timeout.remaining)
-        else {
-            return false;
-        };
-
-        let (started_at, task) = self.start_pending_input_timeout(remaining, cx);
-        let changed = self
-            .pending_input
-            .as_mut()
-            .and_then(|pending_input| pending_input.timeout.as_mut())
-            .is_some_and(|timeout| timeout.resume(owner_id, started_at, task));
-
-        if changed {
-            self.defer_pending_input_changed(cx);
-        }
-        changed
-    }
-
-    /// Returns the currently pending input keystrokes that might result in a multi-stroke key binding.
+    /// Returns the pending keystrokes that can still complete a multi-stroke key binding. Input
+    /// left over from a previous focus can never complete one.
     pub fn pending_input_keystrokes(&self) -> Option<&[Keystroke]> {
-        self.pending_input().map(|pending_input| pending_input.keystrokes())
+        self.pending_input
+            .as_ref()
+            .filter(|pending_input| pending_input.focus == self.focus)
+            .map(|pending_input| pending_input.keystrokes.as_slice())
     }
 
     fn replay_pending_input(&mut self, replays: SmallVec<[Replay; 1]>, cx: &mut App) {
@@ -882,23 +645,6 @@ impl Window {
         self.rendered_frame
             .dispatch_tree
             .highest_precedence_binding_for_action(action, &self.rendered_frame.dispatch_tree.context_stack)
-    }
-
-    /// Returns the key bindings for an action in a context.
-    pub fn bindings_for_action_in_context(&self, action: &dyn Action, context: KeyContext) -> Vec<KeyBinding> {
-        let dispatch_tree = &self.rendered_frame.dispatch_tree;
-        dispatch_tree.bindings_for_action(action, &[context])
-    }
-
-    /// Returns any bindings that would invoke an action on the given focus handle if it were
-    /// focused. Bindings are returned in the order they were added. For display, the last binding
-    /// should take precedence.
-    pub fn bindings_for_action_in(&self, action: &dyn Action, focus_handle: &FocusHandle) -> Vec<KeyBinding> {
-        let dispatch_tree = &self.rendered_frame.dispatch_tree;
-        let Some(context_stack) = self.context_stack_for_focus_handle(focus_handle) else {
-            return vec![];
-        };
-        dispatch_tree.bindings_for_action(action, &context_stack)
     }
 
     /// Returns the highest precedence key binding that would invoke an action on the given focus

@@ -16,7 +16,6 @@ mod assets;
 mod bounds_tree;
 mod color;
 /// The default colors used by GPUI.
-pub mod colors;
 mod element;
 mod elements;
 mod executor;

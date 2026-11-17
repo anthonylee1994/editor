@@ -92,15 +92,6 @@ pub trait Action: Any + Send {
     fn build(value: serde_json::Value) -> Result<Box<dyn Action>>
     where
         Self: Sized;
-
-    /// The documentation for this action, if any. When using the derive macro for actions
-    /// this will be automatically generated from the doc comments on the action struct.
-    fn documentation() -> Option<&'static str>
-    where
-        Self: Sized,
-    {
-        None
-    }
 }
 
 impl Debug for dyn Action {
@@ -162,8 +153,7 @@ type ActionBuilder = fn(json: serde_json::Value) -> anyhow::Result<Box<dyn Actio
 pub(crate) struct ActionRegistry {
     by_name: FxHashMap<&'static str, ActionData>,
     names_by_type_id: HashMap<TypeId, &'static str, TypeIdHashBuilder>,
-    all_names: Vec<&'static str>,                         // So we can return a static slice.
-    documentation: FxHashMap<&'static str, &'static str>, // action name -> documentation
+    all_names: Vec<&'static str>, // So we can return a static slice.
 }
 
 impl Default for ActionRegistry {
@@ -171,7 +161,6 @@ impl Default for ActionRegistry {
         let mut this = ActionRegistry {
             by_name: FxHashMap::default(),
             names_by_type_id: HashMap::default(),
-            documentation: FxHashMap::default(),
             all_names: Vec::default(),
         };
 
@@ -197,7 +186,6 @@ pub struct MacroActionData {
     pub name: &'static str,
     pub type_id: TypeId,
     pub build: ActionBuilder,
-    pub documentation: Option<&'static str>,
 }
 
 inventory::collect!(MacroActionBuilder);
@@ -217,9 +205,6 @@ impl ActionRegistry {
         self.by_name.insert(name, ActionData { build: action.build });
         self.names_by_type_id.insert(action.type_id, name);
         self.all_names.push(name);
-        if let Some(documentation) = action.documentation {
-            self.documentation.insert(name, documentation);
-        }
     }
 
     /// Construct an action based on its name and optional JSON parameters sourced from the keymap.
@@ -244,10 +229,6 @@ impl ActionRegistry {
 
     pub(crate) const fn all_action_names(&self) -> &[&'static str] {
         self.all_names.as_slice()
-    }
-
-    pub(crate) const fn documentation(&self) -> &FxHashMap<&'static str, &'static str> {
-        &self.documentation
     }
 }
 

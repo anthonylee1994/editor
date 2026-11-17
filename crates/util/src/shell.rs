@@ -97,14 +97,6 @@ impl ShellKind {
         interactive.then(|| "-i".to_owned()).into_iter().chain(["-c".to_owned(), combined_command]).collect()
     }
 
-    pub const fn sequential_commands_separator(&self) -> char {
-        ';'
-    }
-
-    pub const fn sequential_and_commands_separator(&self) -> &'static str {
-        "&&"
-    }
-
     pub fn try_quote<'a>(&self, arg: &'a str) -> Option<Cow<'a, str>> {
         shlex::try_quote(arg).ok()
     }

@@ -364,34 +364,6 @@ impl LspStore {
         })
     }
 
-    pub fn resolve_code_action(
-        &self,
-        buffer: &Entity<Buffer>,
-        mut action: CodeAction,
-        cx: &mut Context<Self>,
-    ) -> Task<Result<CodeAction>> {
-        if action.resolved {
-            return Task::ready(Ok(action));
-        }
-        if !self.can_resolve_lsp_action_for_buffer(buffer, &action, cx) {
-            action.resolved = true;
-            return Task::ready(Ok(action));
-        }
-        let server_id = action.server_id;
-        let Some(lang_server) = buffer.update(cx, |buffer, cx| {
-            self.language_server_for_local_buffer(buffer, server_id, cx).map(|(_, server)| Arc::clone(server))
-        }) else {
-            return Task::ready(Ok(action));
-        };
-        let request_timeout = LSP_REQUEST_TIMEOUT;
-        cx.background_spawn(async move {
-            LocalLspStore::try_resolve_code_action(&lang_server, &mut action, true, request_timeout)
-                .await
-                .context("resolving a code action")?;
-            Ok(action)
-        })
-    }
-
     pub fn apply_code_action_kind(
         &mut self,
         buffers: FxHashSet<Entity<Buffer>>,

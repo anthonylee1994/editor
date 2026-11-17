@@ -143,18 +143,6 @@ impl AsyncApp {
         read(app.global(), &app)
     }
 
-    /// Reads the global state of the specified type, passing it to the given callback.
-    ///
-    /// Similar to [`AsyncApp::read_global`], but returns an error instead of panicking.
-    pub fn try_read_global<G: Global, R>(&self, read: impl FnOnce(&G, &App) -> R) -> Option<R> {
-        let app = self.app();
-        let app = app.borrow_mut();
-        if app.quitting {
-            return None;
-        }
-        Some(read(app.try_global()?, &app))
-    }
-
     /// A convenience method for [`App::update_global`](BorrowAppContext::update_global)
     /// for updating the global state of the specified type.
     pub fn update_global<G: Global, R>(&self, update: impl FnOnce(&mut G, &mut App) -> R) -> R {

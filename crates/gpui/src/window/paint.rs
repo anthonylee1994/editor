@@ -561,21 +561,6 @@ impl Window {
         Ok(())
     }
 
-    /// Paint a monochrome SVG into the scene for the next frame at the current stacking context.
-    ///
-    /// This method should only be called as part of the paint phase of element drawing.
-    pub fn paint_svg(
-        &mut self,
-        bounds: Bounds<Pixels>,
-        path: SharedString,
-        data: Option<&[u8]>,
-        transformation: TransformationMatrix,
-        color: Hsla,
-        cx: &App,
-    ) -> Result<()> {
-        self.paint_svg_sprite(bounds, path, data, transformation, None, color, cx)
-    }
-
     /// Like [`Self::paint_svg`], with an `animation` the window applies before every
     /// present, so the view isn't re-rendered to advance it.
     pub(crate) fn paint_svg_sprite(

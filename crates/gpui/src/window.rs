@@ -115,8 +115,6 @@ mod prompts;
 
 pub use dispatch::DispatchEventResult;
 use dispatch::PendingInput;
-pub use dispatch::PendingInputStatus;
-pub use dispatch::PendingInputTimeoutStatus;
 pub use element_id::ElementId;
 pub(crate) use element_id::ElementIdStack;
 pub use focus::DismissEvent;
@@ -650,7 +648,6 @@ pub struct Window {
     pub(crate) removed: bool,
     pub(crate) platform_window: Box<dyn PlatformWindow>,
     pub(crate) display_id: Option<DisplayId>,
-    pub(crate) display_observers: SingleSubscriberSet<AnyObserver>,
     is_resizable: bool,
     is_minimizable: bool,
     sprite_atlas: Arc<dyn PlatformAtlas>,
@@ -690,11 +687,8 @@ pub struct Window {
     scale_factor: f32,
     pub(crate) bounds_observers: SingleSubscriberSet<AnyObserver>,
     appearance: WindowAppearance,
-    pub(crate) appearance_observers: SingleSubscriberSet<AnyObserver>,
     active: Rc<Cell<bool>>,
     visibility: WindowVisibility,
-    pub(crate) visibility_observers:
-        SingleSubscriberSet<Box<dyn FnMut(WindowVisibility, &mut Window, &mut App) -> bool>>,
     pub(crate) needs_present: Rc<Cell<bool>>,
     /// Whether the timer for the next present of the scene's animated sprites is running.
     animation_frame_pending: Rc<Cell<bool>>,
@@ -1051,7 +1045,7 @@ impl Window {
                 // synchronously invoke this callback while App is already borrowed.
                 foreground_executor
                     .spawn(async move {
-                        handle.update(&mut cx, |_, window, cx| window.appearance_changed(cx)).log_err();
+                        handle.update(&mut cx, |_, window, _| window.appearance_changed()).log_err();
                     })
                     .detach();
             }
@@ -1075,11 +1069,7 @@ impl Window {
         platform_window.on_visibility_change(Box::new({
             let mut cx = cx.to_async();
             move |_| {
-                handle
-                    .update(&mut cx, |_, window, cx| {
-                        window.refresh_visibility(cx);
-                    })
-                    .log_err();
+                handle.update(&mut cx, |_, window, _| window.refresh_visibility()).log_err();
             }
         }));
         platform_window.on_input({
@@ -1114,7 +1104,6 @@ impl Window {
             removed: false,
             platform_window,
             display_id,
-            display_observers: SingleSubscriberSet::new(),
             is_resizable,
             is_minimizable,
             sprite_atlas,
@@ -1149,10 +1138,8 @@ impl Window {
             scale_factor,
             bounds_observers: SingleSubscriberSet::new(),
             appearance,
-            appearance_observers: SingleSubscriberSet::new(),
             active,
             visibility,
-            visibility_observers: SingleSubscriberSet::new(),
             needs_present,
             animation_frame_pending: Rc::default(),
             frame_stats: None,
@@ -1185,11 +1172,10 @@ impl Window {
         }
     }
 
-    pub(crate) fn refresh_visibility(&mut self, cx: &mut App) {
+    pub(crate) fn refresh_visibility(&mut self) {
         let visibility = self.platform_window.visibility();
         if self.visibility != visibility {
             self.visibility = visibility;
-            self.visibility_observers.clone().retain(|callback| callback(visibility, self, cx));
         }
     }
 
@@ -1206,25 +1192,6 @@ impl Window {
     /// visible here.
     pub fn is_visible(&self) -> bool {
         self.visibility.is_visible()
-    }
-
-    /// Registers a callback to be invoked when the window's visibility changes.
-    pub fn observe_window_visibility(
-        &self,
-        mut callback: impl FnMut(WindowVisibility, &mut Window, &mut App) + 'static,
-    ) -> Subscription {
-        self.visibility_observers.insert(Box::new(move |visibility, window, cx| {
-            callback(visibility, window, cx);
-            true
-        }))
-    }
-
-    /// Registers a callback to be invoked when the window appearance changes.
-    pub fn observe_window_appearance(&self, mut callback: impl FnMut(&mut Window, &mut App) + 'static) -> Subscription {
-        self.appearance_observers.insert(Box::new(move |window, cx| {
-            callback(window, cx);
-            true
-        }))
     }
 
     /// Replaces the root entity of the window with a new one.
@@ -1389,27 +1356,6 @@ impl Window {
                     keystroke: keystroke.clone(),
                     input_preference,
                     action: action.map(|x| x.boxed_clone()),
-                    context_stack: context_stack.clone(),
-                },
-                self,
-                cx,
-            )
-        });
-    }
-
-    pub(crate) fn dispatch_keystroke_interceptors(
-        &mut self,
-        keystroke: &Keystroke,
-        input_preference: InputPreference,
-        context_stack: Vec<KeyContext>,
-        cx: &mut App,
-    ) {
-        cx.keystroke_interceptors.clone().retain(move |callback| {
-            (callback)(
-                &KeystrokeEvent {
-                    keystroke: keystroke.clone(),
-                    input_preference,
-                    action: None,
                     context_stack: context_stack.clone(),
                 },
                 self,
@@ -1601,18 +1547,12 @@ impl Window {
             return;
         };
         // The platform's notifications about the window and about displays
-        // arrive in no guaranteed order, so make sure App knows the display
-        // before the window's observers read its state.
+        // arrive in no guaranteed order, so make sure App knows the display.
         if let Some(display_id) = display_id
             && !cx.knows_display(display_id)
         {
             cx.displays_changed();
         }
-        handle.update(cx, |_, window, cx| window.notify_display_observers(cx)).log_err();
-    }
-
-    pub(crate) fn notify_display_observers(&mut self, cx: &mut App) {
-        self.display_observers.clone().retain(|callback| callback(self, cx));
     }
 
     /// The time between refreshes of the display the window is on, as of the
@@ -1621,17 +1561,6 @@ impl Window {
     /// doesn't report it.
     pub fn refresh_interval(&self, cx: &App) -> Option<Duration> {
         cx.display_refresh_interval(self.display_id?)
-    }
-
-    /// Registers a callback invoked when the window moves to another display
-    /// or its display's properties change, for example its refresh
-    /// interval. [`Self::refresh_interval`] already returns the new value
-    /// when the callback runs.
-    pub fn observe_window_display(&self, mut callback: impl FnMut(&mut Window, &mut App) + 'static) -> Subscription {
-        self.display_observers.insert(Box::new(move |window, cx| {
-            callback(window, cx);
-            true
-        }))
     }
 
     /// Returns the bounds of the current window in the global coordinate space, which could span across multiple displays.
@@ -1656,10 +1585,8 @@ impl Window {
         self.platform_window.is_simple_fullscreen()
     }
 
-    pub(crate) fn appearance_changed(&mut self, cx: &mut App) {
+    pub(crate) fn appearance_changed(&mut self) {
         self.appearance = self.platform_window.appearance();
-
-        self.appearance_observers.clone().retain(|callback| callback(self, cx));
     }
 
     /// Returns the appearance of the current window.
@@ -2986,46 +2913,18 @@ impl Window {
     where
         T: Clone + Into<PromptButton>,
     {
-        let prompt_builder = cx.prompt_builder.take();
-        let Some(prompt_builder) = prompt_builder else {
-            unreachable!("Re-entrant window prompting is not supported by GPUI");
-        };
-
         let answers = answers.iter().map(|answer| answer.clone().into()).collect::<Vec<_>>();
-
-        let receiver = match &prompt_builder {
-            PromptBuilder::Default => self
-                .platform_window
-                .prompt(level, message, detail, &answers)
-                .unwrap_or_else(|| self.build_custom_prompt(&prompt_builder, level, message, detail, &answers, cx)),
-            PromptBuilder::Custom(_) => self.build_custom_prompt(&prompt_builder, level, message, detail, &answers, cx),
-        };
-
-        cx.prompt_builder = Some(prompt_builder);
-
-        receiver
-    }
-
-    fn build_custom_prompt(
-        &mut self,
-        prompt_builder: &PromptBuilder,
-        level: PromptLevel,
-        message: &str,
-        detail: Option<&str>,
-        answers: &[PromptButton],
-        cx: &mut App,
-    ) -> oneshot::Receiver<usize> {
-        let (sender, receiver) = oneshot::channel();
-        let handle = PromptHandle::new(sender);
-        let handle = (prompt_builder)(level, message, detail, answers, handle, self, cx);
-        self.prompt = Some(handle);
-        receiver
+        self.platform_window.prompt(level, message, detail, &answers).unwrap_or_else(|| {
+            let (sender, receiver) = oneshot::channel();
+            let handle = PromptHandle::new(sender);
+            self.prompt = Some(fallback_prompt_renderer(level, message, detail, &answers, handle, self, cx));
+            receiver
+        })
     }
 
     /// Returns whether a prompt rendered by GPUI is currently active in this window.
     ///
-    /// This is only true for prompts rendered in the window (see
-    /// [`App::set_prompt_builder`]), not for platform-native prompt dialogs.
+    /// This is only true for prompts rendered in the window, not for platform-native prompt dialogs.
     pub const fn has_active_prompt(&self) -> bool {
         self.prompt.is_some()
     }
@@ -3075,25 +2974,6 @@ impl Window {
         listener: impl Fn(&dyn Any, DispatchPhase, &mut Window, &mut App) + 'static,
     ) {
         self.next_frame.dispatch_tree.on_action(action_type, Rc::new(listener));
-    }
-
-    /// Register a capturing action listener on this node for the next frame if the condition is true.
-    /// The type of action is determined by the first parameter of the given listener. When the next
-    /// frame is rendered the listener will be cleared.
-    ///
-    /// This is a fairly low-level method, so prefer using action handlers on elements unless you have
-    /// a specific need to register a listener yourself.
-    ///
-    /// This method should only be called as part of the paint phase of element drawing.
-    pub fn on_action_when(
-        &mut self,
-        condition: bool,
-        action_type: TypeId,
-        listener: impl Fn(&dyn Any, DispatchPhase, &mut Window, &mut App) + 'static,
-    ) {
-        if condition {
-            self.next_frame.dispatch_tree.on_action(action_type, Rc::new(listener));
-        }
     }
 
     /// Perform titlebar double-click action.

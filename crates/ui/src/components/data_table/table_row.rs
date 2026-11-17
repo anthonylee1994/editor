@@ -51,15 +51,6 @@ impl<T> TableRow<T> {
         }
     }
 
-    /// Returns reference to element by column index.
-    ///
-    /// # Panics
-    /// Panics if `col` is out of bounds (i.e., `col >= self.cols()`).
-    pub fn expect_get(&self, col: impl Into<usize>) -> &T {
-        let col = col.into();
-        self.0.get(col).unwrap_or_else(|| panic!("Expected table row of `{}` to have {col:?}", type_name::<T>()))
-    }
-
     pub fn get(&self, col: impl Into<usize>) -> Option<&T> {
         self.0.get(col.into())
     }

@@ -16,7 +16,6 @@ pub(crate) fn derive_action(input: TokenStream) -> TokenStream {
     let mut no_json = false;
     let mut no_register = false;
     let mut namespace = None;
-    let mut doc_str: Option<String> = None;
 
     /*
     *
@@ -62,19 +61,6 @@ pub(crate) fn derive_action(input: TokenStream) -> TokenStream {
                 Ok(())
             })
             .unwrap_or_else(|e| panic!("in #[action] attribute: {e}"));
-        } else if attr.path().is_ident("doc") {
-            use syn::Expr::Lit;
-            use syn::ExprLit;
-            use syn::Lit::Str;
-            use syn::Meta;
-            use syn::MetaNameValue;
-            if let Meta::NameValue(MetaNameValue { value: Lit(ExprLit { lit: Str(ref lit_str), .. }), .. }) = attr.meta
-            {
-                let doc = lit_str.value();
-                let doc_str = doc_str.get_or_insert_default();
-                doc_str.push_str(doc.trim());
-                doc_str.push('\n');
-            }
         }
     }
 
@@ -97,13 +83,6 @@ pub(crate) fn derive_action(input: TokenStream) -> TokenStream {
         quote! { Ok(Box::new(Self)) }
     } else {
         quote! { Ok(Box::new(gpui::private::serde_json::from_value::<Self>(_value)?)) }
-    };
-
-    let documentation_fn_body = if let Some(doc) = doc_str {
-        let doc = doc.trim();
-        quote! { Some(#doc) }
-    } else {
-        quote! { None }
     };
 
     let registration = if no_register {
@@ -140,10 +119,6 @@ pub(crate) fn derive_action(input: TokenStream) -> TokenStream {
 
             fn build(_value: gpui::private::serde_json::Value) -> gpui::Result<Box<dyn gpui::Action>> {
                 #build_fn_body
-            }
-
-            fn documentation() -> Option<&'static str> {
-                #documentation_fn_body
             }
         }
     })

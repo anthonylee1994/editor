@@ -652,11 +652,6 @@ impl GitStore {
         .await
     }
 
-    pub fn get_unstaged_diff(&self, buffer_id: BufferId, cx: &App) -> Option<Entity<BufferDiff>> {
-        let diff_state = self.diffs.get(&buffer_id)?;
-        diff_state.read(cx).unstaged_diff.as_ref()?.upgrade()
-    }
-
     pub fn get_uncommitted_diff(&self, buffer_id: BufferId, cx: &App) -> Option<Entity<BufferDiff>> {
         let diff_state = self.diffs.get(&buffer_id)?;
         diff_state.read(cx).uncommitted_diff.as_ref()?.upgrade()

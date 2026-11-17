@@ -108,36 +108,6 @@ impl WindowVisibility {
     }
 }
 
-/// A change to the connected displays, reported through
-/// [`App::observe_displays`](crate::App::observe_displays).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[non_exhaustive]
-pub enum DisplayEvent {
-    /// A display was connected.
-    Added(DisplayId),
-    /// A display was disconnected. Windows on it are moved to another
-    /// display by the platform.
-    Removed(DisplayId),
-    /// A connected display's properties changed.
-    Changed {
-        /// The display that changed.
-        id: DisplayId,
-        /// Which of its properties changed.
-        changes: DisplayChanges,
-    },
-}
-
-bitflags::bitflags! {
-    /// The properties of a display that a [`DisplayEvent::Changed`] reports.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-    pub struct DisplayChanges: u8 {
-        /// [`PlatformDisplay::bounds`] changed.
-        const BOUNDS = 1 << 0;
-        /// [`PlatformDisplay::refresh_interval`] changed.
-        const REFRESH_INTERVAL = 1 << 1;
-    }
-}
-
 /// Converts a refresh rate in hertz to the time between refreshes, rejecting
 /// the zero, negative, and non-finite rates platforms use to mean "unknown".
 pub fn refresh_interval_from_hz(hertz: f64) -> Option<Duration> {

@@ -132,13 +132,6 @@ impl PtyProcessInfo {
         RwLockReadGuard::try_map(self.system.read(), |system| system.process(pid)).ok()
     }
 
-    pub(crate) fn kill_current_process(&self) -> bool {
-        let Some(pid) = self.pid_getter.pid() else {
-            return false;
-        };
-        unsafe { libc::killpg(pid.as_u32().cast_signed(), libc::SIGKILL) == 0 }
-    }
-
     pub(crate) fn kill_child_process(&self) -> bool {
         self.get_child().is_some_and(|process| process.kill())
     }

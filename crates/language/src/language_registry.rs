@@ -422,10 +422,6 @@ impl LanguageRegistry {
         self.state.read().all_lsp_adapters.values().cloned().collect()
     }
 
-    pub fn adapter_for_name(&self, name: &LanguageServerName) -> Option<Arc<CachedLspAdapter>> {
-        self.state.read().all_lsp_adapters.get(name).cloned()
-    }
-
     pub fn update_lsp_binary_status_for_entity(
         &self,
         source: EntityId,

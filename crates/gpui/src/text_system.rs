@@ -930,12 +930,3 @@ pub fn font_name_with_fallbacks<'a>(name: &'a str, system: &'a str) -> &'a str {
         _ => name,
     }
 }
-
-/// Like [`font_name_with_fallbacks`] but accepts and returns [`SharedString`] references.
-#[allow(unused)]
-pub fn font_name_with_fallbacks_shared<'a>(name: &'a SharedString, system: &'a SharedString) -> &'a SharedString {
-    match name.as_str() {
-        ".SystemUIFont" => system,
-        _ => name,
-    }
-}

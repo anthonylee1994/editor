@@ -69,8 +69,6 @@ use crate::Bounds;
 use crate::ClipboardItem;
 use crate::CursorStyle;
 use crate::DispatchPhase;
-use crate::DisplayChanges;
-use crate::DisplayEvent;
 use crate::DisplayId;
 use crate::EventEmitter;
 use crate::FocusHandle;
@@ -93,13 +91,8 @@ use crate::PlatformKeyboardLayout;
 use crate::PlatformKeyboardMapper;
 use crate::Point;
 use crate::Priority;
-use crate::PromptBuilder;
-use crate::PromptButton;
-use crate::PromptHandle;
-use crate::PromptLevel;
 use crate::Render;
 use crate::RenderImage;
-use crate::RenderablePromptHandle;
 use crate::Reservation;
 use crate::SingleSubscriberSet;
 use crate::SubscriberSet;
@@ -113,8 +106,6 @@ use crate::WindowHandle;
 use crate::WindowId;
 use crate::WindowInvalidator;
 use crate::asset_cache::CachedLoad;
-use crate::colors::Colors;
-use crate::colors::GlobalColors;
 use crate::hash;
 use crate::init_app_menus;
 
@@ -296,54 +287,15 @@ impl Application {
 }
 
 type Handler = Box<dyn FnMut(&mut App) -> bool + 'static>;
-type DisplayHandler = Box<dyn FnMut(DisplayEvent, &mut App) -> bool + 'static>;
 
-/// The properties of a display that GPUI reports changes to.
-#[derive(Clone, Copy, PartialEq)]
-struct DisplayState {
-    bounds: Bounds<Pixels>,
-    refresh_interval: Option<Duration>,
+/// The refresh interval of each connected display.
+fn read_displays(platform: &dyn Platform) -> FxHashMap<DisplayId, Option<Duration>> {
+    platform.displays().into_iter().map(|display| (display.id(), display.refresh_interval())).collect()
 }
 
-impl DisplayState {
-    fn changes_from(&self, previous: &DisplayState) -> DisplayChanges {
-        let mut changes = DisplayChanges::empty();
-        changes.set(DisplayChanges::BOUNDS, self.bounds != previous.bounds);
-        changes.set(DisplayChanges::REFRESH_INTERVAL, self.refresh_interval != previous.refresh_interval);
-        changes
-    }
-}
-
-fn read_displays(platform: &dyn Platform) -> FxHashMap<DisplayId, DisplayState> {
-    platform
-        .displays()
-        .into_iter()
-        .map(|display| {
-            let state = DisplayState { bounds: display.bounds(), refresh_interval: display.refresh_interval() };
-            (display.id(), state)
-        })
-        .collect()
-}
-
-/// The events that turn one snapshot of the connected displays into the next.
-fn display_events(
-    previous: &FxHashMap<DisplayId, DisplayState>,
-    current: &FxHashMap<DisplayId, DisplayState>,
-) -> Vec<DisplayEvent> {
-    let removed = previous.keys().filter(|id| !current.contains_key(id)).map(|id| DisplayEvent::Removed(*id));
-    let added_or_changed = current.iter().filter_map(|(id, state)| {
-        let Some(previous_state) = previous.get(id) else {
-            return Some(DisplayEvent::Added(*id));
-        };
-        let changes = state.changes_from(previous_state);
-        (!changes.is_empty()).then_some(DisplayEvent::Changed { id: *id, changes })
-    });
-    removed.chain(added_or_changed).collect()
-}
 type Listener = Box<dyn FnMut(&dyn Any, &mut App) -> bool + 'static>;
 pub(crate) type KeystrokeObserver = Box<dyn FnMut(&KeystrokeEvent, &mut Window, &mut App) -> bool + 'static>;
 type QuitHandler = (Box<dyn FnOnce(&mut App) -> LocalBoxFuture<'static, ()> + 'static>, &'static Location<'static>);
-type WindowClosedHandler = Box<dyn FnMut(&mut App, WindowId)>;
 type ReleaseListener = Box<dyn FnOnce(&mut dyn Any, &mut App) + 'static>;
 type NewEntityListener = Box<dyn FnMut(AnyEntity, &mut Option<&mut Window>, &mut App) + 'static>;
 
@@ -413,18 +365,15 @@ pub struct App {
     pub(crate) observers: SubscriberSet<EntityId, Handler>,
     pub(crate) event_listeners: SubscriberSet<EntityId, (TypeId, Listener)>,
     pub(crate) keystroke_observers: SingleSubscriberSet<KeystrokeObserver>,
-    pub(crate) keystroke_interceptors: SingleSubscriberSet<KeystrokeObserver>,
     pub(crate) keyboard_layout_observers: SingleSubscriberSet<Handler>,
-    pub(crate) display_observers: SingleSubscriberSet<DisplayHandler>,
     /// The connected displays, as of the platform's last display change
     /// notification.
-    displays: FxHashMap<DisplayId, DisplayState>,
+    displays: FxHashMap<DisplayId, Option<Duration>>,
     pub(crate) system_sleep_observers: SingleSubscriberSet<Handler>,
     pub(crate) system_wake_observers: SingleSubscriberSet<Handler>,
     pub(crate) release_listeners: SubscriberSet<EntityId, ReleaseListener>,
     pub(crate) global_observers: SubscriberSet<TypeId, Handler>,
     pub(crate) quit_observers: SingleSubscriberSet<QuitHandler>,
-    pub(crate) window_closed_observers: SingleSubscriberSet<WindowClosedHandler>,
 
     /// Per-App element arena. This isolates element allocations between different
     /// App instances.
@@ -452,7 +401,6 @@ pub struct App {
     pub(crate) layout_id_buffer: Vec<LayoutId>, // We recycle this memory across layout requests.
     pub(crate) propagate_event: bool,
     pub(crate) ui_snapshots: bool,
-    pub(crate) prompt_builder: Option<PromptBuilder>,
     pub(crate) window_invalidators_by_entity: FxHashMap<EntityId, FxHashMap<WindowId, WindowInvalidator>>,
     pub(crate) tracked_entities: FxHashMap<WindowId, FxHashSet<EntityId>>,
     pub(crate) current_window_by_entity: FxHashMap<EntityId, WindowId>,
@@ -515,19 +463,15 @@ impl App {
                 event_listeners: SubscriberSet::new(),
                 release_listeners: SubscriberSet::new(),
                 keystroke_observers: SingleSubscriberSet::new(),
-                keystroke_interceptors: SingleSubscriberSet::new(),
                 keyboard_layout_observers: SingleSubscriberSet::new(),
-                display_observers: SingleSubscriberSet::new(),
                 displays: read_displays(platform.as_ref()),
                 system_sleep_observers: SingleSubscriberSet::new(),
                 system_wake_observers: SingleSubscriberSet::new(),
                 global_observers: SubscriberSet::new(),
                 quit_observers: SingleSubscriberSet::new(),
-                window_closed_observers: SingleSubscriberSet::new(),
                 layout_id_buffer: Vec::default(),
                 propagate_event: true,
                 ui_snapshots: false,
-                prompt_builder: Some(PromptBuilder::Default),
                 quit_mode: QuitMode::default(),
                 quitting: false,
                 cursor_hide_mode: CursorHideMode::default(),
@@ -873,7 +817,7 @@ impl App {
                     let root_view = build_root_view(&mut window, cx);
                     cx.window_update_stack.pop();
                     window.root.replace(root_view.into());
-                    window.defer(cx, |window: &mut Window, cx| window.appearance_changed(cx));
+                    window.defer(cx, |window: &mut Window, _| window.appearance_changed());
 
                     // allow a window to draw at least once before returning
                     // this didn't cause any issues on non windows platforms as it seems we always won the race to on_request_frame
@@ -950,25 +894,7 @@ impl App {
     }
 
     pub(crate) fn displays_changed(&mut self) {
-        let current = read_displays(self.platform.as_ref());
-        let events = display_events(&self.displays, &current);
-        self.displays = current;
-        for event in &events {
-            let DisplayEvent::Changed { id, .. } = *event else {
-                continue;
-            };
-            for handle in self.windows() {
-                self.update_window(handle, |_, window, cx| {
-                    if window.display_id == Some(id) {
-                        window.notify_display_observers(cx);
-                    }
-                })
-                .log_err();
-            }
-        }
-        for event in events {
-            self.display_observers.clone().retain(|callback| (callback)(event, self));
-        }
+        self.displays = read_displays(self.platform.as_ref());
     }
 
     pub(crate) fn knows_display(&self, id: DisplayId) -> bool {
@@ -978,19 +904,7 @@ impl App {
     /// The refresh interval of a connected display, as of the platform's last
     /// display change notification.
     pub(crate) fn display_refresh_interval(&self, id: DisplayId) -> Option<Duration> {
-        self.displays.get(&id)?.refresh_interval
-    }
-
-    /// Invokes a handler when a display is connected, disconnected, or its
-    /// properties change.
-    pub fn observe_displays<F>(&self, mut callback: F) -> Subscription
-    where
-        F: 'static + FnMut(DisplayEvent, &mut App),
-    {
-        self.display_observers.insert(Box::new(move |event, cx| {
-            callback(event, cx);
-            true
-        }))
+        *self.displays.get(&id)?
     }
 
     /// Invokes a handler when the system wakes from sleep.
@@ -1097,12 +1011,6 @@ impl App {
     /// Returns whether the user has configured scrollbars to auto-hide at the platform level.
     pub fn should_auto_hide_scrollbars(&self) -> bool {
         self.platform.should_auto_hide_scrollbars()
-    }
-
-    /// Configures when the application should automatically quit.
-    /// By default, [`QuitMode::Explicit`] is used.
-    pub const fn set_quit_mode(&mut self, mode: QuitMode) {
-        self.quit_mode = mode;
     }
 
     /// Sets whether the application participates in the system's foreground UI.
@@ -1406,17 +1314,6 @@ impl App {
             .map(|any_state| any_state.downcast_ref::<G>().expect("globals are keyed by their type id"))
     }
 
-    /// Access the global of the given type mutably. Panics if a global for that type has not been assigned.
-    #[track_caller]
-    pub fn global_mut<G: Global>(&mut self) -> &mut G {
-        let global_type = TypeId::of::<G>();
-        self.push_effect(Effect::NotifyGlobalObservers { global_type });
-        self.globals_by_type
-            .get_mut(&global_type)
-            .and_then(|any_state| any_state.downcast_mut::<G>())
-            .unwrap_or_else(|| panic!("no state of type {} exists", type_name::<G>()))
-    }
-
     /// Access the global of the given type mutably. A default value is assigned if a global of this type has not
     /// yet been assigned.
     pub fn default_global<G: Global + Default>(&mut self) -> &mut G {
@@ -1560,45 +1457,10 @@ impl App {
         )
     }
 
-    /// Register a callback to be invoked when a keystroke is received by the application
-    /// in any window. Note that this fires _before_ all other action and event mechanisms have resolved
-    /// unlike [`App::observe_keystrokes`] which fires after. This means that `cx.stop_propagation` calls
-    /// within interceptors will prevent action dispatch.
-    pub fn intercept_keystrokes(
-        &mut self,
-        mut f: impl FnMut(&KeystrokeEvent, &mut Window, &mut App) + 'static,
-    ) -> Subscription {
-        fn inner(
-            keystroke_interceptors: &SingleSubscriberSet<KeystrokeObserver>,
-            handler: KeystrokeObserver,
-        ) -> Subscription {
-            keystroke_interceptors.insert(handler)
-        }
-
-        inner(
-            &self.keystroke_interceptors,
-            Box::new(move |event, window, cx| {
-                f(event, window, cx);
-                true
-            }),
-        )
-    }
-
     /// Register key bindings.
     pub fn bind_keys(&mut self, bindings: impl IntoIterator<Item = KeyBinding>) {
         self.keymap.borrow_mut().add_bindings(bindings);
         self.pending_effects.push_back(Effect::RefreshWindows);
-    }
-
-    /// Clear all key bindings in the app.
-    pub fn clear_key_bindings(&mut self) {
-        self.keymap.borrow_mut().clear();
-        self.pending_effects.push_back(Effect::RefreshWindows);
-    }
-
-    /// Get all key bindings in the app.
-    pub fn key_bindings(&self) -> Rc<RefCell<Keymap>> {
-        Rc::clone(&self.keymap)
     }
 
     /// Register a global handler for actions invoked via the keyboard. These handlers are run at
@@ -1652,11 +1514,6 @@ impl App {
         RefCell::borrow(&self.keymap).all_bindings_for_input(input)
     }
 
-    /// Get a map from an action name to the documentation.
-    pub fn action_documentation(&self) -> &FxHashMap<&'static str, &'static str> {
-        self.actions.documentation()
-    }
-
     /// Register a callback to be invoked when the application is about to quit.
     /// It is not possible to cancel the quit event at this point.
     #[track_caller]
@@ -1671,12 +1528,6 @@ impl App {
             }),
             std::panic::Location::caller(),
         ))
-    }
-
-    /// Register a callback to be invoked when a window is closed
-    /// The window is no longer accessible at the point this callback is invoked.
-    pub fn on_window_closed(&self, on_closed: impl FnMut(&mut App, WindowId) + 'static) -> Subscription {
-        self.window_closed_observers.insert(Box::new(on_closed))
     }
 
     pub(crate) fn clear_pending_keystrokes(&mut self) {
@@ -1801,29 +1652,6 @@ impl App {
         }
     }
 
-    /// Set the prompt renderer for GPUI. This will replace the default or platform specific
-    /// prompts with this custom implementation.
-    pub fn set_prompt_builder(
-        &mut self,
-        renderer: impl Fn(
-            PromptLevel,
-            &str,
-            Option<&str>,
-            &[PromptButton],
-            PromptHandle,
-            &mut Window,
-            &mut App,
-        ) -> RenderablePromptHandle
-        + 'static,
-    ) {
-        self.prompt_builder = Some(PromptBuilder::Custom(Box::new(renderer)));
-    }
-
-    /// Reset the prompt builder to the default implementation.
-    pub fn reset_prompt_builder(&mut self) {
-        self.prompt_builder = Some(PromptBuilder::Default);
-    }
-
     /// Remove an asset from GPUI's cache.
     pub fn remove_asset<A: Asset>(&mut self, source: &A::Source) {
         let asset_id = (TypeId::of::<A>(), hash(source));
@@ -1901,13 +1729,6 @@ impl App {
         }
     }
 
-    /// Initializes gpui's default colors for the application.
-    ///
-    /// These colors can be accessed through `cx.default_colors()`.
-    pub fn init_colors(&mut self) {
-        self.set_global(GlobalColors(Arc::new(Colors::default())));
-    }
-
     #[inline(never)]
     fn update_window_erased(
         &mut self,
@@ -1940,11 +1761,6 @@ impl App {
                             }
                         }
                     }
-
-                    cx.window_closed_observers.clone().retain(|callback| {
-                        callback(cx, window_id);
-                        true
-                    });
 
                     if cx.quit_mode == QuitMode::LastWindowClosed && cx.windows.is_empty() {
                         cx.quit();

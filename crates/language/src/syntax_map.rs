@@ -64,7 +64,7 @@ pub(crate) struct SyntaxMap {
 }
 
 #[derive(Clone)]
-pub struct SyntaxSnapshot {
+pub(crate) struct SyntaxSnapshot {
     layers: SumTree<SyntaxLayerEntry>,
     parsed_version: clock::Global,
     interpolated_version: clock::Global,
@@ -412,22 +412,11 @@ impl SyntaxSnapshot {
         }
     }
 
-    pub fn is_empty(&self) -> bool {
+    pub(crate) fn is_empty(&self) -> bool {
         self.layers.is_empty()
     }
 
-    pub fn root_language(&self) -> Option<Arc<Language>> {
-        match &self.layers.first()?.content {
-            SyntaxLayerContent::Parsed { language, .. } => Some(Arc::clone(language)),
-            SyntaxLayerContent::Pending { .. } => None,
-        }
-    }
-
-    pub const fn update_count(&self) -> usize {
-        self.update_count
-    }
-
-    pub fn interpolate(&mut self, text: &BufferSnapshot) {
+    pub(crate) fn interpolate(&mut self, text: &BufferSnapshot) {
         let edits =
             text.anchored_edits_since::<Dimensions<usize, Point>>(&self.interpolated_version).collect::<Vec<_>>();
         self.interpolated_version.clone_from(text.version());
@@ -532,7 +521,7 @@ impl SyntaxSnapshot {
         self.layers = layers;
     }
 
-    pub fn reparse(
+    pub(crate) fn reparse(
         &mut self,
         text: &BufferSnapshot,
         file: Option<&dyn File>,
@@ -542,7 +531,7 @@ impl SyntaxSnapshot {
         self.reparse_(text, file, registry, root_language, None).ok();
     }
 
-    pub fn reparse_with_timeout(
+    pub(crate) fn reparse_with_timeout(
         &mut self,
         text: &BufferSnapshot,
         file: Option<&dyn File>,
@@ -988,7 +977,7 @@ impl SyntaxSnapshot {
         }
     }
 
-    pub fn captures<'a>(
+    pub(crate) fn captures<'a>(
         &'a self,
         range: Range<usize>,
         buffer: &'a BufferSnapshot,
@@ -997,7 +986,7 @@ impl SyntaxSnapshot {
         SyntaxMapCaptures::new(range.clone(), buffer.as_rope(), self.layers_for_range(range, buffer, true), query)
     }
 
-    pub fn matches<'a>(
+    pub(crate) fn matches<'a>(
         &'a self,
         range: Range<usize>,
         buffer: &'a BufferSnapshot,
@@ -1012,7 +1001,7 @@ impl SyntaxSnapshot {
         )
     }
 
-    pub fn matches_with_options<'a>(
+    pub(crate) fn matches_with_options<'a>(
         &'a self,
         range: Range<usize>,
         buffer: &'a BufferSnapshot,
@@ -1028,7 +1017,7 @@ impl SyntaxSnapshot {
         )
     }
 
-    pub fn languages<'a>(
+    pub(crate) fn languages<'a>(
         &'a self,
         buffer: &'a BufferSnapshot,
         include_hidden: bool,
@@ -1052,7 +1041,7 @@ impl SyntaxSnapshot {
         })
     }
 
-    pub fn layers_for_range<'a, T: ToOffset>(
+    pub(crate) fn layers_for_range<'a, T: ToOffset>(
         &'a self,
         range: Range<T>,
         buffer: &'a BufferSnapshot,
@@ -1099,7 +1088,7 @@ impl SyntaxSnapshot {
         })
     }
 
-    pub fn contains_unknown_injections(&self) -> bool {
+    pub(crate) fn contains_unknown_injections(&self) -> bool {
         self.layers.summary().contains_unknown_injections
     }
 
@@ -1133,7 +1122,7 @@ impl SyntaxSnapshot {
         injections
     }
 
-    pub const fn language_registry_version(&self) -> usize {
+    pub(crate) const fn language_registry_version(&self) -> usize {
         self.language_registry_version
     }
 }
@@ -1480,7 +1469,7 @@ fn join_ranges(a: impl Iterator<Item = Range<usize>>, b: impl Iterator<Item = Ra
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct ParseTimeout;
+pub(crate) struct ParseTimeout;
 
 impl error::Error for ParseTimeout {}
 

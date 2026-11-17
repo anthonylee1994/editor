@@ -178,15 +178,6 @@ impl DiagnosticEntry<PointUtf16> {
 }
 
 impl DiagnosticSet {
-    /// Constructs a [DiagnosticSet] from a sequence of entries, ordered by
-    /// their position in the buffer.
-    pub fn from_sorted_entries<I>(iter: I, buffer: &text::BufferSnapshot) -> Self
-    where
-        I: IntoIterator<Item = DiagnosticEntry<Anchor>>,
-    {
-        Self { diagnostics: SumTree::from_iter(iter, buffer) }
-    }
-
     /// Constructs a [DiagnosticSet] from a sequence of entries in an arbitrary order.
     pub fn new<I>(iter: I, buffer: &text::BufferSnapshot) -> Self
     where

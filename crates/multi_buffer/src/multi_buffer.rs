@@ -1496,10 +1496,6 @@ impl MultiBuffer {
         self.snapshot.get_mut().use_extended_diff_range = use_extended;
     }
 
-    pub fn has_multiple_hunks(&self, cx: &App) -> bool {
-        self.read(cx).diff_hunks_in_range(Anchor::Min..Anchor::Max).nth(1).is_some()
-    }
-
     pub fn single_hunk_is_expanded(&self, range: Range<Anchor>, cx: &App) -> bool {
         let snapshot = self.read(cx);
         let mut cursor = snapshot.diff_transforms.cursor::<MultiBufferOffset>(());

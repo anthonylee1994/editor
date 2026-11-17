@@ -305,10 +305,6 @@ impl BufferDiffSnapshot {
         (summary.added_rows, summary.removed_rows)
     }
 
-    pub fn base_text_string(&self) -> Option<String> {
-        self.base_text_exists.then(|| self.base_text.text())
-    }
-
     pub const fn base_text_exists(&self) -> bool {
         self.base_text_exists
     }
@@ -1763,11 +1759,6 @@ impl BufferDiff {
             })
             .log_err();
         })
-    }
-
-    pub fn base_text_string(&self, _cx: &App) -> Option<String> {
-        let diff_snapshot = self.diff_snapshot.as_ref()?;
-        diff_snapshot.base_text_exists.then(|| diff_snapshot.base_text.text())
     }
 
     pub const fn base_text_buffer(&self) -> &Entity<language::Buffer> {

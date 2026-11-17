@@ -1863,19 +1863,6 @@ impl Repository {
         result_rx
     }
 
-    pub fn set_as_active_repository(&self, cx: &mut Context<Self>) {
-        let Some(git_store) = self.git_store.upgrade() else {
-            return;
-        };
-        let entity = cx.entity();
-        git_store.update(cx, |git_store, cx| {
-            let Some((&id, _)) = git_store.repositories.iter().find(|(_, handle)| *handle == &entity) else {
-                return;
-            };
-            git_store.set_active_repository(id, cx);
-        });
-    }
-
     pub fn cached_status(&self) -> impl '_ + Iterator<Item = StatusEntry> {
         self.snapshot.status()
     }
