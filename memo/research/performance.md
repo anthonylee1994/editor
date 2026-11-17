@@ -214,3 +214,46 @@ Not separated per change, and frame counts differ between runs (1465–1487
 before, 1717–1774 after, about 14 per keystroke), so compare per-frame
 numbers. Still open: the frame count per keystroke (about 14 drawn frames each).
 
+
+## Frames per keystroke, by cause (2026-11-17)
+
+Same typing workload as Optimize 01 (120 keys at ~10 keys/s, rust-analyzer
+attached, project panel open), one run, with temporary tracing that logged
+which `cx.notify()` call sites dirtied each drawn frame. 1502 frames, 12.5
+per key. rust-analyzer was not confirmed settled before the run.
+
+| Frames per key | Cause |
+|---|---|
+| 4.9 | cursor trail animation (`element/cursor.rs`) |
+| 1.0 | the edit itself |
+| 1.9 | scrollbar marker refresh finishing (`element/minimap.rs`), 0.8 of them shared with semantic tokens |
+| 1.2 | linked editing ranges result (`linked_editing_ranges.rs`) |
+| 0.9 | document highlights result (`highlights.rs`) |
+| 1.1 | buffer diagnostics update, 0.3 more for inline diagnostics |
+| 1.0 | diagnostic summary in status bar and project panel (30 ms debounce) |
+| 0.4 | diagnostic-under-cursor in status bar (50 ms debounce) |
+
+- About 7.6 frames per key are not animation: each async result lands on its
+  own frame, spread over ~100 ms after the key.
+- The scrollbar marker task notifies when it finishes even if the markers
+  are unchanged, and it is re-run by the edit, by diagnostics and by document
+  highlights: 3.3 notifies per key.
+- `ActiveBufferEncoding` and `ActiveBufferLanguage` notify on every editor
+  notify without checking for a change (11 of 12.5 frames per key). They add
+  no frames but dirty the cached status bar on almost every frame.
+- The diagnostics summary re-renders the project panel and dock once per key.
+
+After notifying only on change (scrollbar markers, encoding and language
+status items, diagnostics summary in the status bar and project panel) and
+snapping the cursor on single-character same-row moves, same workload, one
+run each:
+
+| | Before | After |
+|---|---|---|
+| Frames drawn | 1502 (12.5 per key) | 811 (6.8 per key) |
+| Main thread CPU | 5.38 s | 3.63 s (−33%) |
+| Instructions per run | 67.0 G | 46.7 G (−30%) |
+| Draw total | 4.04 s | 2.50 s (−38%) |
+
+Mean draw per frame rose from 2.69 to 3.08 ms because the frames that went
+away were the cheap animation ones. Not separated per change.

@@ -453,10 +453,9 @@ impl EditorElement {
                     .await;
 
                 editor.update(cx, |editor, cx| {
-                    editor.scrollbar_marker_state.markers = scrollbar_markers;
-                    editor.scrollbar_marker_state.track_size = track_size;
-                    editor.scrollbar_marker_state.pending_refresh = None;
-                    cx.notify();
+                    if editor.scrollbar_marker_state.finish_refresh(scrollbar_markers, track_size) {
+                        cx.notify();
+                    }
                 })?;
 
                 Ok(())

@@ -130,8 +130,11 @@ impl DiagnosticIndicator {
                 this.diagnostic_summary_update = cx.spawn(async move |this, cx| {
                     cx.background_executor().timer(Duration::from_millis(30)).await;
                     this.update(cx, |this, cx| {
-                        this.summary = project.read(cx).diagnostic_summary(false, cx);
-                        cx.notify();
+                        let summary = project.read(cx).diagnostic_summary(false, cx);
+                        if summary != this.summary {
+                            this.summary = summary;
+                            cx.notify();
+                        }
                     })
                     .log_err();
                 });

@@ -778,7 +778,7 @@ impl Window {
 
 /// A rectangle to be rendered in the window at the given position and size.
 /// Passed as an argument [`Window::paint_quad`].
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct PaintQuad {
     /// The bounds of the quad within the window.
     pub bounds: Bounds<Pixels>,

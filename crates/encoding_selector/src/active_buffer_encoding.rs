@@ -43,18 +43,15 @@ impl ActiveBufferEncoding {
     }
 
     fn update_encoding(&mut self, editor: Entity<Editor>, _: &mut Window, cx: &mut Context<Self>) {
-        self.active_encoding = None;
-        self.has_bom = false;
-        self.is_dirty = false;
-
-        if let Some(buffer) = editor.read(cx).active_buffer(cx) {
+        let state = editor.read(cx).active_buffer(cx).map_or((None, false, false), |buffer| {
             let buffer = buffer.read(cx);
-            self.active_encoding = Some(buffer.encoding());
-            self.has_bom = buffer.has_bom();
-            self.is_dirty = buffer.is_dirty();
+            (Some(buffer.encoding()), buffer.has_bom(), buffer.is_dirty())
+        });
+        // Runs on every editor notify, so only redraw the status bar on a change.
+        if state != (self.active_encoding, self.has_bom, self.is_dirty) {
+            (self.active_encoding, self.has_bom, self.is_dirty) = state;
+            cx.notify();
         }
-
-        cx.notify();
     }
 }
 

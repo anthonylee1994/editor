@@ -3,9 +3,6 @@
 # UI
 - add workspace scoped UI settings, like title or border color, do i really need this? to distinguish project
 
-# code style 
-- add complete clippy lint
-
 # support to open in restricted mode? like not starting LSP?
 
 # picker

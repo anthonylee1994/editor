@@ -860,6 +860,16 @@ impl ScrollbarMarkerState {
     fn should_refresh(&self, track_size: Size<Pixels>) -> bool {
         self.pending_refresh.is_none() && (self.track_size != track_size || self.dirty)
     }
+
+    /// Stores a finished refresh and returns whether the markers changed, so an
+    /// unchanged result doesn't redraw the editor.
+    fn finish_refresh(&mut self, markers: Arc<[PaintQuad]>, track_size: Size<Pixels>) -> bool {
+        self.pending_refresh = None;
+        self.track_size = track_size;
+        let changed = self.markers != markers;
+        self.markers = markers;
+        changed
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -3844,8 +3854,11 @@ pub struct LineHighlight {
 #[cfg(test)]
 mod tests {
     use std::any::Any;
+    use std::sync::Arc;
 
     use gpui::Modifiers;
+    use gpui::px;
+    use gpui::size;
 
     use super::Addon;
     use super::ColumnarMode;
@@ -3853,6 +3866,7 @@ mod tests {
     use super::Editor;
     use super::EditorMode;
     use super::MinimapVisibility;
+    use super::ScrollbarMarkerState;
 
     struct DefaultAddon;
 
@@ -3865,6 +3879,20 @@ mod tests {
     #[test]
     fn addon_shows_project_file_actions_by_default() {
         assert!(DefaultAddon.shows_project_file_actions());
+    }
+
+    #[test]
+    fn scrollbar_marker_refresh_reports_whether_markers_changed() {
+        let quad =
+            |x: f32| gpui::fill(gpui::Bounds::new(gpui::point(px(x), px(0.)), size(px(2.), px(2.))), gpui::red());
+        let track_size = size(px(10.), px(2.));
+        let mut state = ScrollbarMarkerState { dirty: true, ..ScrollbarMarkerState::default() };
+
+        assert!(!state.finish_refresh(Arc::default(), track_size));
+        assert_eq!(state.track_size, track_size);
+        assert!(state.finish_refresh(Arc::from(vec![quad(1.)]), track_size));
+        assert!(!state.finish_refresh(Arc::from(vec![quad(1.)]), track_size));
+        assert!(state.finish_refresh(Arc::from(vec![quad(2.)]), track_size));
     }
 
     #[test]

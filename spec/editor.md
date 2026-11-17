@@ -117,6 +117,8 @@
   `motion::NAVIGATION` (90ms). Each corner axis is a critically damped
   `gpui::SpringConfig` (`critically_damped(length)`);
   the trail logic (per-corner lengths, snapping) stays in `cursor_motion`.
+  A same-row move of one character (up to two em advances, so a full-width
+  character counts) snaps, so typing and `h`/`l` draw no animation frames.
 - No mouse-wheel zoom: Cmd/Ctrl+scroll scrolls like a plain scroll and never
   changes the buffer font size (removed with its `mouse_wheel_zoom` setting).
 - The gutter has no settings: line numbers (with space reserved for 4

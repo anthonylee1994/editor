@@ -37,7 +37,7 @@ impl ActiveBufferLanguage {
     }
 
     fn update_language(&mut self, editor: Entity<Editor>, _: &mut Window, cx: &mut Context<Self>) {
-        self.active_language = Some("Unknown".into());
+        let mut active_language: Option<SharedString> = Some("Unknown".into());
 
         let editor = editor.read(cx);
         if let Some(buffer) = editor.active_buffer(cx) {
@@ -49,11 +49,15 @@ impl ActiveBufferLanguage {
             if let Some(name) = language.or_else(|| {
                 buffer.fallback_syntax_name().map(LanguageName::new).or_else(|| Some(buffer.language()?.name()))
             }) {
-                self.active_language = Some(name.0);
+                active_language = Some(name.0);
             }
         }
 
-        cx.notify();
+        // Runs on every editor notify, so only redraw the status bar on a change.
+        if active_language != self.active_language {
+            self.active_language = active_language;
+            cx.notify();
+        }
     }
 }
 

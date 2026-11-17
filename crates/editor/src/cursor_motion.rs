@@ -37,6 +37,9 @@ const SHORT_ANIMATION_LENGTH_SECONDS: f32 = 0.4 * ANIMATION_LENGTH_SECONDS;
 const SNAP_ANIMATION_LENGTH_SECONDS: f32 = 0.16 * ANIMATION_LENGTH_SECONDS;
 const ANIMATION_RESET_THRESHOLD_SECONDS: f32 = 0.6 * ANIMATION_LENGTH_SECONDS;
 const TRAIL_SIZE: f32 = 1.0;
+// A same-row move of at most this many em advances (one character, including
+// a full-width one) snaps: typing would otherwise draw a few extra frames per key.
+const SNAP_STEP_EM_ADVANCES: f32 = 2.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct LogicalCursorPosition {
@@ -439,7 +442,9 @@ impl CursorMotionState {
         let geometry_size_changed = !previous_geometry.has_same_size(target_geometry);
         let geometry_changed = target_origin_changed || geometry_size_changed;
 
-        if !logical_position_changed && geometry_changed {
+        if geometry_changed
+            && (!logical_position_changed || is_single_character_step(previous_geometry, target_geometry, viewport))
+        {
             self.snap(logical_position, target_geometry, viewport, now);
             return None;
         }
@@ -546,6 +551,13 @@ impl CursorMotionState {
             }
         }
     }
+}
+
+/// Whether the cursor moved along its row by no more than one character.
+fn is_single_character_step(from: CursorGeometry, to: CursorGeometry, viewport: CursorViewport) -> bool {
+    nearly_equal(from.origin.y, to.origin.y)
+        && (to.origin.x - from.origin.x).abs()
+            <= SNAP_STEP_EM_ADVANCES * f32::from(viewport.em_advance) + GEOMETRY_EPSILON
 }
 
 fn nearly_equal(left: f32, right: f32) -> bool {
@@ -659,6 +671,27 @@ mod tests {
             assert!(frames < 60, "cursor animation never settled");
         }
         assert!(frames > 1);
+    }
+
+    #[test]
+    fn cursor_snaps_on_a_single_character_step_along_the_row() {
+        let mut state = CursorMotionState::default();
+        let now = Instant::now();
+        state.update(LogicalCursorPosition { row: 0, column: 0 }, cursor_at(0., 0.), viewport(), now);
+        // One character, then a full-width one, forwards and back.
+        for (column, x) in [(1, 8.), (3, 24.), (1, 8.), (0, 0.)] {
+            let moved = state.update(LogicalCursorPosition { row: 0, column }, cursor_at(x, 0.), viewport(), now);
+            assert!(moved.is_none(), "step to x={x} should snap");
+        }
+        // A longer move on the row, and a one-row move in the same column, still animate.
+        assert!(
+            state.update(LogicalCursorPosition { row: 0, column: 4 }, cursor_at(32., 0.), viewport(), now).is_some()
+        );
+        let mut state = CursorMotionState::default();
+        state.update(LogicalCursorPosition { row: 0, column: 0 }, cursor_at(0., 0.), viewport(), now);
+        assert!(
+            state.update(LogicalCursorPosition { row: 1, column: 0 }, cursor_at(0., 20.), viewport(), now).is_some()
+        );
     }
 
     #[test]

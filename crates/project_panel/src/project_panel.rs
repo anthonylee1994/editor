@@ -717,8 +717,9 @@ impl ProjectPanel {
                         this.diagnostic_summary_update = cx.spawn(async move |this, cx| {
                             cx.background_executor().timer(Duration::from_millis(30)).await;
                             this.update(cx, |this, cx| {
-                                this.update_diagnostics(cx);
-                                cx.notify();
+                                if this.update_diagnostics(cx) {
+                                    cx.notify();
+                                }
                             })
                             .log_err();
                         });
@@ -894,7 +895,8 @@ impl ProjectPanel {
         workspace.update_in(cx, ProjectPanel::new)
     }
 
-    fn update_diagnostics(&mut self, cx: &Context<Self>) {
+    /// Returns whether anything changed.
+    fn update_diagnostics(&mut self, cx: &Context<Self>) -> bool {
         let mut diagnostics: FxHashMap<(WorktreeId, Arc<RelPath>), DiagnosticSeverity> = FxHashMap::default();
         let mut diagnostic_counts: FxHashMap<(WorktreeId, Arc<RelPath>), DiagnosticCount> = FxHashMap::default();
         for (project_path, _, summary) in self.project.read(cx).diagnostic_summaries(false, cx) {
@@ -908,8 +910,10 @@ impl ProjectPanel {
                 }
             }
         }
+        let changed = self.diagnostics != diagnostics || self.diagnostic_counts != diagnostic_counts;
         self.diagnostics = diagnostics;
         self.diagnostic_counts = diagnostic_counts;
+        changed
     }
 
     fn update_strongest_diagnostic_severity(
