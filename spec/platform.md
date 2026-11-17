@@ -54,6 +54,13 @@ or UNC prefixes. There is no path-style abstraction; code uses
   git rev), not Zed's fork. PTYs are spawned off the main thread; the spawning
   thread temporarily takes the main thread's signal mask so the shell doesn't
   inherit blocked signals (Ctrl-C).
+- "Allow in the Background": macOS lists the app in Login Items when a
+  process it spawned outlives it. git `push`/`pull`/`fetch` are spawned
+  disclaimed (`Command::disclaim`), so the ssh `ControlPersist` master they
+  may leave behind is charged to git, not the app. Trade-offs: those spawns
+  fork (no `posix_spawn`), and git/ssh face macOS privacy checks (e.g.
+  Local Network) as themselves. Terminal shells are not disclaimed, so
+  `nohup` jobs left by a terminal are still charged to the app.
 - Async IO lives in the `async_macos` crate and runs on GCD dispatch sources, with no reactor,
   reaper, or blocking-pool threads and no smol / async-io / tokio:
   - Pipes and Unix sockets are non-blocking fds; a read/write source is

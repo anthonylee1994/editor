@@ -2316,6 +2316,7 @@ impl GitRepository for RealGitRepository {
             let git = GitBinary::new(git_binary_path, working_directory);
             let mut command = git.build_command(&["push"]);
             command
+                .disclaim()
                 .envs(env.iter())
                 .args(options.map(|option| match option {
                     PushOptions::SetUpstream => "--set-upstream",
@@ -2344,7 +2345,7 @@ impl GitRepository for RealGitRepository {
         async move {
             let git = GitBinary::new(git_binary_path, working_directory);
             let mut command = git.build_command(PULL_ARGS);
-            command.envs(env.iter());
+            command.disclaim().envs(env.iter());
             command.arg(remote_name).args(branch_name).stdout(Stdio::piped()).stderr(Stdio::piped());
 
             run_git_command(git, env, command).await
@@ -2382,7 +2383,7 @@ impl GitRepository for RealGitRepository {
         async move {
             let git = GitBinary::new(git_binary_path, working_directory);
             let mut command = git.build_command(&["fetch", &remote_name]);
-            command.envs(env.iter()).stdout(Stdio::piped()).stderr(Stdio::piped());
+            command.disclaim().envs(env.iter()).stdout(Stdio::piped()).stderr(Stdio::piped());
 
             run_git_command(git, env, command).await
         }
