@@ -1,3 +1,18 @@
+# Executors
+
+- Tasks are `async_task` tasks dispatched straight to GCD. `gpui::executor`
+  owns `Task`, `Priority`, and both executors; `PlatformDispatcher` is the only
+  seam (main queue, global queues by priority, `dispatch_after`).
+  There is no scheduler crate, scheduler trait, or test scheduler.
+- Dropping a `Task` cancels it; `detach` lets it finish.
+- Foreground tasks run in spawn order on the main thread and take no priority;
+  only background spawns do. A foreground future polled or dropped off its spawning thread panics.
+- A timer is a single task whose first schedule is the delayed dispatch.
+- `block_on` / `block_with_timeout` park the calling thread; on timeout the
+  unfinished future is handed back.
+- No dedicated-thread executors and no fallible (cancel-as-`None`) tasks.
+- Time is `std::time::Instant`; there is no fake clock.
+
 # Async channels
 
 No `postage`. Pick by shape:

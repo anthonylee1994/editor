@@ -1,9 +1,9 @@
 use std::rc::Rc;
 use std::time::Duration;
+use std::time::Instant;
 
 #[allow(clippy::wildcard_imports)]
 pub use easing::*;
-use scheduler::Instant;
 use smallvec::SmallVec;
 
 use crate::AnyElement;

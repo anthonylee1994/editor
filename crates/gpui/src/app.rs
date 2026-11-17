@@ -26,6 +26,7 @@ use std::result;
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
+use std::time::Instant;
 
 use anyhow::Context as _;
 use anyhow::Result;
@@ -48,7 +49,6 @@ use gpui_util::TypeIdHashBuilder;
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
-use scheduler::Instant;
 use slotmap::SlotMap;
 use smallvec::SmallVec;
 
@@ -90,7 +90,6 @@ use crate::PlatformDisplay;
 use crate::PlatformKeyboardLayout;
 use crate::PlatformKeyboardMapper;
 use crate::Point;
-use crate::Priority;
 use crate::Render;
 use crate::RenderImage;
 use crate::Reservation;
@@ -1257,24 +1256,7 @@ impl App {
     {
         let mut cx = self.prepare_spawn();
 
-        self.foreground_executor.spawn(async move { f(&mut cx).await }.boxed_local())
-    }
-
-    /// Spawns the future returned by the given function on the main thread with
-    /// the given priority. The closure will be invoked with [AsyncApp], which
-    /// allows the application state to be accessed across await points.
-    pub fn spawn_with_priority<AsyncFn, R>(&self, priority: Priority, f: AsyncFn) -> Task<R>
-    where
-        AsyncFn: AsyncFnOnce(&mut AsyncApp) -> R + 'static,
-        R: 'static,
-    {
-        if self.quitting {
-            log::error!("Can't spawn on main thread after on_app_quit");
-        }
-
-        let mut cx = self.to_async();
-
-        self.foreground_executor.spawn_with_priority(priority, async move { f(&mut cx).await }.boxed_local())
+        self.foreground_executor.spawn(async move { f(&mut cx).await })
     }
 
     /// Schedules the given function to be run at the end of the current effect cycle, allowing entities

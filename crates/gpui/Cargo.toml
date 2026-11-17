@@ -41,7 +41,6 @@ resvg = {
   ]
 }
 rustc-hash.workspace = true
-scheduler.workspace = true
 seahash = "4.1"
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true

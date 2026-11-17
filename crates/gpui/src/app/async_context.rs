@@ -7,7 +7,6 @@ use anyhow::bail;
 use derive_more::Deref;
 use derive_more::DerefMut;
 use futures::channel::oneshot;
-use futures::future::FutureExt as _;
 
 use super::Context;
 use super::WeakEntity;
@@ -123,7 +122,7 @@ impl AsyncApp {
         R: 'static,
     {
         let mut cx = self.clone();
-        self.foreground_executor.spawn(async move { f(&mut cx).await }.boxed_local())
+        self.foreground_executor.spawn(async move { f(&mut cx).await })
     }
 
     /// Determine whether global state of the specified type has been assigned.
@@ -324,7 +323,7 @@ impl AsyncWindowContext {
         R: 'static,
     {
         let mut cx = self.clone();
-        self.foreground_executor.spawn(async move { f(&mut cx).await }.boxed_local())
+        self.foreground_executor.spawn(async move { f(&mut cx).await })
     }
 
     /// Present a platform dialog.

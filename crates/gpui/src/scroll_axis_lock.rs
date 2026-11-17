@@ -1,8 +1,7 @@
 //! Locks pixel scroll gestures to their initially dominant axis.
 
 use std::time::Duration;
-
-use scheduler::Instant;
+use std::time::Instant;
 
 use crate::Axis;
 use crate::IsZero as _;

@@ -16,6 +16,7 @@ use std::sync::Arc;
 use std::thread;
 use std::thread::AccessError;
 use std::time::Duration;
+use std::time::Instant;
 
 use anyhow::Result;
 use futures::channel::oneshot;
@@ -30,7 +31,6 @@ use raw_window_handle::HasWindowHandle;
 use refineable::Refineable as _;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
-use scheduler::Instant;
 use smallvec::SmallVec;
 
 use crate::Action;
@@ -76,7 +76,6 @@ use crate::PlatformDisplay;
 use crate::PlatformInputHandler;
 use crate::PlatformWindow;
 use crate::Point;
-use crate::Priority;
 use crate::PromptButton;
 use crate::PromptLevel;
 use crate::Render;
@@ -1497,22 +1496,6 @@ impl Window {
     {
         let handle = self.handle;
         cx.spawn(async move |app| {
-            let mut async_window_cx = AsyncWindowContext::new_context(app.clone(), handle);
-            f(&mut async_window_cx).await
-        })
-    }
-
-    /// Spawn the future returned by the given closure on the application thread
-    /// pool, with the given priority. The closure is provided a handle to the
-    /// current window and an `AsyncWindowContext` for use within your future.
-    #[track_caller]
-    pub fn spawn_with_priority<AsyncFn, R>(&self, priority: Priority, cx: &App, f: AsyncFn) -> Task<R>
-    where
-        R: 'static,
-        AsyncFn: AsyncFnOnce(&mut AsyncWindowContext) -> R + 'static,
-    {
-        let handle = self.handle;
-        cx.spawn_with_priority(priority, async move |app| {
             let mut async_window_cx = AsyncWindowContext::new_context(app.clone(), handle);
             f(&mut async_window_cx).await
         })

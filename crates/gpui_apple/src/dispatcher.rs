@@ -46,7 +46,7 @@ impl PlatformDispatcher for AppleDispatcher {
         }
     }
 
-    fn dispatch_on_main_thread(&self, runnable: Runnable<RunnableMeta>, _priority: Priority) {
+    fn dispatch_on_main_thread(&self, runnable: Runnable<RunnableMeta>) {
         let context = runnable.into_raw().as_ptr().cast::<c_void>();
         unsafe {
             DispatchQueue::main().exec_async_f(context, trampoline);

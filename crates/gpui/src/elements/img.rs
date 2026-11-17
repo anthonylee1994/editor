@@ -6,13 +6,13 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
+use std::time::Instant;
 
 use anyhow::Result;
 use futures::Future;
 use gpui_util::ResultExt as _;
 use image::ImageError;
 use image::ImageFormat;
-use scheduler::Instant;
 use thiserror::Error;
 
 use super::Stateful;

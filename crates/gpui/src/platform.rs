@@ -35,7 +35,6 @@ pub use keystroke::*;
 use raw_window_handle::HasDisplayHandle;
 use raw_window_handle::HasWindowHandle;
 use rustc_hash::FxHashMap;
-pub use scheduler::RunnableMeta;
 use seahash::SeaHasher;
 use serde::Deserialize;
 use serde::Serialize;
@@ -70,6 +69,7 @@ use crate::RenderGlyphParams;
 use crate::RenderImage;
 use crate::RenderImageParams;
 use crate::RenderSvgParams;
+use crate::RunnableMeta;
 use crate::Scene;
 use crate::ShapedGlyph;
 use crate::ShapedRun;
@@ -394,12 +394,14 @@ pub trait PlatformWindow: HasWindowHandle + HasDisplayHandle {
     fn play_system_bell(&self) {}
 }
 
+pub type RunnableVariant = Runnable<RunnableMeta>;
+
 /// Dispatches executor tasks through the platform's threads and timers.
 pub trait PlatformDispatcher: Send + Sync {
     fn is_main_thread(&self) -> bool;
-    fn dispatch(&self, runnable: Runnable<RunnableMeta>, priority: Priority);
-    fn dispatch_on_main_thread(&self, runnable: Runnable<RunnableMeta>, priority: Priority);
-    fn dispatch_after(&self, duration: Duration, runnable: Runnable<RunnableMeta>);
+    fn dispatch(&self, runnable: RunnableVariant, priority: Priority);
+    fn dispatch_on_main_thread(&self, runnable: RunnableVariant);
+    fn dispatch_after(&self, duration: Duration, runnable: RunnableVariant);
 }
 
 #[expect(missing_docs)]

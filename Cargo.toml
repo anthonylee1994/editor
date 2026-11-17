@@ -63,7 +63,6 @@ project_symbols = { path = "crates/project_symbols" }
 recent_projects = { path = "crates/recent_projects" }
 refineable = { path = "crates/refineable" }
 rope = { path = "crates/rope" }
-scheduler = { path = "crates/scheduler" }
 search = { path = "crates/search" }
 snippet = { path = "crates/snippet" }
 spell_check = { path = "crates/spell_check" }
