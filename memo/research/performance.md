@@ -179,3 +179,38 @@ re-query only the edited ranges.
 Other things seen in the same profile: the automation server's forced draws
 were ~8% of main-thread samples (test overhead), and typing drew about 9–10
 frames per keystroke from the cursor and scroll animations.
+
+## Optimize 01 results (2026-11-17)
+
+Three changes, measured together. Workload: typing (30 × `x`, 30 ×
+backspace, twice) in a 3.4k-line Rust file (a copy of `gpui/src/geometry.rs`)
+in a small cargo project with rust-analyzer attached, project panel open,
+3 runs each, release build, same session.
+
+| | Before | After |
+|---|---|---|
+| Process CPU | 15.4 s (67% of a core) | 7.5 s (32%) |
+| Instructions per run | 310 G | 105 G (−66%) |
+| Main thread CPU | 6.54 s | 6.1 s |
+| Build per frame (mean / p50) | 2.35 / 1.92 ms | 1.83 / 1.44 ms (−22% / −25%) |
+| Paint per frame (mean) | 0.53 ms | 0.43 ms (−19%) |
+
+Scrolling the same file: build 3.14 → 2.74 ms, paint 0.80 → 0.69 ms per frame.
+
+- Runnables: one source per language (`spec/tasks.md`). Rust no longer runs
+  the syntax query at all; other languages query the visible rows only. This
+  is nearly all of the process CPU drop (background threads).
+- Nested cached views are reused (`spec/gpui/rendering.md`), so the project
+  panel and other panes are not re-rendered by editor frames.
+- The status bar is a cached view with a fixed height.
+
+- Tab bar as its own cached view (added after the table above, measured
+  on top of it): build per frame 1.83 → 1.79 ms mean, 1.44 → 1.38 ms p50;
+  paint 0.43 → 0.42 ms. Smaller than the 7% the profile suggested.
+- `editor::SpawnNearestTask` was removed; the gutter icon is the only way to
+  run a runnable.
+
+Not separated per change, and frame counts differ between runs (1465–1487
+before, 1717–1774 after, about 14 per keystroke), so compare per-frame
+numbers. Still open: the frame count per keystroke (about 14 drawn frames each).
+

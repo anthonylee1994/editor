@@ -12,10 +12,24 @@ the summary, the open options, and how to pick the work up.
   - `21345149` spinner port (#66896): rotating SVGs no longer re-render views.
   - `46c92b3b` file finder absolute paths (#66227).
   - `e21f7f41`, `1ba78f7d`, `23cfb484` spec and memo updates.
-- No optimization from the options below is implemented. The nested-cache
-  experiment (option 2a) was tried and reverted.
-- `target/release/ed` is still the build **with** the nested-cache experiment.
-  Rebuild (`cargo build --release -p ed -p control`) before measuring.
+- See "Done" below for what is implemented; the rest of this file is the
+  original handoff.
+
+## Done (2026-11-17)
+
+Results are in `memo/research/performance.md` ("Optimize 01 results").
+
+- Option 1, changed: one runnables source per language. LSP languages (Rust)
+  use the server only, no syntax query and no timeout; others query visible
+  rows plus a screen each side.
+- Option 2a, done safely: nested cached views are reused. The forced refresh
+  existed because a view inside a reused view keeps stale recorded ranges; a
+  per-view frame number now guards that instead.
+- Option 3: the status bar is cached with a fixed height, and each pane's
+  tab bar (with the window header) is its own cached view.
+
+Remaining: animation frames per keystroke (option 4), language server load
+(option 5).
 
 ## Findings
 
