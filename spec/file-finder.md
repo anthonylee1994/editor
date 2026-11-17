@@ -21,3 +21,10 @@
 - The file finder only opens files (`enter`, `OpenWithoutDismiss`, and
   multi-select); it has no open-in-split actions. The text finder keeps its
   split keys (`cmd-h/j/k/l`).
+- An absolute path of an existing file is a query too. A file inside a visible
+  worktree is listed as that worktree's file; any other file (outside the
+  project, or in a hidden single-file worktree) is listed first by its
+  absolute path and opens without adding a worktree to the project, like a
+  history entry from outside it. Fuzzy search is skipped when the path
+  resolves. Upstream's related handling of excluded files and `a/`/`b/` diff
+  prefixes for excluded directories isn't ported.
