@@ -119,3 +119,63 @@ Reading:
 
 Caveats: about 390 frame samples, one workload. The scroll profile had too
 few frame samples (25) to break down. Symbols were demangled approximately.
+
+## Follow-up: why chrome re-renders, and a larger cost found on the way
+
+### Nested cached views never hit
+
+`prepaint_view` / `paint_view` (`crates/gpui/src/view.rs`) set
+`window.refreshing = true` while a cached view re-renders, which forces every
+cached view nested inside it to re-render too. Since `4968227a` (2026-11-01,
+"Render each workspace mode in its own cached view") the whole mode is one
+cached view, and it is on the dirty path of every editor change. So the pane
+and dock-panel caches beneath it (`pane_group.rs`, `dock.rs`) can no longer
+hit: either the mode view is reused whole, or everything under it re-renders.
+That is why the project panel showed up in typing frames.
+
+Experiment (not kept): removing the forced refresh so clean nested views
+reuse their output. Typing in the one-file scratch project, 3 runs each:
+
+| | Instructions per frame | Draw per frame |
+|---|---|---|
+| Before | 9.85 M | 1.49–1.55 ms |
+| Nested reuse | 8.60 M (−13%) | 1.49–1.52 ms (about −2%) |
+
+The gain should be larger with a populated project panel, split panes or an
+open terminal panel, but that was not measured. Upstream GPUI has the same
+forced refresh; its reason isn't recorded in the fork's history, so removing
+it is a behaviour change in core rendering that would need its own testing.
+The alternative that restores the old behaviour without touching GPUI is to
+stop caching the mode view.
+
+The status bar and tab bar are a different case: the status bar is an
+uncached child of the workspace root, and the tab bar is rendered by the
+pane, which is on the dirty path. They re-render by construction.
+
+### Runnables query dominates typing CPU in a real project
+
+Measured in a project with a running rust-analyzer (a copy of
+`crates/editor/src` and `crates/gpui/src`, editing the 3.9k-line `editor.rs`),
+after the server had settled:
+
+- Scripted typing at ~5 keys/s used **44.7% of a core** (main thread 22%),
+  against 10% in the one-file project. Instructions per drawn frame went from
+  ~10 M to ~127 M, almost all of it outside drawing.
+- An all-thread sample put ~84% of background-thread CPU in one place:
+  `Editor::refresh_runnables` → `SyntaxMapMatches` → `ts_query_cursor__advance`.
+  That single tree-sitter function was the hottest in the process by a wide
+  margin (961 self samples; the next non-idle function had 217).
+- `refresh_runnables` runs after every reparse with a 50 ms debounce and, for
+  a normal single-file editor, runs the runnables query over the **whole
+  buffer** (`Anchor::Min..Anchor::Max`); only multibuffers limit it to the
+  visible range. Roughly 40 ms of background CPU per edit in this file
+  (derived from sample counts, so approximate).
+
+This is the largest editor-side cost found in this whole exercise, and it is
+not rendering. Options, cheapest first: query only the visible rows (as
+multibuffers already do) and refresh on scroll; lengthen the debounce; or
+re-query only the edited ranges.
+
+Other things seen in the same profile: the automation server's forced draws
+were ~8% of main-thread samples (test overhead), and typing drew about 9–10
+frames per keystroke from the cursor and scroll animations.
