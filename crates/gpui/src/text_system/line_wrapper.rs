@@ -268,7 +268,7 @@ impl LineWrapper {
         let back_budget = content_budget - front_budget;
 
         let mut front_width = px(0.);
-        let mut front_end_ix = 0usize;
+        let mut front_end_ix = 0_usize;
         for (ix, c) in line.char_indices() {
             let char_width = self.width_for_char(c);
             if front_width + char_width > front_budget {
@@ -369,14 +369,14 @@ impl LineWrapper {
         let affix_width: Pixels = truncation_affix.chars().map(|c| self.width_for_char(c)).sum();
 
         let mut width = px(0.);
-        let mut line = 0usize;
+        let mut line = 0_usize;
         let mut first_non_whitespace_ix = None;
-        let mut last_candidate_ix = 0usize;
+        let mut last_candidate_ix = 0_usize;
         let mut last_candidate_width = px(0.);
-        let mut last_wrap_ix = 0usize;
+        let mut last_wrap_ix = 0_usize;
         let mut prev_c = '\0';
         let mut indent: Option<u32> = None;
-        let mut truncate_ix = 0usize;
+        let mut truncate_ix = 0_usize;
 
         for (ix, c) in text.char_indices() {
             if c == '\n' {
@@ -606,7 +606,7 @@ fn update_runs_after_middle_truncation(
 
     // Back segment [back_start_ix, original.len()): skip runs entirely in the
     // removed middle, keep the rest.
-    let mut byte_pos = 0usize;
+    let mut byte_pos = 0_usize;
     for run in &original_runs {
         let run_end = byte_pos + run.len;
         if run_end > back_start_ix {
@@ -684,7 +684,7 @@ impl WrapBoundaryCandidate {
 /// A boundary between two lines of text.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Boundary {
-    /// The index of the last character in a line
+    /// The index of the last character in a line.
     pub ix: usize,
     /// The indent of the next line.
     pub next_indent: u32,

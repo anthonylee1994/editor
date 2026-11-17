@@ -141,7 +141,7 @@ fn exact(value: f64) -> (Vec<u8>, i32) {
 
     let mut limbs = vec![mantissa % BASE, (mantissa / BASE) % BASE, mantissa / BASE / BASE];
     let (mut count, base, chunk) =
-        if exponent >= 0 { (exponent.unsigned_abs(), 2u64, 29) } else { (exponent.unsigned_abs(), 5u64, 13) };
+        if exponent >= 0 { (exponent.unsigned_abs(), 2_u64, 29) } else { (exponent.unsigned_abs(), 5_u64, 13) };
     while count > 0 {
         let step = count.min(chunk);
         multiply(&mut limbs, base.pow(step));

@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use buffer_diff::DiffHunkStatusKind;
 use gpui::AbsoluteLength;
-use gpui::Along;
+use gpui::Along as _;
 use gpui::AnyElement;
 use gpui::App;
 use gpui::AppContext as _;
@@ -24,26 +24,26 @@ use gpui::Edges;
 use gpui::Font;
 use gpui::HitboxBehavior;
 use gpui::Hsla;
-use gpui::IntoElement;
+use gpui::IntoElement as _;
 use gpui::IsZero as _;
 use gpui::MouseButton;
 use gpui::MouseDownEvent;
 use gpui::MouseMoveEvent;
 use gpui::MouseUpEvent;
 use gpui::PaintQuad;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Pixels;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Window;
 use gpui::div;
 use gpui::point;
 use gpui::px;
 use gpui::quad;
 use gpui::size;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use multi_buffer::MultiBufferPoint;
 use rustc_hash::FxHashMap;
-use theme::ActiveTheme;
+use theme::ActiveTheme as _;
 use workspace::item::Item as _;
 use workspace::item::ItemBufferKind;
 
@@ -62,7 +62,7 @@ use crate::Point;
 use crate::RowExt as _;
 use crate::RowRangeExt as _;
 use crate::display_map::HighlightKey;
-use crate::display_map::ToDisplayPoint;
+use crate::display_map::ToDisplayPoint as _;
 use crate::scroll::ScrollOffset;
 use crate::scroll::ScrollPixelOffset;
 use crate::scroll::ScrollbarThumbState;
@@ -182,11 +182,10 @@ impl EditorElement {
     ) -> Option<MinimapLayout> {
         let minimap_editor = self.editor.read(cx).minimap().cloned()?;
 
-        let active_editor = self
-            .editor
-            .read(cx)
-            .workspace()
-            .and_then(|ws| ws.read(cx).shown_pane().read(cx).active_item().and_then(|i| i.act_as::<Editor>(cx)));
+        let active_editor = self.editor.read(cx).workspace().and_then(|ws| {
+            let i = ws.read(cx).shown_pane().read(cx).active_item()?;
+            i.act_as::<Editor>(cx)
+        });
         if active_editor.is_some_and(|e| e != self.editor) {
             return None;
         }
@@ -323,7 +322,7 @@ impl EditorElement {
         // valid while scrolling; shift them by the minimap's scroll offset here.
         let origin = bounds.origin
             - point(Pixels::ZERO, Pixels::from(minimap.minimap_scroll_top * f64::from(track.line_height)));
-        let slow_markers = self.editor.read(cx).scrollbar_marker_state.markers.clone();
+        let slow_markers = Arc::clone(&self.editor.read(cx).scrollbar_marker_state.markers);
         slow_markers
             .iter()
             .chain(&fast_markers)
@@ -746,7 +745,7 @@ impl MinimapLayout {
     /// it at the same time (see [`Self::calculate_minimap_top_offset`]), so what we actually
     /// see is the difference of the two. Returns `None` if the thumb can't move at all, e.g.
     /// because the whole document fits into the editor or the thumb covers the entire minimap
-    /// (extremely unlikely, but may happen for very small editors that we currently allow)
+    /// (extremely unlikely, but may happen for very small editors that we currently allow).
     fn thumb_pixels_per_editor_line(
         thumb_layout: &ScrollbarLayout,
         document_lines: f64,

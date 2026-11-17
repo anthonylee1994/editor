@@ -1,4 +1,4 @@
-use std::cmp::{self};
+use std::cmp;
 use std::io;
 use std::ops::Range;
 use std::str;
@@ -275,7 +275,7 @@ impl<'a> Iterator for ReversedMultiBufferChunks<'a> {
             self.offset -= 1;
             Some("\n")
         } else {
-            let chunk = self.current_chunks.as_mut().unwrap().next()?;
+            let chunk = self.current_chunks.as_mut().expect("current chunks set above").next()?;
             self.offset -= chunk.len();
             Some(chunk)
         }
@@ -302,7 +302,7 @@ impl<'a> Iterator for MultiBufferChunks<'a> {
                 let chunk = if let Some(chunk) = &mut self.buffer_chunk {
                     chunk
                 } else {
-                    let chunk = self.next_excerpt_chunk().unwrap();
+                    let chunk = self.next_excerpt_chunk().expect("diff transform has an excerpt chunk");
                     self.buffer_chunk.insert(chunk)
                 };
 
@@ -318,7 +318,7 @@ impl<'a> Iterator for MultiBufferChunks<'a> {
                 if split_idx < chunk.text.len() {
                     let (before, after) = chunk.text.split_at(split_idx);
                     self.range.start += split_idx;
-                    let mask = 1u128.unbounded_shl(split_idx as u32).wrapping_sub(1);
+                    let mask = 1_u128.unbounded_shl(split_idx as u32).wrapping_sub(1);
                     let chars = chunk.chars & mask;
                     let tabs = chunk.tabs & mask;
                     let newlines = chunk.newlines & mask;
@@ -356,7 +356,7 @@ impl<'a> Iterator for MultiBufferChunks<'a> {
                     chunk
                 } else {
                     self.range.start += "\n".len();
-                    Chunk { text: "\n", chars: 1u128, newlines: 1u128, ..Default::default() }
+                    Chunk { text: "\n", chars: 1_u128, newlines: 1_u128, ..Default::default() }
                 };
                 Some(chunk)
             }

@@ -19,8 +19,8 @@ use crate::svg::root::svg_document;
 use crate::svg::theme::series_color;
 use crate::text::label::Label;
 use crate::text::label::layout_label;
+use crate::text::measure;
 use crate::text::measure::BOLD;
-use crate::text::measure::{self};
 use crate::yaml::Value;
 use crate::yaml::push_number;
 
@@ -173,7 +173,10 @@ pub(crate) fn render(model: &XyChartDb, config: &Value, options: &Options) -> Re
         return Err(error);
     }
     let chart = record(property(config, "xyChart"));
-    let setting = |key: &str| chart.and_then(|chart| property(chart, key));
+    let setting = |key: &str| {
+        let chart = chart?;
+        property(chart, key)
+    };
     let size = options.font_size;
     let small = js_round(size * 0.875);
     let tiny = js_round(size * 0.75);
@@ -309,20 +312,12 @@ pub(crate) fn render(model: &XyChartDb, config: &Value, options: &Options) -> Re
     let value_conf = record(chart.and_then(|chart| property(chart, "yAxis")));
     let (left_conf, bottom_conf) = if horizontal { (category_conf, value_conf) } else { (value_conf, category_conf) };
     let left_title = text(
-        if on(left_conf, "showTitle", true) {
-            Some(if horizontal { x.title() } else { model.y_axis.title.as_str() })
-        } else {
-            None
-        },
+        on(left_conf, "showTitle", true).then(|| if horizontal { x.title() } else { model.y_axis.title.as_str() }),
         small,
         height * 0.8,
     );
     let bottom_title = text(
-        if on(bottom_conf, "showTitle", true) {
-            Some(if horizontal { model.y_axis.title.as_str() } else { x.title() })
-        } else {
-            None
-        },
+        on(bottom_conf, "showTitle", true).then(|| if horizontal { model.y_axis.title.as_str() } else { x.title() }),
         small,
         width * 0.8,
     );

@@ -28,7 +28,7 @@ pub struct RelPath(str);
 /// An owned representation of a file system path that is guaranteed to be
 /// relative and normalized.
 ///
-/// This type is to [`RelPath`] as [`std::path::PathBuf`] is to [`std::path::Path`]
+/// This type is to [`RelPath`] as [`std::path::PathBuf`] is to [`std::path::Path`].
 #[derive(PartialEq, Eq, Clone, Hash, serde::Serialize)]
 pub struct RelPathBuf(String);
 
@@ -41,7 +41,7 @@ impl RelPath {
     /// Creates an empty [`RelPath`].
     pub fn empty_arc() -> Arc<Self> {
         static EMPTY: OnceLock<Arc<RelPath>> = OnceLock::new();
-        EMPTY.get_or_init(|| Arc::from(Self::empty())).clone()
+        Arc::clone(EMPTY.get_or_init(|| Arc::from(Self::empty())))
     }
 
     /// Converts a path into a [`RelPath`].
@@ -92,7 +92,7 @@ impl RelPath {
 
     #[track_caller]
     pub fn new_test(path: &str) -> Cow<'_, Self> {
-        Self::new(Path::new(path)).unwrap()
+        Self::new(Path::new(path)).expect("invalid test path")
     }
 
     /// Converts a path that is already normalized and uses '/' separators
@@ -130,11 +130,11 @@ impl RelPath {
     }
 
     pub fn file_stem(&self) -> Option<&str> {
-        Some(self.as_std_path().file_stem()?.to_str().unwrap())
+        Some(self.as_std_path().file_stem()?.to_str().expect("rel paths are utf-8"))
     }
 
     pub fn extension(&self) -> Option<&str> {
-        Some(self.as_std_path().extension()?.to_str().unwrap())
+        Some(self.as_std_path().extension()?.to_str().expect("rel paths are utf-8"))
     }
 
     pub fn parent(&self) -> Option<&Self> {

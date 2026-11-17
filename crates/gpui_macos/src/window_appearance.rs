@@ -1,7 +1,7 @@
 use gpui::WindowAppearance;
 use objc2::msg_send;
 
-use crate::NSStringExt;
+use crate::NSStringExt as _;
 use crate::ns::id;
 
 pub(crate) unsafe fn window_appearance_from_native(appearance: id) -> WindowAppearance {

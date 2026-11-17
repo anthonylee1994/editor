@@ -4,10 +4,10 @@ use gpui::SharedString;
 use gpui::WindowBackgroundAppearance;
 use strum::AsRefStr;
 use strum::EnumIter;
-use strum::IntoEnumIterator;
+use strum::IntoEnumIterator as _;
 
 use crate::AccentColors;
-use crate::ActiveTheme;
+use crate::ActiveTheme as _;
 use crate::CursorColors;
 use crate::StatusColors;
 use crate::SyntaxTheme;
@@ -17,7 +17,7 @@ use crate::SystemColors;
 pub struct ThemeColors {
     /// Border color. Used for most borders, is usually a high contrast color.
     pub border: Hsla,
-    /// Border color. Used for deemphasized borders, like a visual divider between two sections
+    /// Border color. Used for deemphasized borders, like a visual divider between two sections.
     pub border_variant: Hsla,
     /// Border color. Used for focused elements, like keyboard focused list item.
     pub border_focused: Hsla,
@@ -558,7 +558,7 @@ pub fn all_theme_colors(cx: &mut App) -> Vec<(Hsla, SharedString)> {
     ThemeColorField::iter()
         .map(|field| {
             let color = theme.colors().color(field);
-            let name = field.as_ref().to_string();
+            let name = field.as_ref().to_owned();
             (color, SharedString::from(name))
         })
         .collect()
@@ -588,7 +588,7 @@ mod tests {
     use crate::built_in;
 
     #[test]
-    fn test_drop_target_colors_follow_accent() {
+    fn drop_target_colors_follow_accent() {
         let colors = built_in::theme_colors();
         assert_eq!(colors.drop_target_border(), colors.text_accent);
         assert_eq!(colors.drop_target_background(), colors.text_accent.opacity(0.12));

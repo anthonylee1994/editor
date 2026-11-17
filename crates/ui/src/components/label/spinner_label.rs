@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use gpui::Animation;
-use gpui::AnimationExt;
+use gpui::AnimationExt as _;
 use gpui::FontWeight;
 
 use crate::prelude::App;
@@ -14,7 +14,7 @@ use crate::prelude::LineHeightStyle;
 use crate::prelude::RenderOnce;
 use crate::prelude::Window;
 
-/// Different types of spinner animations
+/// Different types of spinner animations.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum SpinnerVariant {
     #[default]

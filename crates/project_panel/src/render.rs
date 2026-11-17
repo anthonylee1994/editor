@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use std::ops::Neg;
+use std::ops::Neg as _;
 use std::ops::Range;
 use std::path::Path;
 use std::sync::Arc;
@@ -10,7 +10,7 @@ use editor::items::entry_diagnostic_aware_icon_name_and_color;
 use editor::items::entry_git_aware_label_color;
 use file_icons::FileIcons;
 use git::status::GitSummary;
-use gpui::Action;
+use gpui::Action as _;
 use gpui::AnyElement;
 use gpui::App;
 use gpui::AppContext as _;
@@ -18,22 +18,22 @@ use gpui::Bounds;
 use gpui::Context;
 use gpui::Div;
 use gpui::DragMoveEvent;
-use gpui::Focusable;
+use gpui::Focusable as _;
 use gpui::Hsla;
-use gpui::InteractiveElement;
+use gpui::InteractiveElement as _;
 use gpui::ListHorizontalSizingBehavior;
 use gpui::ListSizingBehavior;
 use gpui::ModifiersChangedEvent;
 use gpui::MouseButton;
 use gpui::MouseDownEvent;
 use gpui::MouseExitEvent;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Pixels;
 use gpui::Point;
 use gpui::Render;
 use gpui::ScrollStrategy;
 use gpui::Stateful;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Window;
 use gpui::anchored;
 use gpui::deferred;
@@ -63,30 +63,30 @@ use ui::ListItem;
 use ui::ListItemSpacing;
 use ui::ProjectEmptyState;
 use ui::ScrollAxes;
-use ui::ScrollableHandle;
+use ui::ScrollableHandle as _;
 use ui::Scrollbars;
 use ui::StickyCandidate;
 use ui::Tooltip;
-use ui::WithScrollbar;
+use ui::WithScrollbar as _;
 use ui::font;
-use ui::prelude::ActiveTheme;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::Color;
-use ui::prelude::Element;
+use ui::prelude::Element as _;
 use ui::prelude::ElementId;
-use ui::prelude::FluentBuilder;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Icon;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
 use ui::prelude::IntoElement;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
 use ui::prelude::SharedString;
-use ui::prelude::StatefulInteractiveElement;
+use ui::prelude::StatefulInteractiveElement as _;
 use ui::prelude::h_flex;
 use ui::prelude::v_flex;
-use util::ResultExt;
-use util::paths::PathExt;
+use util::ResultExt as _;
+use util::paths::PathExt as _;
 use util::rel_path::RelPath;
 use workspace::DraggedSelection;
 use workspace::SelectedEntry;
@@ -239,7 +239,7 @@ impl ProjectPanel {
         let item_colors = get_item_color(is_sticky, cx);
 
         let canonical_path = details.canonical_path.clone();
-        let path = details.path.clone();
+        let path = Arc::clone(&details.path);
 
         let depth = details.depth;
         let worktree_id = details.worktree_id;
@@ -329,10 +329,10 @@ impl ProjectPanel {
             .when(!is_sticky, |this| {
                 this.when(show_drag_highlight, |this| this.border_color(transparent_white()).bg(transparent_white()))
                     .map(|this| {
-                        let path_for_dragged_selection = path.clone();
+                        let path_for_dragged_selection = Arc::clone(&path);
                         let dragged_selection = DraggedSelection {
                             active_selection: selection,
-                            marked_selections: marked_selections.clone(),
+                            marked_selections: Arc::clone(&marked_selections),
                         };
 
                         this.on_drag_move::<DraggedSelection>(cx.listener(
@@ -430,7 +430,7 @@ impl ProjectPanel {
                                     filename: filename.clone(),
                                     click_offset,
                                     selection: selection.active_selection,
-                                    selections: selection.marked_selections.clone(),
+                                    selections: Arc::clone(&selection.marked_selections),
                                 })
                             }
                         })
@@ -706,10 +706,11 @@ impl ProjectPanel {
     }
 
     fn drag_highlight_entry_id(&self) -> Option<ProjectEntryId> {
-        self.drag_target_entry.as_ref().and_then(|drag_target| match drag_target {
+        let drag_target = self.drag_target_entry.as_ref()?;
+        match drag_target {
             DragTarget::Entry { highlight_entry_id, .. } => Some(*highlight_entry_id),
             DragTarget::Background => self.state.last_worktree_root_id,
-        })
+        }
     }
 
     fn find_drag_highlight_last_entry_id(&self) -> Option<ProjectEntryId> {
@@ -906,18 +907,18 @@ impl ProjectPanel {
         let filename = if let Some(library_name) = library_name {
             library_name.to_string()
         } else if difference > 1 {
-            entry.path.last_n_components(difference).map_or(String::new(), |suffix| suffix.display().to_string())
+            entry.path.last_n_components(difference).map_or(String::new(), |suffix| suffix.display().to_owned())
         } else {
-            entry_file_name(entry, root_name).to_string()
+            entry_file_name(entry, root_name).to_owned()
         };
 
         let selection = SelectedEntry { worktree_id, entry_id: entry.id };
         let is_marked = self.marked_entries.contains(&selection);
         let is_selected = self.selection == Some(selection);
 
-        let diagnostic_severity = self.diagnostics.get(&(worktree_id, entry.path.clone())).copied();
+        let diagnostic_severity = self.diagnostics.get(&(worktree_id, Arc::clone(&entry.path))).copied();
 
-        let diagnostic_count = self.diagnostic_counts.get(&(worktree_id, entry.path.clone())).copied();
+        let diagnostic_count = self.diagnostic_counts.get(&(worktree_id, Arc::clone(&entry.path))).copied();
 
         let diagnostic_mark = if icon.is_some() {
             entry_diagnostic_aware_icon_decoration_and_color(diagnostic_severity).map(|(kind, _)| {
@@ -935,7 +936,7 @@ impl ProjectPanel {
         EntryDetails {
             filename,
             icon,
-            path: entry.path.clone(),
+            path: Arc::clone(&entry.path),
             depth,
             kind: entry.kind,
             is_ignored: entry.is_ignored,
@@ -994,7 +995,7 @@ impl ProjectPanel {
             let visible_worktree = &self.state.visible_entries[worktree_ix];
             let visible_worktree_entries = visible_worktree
                 .index
-                .get_or_init(|| visible_worktree.entries.iter().map(|e| e.path.clone()).collect());
+                .get_or_init(|| visible_worktree.entries.iter().map(|e| Arc::clone(&e.path)).collect());
 
             // Calculate the actual depth of the entry, taking into account that directories can be auto-folded.
             let (depth, _) = Self::calculate_depth_and_difference(entry, visible_worktree_entries);
@@ -1036,10 +1037,10 @@ impl ProjectPanel {
         };
         let worktree = worktree.read(cx).snapshot();
 
-        let paths = visible.index.get_or_init(|| visible.entries.iter().map(|e| e.path.clone()).collect());
+        let paths = visible.index.get_or_init(|| visible.entries.iter().map(|e| Arc::clone(&e.path)).collect());
 
         let mut sticky_parents = Vec::new();
-        let mut current_path = entry_ref.path.clone();
+        let mut current_path = Arc::clone(&entry_ref.path);
 
         'outer: loop {
             if let Some(parent_path) = current_path.parent() {
@@ -1048,7 +1049,7 @@ impl ProjectPanel {
                         && let Some(parent_entry) = worktree.entry_for_path(ancestor_path)
                     {
                         sticky_parents.push(parent_entry.clone());
-                        current_path = parent_entry.path.clone();
+                        current_path = Arc::clone(&parent_entry.path);
                         continue 'outer;
                     }
                 }

@@ -1,13 +1,13 @@
+use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
-use std::fmt::{self};
 
 use gpui::App;
 use gpui::BoxShadow;
 use gpui::Hsla;
 use gpui::hsla;
 use gpui::px;
-use theme::ActiveTheme;
+use theme::ActiveTheme as _;
 use theme::Appearance;
 
 /// Today, elevation is primarily used to add shadows to elements, and set the correct background for elements like buttons.
@@ -24,7 +24,7 @@ pub enum ElevationIndex {
     Background,
     /// The primary surface – Contains panels, panes, containers, etc.
     Surface,
-    /// The same elevation as the primary surface, but used for the editable areas, like buffers
+    /// The same elevation as the primary surface, but used for the editable areas, like buffers.
     EditorSurface,
     /// A surface that is elevated above the primary surface. but below washes, models, and dragged elements.
     ElevatedSurface,
@@ -82,7 +82,7 @@ impl ElevationIndex {
         }
     }
 
-    /// Returns a color that is appropriate a filled element on this elevation
+    /// Returns a color that is appropriate a filled element on this elevation.
     pub fn on_elevation_bg(&self, cx: &App) -> Hsla {
         match self {
             ElevationIndex::Background => cx.theme().colors().surface_background,

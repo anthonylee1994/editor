@@ -36,11 +36,11 @@ use super::fold_map::FoldRows;
 use super::invisibles::is_invisible;
 use super::invisibles::is_standalone_grapheme;
 use super::invisibles::replacement;
+use super::tab_map;
 use super::tab_map::TabEdit;
 use super::tab_map::TabPoint;
 use super::tab_map::TabSnapshot;
 pub use super::tab_map::TextSummary;
-use super::tab_map::{self};
 pub type WrapEdit = text::Edit<WrapRow>;
 pub type WrapPatch = text::Patch<WrapRow>;
 
@@ -177,7 +177,7 @@ impl WrapRows<'_> {
         }
         self.soft_wrapped = self.transforms.item().is_some_and(|t| !t.is_isomorphic());
         self.input_buffer_rows.seek(input_row);
-        self.input_buffer_row = self.input_buffer_rows.next().unwrap();
+        self.input_buffer_row = self.input_buffer_rows.next().expect("input rows outlast transforms");
         self.output_row = start_row;
     }
 }
@@ -261,7 +261,7 @@ impl WrapMap {
 
             let text_system = cx.text_system();
             let (font, font_size) = self.font_with_size.clone();
-            let mut fragment_builder = LineFragmentBuilder::new(text_system.clone(), &font, font_size);
+            let mut fragment_builder = LineFragmentBuilder::new(Arc::clone(text_system), &font, font_size);
             let mut line_wrapper = text_system.line_wrapper(font, font_size);
             let tab_snapshot = new_snapshot.tab_snapshot.clone();
             let total_rows = tab_snapshot.max_point().row() as usize + 1;
@@ -356,9 +356,9 @@ impl WrapMap {
         {
             let pending_edits = self.pending_edits.clone();
             let mut snapshot = self.snapshot.clone();
-            let text_system = cx.text_system().clone();
+            let text_system = Arc::clone(cx.text_system());
             let (font, font_size) = self.font_with_size.clone();
-            let mut fragment_builder = LineFragmentBuilder::new(text_system.clone(), &font, font_size);
+            let mut fragment_builder = LineFragmentBuilder::new(Arc::clone(&text_system), &font, font_size);
             let mut line_wrapper = text_system.line_wrapper(font, font_size);
 
             let update_passes = pending_edits.len();
@@ -473,7 +473,8 @@ impl WrapSnapshot {
             let mut old_cursor = self.transforms.cursor::<TabPoint>(());
 
             let mut tab_edits_iter = tab_edits.iter().peekable();
-            new_transforms = old_cursor.slice(&tab_edits_iter.peek().unwrap().old.start, Bias::Right);
+            new_transforms =
+                old_cursor.slice(&tab_edits_iter.peek().expect("tab edits are non-empty").old.start, Bias::Right);
 
             while let Some(edit) = tab_edits_iter.next() {
                 if edit.new.start > TabPoint::from(new_transforms.summary().input.lines) {
@@ -561,7 +562,10 @@ impl WrapSnapshot {
             let mut row_edits = row_edits.into_iter().peekable();
             let mut old_cursor = self.transforms.cursor::<TabPoint>(());
 
-            new_transforms = old_cursor.slice(&TabPoint::new(row_edits.peek().unwrap().old_rows.start, 0), Bias::Right);
+            new_transforms = old_cursor.slice(
+                &TabPoint::new(row_edits.peek().expect("row edits are non-empty").old_rows.start, 0),
+                Bias::Right,
+            );
 
             while let Some(edit) = row_edits.next() {
                 if edit.new_rows.start > new_transforms.summary().input.lines.row {
@@ -800,11 +804,8 @@ impl WrapSnapshot {
 
     pub fn soft_wrap_indent(&self, row: WrapRow) -> Option<u32> {
         let (.., item) = self.transforms.find::<WrapPoint, _>((), &WrapPoint::new(row + WrapRow(1), 0), Bias::Left);
-        item.and_then(
-            |transform| {
-                if transform.is_isomorphic() { None } else { Some(transform.summary.output.lines.column) }
-            },
-        )
+        let transform = item?;
+        if transform.is_isomorphic() { None } else { Some(transform.summary.output.lines.column) }
     }
 
     pub fn longest_row(&self) -> u32 {
@@ -820,7 +821,7 @@ impl WrapSnapshot {
         }
         let soft_wrapped = transforms.item().is_some_and(|t| !t.is_isomorphic());
         let mut input_buffer_rows = self.tab_snapshot.rows(input_row);
-        let input_buffer_row = input_buffer_rows.next().unwrap();
+        let input_buffer_row = input_buffer_rows.next().expect("input rows outlast edit rows");
         WrapRows {
             transforms,
             input_buffer_row,
@@ -870,7 +871,7 @@ impl WrapSnapshot {
     }
 
     /// Try to find a TabRow start that is also a WrapRow start
-    /// Every TabRow start is a WrapRow start
+    /// Every TabRow start is a WrapRow start.
     pub fn prev_row_boundary(&self, point: WrapPoint) -> WrapRow {
         if self.transforms.is_empty() {
             return WrapRow(0);
@@ -1036,7 +1037,7 @@ impl<'a> Iterator for WrapChunks<'a> {
 
         let (prefix, suffix) = self.input_chunk.text.split_at(input_len);
 
-        let mask = 1u128.unbounded_shl(input_len as u32).wrapping_sub(1);
+        let mask = 1_u128.unbounded_shl(input_len as u32).wrapping_sub(1);
         let chars = self.input_chunk.chars & mask;
         let tabs = self.input_chunk.tabs & mask;
         let newlines = self.input_chunk.newlines & mask;
@@ -1064,7 +1065,7 @@ impl Iterator for WrapRows<'_> {
         self.output_row += WrapRow(1);
         self.transforms.seek_forward(&WrapPoint::new(self.output_row, 0), Bias::Left);
         if self.transforms.item().is_some_and(|t| t.is_isomorphic()) {
-            self.input_buffer_row = self.input_buffer_rows.next().unwrap();
+            self.input_buffer_row = self.input_buffer_rows.next().expect("input rows outlast transforms");
             self.soft_wrapped = false;
         } else {
             self.soft_wrapped = true;
@@ -1094,7 +1095,7 @@ impl Transform {
         static WRAP_TEXT: LazyLock<String> = LazyLock::new(|| {
             let mut wrap_text = String::new();
             wrap_text.push('\n');
-            wrap_text.extend((0..LineWrapper::MAX_INDENT as usize).map(|_| ' '));
+            wrap_text.extend(std::iter::repeat_n(' ', LineWrapper::MAX_INDENT as usize));
             wrap_text
         });
 
@@ -1146,8 +1147,10 @@ impl SumTreeExt for SumTree<Transform> {
         let mut transform = Some(transform);
         self.update_last(
             |last_transform| {
-                if last_transform.is_isomorphic() && transform.as_ref().unwrap().is_isomorphic() {
-                    let transform = transform.take().unwrap();
+                if last_transform.is_isomorphic()
+                    && transform.as_ref().expect("update_last calls closure at most once").is_isomorphic()
+                {
+                    let transform = transform.take().expect("update_last calls closure at most once");
                     last_transform.summary.input += &transform.summary.input;
                     last_transform.summary.output += &transform.summary.output;
                 }

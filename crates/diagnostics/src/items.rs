@@ -7,9 +7,9 @@ use gpui::Context;
 use gpui::Entity;
 use gpui::EventEmitter;
 use gpui::IntoElement;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Render;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Subscription;
 use gpui::Task;
 use gpui::WeakEntity;
@@ -24,14 +24,14 @@ use ui::IconName;
 use ui::Label;
 use ui::Tooltip;
 use ui::h_flex;
-use ui::prelude::ButtonCommon;
-use ui::prelude::Clickable;
-use ui::prelude::FluentBuilder;
+use ui::prelude::ButtonCommon as _;
+use ui::prelude::Clickable as _;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::IconSize;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
 use ui::prelude::SharedString;
-use util::ResultExt;
+use util::ResultExt as _;
 use workspace::StatusItemView;
 use workspace::ToolbarItemEvent;
 use workspace::Workspace;
@@ -87,7 +87,7 @@ impl Render for DiagnosticIndicator {
                 Button::new("diagnostic_message", SharedString::new(message))
                     .label_size(LabelSize::Small)
                     .truncate(true)
-                    .tab_index(0isize)
+                    .tab_index(0_isize)
                     .tooltip(move |_window, cx| Tooltip::for_action(tooltip, &GoToDiagnostic::default(), cx))
                     .on_click(cx.listener(|this, _, window, cx| this.go_to_next_diagnostic(window, cx))),
             )
@@ -99,7 +99,7 @@ impl Render for DiagnosticIndicator {
             .child(
                 ButtonLike::new("diagnostic-indicator")
                     .child(diagnostic_indicator)
-                    .tab_index(0isize)
+                    .tab_index(0_isize)
                     .tooltip(move |_window, cx| Tooltip::for_action("Project Diagnostics", &Deploy, cx))
                     .on_click(cx.listener(|this, _, window, cx| {
                         if let Some(workspace) = this.workspace.upgrade() {

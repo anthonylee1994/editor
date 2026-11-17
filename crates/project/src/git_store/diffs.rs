@@ -9,9 +9,9 @@ use buffer_diff::BufferDiff;
 use buffer_diff::DiffHunkSecondaryStatus;
 use buffer_diff::PendingSense;
 use futures::FutureExt;
-use futures::future::{self};
+use futures::future;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::AsyncApp;
 use gpui::Context;
 use gpui::Entity;
@@ -20,8 +20,8 @@ use gpui::WeakEntity;
 use language::Anchor;
 use language::Buffer;
 use text::BufferId;
-use text::OffsetRangeExt;
-use text::ToOffset;
+use text::OffsetRangeExt as _;
+use text::ToOffset as _;
 
 use super::DiffKind;
 use super::GitStore;
@@ -209,22 +209,17 @@ impl GitStore {
             uncommitted_hunks.dedup_by(|a, b| a.buffer_range.start == b.buffer_range.start);
         }
 
-        let index_edits = if file_exists {
-            Some(
-                unstaged_hunks
-                    .iter()
-                    .map(|hunk| {
-                        let worktree_range = hunk.buffer_range.to_offset(&buffer_snapshot);
-                        let replacement: Arc<str> =
-                            Arc::from(buffer_snapshot.text_for_range(worktree_range).collect::<String>());
-                        (hunk.diff_base_byte_range.clone(), replacement)
-                    })
-                    .collect::<Vec<_>>(),
-            )
-        } else {
-            // The worktree file is gone: staging removes it from the index.
-            None
-        };
+        let index_edits = file_exists.then(|| {
+            unstaged_hunks
+                .iter()
+                .map(|hunk| {
+                    let worktree_range = hunk.buffer_range.to_offset(&buffer_snapshot);
+                    let replacement: Arc<str> =
+                        Arc::from(buffer_snapshot.text_for_range(worktree_range).collect::<String>());
+                    (hunk.diff_base_byte_range.clone(), replacement)
+                })
+                .collect::<Vec<_>>()
+        });
 
         let version = buffer_snapshot.version().clone();
         let unstaged_pending = pending_hunks(&unstaged_hunks, &version, PendingSense::Suppress);

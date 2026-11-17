@@ -7,16 +7,16 @@ use gpui::FocusHandle;
 use gpui::Focusable;
 use ui::App;
 use ui::Button;
-use ui::ButtonCommon;
+use ui::ButtonCommon as _;
 use ui::ButtonStyle;
-use ui::Clickable;
+use ui::Clickable as _;
 use ui::Context;
-use ui::InteractiveElement;
+use ui::InteractiveElement as _;
 use ui::KeyBinding;
 use ui::Label;
-use ui::LabelCommon;
+use ui::LabelCommon as _;
 use ui::LabelSize;
-use ui::ParentElement;
+use ui::ParentElement as _;
 use ui::Render;
 use ui::SharedString;
 use ui::Styled as _;
@@ -81,7 +81,7 @@ impl Focusable for InvalidItemView {
 
 impl Render for InvalidItemView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl gpui::IntoElement {
-        let abs_path = self.abs_path.clone();
+        let abs_path = Arc::clone(&self.abs_path);
         v_flex()
             .size_full()
             .track_focus(&self.focus_handle(cx))

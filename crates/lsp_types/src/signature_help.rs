@@ -22,7 +22,7 @@ pub struct SignatureInformationSettings {
     /// The client support the `activeParameter` property on `SignatureInformation`
     /// literal.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub active_parameter_support: Option<bool>,
 }
@@ -33,7 +33,7 @@ pub struct ParameterInformationSettings {
     /// The client supports processing label offsets instead of a
     /// simple label string.
     ///
-    /// @since 3.14.0
+    /// @since 3.14.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub label_offset_support: Option<bool>,
 }
@@ -55,7 +55,7 @@ pub struct SignatureHelpClientCapabilities {
     /// contextSupport will also support the `retriggerCharacters` on
     /// `SignatureHelpOptions`.
     ///
-    /// @since 3.15.0
+    /// @since 3.15.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub context_support: Option<bool>,
 }
@@ -104,7 +104,7 @@ impl SignatureHelpTriggerKind {
 #[serde(rename_all = "camelCase")]
 pub struct SignatureHelpParams {
     /// The signature help context. This is only available if the client specifies
-    /// to send this using the client capability  `textDocument.signatureHelp.contextSupport === true`
+    /// to send this using the client capability  `textDocument.signatureHelp.contextSupport === true`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub context: Option<SignatureHelpContext>,
 
@@ -122,7 +122,7 @@ pub struct SignatureHelpContext {
     pub trigger_kind: SignatureHelpTriggerKind,
 
     /// Character that caused signature help to be triggered.
-    /// This is undefined when `triggerKind !== SignatureHelpTriggerKind.TriggerCharacter`
+    /// This is undefined when `triggerKind !== SignatureHelpTriggerKind.TriggerCharacter`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub trigger_character: Option<String>,
 
@@ -179,7 +179,7 @@ pub struct SignatureInformation {
     ///
     /// If provided, this is used in place of `SignatureHelp.activeParameter`.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub active_parameter: Option<u32>,
 }

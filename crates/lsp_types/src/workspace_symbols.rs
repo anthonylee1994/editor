@@ -27,7 +27,7 @@ pub struct WorkspaceSymbolClientCapabilities {
     /// The client supports tags on `SymbolInformation`.
     /// Clients supporting tags have to handle unknown tags gracefully.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "TagSupport::deserialize_compat")]
     pub tag_support: Option<TagSupport<SymbolTag>>,
 
@@ -35,7 +35,7 @@ pub struct WorkspaceSymbolClientCapabilities {
     /// request `workspaceSymbol/resolve` to the server to resolve additional
     /// properties.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resolve_support: Option<WorkspaceSymbolResolveSupportCapability>,
 }
@@ -49,20 +49,20 @@ pub struct WorkspaceSymbolParams {
     #[serde(flatten)]
     pub work_done_progress_params: WorkDoneProgressParams,
 
-    /// A non-empty query string
+    /// A non-empty query string.
     pub query: String,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 pub struct WorkspaceSymbolResolveSupportCapability {
     /// The properties that a client can resolve lazily. Usually
-    /// `location.range`
+    /// `location.range`.
     pub properties: Vec<String>,
 }
 
-/// A special workspace symbol that supports locations without a range
+/// A special workspace symbol that supports locations without a range.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceSymbol {

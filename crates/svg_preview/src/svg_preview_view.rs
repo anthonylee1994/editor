@@ -11,10 +11,10 @@ use gpui::EventEmitter;
 use gpui::FocusHandle;
 use gpui::Focusable;
 use gpui::IntoElement;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Render;
 use gpui::RenderImage;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Subscription;
 use gpui::Task;
 use gpui::WeakEntity;
@@ -25,20 +25,20 @@ use language::Buffer;
 use language::BufferEvent;
 use multi_buffer::MultiBuffer;
 use project::ProjectPath;
-use ui::prelude::ActiveTheme;
-use ui::prelude::FluentBuilder;
+use ui::prelude::ActiveTheme as _;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Icon;
 use ui::prelude::IconName;
-use ui::prelude::InteractiveElement;
+use ui::prelude::InteractiveElement as _;
 use ui::prelude::SharedString;
-use ui::prelude::StyledImage;
+use ui::prelude::StyledImage as _;
 use ui::prelude::h_flex;
 use ui::prelude::v_flex;
 use workspace::Pane;
 use workspace::Workspace;
 use workspace::item::Item;
 use workspace::item::ItemEvent;
-use workspace::notifications::NotifyResultExt;
+use workspace::notifications::NotifyResultExt as _;
 
 use crate::OpenFollowingPreview;
 
@@ -182,9 +182,10 @@ impl SvgPreviewView {
 
     fn find_existing_preview_item_idx(pane: &Pane, buffer: &Entity<MultiBuffer>, cx: &App) -> Option<usize> {
         let buffer_id = buffer.read(cx).as_singleton()?.entity_id();
-        pane.items_of_type::<SvgPreviewView>()
-            .find(|view| view.read(cx).buffer.as_ref().is_some_and(|buffer| buffer.entity_id() == buffer_id))
-            .and_then(|view| pane.index_for_item(&view))
+        let view = pane
+            .items_of_type::<SvgPreviewView>()
+            .find(|view| view.read(cx).buffer.as_ref().is_some_and(|buffer| buffer.entity_id() == buffer_id))?;
+        pane.index_for_item(&view)
     }
 
     pub fn resolve_active_item_as_svg_buffer(

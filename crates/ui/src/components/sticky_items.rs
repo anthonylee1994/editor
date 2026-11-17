@@ -231,7 +231,7 @@ where
         }
 
         let (mut drifting_element, mut rest_elements) = if sticky_anchor.drifting && !elements.is_empty() {
-            let last = elements.pop().unwrap();
+            let last = elements.pop().expect("elements checked non-empty");
             (Some(last), elements)
         } else {
             (None, elements)

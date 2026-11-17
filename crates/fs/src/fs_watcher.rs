@@ -14,7 +14,7 @@ use futures::StreamExt as _;
 use gpui::BackgroundExecutor;
 use gpui::Task;
 use parking_lot::Mutex;
-use util::ResultExt;
+use util::ResultExt as _;
 use util::paths::SanitizedPath;
 
 use crate::Fs;
@@ -37,7 +37,7 @@ pub(crate) async fn watch(
     let pending_paths: Arc<Mutex<Vec<PathEvent>>> = Arc::default();
 
     let watcher: Arc<dyn Watcher> =
-        Arc::new(FsWatcher::new(native_watcher, fs.clone(), executor.clone(), tx, pending_paths.clone()));
+        Arc::new(FsWatcher::new(native_watcher, Arc::clone(&fs), executor.clone(), tx, Arc::clone(&pending_paths)));
 
     if let Err(e) = watcher.add(path) {
         log::warn!("Failed to watch {}:\n{e}", path.display());
@@ -63,10 +63,10 @@ pub(crate) async fn watch(
 
     (
         Box::pin(rx.filter_map({
-            let watcher = watcher.clone();
+            let watcher = Arc::clone(&watcher);
             move |()| {
-                let _ = watcher.clone();
-                let pending_paths = pending_paths.clone();
+                let _: Arc<dyn Watcher> = Arc::clone(&watcher);
+                let pending_paths = Arc::clone(&pending_paths);
                 let executor = executor.clone();
                 async move {
                     if !latency.is_zero() {
@@ -129,7 +129,7 @@ impl FsWatcher {
             path,
             case_insensitive,
             self.tx.clone(),
-            self.pending_path_events.clone(),
+            Arc::clone(&self.pending_path_events),
         )?;
         self.registrations.lock().insert(key, registration);
         Ok(())
@@ -142,14 +142,14 @@ impl FsWatcher {
         }
 
         let task = self.executor.spawn(poll_path_until_created(
-            self.native_watcher.clone(),
-            self.fs.clone(),
+            Arc::clone(&self.native_watcher),
+            Arc::clone(&self.fs),
             self.executor.clone(),
-            path.clone(),
+            Arc::clone(&path),
             self.tx.clone(),
-            self.pending_path_events.clone(),
-            self.registrations.clone(),
-            self.pending_registrations.clone(),
+            Arc::clone(&self.pending_path_events),
+            Arc::clone(&self.registrations),
+            Arc::clone(&self.pending_registrations),
         ));
         pending_registrations.insert(path, task);
     }
@@ -232,12 +232,12 @@ fn register_existing_path(
     pending_path_events: Arc<Mutex<Vec<PathEvent>>>,
 ) -> anyhow::Result<FsWatcherRegistration> {
     let root_path = SanitizedPath::new_arc(path.as_ref());
-    let path_for_callback = path.clone();
+    let path_for_callback = Arc::clone(&path);
     let registration_id = native_watcher.add(path, case_insensitive, move |event: &fsevents::Event| {
         log::trace!("watcher received event: {event:?}");
         push_fs_event(&tx, &pending_path_events, &root_path, case_insensitive, path_for_callback.as_ref(), event);
     })?;
-    Ok(FsWatcherRegistration { id: registration_id, os_watcher: native_watcher.clone() })
+    Ok(FsWatcherRegistration { id: registration_id, os_watcher: Arc::clone(native_watcher) })
 }
 
 /// Whether the volume backing `path` does case-insensitive name lookups, used to
@@ -337,8 +337,8 @@ async fn poll_path_until_created(
             !fs.is_path_case_sensitive(&path)
         } else {
             async_macos::unblock({
-                let path = path.clone();
-                let fs = fs.clone();
+                let path = Arc::clone(&path);
+                let fs = Arc::clone(&fs);
                 move || !fs.is_path_case_sensitive(&path)
             })
             .await
@@ -351,10 +351,10 @@ async fn poll_path_until_created(
         }
 
         let register = {
-            let path = path.clone();
+            let path = Arc::clone(&path);
             let tx = tx.clone();
-            let pending_path_events = pending_path_events.clone();
-            let native_watcher = native_watcher.clone();
+            let pending_path_events = Arc::clone(&pending_path_events);
+            let native_watcher = Arc::clone(&native_watcher);
             move || register_existing_path(&native_watcher, path, case_insensitive, tx, pending_path_events)
         };
         let registration = if fs.is_fake() { register() } else { async_macos::unblock(register).await };
@@ -589,10 +589,10 @@ impl OsWatcher {
         // Dispatch (and its logging, which can block) runs here rather than on
         // the FSEvents queues.
         let dispatch_task = executor.spawn({
-            let state = state.clone();
+            let state = Arc::clone(&state);
             async move {
                 let mut rescan_history = RescanHistory::default();
-                let mut dispatched = 0usize;
+                let mut dispatched = 0_usize;
                 while let Ok(event) = event_rx.recv().await {
                     if let Some(report) = rescan_history.record(&event) {
                         log::error!("filesystem watcher requested rescan: {report}");
@@ -715,7 +715,7 @@ impl OsWatcher {
             }
         };
         while let Some((depth, covered_key)) = pending.pop_first() {
-            let Some(covered_path) = state.paths.0.get(&covered_key).map(|registration| registration.path.clone())
+            let Some(covered_path) = state.paths.0.get(&covered_key).map(|registration| Arc::clone(&registration.path))
             else {
                 continue;
             };
@@ -765,13 +765,13 @@ fn dispatch(state: &Mutex<WatcherState>, event: &fsevents::Event) {
     let callbacks = {
         let state = state.lock();
         if event.must_rescan() {
-            state.watchers.values().map(|registration| registration.callback.clone()).collect::<Vec<_>>()
+            state.watchers.values().map(|registration| Arc::clone(&registration.callback)).collect::<Vec<_>>()
         } else {
             let mut ids = Vec::new();
             state.paths.watcher_ids_covering(SanitizedPath::new(&event.path), &mut ids);
             ids.into_iter()
                 .filter_map(|id| state.watchers.get(&id))
-                .map(|registration| registration.callback.clone())
+                .map(|registration| Arc::clone(&registration.callback))
                 .collect::<Vec<_>>()
         }
     };
@@ -904,7 +904,7 @@ mod tests {
             let id = WatcherRegistrationId(id as u32);
             let path = SanitizedPath::new_arc(path);
             let key = WatchKey::exact(&path);
-            let called = called.clone();
+            let called = Arc::clone(&called);
             state.watchers.insert(
                 id,
                 WatcherRegistrationState { callback: Arc::new(move |_| called.lock().push(id.0)), key: key.clone() },

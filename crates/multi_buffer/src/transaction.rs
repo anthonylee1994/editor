@@ -8,7 +8,6 @@ use gpui::Context;
 use gpui::Entity;
 use language::Buffer;
 use language::TransactionId;
-use language::{self};
 use sum_tree::Bias;
 use text::BufferId;
 
@@ -51,7 +50,7 @@ struct Transaction {
 impl History {
     fn start_transaction(&mut self, now: Instant) -> Option<TransactionId> {
         self.transaction_depth += 1;
-        if self.transaction_depth == 1 {
+        (self.transaction_depth == 1).then(|| {
             let id = self.next_transaction_id.tick();
             self.undo_stack.push(Transaction {
                 id,
@@ -60,10 +59,8 @@ impl History {
                 last_edit_at: now,
                 suppress_grouping: false,
             });
-            Some(id)
-        } else {
-            None
-        }
+            id
+        })
     }
 
     fn end_transaction(&mut self, now: Instant, buffer_transactions: HashMap<BufferId, text::TransactionId>) -> bool {
@@ -75,7 +72,7 @@ impl History {
                 false
             } else {
                 self.redo_stack.clear();
-                let transaction = self.undo_stack.last_mut().unwrap();
+                let transaction = self.undo_stack.last_mut().expect("transaction was just pushed");
                 transaction.last_edit_at = now;
                 for (buffer_id, transaction_id) in buffer_transactions {
                     transaction.buffer_transactions.entry(buffer_id).or_insert(transaction_id);
@@ -262,12 +259,9 @@ impl MultiBuffer {
             }
         }
 
-        if self.history.end_transaction(now, buffer_transactions) {
-            let transaction_id = self.history.group().unwrap();
-            Some(transaction_id)
-        } else {
-            None
-        }
+        self.history
+            .end_transaction(now, buffer_transactions)
+            .then(|| self.history.group().expect("transaction just ended"))
     }
 
     pub fn edited_ranges_for_transaction(

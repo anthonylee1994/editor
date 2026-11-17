@@ -108,7 +108,6 @@ fn directions(src: &str) -> [(Vec<usize>, Vec<usize>); 4] {
 
 /// Produces the token stream of Mermaid's requirement lexer. Its rules are tried in order and the
 /// first match wins, so a line that holds a direction statement anywhere is one token.
-#[expect(clippy::too_many_lines, reason = "mirrors Pele's tokenize")]
 pub(crate) fn tokenize<'a>(src: &'a str) -> Vec<Token<'a>> {
     let bytes = src.as_bytes();
     let n = bytes.len();
@@ -120,7 +119,7 @@ pub(crate) fn tokenize<'a>(src: &'a str) -> Vec<Token<'a>> {
     // Where each kind of direction statement starts and where its keyword ends, found in one pass.
     let dirs = directions(src);
     let any_dir = dirs.iter().any(|(starts, _)| !starts.is_empty());
-    let mut dir_seen = [0usize; 4];
+    let mut dir_seen = [0_usize; 4];
     let mut line_end: Option<usize> = None;
 
     let at = |i: usize| bytes.get(i).copied();

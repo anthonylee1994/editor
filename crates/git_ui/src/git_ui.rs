@@ -32,7 +32,7 @@ use gpui::Focusable;
 use gpui::SharedString;
 use gpui::Subscription;
 use gpui::Task;
-use gpui::TaskExt;
+use gpui::TaskExt as _;
 use gpui::WeakEntity;
 use gpui::Window;
 use menu::Cancel;
@@ -46,31 +46,31 @@ use ui::ContextMenu;
 use ui::ElevationIndex;
 use ui::PopoverMenuHandle;
 use ui::TintColor;
-use ui::prelude::ActiveTheme;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::Button;
-use ui::prelude::ButtonCommon;
+use ui::prelude::ButtonCommon as _;
 use ui::prelude::ButtonStyle;
-use ui::prelude::Clickable;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
 use ui::prelude::ElementId;
-use ui::prelude::FixedWidth;
-use ui::prelude::FluentBuilder;
+use ui::prelude::FixedWidth as _;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Headline;
 use ui::prelude::HeadlineSize;
 use ui::prelude::Icon;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
-use ui::prelude::InteractiveElement;
+use ui::prelude::InteractiveElement as _;
 use ui::prelude::IntoElement;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
-use ui::prelude::ParentElement;
+use ui::prelude::ParentElement as _;
 use ui::prelude::Render;
 use ui::prelude::RenderOnce;
-use ui::prelude::SelectableButton;
-use ui::prelude::Styled;
-use ui::prelude::StyledExt;
+use ui::prelude::SelectableButton as _;
+use ui::prelude::Styled as _;
+use ui::prelude::StyledExt as _;
 use ui::prelude::div;
 use ui::prelude::h_flex;
 use ui::prelude::rems;
@@ -80,8 +80,8 @@ use util::ResultExt as _;
 use workspace::ModalView;
 use workspace::OpenMode;
 use workspace::Workspace;
-use workspace::notifications::DetachAndPromptErr;
-use workspace::notifications::NotifyTaskExt;
+use workspace::notifications::DetachAndPromptErr as _;
+use workspace::notifications::NotifyTaskExt as _;
 
 use crate::commit_view::CommitView;
 use crate::git_panel::GitPanel;
@@ -519,7 +519,7 @@ impl CreateTagModal {
     }
 
     fn confirm(&mut self, _: &Confirm, window: &mut Window, cx: &mut Context<Self>) {
-        let tag_name = self.editor.read(cx).text(cx).trim().to_string();
+        let tag_name = self.editor.read(cx).text(cx).trim().to_owned();
         if tag_name.is_empty() {
             return;
         }
@@ -582,7 +582,7 @@ fn rename_current_branch(workspace: &mut Workspace, window: &mut Window, cx: &mu
     let current_branch: Option<String> = panel.update(cx, |panel, cx| {
         let repo = panel.active_repository.as_ref()?;
         let repo = repo.read(cx);
-        repo.branch.as_ref().map(|branch| branch.name().to_string())
+        repo.branch.as_ref().map(|branch| branch.name().to_owned())
     });
 
     let Some(current_branch_name) = current_branch else {
@@ -629,7 +629,7 @@ fn copy_branch_name(workspace: &Workspace, cx: &mut Context<Workspace>) {
     let branch_name = panel.update(cx, |panel, cx| {
         let repo = panel.active_repository.as_ref()?;
         let repo = repo.read(cx);
-        repo.branch.as_ref().map(|branch| branch.name().to_string())
+        repo.branch.as_ref().map(|branch| branch.name().to_owned())
     });
     if let Some(name) = branch_name {
         cx.write_to_clipboard(ClipboardItem::new_string(name));
@@ -670,7 +670,7 @@ impl RefPickerModal {
 
     fn lookup_commit_details(&mut self, window: &Window, cx: &mut Context<Self>) {
         let git_ref = self.editor.read(cx).text(cx);
-        let git_ref = git_ref.trim().to_string();
+        let git_ref = git_ref.trim().to_owned();
 
         if git_ref.is_empty() {
             self.commit_details = None;
@@ -715,7 +715,7 @@ impl RefPickerModal {
             return;
         }
 
-        let git_ref_string = git_ref.to_string();
+        let git_ref_string = git_ref.to_owned();
 
         let repo = self.repo.clone();
         let workspace = self.workspace.clone();
@@ -786,7 +786,7 @@ impl Render for RefPickerModal {
                 time_format::TimestampFormat::Relative,
             );
 
-            let subject = details.message.lines().next().unwrap_or("").to_string();
+            let subject = details.message.lines().next().unwrap_or("").to_owned();
             let author_and_subject = format!("{} • {}", details.author_name, subject);
 
             h_flex()
@@ -881,7 +881,7 @@ mod remote_button {
     use gpui::ClickEvent;
     use gpui::FocusHandle;
     use ui::ButtonLike;
-    use ui::CommonAnimationExt;
+    use ui::CommonAnimationExt as _;
     use ui::ContextMenu;
     use ui::ElevationIndex;
     use ui::PopoverMenu;
@@ -889,24 +889,24 @@ mod remote_button {
     use ui::SplitButton;
     use ui::Tooltip;
     use ui::prelude::App;
-    use ui::prelude::ButtonCommon;
+    use ui::prelude::ButtonCommon as _;
     use ui::prelude::ButtonSize;
-    use ui::prelude::Clickable;
+    use ui::prelude::Clickable as _;
     use ui::prelude::Color;
-    use ui::prelude::Disableable;
+    use ui::prelude::Disableable as _;
     use ui::prelude::ElementId;
-    use ui::prelude::FluentBuilder;
+    use ui::prelude::FluentBuilder as _;
     use ui::prelude::Icon;
     use ui::prelude::IconName;
     use ui::prelude::IconSize;
     use ui::prelude::IntoElement;
     use ui::prelude::Label;
-    use ui::prelude::LabelCommon;
+    use ui::prelude::LabelCommon as _;
     use ui::prelude::LabelSize;
     use ui::prelude::LineHeightStyle;
-    use ui::prelude::ParentElement;
+    use ui::prelude::ParentElement as _;
     use ui::prelude::SharedString;
-    use ui::prelude::Styled;
+    use ui::prelude::Styled as _;
     use ui::prelude::Window;
     use ui::prelude::h_flex;
     use ui::prelude::px;

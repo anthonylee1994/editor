@@ -6,18 +6,18 @@ use gpui::IntoElement;
 use gpui::Stateful;
 use smallvec::SmallVec;
 
-use crate::prelude::ActiveTheme;
+use crate::prelude::ActiveTheme as _;
 use crate::prelude::App;
 use crate::prelude::Div;
 use crate::prelude::DynamicSpacing;
 use crate::prelude::ElementId;
-use crate::prelude::FluentBuilder;
+use crate::prelude::FluentBuilder as _;
 use crate::prelude::InteractiveElement;
 use crate::prelude::ParentElement;
 use crate::prelude::Pixels;
 use crate::prelude::RenderOnce;
 use crate::prelude::StatefulInteractiveElement;
-use crate::prelude::Styled;
+use crate::prelude::Styled as _;
 use crate::prelude::Toggleable;
 use crate::prelude::Window;
 use crate::prelude::div;
@@ -262,10 +262,10 @@ fn base_flare(at_start: bool, tab_bg: Hsla, chrome_bg: Hsla) -> Div {
 #[cfg(test)]
 mod tests {
     use gpui::Length;
+    use gpui::Styled as _;
 
     use super::FOLDER_TAB_RADIUS;
     use super::Ordering;
-    use super::Styled;
     use super::Tab;
     use super::TabPosition;
     use super::base_flare;
@@ -273,7 +273,7 @@ mod tests {
     use super::px;
 
     #[test]
-    fn test_base_flare() {
+    fn base_flare_works() {
         let (tab_bg, chrome_bg) = (gpui::red(), gpui::blue());
         let offset = Some(Length::from(-FOLDER_TAB_RADIUS));
 
@@ -293,7 +293,7 @@ mod tests {
     }
 
     #[test]
-    fn test_folder_lead() {
+    fn folder_lead_works() {
         assert_eq!(folder_lead(TabPosition::First, false), FOLDER_TAB_RADIUS);
         assert_eq!(folder_lead(TabPosition::First, true), px(0.));
         assert_eq!(folder_lead(TabPosition::Middle(Ordering::Less), false), px(0.));
@@ -301,7 +301,7 @@ mod tests {
     }
 
     #[test]
-    fn test_floating() {
+    fn floating() {
         assert!(!Tab::new("tab").floating);
         assert!(Tab::new("tab").floating().floating);
     }

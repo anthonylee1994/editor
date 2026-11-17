@@ -68,7 +68,7 @@ fn configuration(tab_size: NonZeroU32) -> Value {
 /// Settings for YAML.
 pub(crate) fn settings() -> LanguageSettings {
     LanguageSettings {
-        tab_size: NonZeroU32::new(2).unwrap(),
+        tab_size: NonZeroU32::new(2).expect("non-zero"),
         hard_tabs: false,
         soft_wrap: false,
         preferred_line_length: 120,

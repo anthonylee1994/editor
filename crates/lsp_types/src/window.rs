@@ -31,24 +31,24 @@ pub struct WindowClientCapabilities {
     /// servers are allowed to report in `workDoneProgress` property in the
     /// request specific server capabilities.
     ///
-    /// @since 3.15.0
+    /// @since 3.15.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub work_done_progress: Option<bool>,
 
     /// Capabilities specific to the showMessage request.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub show_message: Option<ShowMessageRequestClientCapabilities>,
 
     /// Client capabilities for the show document request.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub show_document: Option<ShowDocumentClientCapabilities>,
 }
 
-/// Show message request client capabilities
+/// Show message request client capabilities.
 #[derive(Debug, PartialEq, Eq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ShowMessageRequestClientCapabilities {
@@ -75,7 +75,7 @@ pub struct MessageActionItem {
 
     /// Additional attributes that the client preserves and
     /// sends back to the server. This depends on the client
-    /// capability window.messageActionItem.additionalPropertiesSupport
+    /// capability window.messageActionItem.additionalPropertiesSupport.
     #[serde(flatten)]
     pub properties: HashMap<String, MessageActionItemProperty>,
 }
@@ -91,11 +91,11 @@ pub enum MessageActionItemProperty {
 
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct LogMessageParams {
-    /// The message type. See {@link MessageType}
+    /// The message type. See {@link MessageType}.
     #[serde(rename = "type")]
     pub typ: MessageType,
 
-    /// The actual message
+    /// The actual message.
     pub message: String,
 }
 
@@ -111,11 +111,11 @@ pub struct ShowMessageParams {
 
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct ShowMessageRequestParams {
-    /// The message type. See {@link MessageType}
+    /// The message type. See {@link MessageType}.
     #[serde(rename = "type")]
     pub typ: MessageType,
 
-    /// The actual message
+    /// The actual message.
     pub message: String,
 
     /// The message action items to present.
@@ -133,7 +133,7 @@ pub struct ShowDocumentClientCapabilities {
 
 /// Params to show a document.
 ///
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ShowDocumentParams {
@@ -163,7 +163,7 @@ pub struct ShowDocumentParams {
 
 /// The result of an show document request.
 ///
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ShowDocumentResult {

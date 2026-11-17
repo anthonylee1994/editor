@@ -16,9 +16,9 @@ use editor::EditorEvent;
 use editor::HiddenUnstagedDiffHunkRenderer;
 use editor::MultiBuffer;
 use editor::SplittableEditor;
-use editor::ToPoint;
+use editor::ToPoint as _;
 use editor::actions::DiffClipboardWithSelectionData;
-use futures::FutureExt;
+use futures::FutureExt as _;
 use futures::select_biased;
 use gpui::App;
 use gpui::AppContext as _;
@@ -32,18 +32,18 @@ use gpui::IntoElement;
 use gpui::Render;
 use gpui::Task;
 use gpui::Window;
+use language;
 use language::Buffer;
 use language::Capability;
-use language::OffsetRangeExt;
+use language::OffsetRangeExt as _;
 use language::Point;
-use language::{self};
 use project::Project;
 use project::ProjectPath;
 use ui::Color;
 use ui::Icon;
 use ui::IconName;
 use ui::SharedString;
-use util::paths::PathExt;
+use util::paths::PathExt as _;
 use workspace::Item;
 use workspace::ItemNavHistory;
 use workspace::Workspace;
@@ -291,7 +291,12 @@ async fn update_diff_buffer(
 
     let update = diff
         .update(cx, |diff, cx| {
-            diff.update_diff(source_buffer_snapshot.text.clone(), &base_buffer_snapshot, Some(base_text.clone()), cx)
+            diff.update_diff(
+                source_buffer_snapshot.text.clone(),
+                &base_buffer_snapshot,
+                Some(Arc::clone(&base_text)),
+                cx,
+            )
         })
         .await;
 

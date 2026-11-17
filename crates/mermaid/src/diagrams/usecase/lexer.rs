@@ -192,7 +192,7 @@ fn lex_error(src: &str, offset: usize, length: usize) -> Error {
 /// # Errors
 ///
 /// Returns Mermaid's lexing error for an unclosed quoted string or an empty stereotype.
-#[expect(clippy::too_many_lines, clippy::many_single_char_names, reason = "mirrors Pele's tokenize")]
+#[expect(clippy::many_single_char_names, reason = "mirrors Pele's tokenize")]
 pub(crate) fn tokenize(src: &str) -> Result<Vec<Tok>, Error> {
     let b = src.as_bytes();
     let n = b.len();
@@ -261,7 +261,7 @@ pub(crate) fn tokenize(src: &str) -> Result<Vec<Tok>, Error> {
                         }
                         if at(b, j) == 123 {
                             push(&mut out, T::JsonDeclarationStart, i, j);
-                            let mut depth = 0usize;
+                            let mut depth = 0_usize;
                             let mut quoted = false;
                             let mut escaped = false;
                             let mut k = j;

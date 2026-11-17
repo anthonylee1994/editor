@@ -141,7 +141,9 @@ pub fn typographic_bounds(font: &CTFont, glyph_id: u32) -> Bounds<f32> {
 pub fn advance(font: &CTFont, glyph_id: u32) -> Size<f32> {
     let mut glyph = glyph_id as CGGlyph;
     let mut advance = CGSize::new(0.0, 0.0);
-    unsafe { font.advances_for_glyphs(CTFontOrientation::Default, NonNull::from(&mut glyph), &raw mut advance, 1) };
+    unsafe {
+        font.advances_for_glyphs(CTFontOrientation::Default, NonNull::from(&mut glyph), &raw mut advance, 1);
+    }
     let units_per_point = units_per_point(font) as f32;
     size(advance.width as f32 * units_per_point, advance.height as f32 * units_per_point)
 }
@@ -155,8 +157,8 @@ pub fn glyph_for_char(font: &CTFont, ch: char) -> Option<u32> {
             NonNull::from(&mut utf16[0]),
             NonNull::from(&mut glyphs[0]),
             utf16.len().cast_signed(),
-        )
-    };
+        );
+    }
     (glyphs[0] != 0).then_some(u32::from(glyphs[0]))
 }
 
@@ -319,6 +321,7 @@ mod tests {
     }
 
     #[test]
+    #[expect(clippy::float_cmp_const, reason = "mapping table values are exact")]
     fn weight_mapping_round_trips() {
         for (ix, &core_text_weight) in WEIGHT_MAPPING.iter().enumerate() {
             assert_eq!(

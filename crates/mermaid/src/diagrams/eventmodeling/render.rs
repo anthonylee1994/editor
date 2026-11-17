@@ -22,9 +22,9 @@ use crate::svg::theme::series_color;
 use crate::text::entities::decode;
 use crate::text::label::Label;
 use crate::text::label::layout_label;
+use crate::text::measure;
 use crate::text::measure::BOLD;
 use crate::text::measure::MONO;
-use crate::text::measure::{self};
 use crate::yaml::push_number;
 
 /// The series slot of each kind of entity. A UI has none and is drawn plain.

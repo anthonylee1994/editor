@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::fmt::{self};
+use std::fmt;
 use std::mem;
 use std::ops::Range;
 use std::sync::Arc;
@@ -22,7 +22,7 @@ use gpui::size;
 use gpui::underline_y_offset;
 use smallvec::SmallVec;
 use ui::utils::ensure_highlight_contrast;
-use util::ResultExt;
+use util::ResultExt as _;
 
 use super::DiagnosticUnderline;
 use super::EditorLayout;
@@ -35,7 +35,7 @@ use crate::DisplayPoint;
 use crate::DisplayRow;
 use crate::EditorMode;
 use crate::EditorStyle;
-use crate::RowExt;
+use crate::RowExt as _;
 use crate::display_map::ChunkRendererId;
 use crate::display_map::HighlightedChunk;
 use crate::scroll::ScrollOffset;
@@ -138,7 +138,7 @@ impl LineWithInvisibles {
                 }
 
                 if !line.is_empty() {
-                    let segments = bg_segments_per_row.get(row).map_or(&[][..], |v| &v[..]);
+                    let segments = bg_segments_per_row.get(row).map_or(&[][..], |v| &**v);
                     let text_runs: &[TextRun] = if segments.is_empty() {
                         &styles
                     } else {
@@ -224,7 +224,7 @@ impl LineWithInvisibles {
             } else {
                 for (ix, mut line_chunk) in highlighted_chunk.text.split('\n').enumerate() {
                     if ix > 0 {
-                        let segments = bg_segments_per_row.get(row).map_or(&[][..], |v| &v[..]);
+                        let segments = bg_segments_per_row.get(row).map_or(&[][..], |v| &**v);
                         let text_runs = if segments.is_empty() {
                             &styles
                         } else {
@@ -307,14 +307,12 @@ impl LineWithInvisibles {
                                 invisibles.extend(line_chunk.char_indices().filter_map(|(index, c)| {
                                     let is_whitespace = c.is_whitespace();
                                     non_whitespace_added |= !is_whitespace;
-                                    if is_whitespace && (non_whitespace_added || !is_soft_wrapped) {
-                                        Some(Invisible::Whitespace {
+                                    (is_whitespace && (non_whitespace_added || !is_soft_wrapped)).then(|| {
+                                        Invisible::Whitespace {
                                             line_start_offset: line_byte_offset + index,
                                             line_end_offset: line_byte_offset + index + c.len_utf8(),
-                                        })
-                                    } else {
-                                        None
-                                    }
+                                        }
+                                    })
                                 }));
                             }
                         }
@@ -750,7 +748,7 @@ impl LineWithInvisibles {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Invisible {
-    /// A tab character
+    /// A tab character.
     ///
     /// A tab character is internally represented by spaces (configured by the user's tab width)
     /// aligned to the nearest column, so it's necessary to store the start and end offset for

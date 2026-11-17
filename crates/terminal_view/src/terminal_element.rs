@@ -39,7 +39,7 @@ use gpui::Pixels;
 use gpui::Point as GpuiPoint;
 use gpui::StatefulInteractiveElement;
 use gpui::StrikethroughStyle;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::TextRun;
 use gpui::TextStyle;
 use gpui::UTF16Selection;
@@ -53,7 +53,7 @@ use gpui::point;
 use gpui::px;
 use gpui::relative;
 use gpui::size;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use language::CursorShape as EditorCursorShape;
 use terminal::Cell;
 use terminal::Color;
@@ -69,13 +69,13 @@ use terminal::TerminalBounds;
 use terminal::is_app_chosen_exact_color as terminal_is_app_chosen_exact_color;
 use terminal::is_default_background_color;
 use terminal::terminal_settings::TerminalSettings;
-use theme::ActiveTheme;
+use theme::ActiveTheme as _;
 use theme::Theme;
-use ui::ParentElement;
+use ui::ParentElement as _;
 use ui::Tooltip;
 use ui::font;
 use ui::utils::ensure_minimum_contrast;
-use util::ResultExt;
+use util::ResultExt as _;
 use workspace::Workspace;
 
 use crate::BlockContext;
@@ -140,7 +140,7 @@ impl LayoutPoint {
     }
 }
 
-/// A batched text run that combines multiple adjacent cells with the same style
+/// A batched text run that combines multiple adjacent cells with the same style.
 #[derive(Debug)]
 pub struct BatchedTextRun {
     pub start_point: LayoutPoint,
@@ -283,7 +283,7 @@ impl BackgroundRegion {
         BackgroundRegion { start_line, start_col, end_line, end_col, color }
     }
 
-    /// Check if this region can be merged with another region
+    /// Check if this region can be merged with another region.
     fn can_merge_with(&self, other: &BackgroundRegion) -> bool {
         if self.color != other.color {
             return false;
@@ -302,7 +302,7 @@ impl BackgroundRegion {
         false
     }
 
-    /// Merge this region with another region
+    /// Merge this region with another region.
     fn merge_with(&mut self, other: &BackgroundRegion) {
         self.start_line = self.start_line.min(other.start_line);
         self.start_col = self.start_col.min(other.start_col);
@@ -530,7 +530,7 @@ impl TerminalElement {
                                 }
                             } else {
                                 // Flush current batch and start new one
-                                let old_batch = current_batch.take().unwrap();
+                                let old_batch = current_batch.take().expect("batch is set in this branch");
                                 batched_runs.push(old_batch);
                                 let mut new_batch = BatchedTextRun::new_from_char(
                                     cell_point,
@@ -605,15 +605,12 @@ impl TerminalElement {
 
     /// Computes the cursor position based on the cursor point and terminal dimensions.
     fn cursor_position(cursor_point: DisplayCursor, size: TerminalBounds) -> Option<GpuiPoint<Pixels>> {
-        if cursor_point.line() < (size.num_lines() as u32).cast_signed() {
-            // When on pixel boundaries round the origin down
-            Some(point(
+        (cursor_point.line() < (size.num_lines() as u32).cast_signed()).then(|| {
+            point(
                 (cursor_point.col() as f32 * size.cell_width()).floor(),
                 (cursor_point.line() as f32 * size.line_height()).floor(),
-            ))
-        } else {
-            None
-        }
+            )
+        })
     }
 
     /// Checks if a character is a decorative block/box-like character that should
@@ -623,7 +620,7 @@ impl TerminalElement {
     /// and borders where color matching with adjacent backgrounds is critical.
     /// Regular icons (git, folders, etc.) are excluded as they need to remain readable.
     ///
-    /// Fixes https://github.com/zed-industries/zed/issues/34234
+    /// Fixes https://github.com/zed-industries/zed/issues/34234.
     const fn is_decorative_character(ch: char) -> bool {
         matches!(
             ch as u32,
@@ -1029,7 +1026,7 @@ impl Element for TerminalElement {
     ) -> Self::PrepaintState {
         let rem_size = self.rem_size(cx);
         self.interactivity.prepaint(global_id, bounds, bounds.size, window, cx, |_, _, hitbox, window, cx| {
-            let hitbox = hitbox.unwrap();
+            let hitbox = hitbox.expect("terminal element has a hitbox");
 
             let buffer_font_size = font::buffer_font_size(cx);
 
@@ -1084,7 +1081,8 @@ impl Element for TerminalElement {
                 let line_height = f32::from(font_pixels) * line_height;
                 let font_id = cx.text_system().resolve_font(&text_style.font());
 
-                let cell_width = text_system.advance(font_id, font_pixels, 'm').unwrap().width;
+                let cell_width =
+                    text_system.advance(font_id, font_pixels, 'm').expect("font has an advance for 'm'").width;
                 gutter = cell_width;
 
                 let mut size = bounds.size;
@@ -1296,9 +1294,9 @@ impl Element for TerminalElement {
             };
 
             let block_below_cursor_element = if let Some(block) = &self.block_below_cursor {
-                let terminal = self.terminal.read(cx);
-                if terminal.last_content.display_offset == 0 {
-                    let target_line = terminal.last_content.cursor.point.line + 1;
+                let content = &self.terminal.read(cx).last_content;
+                let target_line = (content.display_offset == 0).then(|| content.cursor.point.line + 1);
+                target_line.map(|target_line| {
                     let render = &block.render;
                     let mut block_cx = BlockContext { window, context: cx, dimensions };
                     let element = render(&mut block_cx);
@@ -1313,10 +1311,8 @@ impl Element for TerminalElement {
                     window.with_rem_size(Some(rem_size), |window| {
                         element.prepaint_as_root(origin, available_space, window, cx);
                     });
-                    Some(element)
-                } else {
-                    None
-                }
+                    element
+                })
             } else {
                 None
             };
@@ -1556,7 +1552,7 @@ impl InputHandler for TerminalInputHandler {
         cx: &mut App,
     ) {
         self.terminal_view.update(cx, |view, view_cx| {
-            view.set_marked_text(new_text.to_string(), view_cx);
+            view.set_marked_text(new_text.to_owned(), view_cx);
         });
     }
 

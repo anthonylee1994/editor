@@ -7,6 +7,7 @@
 //! entry. Each result is the semantic inverse of its paired operation, so the
 //! cycle can repeat for continued undo and redo.
 //!
+//! ```text
 //!  Operations                            Results
 //!  ─────────────────────────────────  ──────────────────────────────────────
 //!  Create(ProjectPath)               →  Created(ProjectPath)
@@ -14,6 +15,7 @@
 //!  Rename(ProjectPath, ProjectPath)  →  Renamed(ProjectPath, ProjectPath)
 //!  Restore(WorktreeId, TrashId)      →  Restored(ProjectPath)
 //!  Batch(Vec<Operation>)             →  Batch(Vec<Result>)
+//! ```
 //!
 //!
 //! ## History and Cursor
@@ -34,13 +36,13 @@
 //! User Operation  Create(src/main.rs)
 //! History
 //!     0 Created(src/main.rs)
-//!     1 +++cursor+++
+//!     1 +++cursor+++.
 //!
 //! User Operation  Rename(README.md, readme.md)
 //! History
 //!     0 Created(src/main.rs)
 //!     1 Renamed(README.md, readme.md)
-//!     2 +++cursor+++
+//!     2 +++cursor+++.
 //!
 //! User Operation  Create(CONTRIBUTING.md)
 //! History
@@ -99,7 +101,7 @@
 //!     0 Created(src/main.rs)
 //!     1 Renamed(README.md, readme.md)
 //!     2 Restored(ProjectPath)
-//!     2 +++cursor+++
+//!     2 +++cursor+++.
 
 //!
 //! create A;                                                      A
@@ -110,7 +112,7 @@
 //! put important content in B                                     B
 //! undo manger renames (does not hang)                            A
 //! remove A                                                       _
-//! user sad
+//! user sad.
 
 //!
 //! create A;                                                      A
@@ -128,7 +130,7 @@
 //! -- src/c.rs
 //!    --
 
-//! List of "tainted files" that the user may not operate on
+//! List of "tainted files" that the user may not operate on.
 
 use std::collections::VecDeque;
 use std::io;
@@ -137,18 +139,18 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 
-use anyhow::Context;
+use anyhow::Context as _;
 use anyhow::Result;
 use anyhow::anyhow;
 use fs::TrashId;
 use fs::TrashRestoreError;
 use futures::channel::mpsc;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::AsyncApp;
-use gpui::IntoElement;
+use gpui::IntoElement as _;
 use gpui::PromptLevel;
 use gpui::SharedString;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Task;
 use gpui::WeakEntity;
 use markdown::Markdown;
@@ -347,7 +349,7 @@ struct Inner {
     rx: mpsc::Receiver<UndoMessage>,
 }
 
-/// pls arc this
+/// pls arc this.
 #[derive(Clone)]
 pub struct UndoManager {
     tx: mpsc::Sender<UndoMessage>,
@@ -409,9 +411,7 @@ impl UndoMessage {
 }
 
 pub(crate) fn project_path_display(project: &Project, project_path: &ProjectPath, cx: &App) -> String {
-    project
-        .short_full_path_for_project_path(project_path, cx)
-        .unwrap_or_else(|| project_path.path.display().to_string())
+    project.short_full_path_for_project_path(project_path, cx).unwrap_or_else(|| project_path.path.display().to_owned())
 }
 
 pub(crate) fn already_exists_error(err: &anyhow::Error) -> bool {
@@ -435,12 +435,12 @@ impl Inner {
                 }
                 UndoMessage::Undo => {
                     let res = self.undo(&mut cx).await;
-                    let _ = self.panel.update(&mut cx, |_, cx| cx.notify());
+                    self.panel.update(&mut cx, |_, cx| cx.notify()).ok();
                     res
                 }
                 UndoMessage::Redo => {
                     let res = self.redo(&mut cx).await;
-                    let _ = self.panel.update(&mut cx, |_, cx| cx.notify());
+                    self.panel.update(&mut cx, |_, cx| cx.notify()).ok();
                     res
                 }
             };
@@ -472,7 +472,7 @@ impl Inner {
             workspace,
             panel,
             history: VecDeque::new(),
-            cursor: 0usize,
+            cursor: 0_usize,
             limit,
             can_undo: Arc::new(AtomicBool::new(false)),
             can_redo: Arc::new(AtomicBool::new(false)),
@@ -562,7 +562,7 @@ impl Inner {
         Ok(())
     }
 
-    /// Passed in changes will always be performed as a single step
+    /// Passed in changes will always be performed as a single step.
     pub fn record(&mut self, mut changes: Vec<Change>) {
         let change = match changes.len() {
             0 => return,
@@ -756,7 +756,7 @@ impl Inner {
                     project_path.map_or(original_name, |project_path| project_path_display(project, &project_path, cx)),
                 )
             })
-            .unwrap_or_else(|| "item".to_string());
+            .unwrap_or_else(|| "item".to_owned());
 
         workspace
             .update(cx, |workspace, cx| {
@@ -874,7 +874,7 @@ mod tests {
     use super::already_exists_error;
 
     #[test]
-    fn test_already_exists_error_finds_io_error_in_chain() {
+    fn already_exists_error_finds_io_error_in_chain() {
         let exists = io::Error::from(io::ErrorKind::AlreadyExists);
         let wrapped = Err::<(), _>(exists).context("renaming").unwrap_err();
         assert!(already_exists_error(&wrapped));

@@ -156,7 +156,6 @@ pub use tree_sitter::Parser;
 use tree_sitter::QueryCursor;
 use tree_sitter::StreamingIterator as _;
 pub use tree_sitter::Tree;
-use tree_sitter::{self};
 use util::rel_path::RelPath;
 pub use worktree_id::WorktreeId;
 
@@ -176,7 +175,7 @@ where
     // call to `parse_with_options` would then *resume* that cancelled parse
     // instead of starting fresh.
     parser.reset();
-    parser.set_included_ranges(&[]).unwrap();
+    parser.set_included_ranges(&[]).expect("empty included ranges are valid");
     let result = func(&mut parser);
     PARSERS.lock().push(parser);
     result
@@ -204,36 +203,36 @@ pub static PLAIN_TEXT: LazyLock<Arc<Language>> = LazyLock::new(|| {
             brackets: BracketPairConfig {
                 pairs: vec![
                     BracketPair {
-                        start: "(".to_string(),
-                        end: ")".to_string(),
+                        start: "(".to_owned(),
+                        end: ")".to_owned(),
                         close: true,
                         surround: true,
                         newline: false,
                     },
                     BracketPair {
-                        start: "[".to_string(),
-                        end: "]".to_string(),
+                        start: "[".to_owned(),
+                        end: "]".to_owned(),
                         close: true,
                         surround: true,
                         newline: false,
                     },
                     BracketPair {
-                        start: "{".to_string(),
-                        end: "}".to_string(),
+                        start: "{".to_owned(),
+                        end: "}".to_owned(),
                         close: true,
                         surround: true,
                         newline: false,
                     },
                     BracketPair {
-                        start: "\"".to_string(),
-                        end: "\"".to_string(),
+                        start: "\"".to_owned(),
+                        end: "\"".to_owned(),
                         close: true,
                         surround: true,
                         newline: false,
                     },
                     BracketPair {
-                        start: "'".to_string(),
-                        end: "'".to_string(),
+                        start: "'".to_owned(),
+                        end: "'".to_owned(),
                         close: true,
                         surround: true,
                         newline: false,
@@ -299,9 +298,9 @@ pub struct Location {
 /// and potentially persist them to ed's settings.
 #[derive(Debug, Clone)]
 pub struct PromptResponseContext {
-    /// The original message shown to the user
+    /// The original message shown to the user.
     pub message: String,
-    /// The action (button) the user selected
+    /// The action (button) the user selected.
     pub selected_action: lsp::MessageActionItem,
 }
 
@@ -376,7 +375,7 @@ impl CachedLspAdapter {
         completion_items: &[lsp::CompletionItem],
         language: &Arc<Language>,
     ) -> Result<Vec<Option<CodeLabel>>> {
-        self.adapter.clone().labels_for_completions(completion_items, language).await
+        Arc::clone(&self.adapter).labels_for_completions(completion_items, language).await
     }
 
     pub async fn labels_for_symbols(
@@ -384,7 +383,7 @@ impl CachedLspAdapter {
         symbols: &[Symbol],
         language: &Arc<Language>,
     ) -> Result<Vec<Option<CodeLabel>>> {
-        self.adapter.clone().labels_for_symbols(symbols, language).await
+        Arc::clone(&self.adapter).labels_for_symbols(symbols, language).await
     }
 
     pub fn language_id(&self, language_name: &LanguageName) -> String {
@@ -482,7 +481,7 @@ pub trait LspAdapter: 'static + Send + Sync {
             let label = self.label_for_completion(completion, language).await;
             if let Some(label) = label {
                 labels.resize(ix + 1, None);
-                *labels.last_mut().unwrap() = Some(label);
+                *labels.last_mut().expect("labels were just pushed") = Some(label);
             }
         }
         Ok(labels)
@@ -502,7 +501,7 @@ pub trait LspAdapter: 'static + Send + Sync {
             let label = self.label_for_symbol(symbol, language).await;
             if let Some(label) = label {
                 labels.resize(ix + 1, None);
-                *labels.last_mut().unwrap() = Some(label);
+                *labels.last_mut().expect("labels were just pushed") = Some(label);
             }
         }
         Ok(labels)
@@ -627,7 +626,7 @@ impl Language {
 
     pub fn with_queries(mut self, queries: LanguageQueries) -> Result<Self> {
         if let Some(grammar) = self.grammar.take() {
-            let grammar = Arc::try_unwrap(grammar).map_err(|_| anyhow::anyhow!("cannot mutate grammar"))?;
+            let grammar = Arc::into_inner(grammar).context("cannot mutate grammar")?;
             let grammar = grammar.with_queries(queries, &mut self.config)?;
             self.grammar = Some(Arc::new(grammar));
         }
@@ -664,7 +663,7 @@ impl Language {
 
     pub fn with_override_query(mut self, source: &str) -> Result<Self> {
         if let Some(grammar_arc) = self.grammar.take() {
-            let grammar = Arc::try_unwrap(grammar_arc).map_err(|_| anyhow::anyhow!("cannot mutate grammar"))?;
+            let grammar = Arc::into_inner(grammar_arc).context("cannot mutate grammar")?;
             let grammar = grammar.with_override_query(
                 source,
                 &self.config.name,
@@ -678,7 +677,7 @@ impl Language {
 
     fn with_grammar_query(mut self, build: impl FnOnce(Grammar) -> Result<Grammar>) -> Result<Self> {
         if let Some(grammar_arc) = self.grammar.take() {
-            let grammar = Arc::try_unwrap(grammar_arc).map_err(|_| anyhow::anyhow!("cannot mutate grammar"))?;
+            let grammar = Arc::into_inner(grammar_arc).context("cannot mutate grammar")?;
             self.grammar = Some(Arc::new(build(grammar)?));
         }
         Ok(self)
@@ -689,7 +688,7 @@ impl Language {
         build: impl FnOnce(Grammar, &LanguageName) -> Result<Grammar>,
     ) -> Result<Self> {
         if let Some(grammar_arc) = self.grammar.take() {
-            let grammar = Arc::try_unwrap(grammar_arc).map_err(|_| anyhow::anyhow!("cannot mutate grammar"))?;
+            let grammar = Arc::into_inner(grammar_arc).context("cannot mutate grammar")?;
             self.grammar = Some(Arc::new(build(grammar, &self.config.name)?));
         }
         Ok(self)
@@ -822,7 +821,7 @@ impl Language {
     }
 
     pub fn default_scope(self: &Arc<Self>) -> LanguageScope {
-        LanguageScope { language: self.clone(), override_id: None }
+        LanguageScope { language: Arc::clone(self), override_id: None }
     }
 
     pub fn lsp_id(&self) -> String {

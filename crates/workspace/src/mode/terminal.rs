@@ -10,25 +10,25 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use anyhow::Result;
-use gpui::Action;
+use gpui::Action as _;
 use gpui::App;
 use gpui::AppContext as _;
 use gpui::Context;
 use gpui::Div;
 use gpui::Entity;
-use gpui::Focusable;
+use gpui::Focusable as _;
 use gpui::Global;
 use gpui::Task;
 use gpui::TaskExt as _;
 use gpui::WeakEntity;
 use project::Project;
 use ui::Window;
-use ui::prelude::InteractiveElement;
-use ui::prelude::IntoElement;
-use ui::prelude::ParentElement;
-use ui::prelude::Styled;
+use ui::prelude::InteractiveElement as _;
+use ui::prelude::IntoElement as _;
+use ui::prelude::ParentElement as _;
+use ui::prelude::Styled as _;
 use ui::prelude::div;
-use util::ResultExt;
+use util::ResultExt as _;
 
 use crate::ActivateNextPane;
 use crate::ActivatePaneDown;
@@ -90,7 +90,7 @@ pub fn set_terminal_mode_delegate(delegate: impl TerminalModeDelegate, cx: &mut 
 }
 
 fn terminal_mode_delegate(cx: &App) -> Option<Rc<dyn TerminalModeDelegate>> {
-    cx.try_global::<GlobalTerminalModeDelegate>().map(|global| global.0.clone())
+    cx.try_global::<GlobalTerminalModeDelegate>().map(|global| Rc::clone(&global.0))
 }
 
 /// Whether a dragged tab holds a terminal, which editor panes refuse.
@@ -505,7 +505,7 @@ impl Workspace {
         window.focus(&active_pane.focus_handle(cx), cx);
 
         for (pane, saved_pane) in panes {
-            let delegate = delegate.clone();
+            let delegate = Rc::clone(&delegate);
             let is_active_pane = pane == active_pane;
             cx.spawn_in(window, async move |workspace, cx| {
                 // One after another, so tabs keep their saved order.
@@ -557,7 +557,7 @@ mod tests {
     use super::terminal_mode_entry;
 
     #[test]
-    fn test_terminal_mode_entry() {
+    fn terminal_mode_entry_works() {
         // The saved layout comes back the first time, shell or not.
         assert_eq!(terminal_mode_entry(true, true, true, true, true), TerminalModeEntry::Restore);
         assert_eq!(terminal_mode_entry(true, true, true, true, false), TerminalModeEntry::Restore);
@@ -574,7 +574,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cycled_index() {
+    fn cycled_index_works() {
         assert_eq!(cycled_index(0, 3, true), 1);
         assert_eq!(cycled_index(2, 3, true), 0);
         assert_eq!(cycled_index(0, 3, false), 2);
@@ -583,7 +583,7 @@ mod tests {
     }
 
     #[test]
-    fn test_saved_active_tab() {
+    fn saved_active_tab_works() {
         assert_eq!(saved_active_tab(&[true, true, true], 2), 2);
         // A tab that isn't saved (a failed spawn) shifts the later ones.
         assert_eq!(saved_active_tab(&[true, false, true], 2), 1);

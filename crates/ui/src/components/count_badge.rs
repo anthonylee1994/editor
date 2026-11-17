@@ -1,14 +1,14 @@
 use gpui::FontWeight;
 
-use crate::prelude::ActiveTheme;
+use crate::prelude::ActiveTheme as _;
 use crate::prelude::App;
 use crate::prelude::IntoElement;
 use crate::prelude::Label;
-use crate::prelude::LabelCommon;
+use crate::prelude::LabelCommon as _;
 use crate::prelude::LabelSize;
-use crate::prelude::ParentElement;
+use crate::prelude::ParentElement as _;
 use crate::prelude::RenderOnce;
-use crate::prelude::Styled;
+use crate::prelude::Styled as _;
 use crate::prelude::Window;
 use crate::prelude::h_flex;
 use crate::prelude::rems_from_px;
@@ -29,7 +29,7 @@ impl CountBadge {
 
 impl RenderOnce for CountBadge {
     fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let label = if self.count > 99 { "99+".to_string() } else { self.count.to_string() };
+        let label = if self.count > 99 { "99+".to_owned() } else { self.count.to_string() };
 
         let bg = cx.theme().colors().editor_background.blend(cx.theme().status().error.opacity(0.4));
 

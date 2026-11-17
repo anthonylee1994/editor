@@ -15,7 +15,7 @@ pub fn compute_disambiguation_details<T, D>(items: &[T], get_description: impl F
 where
     D: Eq + Hash + Clone,
 {
-    let mut details = vec![0usize; items.len()];
+    let mut details = vec![0_usize; items.len()];
     let mut descriptions: HashMap<D, Vec<usize>> = HashMap::default();
     let mut current_descriptions: Vec<D> = items.iter().map(|item| get_description(item, 0)).collect();
 

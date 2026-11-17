@@ -2,7 +2,7 @@ use anyhow::Context as _;
 use gpui::TaskExt as _;
 
 use super::Anchor;
-use super::AnchorRangeExt;
+use super::AnchorRangeExt as _;
 use super::App;
 use super::Arc;
 use super::AutocloseRegion;
@@ -39,7 +39,7 @@ use super::HighlightStyle;
 use super::IndentKind;
 use super::IndentSize;
 use super::InsertSnippet;
-use super::Itertools;
+use super::Itertools as _;
 use super::LanguageScope;
 use super::LinkedEdits;
 use super::MultiBufferOffset;
@@ -50,7 +50,7 @@ use super::MultiBufferSnapshot;
 use super::Newline;
 use super::NewlineAbove;
 use super::NewlineBelow;
-use super::Not;
+use super::Not as _;
 use super::OffsetUtf16;
 use super::Ordering;
 use super::Pixels;
@@ -58,9 +58,9 @@ use super::Point;
 use super::Range;
 use super::Regex;
 use super::Result;
-use super::ResultExt;
+use super::ResultExt as _;
 use super::RewrapOptions;
-use super::RowExt;
+use super::RowExt as _;
 use super::ScrollOffset;
 use super::SelectToBeginningOfLine;
 use super::SelectToEndOfLine;
@@ -69,9 +69,9 @@ use super::SelectionEffects;
 use super::SelectionGoal;
 use super::SmallVec;
 use super::Snippet;
-use super::ToDisplayPoint;
+use super::ToDisplayPoint as _;
 use super::ToOffset;
-use super::ToPoint;
+use super::ToPoint as _;
 use super::ToggleBlockComments;
 use super::ToggleComments;
 use super::UTF16Selection;
@@ -198,7 +198,7 @@ impl Editor {
                             let is_closing_quote =
                                 if bracket_pair.end == bracket_pair.start && bracket_pair.start.len() == 1 {
                                     if let Some(target) = bracket_pair.start.chars().next() {
-                                        let mut byte_offset = 0u32;
+                                        let mut byte_offset = 0_u32;
                                         let current_line_count = snapshot
                                             .reversed_chars_at(selection.start)
                                             .take_while(|&c| c != '\n')
@@ -280,7 +280,7 @@ impl Editor {
                         && is_bracket_pair_start
                         && bracket_pair.start.chars().count() == 1
                     {
-                        edits.push((selection.start..selection.start, text.clone()));
+                        edits.push((selection.start..selection.start, Arc::clone(&text)));
                         edits.push((selection.end..selection.end, bracket_pair.end.as_str().into()));
                         bracket_inserted = true;
                         new_selections.push((
@@ -357,7 +357,7 @@ impl Editor {
                     let should_apply_linked_edit = is_word_char || is_dot;
 
                     if should_apply_linked_edit {
-                        linked_edits.push(self, anchor_range, text.clone(), cx);
+                        linked_edits.push(self, anchor_range, Arc::clone(&text), cx);
                     } else {
                         clear_linked_edit_ranges = true;
                     }
@@ -365,7 +365,7 @@ impl Editor {
             }
 
             new_selections.push((selection.map(|_| anchor), 0));
-            edits.push((selection.start..selection.end, text.clone()));
+            edits.push((selection.start..selection.end, Arc::clone(&text)));
 
             has_adjacent_edits |= next_is_adjacent;
             in_adjacent_group = next_is_adjacent;
@@ -496,11 +496,7 @@ impl Editor {
 
                             let mut newline_config = NewlineConfig::Newline {
                                 additional_indent: IndentSize::spaces(0),
-                                extra_line_additional_indent: if needs_extra_newline {
-                                    Some(IndentSize::spaces(0))
-                                } else {
-                                    None
-                                },
+                                extra_line_additional_indent: needs_extra_newline.then(|| IndentSize::spaces(0)),
                                 prevent_auto_indent: false,
                             };
                             let mut delimiter = None;
@@ -662,7 +658,7 @@ impl Editor {
 
             let start_of_line = snapshot.clip_point(Point::new(row, 0), Bias::Left);
 
-            let newline = "\n".to_string();
+            let newline = "\n".to_owned();
             edits.push((start_of_line..start_of_line, newline));
 
             rows.push(row + rows_inserted as u32);
@@ -807,7 +803,7 @@ impl Editor {
                 else {
                     continue;
                 };
-                linked_edits.push(self, range, text.clone(), cx);
+                linked_edits.push(self, range, Arc::clone(&text), cx);
             }
         }
         linked_edits
@@ -1093,22 +1089,22 @@ impl Editor {
                         }
                     }
 
-                    edits.push((prefix_range, empty_str.clone()));
-                    edits.push((suffix_range, empty_str.clone()));
+                    edits.push((prefix_range, Arc::clone(&empty_str)));
+                    edits.push((suffix_range, Arc::clone(&empty_str)));
                 } else {
                     let prefix: Arc<str> = if comment_start.ends_with(' ') {
-                        comment_start.clone()
+                        Arc::clone(comment_start)
                     } else {
                         format!("{comment_start} ").into()
                     };
                     let suffix: Arc<str> = if comment_end.starts_with(' ') {
-                        comment_end.clone()
+                        Arc::clone(comment_end)
                     } else {
                         format!(" {comment_end}").into()
                     };
 
-                    edits.push((start_point..start_point, prefix.clone()));
-                    edits.push((end_point..end_point, suffix.clone()));
+                    edits.push((start_point..start_point, Arc::clone(&prefix)));
+                    edits.push((end_point..end_point, Arc::clone(&suffix)));
                     markers_inserted.push((
                         selection.id,
                         prefix.len(),
@@ -1311,13 +1307,14 @@ impl Editor {
                     let should_uncomment = uncommented_lines == 0 && commented_lines > 0;
 
                     if should_uncomment {
-                        edits.extend(selection_edit_ranges.iter().cloned().map(|range| (range, empty_str.clone())));
+                        edits
+                            .extend(selection_edit_ranges.iter().cloned().map(|range| (range, Arc::clone(&empty_str))));
                     } else {
                         let min_column =
                             selection_edit_ranges.iter().map(|range| range.start.column).min().unwrap_or(0);
                         edits.extend(selection_edit_ranges.iter().map(|range| {
                             let position = Point::new(range.start.row, min_column);
-                            (position..position, first_prefix.clone())
+                            (position..position, Arc::clone(first_prefix))
                         }));
                     }
                 } else if let Some(BlockCommentConfig { start: full_comment_prefix, end: comment_suffix, .. }) =
@@ -1340,12 +1337,12 @@ impl Editor {
                     );
 
                     if prefix_range.is_empty() || suffix_range.is_empty() {
-                        edits.push((prefix_range.start..prefix_range.start, full_comment_prefix.clone()));
-                        edits.push((suffix_range.end..suffix_range.end, comment_suffix.clone()));
+                        edits.push((prefix_range.start..prefix_range.start, Arc::clone(full_comment_prefix)));
+                        edits.push((suffix_range.end..suffix_range.end, Arc::clone(comment_suffix)));
                         suffixes_inserted.push((end_row, comment_suffix.len()));
                     } else {
-                        edits.push((prefix_range, empty_str.clone()));
-                        edits.push((suffix_range, empty_str.clone()));
+                        edits.push((prefix_range, Arc::clone(&empty_str)));
+                        edits.push((suffix_range, Arc::clone(&empty_str)));
                     }
                 }
             }
@@ -1643,7 +1640,7 @@ impl Editor {
         self.transact(window, cx, |this, window, cx| {
             let old_selections = this.selections.all_adjusted(&this.display_snapshot(cx));
             let linked_edits = if apply_linked_edits {
-                this.linked_edits_for_selections(text.clone(), cx)
+                this.linked_edits_for_selections(Arc::clone(&text), cx)
             } else {
                 LinkedEdits::new()
             };
@@ -1659,7 +1656,7 @@ impl Editor {
                         })
                         .collect::<Vec<_>>()
                 };
-                buffer.edit(old_selections.iter().map(|s| (s.start..s.end, text.clone())), autoindent_mode, cx);
+                buffer.edit(old_selections.iter().map(|s| (s.start..s.end, Arc::clone(&text))), autoindent_mode, cx);
                 anchors
             });
 
@@ -1892,15 +1889,15 @@ pub(super) fn is_list_prefix_row(row: MultiBufferRow, buffer: &MultiBufferSnapsh
 
 #[derive(Debug)]
 enum NewlineConfig {
-    /// Insert newline with optional additional indent and optional extra blank line
+    /// Insert newline with optional additional indent and optional extra blank line.
     Newline {
         additional_indent: IndentSize,
         extra_line_additional_indent: Option<IndentSize>,
         prevent_auto_indent: bool,
     },
-    /// Clear the current line
+    /// Clear the current line.
     ClearCurrentLine,
-    /// Unindent the current line and add continuation
+    /// Unindent the current line and add continuation.
     UnindentCurrentLine { continuation: Arc<str> },
 }
 
@@ -1993,16 +1990,14 @@ fn comment_delimiter_for_newline(
         .iter()
         .filter_map(|delimiter| {
             let prefix = delimiter.trim_end();
-            if comment_candidate.starts_with(prefix) {
+            comment_candidate.starts_with(prefix).then(|| {
                 let is_repl = if let Some(stripped_comment) = comment_candidate.strip_prefix(prefix) {
                     stripped_comment.starts_with(" %%")
                 } else {
                     false
                 };
-                Some((delimiter, prefix.len(), is_repl))
-            } else {
-                None
-            }
+                (delimiter, prefix.len(), is_repl)
+            })
         })
         .max_by_key(|(_, len, _)| *len)?;
 
@@ -2024,13 +2019,13 @@ fn comment_delimiter_for_newline(
     let cursor_is_placed_after_comment_marker = num_of_whitespaces + trimmed_len <= start_point.column as usize;
     if cursor_is_placed_after_comment_marker {
         if !is_repl {
-            return Some(delimiter.clone());
+            return Some(Arc::clone(delimiter));
         }
 
         let line_content_after_cursor: String =
             snapshot.chars_for_range(range).skip(start_point.column as usize).collect();
 
-        if line_content_after_cursor.trim().is_empty() { None } else { Some(delimiter.clone()) }
+        if line_content_after_cursor.trim().is_empty() { None } else { Some(Arc::clone(delimiter)) }
     } else {
         None
     }
@@ -2085,7 +2080,7 @@ fn documentation_delimiter_for_newline(
     let mut extra_line_additional_indent = IndentSize::spaces(0);
 
     let cursor_is_before_end_tag_if_exists = {
-        let mut char_position = 0u32;
+        let mut char_position = 0_u32;
         let mut end_tag_offset = None;
 
         'outer: for chunk in snapshot.text_for_range(range) {
@@ -2114,19 +2109,17 @@ fn documentation_delimiter_for_newline(
         }
     };
 
-    if (cursor_is_after_start_tag || cursor_is_after_delimiter) && cursor_is_before_end_tag_if_exists {
+    ((cursor_is_after_start_tag || cursor_is_after_delimiter) && cursor_is_before_end_tag_if_exists).then(|| {
         let additional_indent =
             if cursor_is_after_start_tag { IndentSize::spaces(*len) } else { IndentSize::spaces(0) };
 
         *newline_config = NewlineConfig::Newline {
             additional_indent,
-            extra_line_additional_indent: if needs_extra_line { Some(extra_line_additional_indent) } else { None },
+            extra_line_additional_indent: needs_extra_line.then_some(extra_line_additional_indent),
             prevent_auto_indent: true,
         };
-        Some(delimiter.clone())
-    } else {
-        None
-    }
+        Arc::clone(delimiter)
+    })
 }
 
 /// The indentation a line inserted at `start_point` should start at, which is
@@ -2328,14 +2321,10 @@ impl EntityInputHandler for Editor {
                     .iter()
                     .zip(ranges_to_replace.iter())
                     .find_map(|(selection, range)| {
-                        if selection.id == newest_selection_id {
-                            Some(
-                                (range.start.0.0.cast_signed() - selection.head().0.0.cast_signed())
-                                    ..(range.end.0.0.cast_signed() - selection.head().0.0.cast_signed()),
-                            )
-                        } else {
-                            None
-                        }
+                        (selection.id == newest_selection_id).then(|| {
+                            (range.start.0.0.cast_signed() - selection.head().0.0.cast_signed())
+                                ..(range.end.0.0.cast_signed() - selection.head().0.0.cast_signed())
+                        })
                     })
             });
 
@@ -2406,14 +2395,10 @@ impl EntityInputHandler for Editor {
                     .iter()
                     .zip(ranges_to_replace.iter())
                     .find_map(|(selection, range)| {
-                        if selection.id == newest_selection_id {
-                            Some(
-                                (range.start.0.0.cast_signed() - selection.head().0.0.cast_signed())
-                                    ..(range.end.0.0.cast_signed() - selection.head().0.0.cast_signed()),
-                            )
-                        } else {
-                            None
-                        }
+                        (selection.id == newest_selection_id).then(|| {
+                            (range.start.0.0.cast_signed() - selection.head().0.0.cast_signed())
+                                ..(range.end.0.0.cast_signed() - selection.head().0.0.cast_signed())
+                        })
                     })
             });
 

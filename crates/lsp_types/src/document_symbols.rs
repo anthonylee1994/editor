@@ -30,7 +30,7 @@ pub struct DocumentSymbolClientCapabilities {
     /// `DocumentSymbol` if `hierarchicalDocumentSymbolSupport` is set to true.
     /// Clients supporting tags have to handle unknown tags gracefully.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "TagSupport::deserialize_compat")]
     pub tag_support: Option<TagSupport<SymbolTag>>,
 }
@@ -84,7 +84,7 @@ pub struct DocumentSymbol {
     pub kind: SymbolKind,
     /// Tags for this completion item.
     ///
-    /// @since 3.15.0
+    /// @since 3.15.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<SymbolTag>>,
     /// Indicates if this symbol is deprecated.
@@ -116,7 +116,7 @@ pub struct SymbolInformation {
 
     /// Tags for this completion item.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<SymbolTag>>,
 

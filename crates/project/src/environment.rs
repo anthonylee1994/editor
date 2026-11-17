@@ -3,7 +3,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Context as _;
-use futures::FutureExt;
+use futures::FutureExt as _;
 use futures::StreamExt as _;
 use futures::channel::mpsc;
 use futures::future::Shared;
@@ -98,13 +98,13 @@ impl ProjectEnvironment {
         cx: &mut App,
     ) -> Shared<Task<Option<FxHashMap<String, String>>>> {
         self.local_environments
-            .entry((shell.clone(), abs_path.clone()))
+            .entry((shell.clone(), Arc::clone(&abs_path)))
             .or_insert_with(|| {
                 let shell = shell.clone();
                 let tx = self.environment_error_messages_tx.clone();
                 cx.spawn(async move |cx| {
                     let shell_env = match cx
-                        .background_spawn(load_directory_shell_environment(shell, abs_path.clone(), tx))
+                        .background_spawn(load_directory_shell_environment(shell, Arc::clone(&abs_path), tx))
                         .await
                     {
                         Ok(shell_env) => Some(shell_env),

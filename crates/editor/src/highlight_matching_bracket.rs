@@ -1,13 +1,13 @@
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::Context;
 use gpui::HighlightStyle;
 use language::CursorShape;
 use multi_buffer::MultiBufferOffset;
-use theme::ActiveTheme;
+use theme::ActiveTheme as _;
 
 use crate::Editor;
 use crate::HighlightKey;
-use crate::RangeToAnchorExt;
+use crate::RangeToAnchorExt as _;
 use crate::display_map::DisplaySnapshot;
 
 impl Editor {

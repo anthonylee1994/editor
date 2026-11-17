@@ -319,7 +319,7 @@ pub fn syntax_theme() -> SyntaxTheme {
             ("variable.special", fg(BLUE)),
             ("variant", fg(PURPLE)),
         ]
-        .map(|(name, style): (&str, HighlightStyle)| (name.to_string(), style)),
+        .map(|(name, style): (&str, HighlightStyle)| (name.to_owned(), style)),
     )
 }
 
@@ -364,22 +364,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_color_parses_rgb_hex() {
+    fn color_parses_rgb_hex() {
         for hex in [0x88c0d0, 0x3b4252, 0x000000] {
             let rgba = Rgba::from(color(hex));
             let channels = [rgba.r, rgba.g, rgba.b].map(|channel| (channel * 255.).round() as u32);
-            assert_eq!(channels[0] << 16 | channels[1] << 8 | channels[2], hex);
+            assert_eq!((channels[0] << 16) | (channels[1] << 8) | channels[2], hex);
             assert_eq!(rgba.a, 1.);
         }
     }
 
     #[test]
-    fn test_fg_sets_only_color() {
+    fn fg_sets_only_color() {
         assert_eq!(fg(RED), HighlightStyle { color: Some(color(RED)), ..HighlightStyle::default() });
     }
 
     #[test]
-    fn test_shade_scales_and_clamps_channels() {
+    fn shade_scales_and_clamps_channels() {
         assert_eq!(shade(DARK0, 0), DARK0);
         assert_eq!(shade(DARK0, -30), 0x20242c);
         assert_eq!(shade(RED, 20), 0xe5747f);
@@ -388,7 +388,7 @@ mod tests {
     }
 
     #[test]
-    fn test_mix_flattens_top_onto_bottom() {
+    fn mix_flattens_top_onto_bottom() {
         assert_eq!(mix(DARK1, DARK0, 100), DARK1);
         assert_eq!(mix(DARK1, DARK0, 0), DARK0);
         assert_eq!(mix(BORDER, CHROME, 50), 0x2e333f);
@@ -396,7 +396,7 @@ mod tests {
     }
 
     #[test]
-    fn test_roles_derive_from_palette() {
+    fn roles_derive_from_palette() {
         assert_eq!(CHROME, 0x20242c);
         assert_eq!(CARD, 0x15181d);
         assert_eq!(POPUP, 0x292e39);
@@ -408,7 +408,7 @@ mod tests {
     }
 
     #[test]
-    fn test_theme_is_dark_nord_with_floating_chrome() {
+    fn theme_is_dark_nord_with_floating_chrome() {
         let theme = theme();
         assert_eq!(theme.name.as_ref(), "Nord");
         assert_eq!(theme.appearance, Appearance::Dark);
@@ -426,7 +426,7 @@ mod tests {
     }
 
     #[test]
-    fn test_terminal_dim_and_bright_bracket_normal() {
+    fn terminal_dim_and_bright_bracket_normal() {
         let colors = theme_colors();
         for (dim, normal, bright) in [
             (colors.terminal_ansi_dim_red, colors.terminal_ansi_red, colors.terminal_ansi_bright_red),
@@ -438,7 +438,7 @@ mod tests {
     }
 
     #[test]
-    fn test_status_colors_use_nord_surfaces() {
+    fn status_colors_use_nord_surfaces() {
         let status = status_colors();
         assert_eq!(status.ignored_background, status.hint_background);
         assert_eq!(status.ignored_border, status.hint_border);
@@ -446,7 +446,7 @@ mod tests {
     }
 
     #[test]
-    fn test_syntax_theme_resolves_capture_names() {
+    fn syntax_theme_resolves_capture_names() {
         let theme = theme();
         let syntax = theme.syntax();
         assert_eq!(syntax.style_for_name("keyword").and_then(|style| style.color), Some(color(BLUE)));
@@ -458,13 +458,13 @@ mod tests {
     }
 
     #[test]
-    fn test_theme_is_one_static_instance() {
+    fn theme_is_one_static_instance() {
         assert!(std::ptr::eq(theme(), theme()));
         assert_eq!(theme().syntax(), &syntax_theme());
     }
 
     #[test]
-    fn test_accent_colors_cycle() {
+    fn accent_colors_cycle() {
         let accents = theme().accents();
         assert_eq!(accents.color_for_index(0), color(BLUE));
         assert_eq!(accents.color_for_index(accents.0.len() as u32), accents.color_for_index(0));

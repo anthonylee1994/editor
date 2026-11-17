@@ -10,8 +10,8 @@ use crate::util::chars::is_line_end;
 use crate::util::chars::is_space;
 use crate::util::chars::is_word;
 use crate::util::float;
+use crate::yaml;
 use crate::yaml::Value;
-use crate::yaml::{self};
 
 /// Configuration from front matter and init directives, as JavaScript object properties in order.
 pub(crate) type Config = Vec<(String, Value)>;

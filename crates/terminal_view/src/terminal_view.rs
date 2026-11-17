@@ -36,7 +36,7 @@ use gpui::Pixels;
 use gpui::Point as GpuiPoint;
 use gpui::Render;
 use gpui::ScrollWheelEvent;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Subscription;
 use gpui::Task;
 use gpui::WeakEntity;
@@ -84,32 +84,32 @@ use ui::Divider;
 use ui::ScrollAxes;
 use ui::Scrollbars;
 use ui::Tooltip;
-use ui::WithScrollbar;
-use ui::prelude::ActiveTheme;
-use ui::prelude::ButtonCommon;
+use ui::WithScrollbar as _;
+use ui::prelude::ActiveTheme as _;
+use ui::prelude::ButtonCommon as _;
 use ui::prelude::ButtonSize;
-use ui::prelude::Clickable;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
 use ui::prelude::Context;
-use ui::prelude::Element;
-use ui::prelude::FluentBuilder;
+use ui::prelude::Element as _;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Icon;
 use ui::prelude::IconButton;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
-use ui::prelude::InteractiveElement;
+use ui::prelude::InteractiveElement as _;
 use ui::prelude::IntoElement;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
-use ui::prelude::ParentElement;
+use ui::prelude::ParentElement as _;
 use ui::prelude::SharedString;
-use ui::prelude::VisibleOnHover;
+use ui::prelude::VisibleOnHover as _;
 use ui::prelude::Window;
 use ui::prelude::h_flex;
 use ui::prelude::px;
 use ui::prelude::v_flex;
-use util::ResultExt;
+use util::ResultExt as _;
 use workspace::CloseActiveItem;
 use workspace::DraggedSelection;
 use workspace::DraggedTab;
@@ -140,7 +140,7 @@ fn viewport_line_for_point(point: Point, display_offset: usize) -> Option<usize>
 
 const CURSOR_BLINK_INTERVAL: Duration = Duration::from_millis(500);
 
-/// Event to transmit the scroll from the element to the view
+/// Event to transmit the scroll from the element to the view.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ScrollTerminal(pub i32);
 
@@ -183,7 +183,7 @@ pub struct BlockContext<'a, 'b> {
     pub dimensions: TerminalBounds,
 }
 
-///A terminal view, maintains the PTY's file handles and communicates with the terminal
+///A terminal view, maintains the PTY's file handles and communicates with the terminal.
 pub struct TerminalView {
     terminal: Entity<Terminal>,
     workspace: WeakEntity<Workspace>,
@@ -301,7 +301,7 @@ impl TerminalView {
     pub(crate) fn commit_text(&self, text: &str, cx: &mut Context<Self>) {
         if !text.is_empty() {
             self.terminal.update(cx, |term, _| {
-                term.input(text.to_string().into_bytes());
+                term.input(text.to_owned().into_bytes());
             });
         }
     }
@@ -341,7 +341,7 @@ impl TerminalView {
         };
         self.rename_editor_subscription = None;
         if save {
-            let new_label = editor.read(cx).text(cx).trim().to_string();
+            let new_label = editor.read(cx).text(cx).trim().to_owned();
             let label = if new_label.is_empty() {
                 None
             } else {
@@ -436,7 +436,10 @@ impl TerminalView {
     fn show_character_palette(&mut self, _: &ShowCharacterPalette, window: &mut Window, cx: &mut Context<Self>) {
         if self.terminal.read(cx).last_content.mode.contains(Modes::ALT_SCREEN) {
             self.terminal.update(cx, |term, _| {
-                term.try_keystroke(&Keystroke::parse("ctrl-cmd-space").unwrap(), TerminalSettings::get().option_as_meta)
+                term.try_keystroke(
+                    &Keystroke::parse("ctrl-cmd-space").expect("static keystroke parses"),
+                    TerminalSettings::get().option_as_meta,
+                )
             });
         } else {
             window.show_character_palette();
@@ -618,7 +621,7 @@ impl TerminalView {
         &self.terminal
     }
 
-    ///Attempt to paste the clipboard into the terminal
+    ///Attempt to paste the clipboard into the terminal.
     fn copy(&mut self, _: &Copy, _: &mut Window, cx: &mut Context<Self>) {
         self.terminal.update(cx, |term, _| term.copy(None));
         cx.notify();
@@ -631,7 +634,7 @@ impl TerminalView {
         self.copy(&Copy, window, cx);
     }
 
-    ///Attempt to paste the clipboard into the terminal
+    ///Attempt to paste the clipboard into the terminal.
     fn paste(&mut self, _: &Paste, window: &mut Window, cx: &mut Context<Self>) {
         let Some(clipboard) = cx.read_from_clipboard() else {
             return;
@@ -659,7 +662,7 @@ impl TerminalView {
         self.paste(&Paste, window, cx);
     }
 
-    ///Attempt to paste the clipboard text into the terminal
+    ///Attempt to paste the clipboard text into the terminal.
     fn paste_text(&mut self, _: &PasteText, _: &mut Window, cx: &mut Context<Self>) {
         let Some(clipboard) = cx.read_from_clipboard() else {
             return;
@@ -801,6 +804,60 @@ impl TerminalView {
                 rerun_in_terminal(workspace.clone(), spawned_task.clone(), window, cx);
             })
     }
+
+    /// Attempts to process a keystroke in the terminal. Returns true if handled.
+    ///
+    /// In vi mode, explicitly triggers a re-render because vi navigation (like j/k)
+    /// updates the cursor locally without sending data to the shell, so there's no
+    /// shell output to automatically trigger a re-render.
+    fn process_keystroke(&self, keystroke: &Keystroke, cx: &mut Context<Self>) -> bool {
+        let (handled, vi_mode_enabled) = self.terminal.update(cx, |term, _| {
+            (term.try_keystroke(keystroke, TerminalSettings::get().option_as_meta), term.vi_mode_enabled())
+        });
+
+        if handled && vi_mode_enabled {
+            cx.notify();
+        }
+
+        handled
+    }
+
+    fn key_down(&mut self, event: &KeyDownEvent, window: &mut Window, cx: &mut Context<Self>) {
+        self.clear_bell(cx);
+        self.pause_cursor_blinking(window, cx);
+
+        if event.prefer_character_input
+            && event.keystroke.key_char.is_some()
+            && !self.terminal.read(cx).vi_mode_enabled()
+        {
+            return;
+        }
+
+        if self.process_keystroke(&event.keystroke, cx) {
+            cx.stop_propagation();
+        }
+    }
+
+    fn focus_in(&self, window: &Window, cx: &mut Context<Self>) {
+        self.terminal.update(cx, |terminal, _| {
+            terminal.set_cursor_shape(self.cursor_shape);
+            terminal.focus_in();
+        });
+
+        self.blink_manager.update(cx, BlinkManager::enable);
+
+        window.invalidate_character_coordinates();
+        cx.notify();
+    }
+
+    fn focus_out(&self, _window: &mut Window, cx: &mut Context<Self>) {
+        self.blink_manager.update(cx, BlinkManager::disable);
+        self.terminal.update(cx, |terminal, _| {
+            terminal.focus_out();
+            terminal.set_cursor_shape(CursorShape::Hollow);
+        });
+        cx.notify();
+    }
 }
 
 /// Spawns the terminal's task again, replacing the output in the same tab.
@@ -907,62 +964,6 @@ fn regex_search_for_query(query: &SearchQuery) -> Option<Search> {
         Search::new(str)
     } else {
         Search::new(&regex::escape(str))
-    }
-}
-
-impl TerminalView {
-    /// Attempts to process a keystroke in the terminal. Returns true if handled.
-    ///
-    /// In vi mode, explicitly triggers a re-render because vi navigation (like j/k)
-    /// updates the cursor locally without sending data to the shell, so there's no
-    /// shell output to automatically trigger a re-render.
-    fn process_keystroke(&self, keystroke: &Keystroke, cx: &mut Context<Self>) -> bool {
-        let (handled, vi_mode_enabled) = self.terminal.update(cx, |term, _| {
-            (term.try_keystroke(keystroke, TerminalSettings::get().option_as_meta), term.vi_mode_enabled())
-        });
-
-        if handled && vi_mode_enabled {
-            cx.notify();
-        }
-
-        handled
-    }
-
-    fn key_down(&mut self, event: &KeyDownEvent, window: &mut Window, cx: &mut Context<Self>) {
-        self.clear_bell(cx);
-        self.pause_cursor_blinking(window, cx);
-
-        if event.prefer_character_input
-            && event.keystroke.key_char.is_some()
-            && !self.terminal.read(cx).vi_mode_enabled()
-        {
-            return;
-        }
-
-        if self.process_keystroke(&event.keystroke, cx) {
-            cx.stop_propagation();
-        }
-    }
-
-    fn focus_in(&self, window: &Window, cx: &mut Context<Self>) {
-        self.terminal.update(cx, |terminal, _| {
-            terminal.set_cursor_shape(self.cursor_shape);
-            terminal.focus_in();
-        });
-
-        self.blink_manager.update(cx, BlinkManager::enable);
-
-        window.invalidate_character_coordinates();
-        cx.notify();
-    }
-
-    fn focus_out(&self, _window: &mut Window, cx: &mut Context<Self>) {
-        self.blink_manager.update(cx, BlinkManager::disable);
-        self.terminal.update(cx, |terminal, _| {
-            terminal.focus_out();
-            terminal.set_cursor_shape(CursorShape::Hollow);
-        });
-        cx.notify();
     }
 }
 
@@ -1351,12 +1352,12 @@ impl SearchableItem for TerminalView {
         }
     }
 
-    /// Clear stored matches
+    /// Clear stored matches.
     fn clear_matches(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
         self.terminal().update(cx, |term, _| term.matches.clear());
     }
 
-    /// Store matches returned from find_matches somewhere for rendering
+    /// Store matches returned from find_matches somewhere for rendering.
     fn update_matches(
         &mut self,
         matches: &[Self::Match],
@@ -1368,7 +1369,7 @@ impl SearchableItem for TerminalView {
         self.terminal().update(cx, |term, _| term.matches = matches.to_vec());
     }
 
-    /// Returns the selection content to pre-load into this search
+    /// Returns the selection content to pre-load into this search.
     fn query_suggestion(
         &mut self,
         _seed_query_override: Option<SeedQuery>,
@@ -1378,7 +1379,7 @@ impl SearchableItem for TerminalView {
         self.terminal().read(cx).last_content.selection_text.clone().unwrap_or_default()
     }
 
-    /// Focus match at given index into the Vec of matches
+    /// Focus match at given index into the Vec of matches.
     fn activate_match(
         &mut self,
         index: usize,
@@ -1397,7 +1398,7 @@ impl SearchableItem for TerminalView {
         cx.notify();
     }
 
-    /// Get all of the matches for this query, should be done on the background
+    /// Get all of the matches for this query, should be done on the background.
     fn find_matches(
         &mut self,
         query: Arc<SearchQuery>,
@@ -1411,7 +1412,7 @@ impl SearchableItem for TerminalView {
         }
     }
 
-    /// Reports back to the search toolbar what the active match should be (the selection)
+    /// Reports back to the search toolbar what the active match should be (the selection).
     fn active_match_index(
         &mut self,
         direction: Direction,
@@ -1488,7 +1489,7 @@ fn current_project_directory(workspace: &Workspace, cx: &App) -> Option<PathBuf>
         .or_else(|| first_project_directory(workspace, cx))
 }
 
-///Gets the first project's home directory, or the home directory
+///Gets the first project's home directory, or the home directory.
 fn first_project_directory(workspace: &Workspace, cx: &App) -> Option<PathBuf> {
     let worktree = workspace.worktrees(cx).next()?.read(cx);
     let worktree_path = worktree.abs_path();

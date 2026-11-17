@@ -438,7 +438,7 @@ pub(crate) fn route_crossings(nodes: &[CNode], edges: &[CEdge], style: Style) ->
     let scale = if bottom > top { float(bands) / (bottom - top) } else { 0.0 };
     let band_of = |y: f64| whole(((y - top) * scale).floor()).min(bands - 1);
     let mut first = vec![0; count];
-    let mut band_start = vec![0usize; bands + 1];
+    let mut band_start = vec![0_usize; bands + 1];
     for p in 0..count {
         first[p] = band_of(low[p]);
         for b in first[p]..=band_of(high[p]) {
@@ -803,7 +803,7 @@ pub(crate) fn compound_layout(
         }
     }
     push_level(&mut levels, None, root_dir, root_items);
-    let mut depth = vec![0usize; n];
+    let mut depth = vec![0_usize; n];
     let mut placed = vec![false; n];
     descend(&mut levels, &mut level_of, &mut depth, &mut placed, nodes, &children, 0);
     // Groups that contain each other are unreachable from the root; lift them out.
@@ -941,7 +941,7 @@ pub(crate) fn compound_layout(
         .then(|| flat_order(nodes, edges, root_dir, opt));
 
     let mut placer =
-        Placer { laid: Vec::new(), level_of, levels, local: vec![0usize; n], opt, ordered, routes: Vec::new() };
+        Placer { laid: Vec::new(), level_of, levels, local: vec![0_usize; n], opt, ordered, routes: Vec::new() };
     placer.laid.resize_with(placer.levels.len(), Vec::new);
     let style = style_of(opt);
     let mut keyed = flat.is_some();
@@ -1084,7 +1084,7 @@ fn flat_order(nodes: &[CNode], edges: &[CEdge], root_dir: Dir, opt: &LayeredOpti
     let result = layered_with(&mut lnodes, &mut ledges, opt, Some(&groups), true);
     let mut key = vec![f64::NAN; n];
     let mut sum = vec![0.0; n];
-    let mut members = vec![0usize; n];
+    let mut members = vec![0_usize; n];
     let mut last = vec![-1.0; n];
     for i in 0..n {
         let Some(l) = leaf[i] else {
@@ -1460,7 +1460,7 @@ impl Placer<'_> {
                 seen.push((if vertical { port.px } else { port.py }, port.hint));
             }
             seen.sort_by(|p, q| p.0.partial_cmp(&q.0).unwrap_or(Ordering::Equal));
-            if seen.windows(2).any(|w| w[0].1 > w[1].1) {
+            if !seen.is_sorted_by(|p, q| p.1 <= q.1) {
                 again = true;
             }
         }
@@ -1618,7 +1618,7 @@ mod tests {
 
     #[test]
     fn counts_route_crossings_but_not_fans() {
-        let nodes: Vec<CNode> = (0..4)
+        let nodes: Vec<CNode> = (0_u8..4)
             .map(|i| CNode { x: 100.0 * f64::from(i % 2), y: 200.0 * f64::from(i / 2), ..cnode(40.0, 40.0, -1) })
             .collect();
         let mut crossed = [edge(0, 3), edge(1, 2)];
@@ -1719,13 +1719,13 @@ mod tests {
     fn orders_a_row_of_groups_as_one_drawing() {
         let mut nodes = vec![group(100.0), group(101.0), group(102.0)];
         let mut stage = |g: i32| {
-            (0..5)
-                .map(|_| {
-                    let v = nodes.len();
-                    nodes.push(CNode { seq: float(v + 1), ..cnode(80.0, 40.0, g) });
-                    v
-                })
-                .collect::<Vec<_>>()
+            std::iter::repeat_with(|| {
+                let v = nodes.len();
+                nodes.push(CNode { seq: float(v + 1), ..cnode(80.0, 40.0, g) });
+                v
+            })
+            .take(5)
+            .collect::<Vec<_>>()
         };
         let (a, b, c) = (stage(0), stage(1), stage(2));
         let mut edges = Vec::new();
@@ -1787,8 +1787,10 @@ mod tests {
     fn runs_an_edge_straight_across_the_gap_between_a_group_border_and_its_node() {
         for dir in [Dir::Tb, Dir::Lr] {
             let mut nodes = vec![group(100.0), group(101.0)];
-            let from: Vec<usize> = (0..3).map(|_| (nodes.push(cnode(60.0, 30.0, 0)), nodes.len() - 1).1).collect();
-            let to: Vec<usize> = (0..5).map(|_| (nodes.push(cnode(60.0, 30.0, 1)), nodes.len() - 1).1).collect();
+            let from: Vec<usize> =
+                std::iter::repeat_with(|| (nodes.push(cnode(60.0, 30.0, 0)), nodes.len() - 1).1).take(3).collect();
+            let to: Vec<usize> =
+                std::iter::repeat_with(|| (nodes.push(cnode(60.0, 30.0, 1)), nodes.len() - 1).1).take(5).collect();
             for (i, node) in nodes.iter_mut().enumerate() {
                 if !node.is_group {
                     node.seq = float(i);

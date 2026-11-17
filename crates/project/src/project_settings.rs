@@ -26,13 +26,13 @@ impl DiagnosticSeverity {
 #[derive(PartialEq, PartialOrd, Clone, Copy, Debug, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum GoToDiagnosticSeverity {
-    /// Errors
+    /// Errors.
     Error = 3,
-    /// Warnings
+    /// Warnings.
     Warning = 2,
-    /// Information
+    /// Information.
     Information = 1,
-    /// Hints
+    /// Hints.
     Hint = 0,
 }
 

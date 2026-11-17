@@ -94,7 +94,9 @@ impl AppleActivity {
 
 impl Drop for AppleActivity {
     fn drop(&mut self) {
-        unsafe { NSProcessInfo::processInfo().endActivity(&self.activity) };
+        unsafe {
+            NSProcessInfo::processInfo().endActivity(&self.activity);
+        }
     }
 }
 

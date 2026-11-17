@@ -5,34 +5,34 @@ use gpui::FocusHandle;
 use gpui::Focusable;
 use gpui::Hsla;
 use gpui::actions;
-use strum::IntoEnumIterator;
+use strum::IntoEnumIterator as _;
 use theme::all_theme_colors;
 use ui::ButtonLike;
 use ui::ElevationIndex;
 use ui::TintColor;
 use ui::Tooltip;
-use ui::prelude::ActiveTheme;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::Button;
-use ui::prelude::ButtonCommon;
+use ui::prelude::ButtonCommon as _;
 use ui::prelude::ButtonSize;
 use ui::prelude::ButtonStyle;
-use ui::prelude::Clickable;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
 use ui::prelude::Context;
 use ui::prelude::ElementId;
 use ui::prelude::Headline;
 use ui::prelude::HeadlineSize;
-use ui::prelude::InteractiveElement;
+use ui::prelude::InteractiveElement as _;
 use ui::prelude::IntoElement;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
-use ui::prelude::ParentElement;
+use ui::prelude::LabelCommon as _;
+use ui::prelude::ParentElement as _;
 use ui::prelude::Render;
-use ui::prelude::SelectableButton;
+use ui::prelude::SelectableButton as _;
 use ui::prelude::SharedString;
-use ui::prelude::StatefulInteractiveElement;
-use ui::prelude::Styled;
-use ui::prelude::Toggleable;
+use ui::prelude::StatefulInteractiveElement as _;
+use ui::prelude::Styled as _;
+use ui::prelude::Toggleable as _;
 use ui::prelude::Window;
 use ui::prelude::div;
 use ui::prelude::h_flex;
@@ -93,28 +93,7 @@ impl ThemePreview {
             ThemePreviewPage::Typography => self.render_typography_page().into_any_element(),
         }
     }
-}
 
-impl EventEmitter<()> for ThemePreview {}
-
-impl Focusable for ThemePreview {
-    fn focus_handle(&self, _: &App) -> gpui::FocusHandle {
-        self.focus_handle.clone()
-    }
-}
-
-impl Item for ThemePreview {
-    type Event = ();
-
-    fn to_item_events((): &Self::Event, _: &mut dyn FnMut(ItemEvent)) {}
-
-    fn tab_content_text(&self, _detail: usize, cx: &App) -> SharedString {
-        let name = cx.theme().name.clone();
-        format!("{name} Preview").into()
-    }
-}
-
-impl ThemePreview {
     fn preview_bg(cx: &App) -> Hsla {
         cx.theme().colors().editor_background
     }
@@ -368,6 +347,25 @@ impl ThemePreview {
                     .selected_style(ButtonStyle::Tinted(TintColor::Accent))
             }),
         )
+    }
+}
+
+impl EventEmitter<()> for ThemePreview {}
+
+impl Focusable for ThemePreview {
+    fn focus_handle(&self, _: &App) -> gpui::FocusHandle {
+        self.focus_handle.clone()
+    }
+}
+
+impl Item for ThemePreview {
+    type Event = ();
+
+    fn to_item_events((): &Self::Event, _: &mut dyn FnMut(ItemEvent)) {}
+
+    fn tab_content_text(&self, _detail: usize, cx: &App) -> SharedString {
+        let name = cx.theme().name.clone();
+        format!("{name} Preview").into()
     }
 }
 

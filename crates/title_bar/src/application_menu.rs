@@ -11,20 +11,20 @@ use ui::PopoverMenuHandle;
 use ui::Tooltip;
 use ui::prelude::App;
 use ui::prelude::Button;
-use ui::prelude::ButtonCommon;
+use ui::prelude::ButtonCommon as _;
 use ui::prelude::ButtonStyle;
 use ui::prelude::Context;
-use ui::prelude::FluentBuilder;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::IconButton;
 use ui::prelude::IconSize;
-use ui::prelude::InteractiveElement;
+use ui::prelude::InteractiveElement as _;
 use ui::prelude::IntoElement;
 use ui::prelude::LabelSize;
-use ui::prelude::ParentElement;
+use ui::prelude::ParentElement as _;
 use ui::prelude::Render;
 use ui::prelude::SharedString;
-use ui::prelude::StatefulInteractiveElement;
-use ui::prelude::Styled;
+use ui::prelude::StatefulInteractiveElement as _;
+use ui::prelude::Styled as _;
 use ui::prelude::Window;
 use ui::prelude::div;
 
@@ -150,7 +150,7 @@ impl ApplicationMenu {
                     IconButton::new(SharedString::from(format!("{menu_name}-menu-trigger")), ui::IconName::Menu)
                         .style(ButtonStyle::Subtle)
                         .icon_size(IconSize::Small)
-                        .tab_index(0isize),
+                        .tab_index(0_isize),
                     Tooltip::text("Open Application Menu"),
                 )
                 .with_handle(handle),
@@ -175,7 +175,7 @@ impl ApplicationMenu {
                         Button::new(SharedString::from(format!("{menu_name}-menu-trigger")), menu_name)
                             .style(ButtonStyle::Subtle)
                             .label_size(LabelSize::Small)
-                            .tab_index(0isize),
+                            .tab_index(0_isize),
                     )
                     .with_handle(current_handle.clone()),
             )

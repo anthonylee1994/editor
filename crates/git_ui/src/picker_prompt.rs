@@ -13,9 +13,9 @@ use gpui::Entity;
 use gpui::EventEmitter;
 use gpui::FocusHandle;
 use gpui::Focusable;
-use gpui::InteractiveElement;
+use gpui::InteractiveElement as _;
 use gpui::IntoElement;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Render;
 use gpui::SharedString;
 use gpui::Subscription;
@@ -28,10 +28,10 @@ use picker::PickerDelegate;
 use ui::HighlightedLabel;
 use ui::ListItem;
 use ui::ListItemSpacing;
-use ui::prelude::FluentBuilder;
-use ui::prelude::Toggleable;
+use ui::prelude::FluentBuilder as _;
+use ui::prelude::Toggleable as _;
 use ui::prelude::v_flex;
-use util::ResultExt;
+use util::ResultExt as _;
 use workspace::ModalView;
 use workspace::Workspace;
 
@@ -52,7 +52,7 @@ pub fn prompt(
     } else if options.len() == 1 {
         return Task::ready(Some(0));
     }
-    let prompt = prompt.to_string().into();
+    let prompt = prompt.to_owned().into();
 
     window.spawn(cx, async move |cx| {
         // Modal branch picker has a longer trailoff than a popover one.
@@ -127,7 +127,7 @@ impl PickerDelegate for PickerPromptDelegate {
     type ListItem = ListItem;
 
     fn placeholder_text(&self, _window: &mut Window, _cx: &mut App) -> Arc<str> {
-        self.prompt.clone()
+        Arc::clone(&self.prompt)
     }
 
     fn match_count(&self) -> usize {

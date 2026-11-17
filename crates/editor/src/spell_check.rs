@@ -85,7 +85,7 @@ impl SpellCheckState {
     }
 
     pub(crate) fn code_actions(&self, editor: WeakEntity<Editor>, has_project: bool) -> SpellCheckActions {
-        SpellCheckActions { editor, misspellings: self.misspellings.clone(), has_project }
+        SpellCheckActions { editor, misspellings: Rc::clone(&self.misspellings), has_project }
     }
 }
 
@@ -165,7 +165,7 @@ impl Editor {
             return Arc::default();
         };
         if let Some(words) = state.project_words.get(&worktree_id) {
-            return words.words.clone();
+            return Arc::clone(&words.words);
         }
         let words_file_exists = project
             .read(cx)

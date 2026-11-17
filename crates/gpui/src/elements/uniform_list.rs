@@ -25,7 +25,7 @@ use crate::Hitbox;
 use crate::InteractiveElement;
 use crate::Interactivity;
 use crate::IntoElement;
-use crate::IsZero;
+use crate::IsZero as _;
 use crate::LayoutId;
 use crate::ListSizingBehavior;
 use crate::Overflow;
@@ -120,11 +120,11 @@ pub enum ScrollStrategy {
 #[derive(Clone, Copy, Debug)]
 #[allow(missing_docs)]
 pub struct DeferredScrollToItem {
-    /// The item index to scroll to
+    /// The item index to scroll to.
     pub item_index: usize,
-    /// The scroll strategy to use
+    /// The scroll strategy to use.
     pub strategy: ScrollStrategy,
-    /// The offset in number of items
+    /// The offset in number of items.
     pub offset: usize,
     pub scroll_strict: bool,
 }
@@ -312,7 +312,7 @@ impl Element for UniformList {
         };
         let content_size = Size { width: content_width, height: longest_item_size.height * self.item_count };
 
-        let shared_scroll_offset = self.interactivity.scroll_offset.clone().unwrap();
+        let shared_scroll_offset = self.interactivity.scroll_offset.clone().expect("uniform list always tracks scroll");
         let item_height = longest_item_size.height;
         let shared_scroll_to_item = self.scroll_handle.as_mut().and_then(|handle| {
             let mut handle = handle.0.borrow_mut();

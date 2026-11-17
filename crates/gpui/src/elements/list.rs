@@ -5,7 +5,7 @@
 //! In order to minimize re-renders, this element's state is stored intrusively
 //! on your own views, so that your code can coordinate directly with the list element's cached state.
 //!
-//! If all of your elements are the same height, see [`crate::UniformList`] for a simpler API
+//! If all of your elements are the same height, see [`crate::UniformList`] for a simpler API.
 
 use std::cell::RefCell;
 use std::cmp::Ordering;
@@ -51,7 +51,7 @@ use crate::size;
 
 type RenderItemFn = dyn FnMut(usize, &mut Window, &mut App) -> AnyElement + 'static;
 
-/// Construct a new list element
+/// Construct a new list element.
 pub fn list(state: ListState, render_item: impl FnMut(usize, &mut Window, &mut App) -> AnyElement + 'static) -> List {
     List {
         state,
@@ -61,7 +61,7 @@ pub fn list(state: ListState, render_item: impl FnMut(usize, &mut Window, &mut A
     }
 }
 
-/// A list element
+/// A list element.
 pub struct List {
     state: ListState,
     render_item: Box<RenderItemFn>,
@@ -217,7 +217,7 @@ pub enum ListMeasuringBehavior {
     /// Measure all items in the list.
     /// Note: This can be expensive for the first frame in a large list.
     Measure(bool),
-    /// Only measure visible items
+    /// Only measure visible items.
     #[default]
     Visible,
 }
@@ -500,7 +500,7 @@ impl ListState {
     /// Inform the list state that the items in `old_range` have been replaced
     /// by `count` new items that must be recalculated.
     pub fn splice(&self, old_range: Range<usize>, count: usize) {
-        self.splice_focusable(old_range, (0..count).map(|_| None));
+        self.splice_focusable(old_range, std::iter::repeat_with(|| None).take(count));
     }
 
     /// Register with the list state that the items in `old_range` have been replaced
@@ -545,7 +545,7 @@ impl ListState {
         self.0.borrow().logical_scroll_top()
     }
 
-    /// Scroll the list by the given offset
+    /// Scroll the list by the given offset.
     pub fn scroll_by(&self, distance: Pixels) {
         if distance == px(0.) {
             return;
@@ -589,7 +589,7 @@ impl ListState {
         state.logical_scroll_top = Some(ListOffset { item_ix: item_count, offset_in_item: px(0.) });
     }
 
-    /// Scroll the list to the given offset
+    /// Scroll the list to the given offset.
     pub fn scroll_to(&self, mut scroll_top: ListOffset) {
         let state = &mut *self.0.borrow_mut();
         let item_count = state.items.summary().count;
@@ -684,7 +684,7 @@ impl ListState {
         self.0.borrow_mut().scrollbar_drag_start_height.take();
     }
 
-    /// Set the offset from the scrollbar
+    /// Set the offset from the scrollbar.
     pub fn set_offset_from_scrollbar(&self, point: Point<Pixels>) {
         self.0.borrow_mut().set_offset_from_scrollbar(point);
     }
@@ -982,7 +982,7 @@ impl StateInner {
                 }
             }
 
-            let size = size.unwrap();
+            let size = size.expect("item size was measured");
             rendered_height += size.height;
             max_item_width = max_item_width.max(size.width);
             measured_items.push_back(ListItem::Measured { size, focus_handle: item.focus_handle() });
@@ -1244,7 +1244,7 @@ impl Debug for ListItem {
 /// of pixels off the top left of the item.
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ListOffset {
-    /// The index of an item in the list
+    /// The index of an item in the list.
     pub item_ix: usize,
     /// The number of pixels to offset from the item index.
     pub offset_in_item: Pixels,
@@ -1351,7 +1351,9 @@ impl Element for List {
             Ok(layout) => layout,
             Err(autoscroll_request) => {
                 state.logical_scroll_top = Some(autoscroll_request);
-                state.prepaint_items(bounds, padding, false, &mut self.render_item, window, cx).unwrap()
+                state
+                    .prepaint_items(bounds, padding, false, &mut self.render_item, window, cx)
+                    .expect("prepaint without autoscroll always succeeds")
             }
         };
 
@@ -1489,13 +1491,13 @@ impl<'a> sum_tree::Dimension<'a, ListItemSummary> for Height {
 
 impl sum_tree::SeekTarget<'_, ListItemSummary, ListItemSummary> for Count {
     fn cmp(&self, other: &ListItemSummary, (): ()) -> Ordering {
-        self.0.partial_cmp(&other.count).unwrap()
+        self.0.partial_cmp(&other.count).expect("counts are never NaN")
     }
 }
 
 impl sum_tree::SeekTarget<'_, ListItemSummary, ListItemSummary> for Height {
     fn cmp(&self, other: &ListItemSummary, (): ()) -> Ordering {
-        self.0.partial_cmp(&other.height).unwrap()
+        self.0.partial_cmp(&other.height).expect("heights are never NaN")
     }
 }
 
@@ -1509,7 +1511,7 @@ mod tests {
     use crate::size;
 
     #[test]
-    fn test_content_insets_add_padding_and_border() {
+    fn content_insets_add_padding_and_border() {
         let style = Style {
             padding: Edges { top: px(1.).into(), right: px(2.).into(), bottom: px(3.).into(), left: px(4.).into() },
             border_widths: Edges {
@@ -1527,7 +1529,7 @@ mod tests {
     }
 
     #[test]
-    fn test_item_width_excludes_horizontal_insets() {
+    fn item_width_excludes_horizontal_insets() {
         let insets = Edges { top: px(5.), right: px(30.), bottom: px(5.), left: px(10.) };
         assert_eq!(item_width(px(100.), &insets), px(60.));
     }

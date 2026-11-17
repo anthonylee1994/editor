@@ -1,4 +1,4 @@
-use std::fmt::Write;
+use std::fmt::Write as _;
 use std::num::NonZeroU32;
 use std::time::Duration;
 
@@ -9,20 +9,20 @@ use editor::MultiBufferSnapshot;
 use editor::actions::ToggleGoToLine;
 use gpui::Entity;
 use gpui::FocusHandle;
-use gpui::Focusable;
+use gpui::Focusable as _;
 use gpui::Subscription;
 use gpui::Task;
 use gpui::WeakEntity;
 use text::Point;
 use text::Selection;
 use ui::Button;
-use ui::ButtonCommon;
-use ui::Clickable;
+use ui::ButtonCommon as _;
+use ui::Clickable as _;
 use ui::Context;
-use ui::FluentBuilder;
+use ui::FluentBuilder as _;
 use ui::IntoElement;
 use ui::LabelSize;
-use ui::ParentElement;
+use ui::ParentElement as _;
 use ui::Render;
 use ui::Tooltip;
 use ui::Window;
@@ -174,7 +174,7 @@ impl Render for CursorPosition {
             el.child(
                 Button::new("go-to-line-column", text)
                     .label_size(LabelSize::Small)
-                    .tab_index(0isize)
+                    .tab_index(0_isize)
                     .on_click(cx.listener(|this, _, window, cx| {
                         if let Some(workspace) = this.workspace.upgrade() {
                             workspace.update(cx, |workspace, cx| {
@@ -237,14 +237,14 @@ fn write_selection_stats(stats: SelectionStats, text: &mut String) {
         // Nothing to display.
         return;
     }
-    write!(text, " (").unwrap();
+    write!(text, " (").expect("writing to a String can't fail");
     let mut wrote_once = false;
     for (count, name) in [selections, lines, characters].into_iter().flatten() {
         if wrote_once {
-            write!(text, ", ").unwrap();
+            write!(text, ", ").expect("writing to a String can't fail");
         }
         let plural_suffix = if count > 1 { "s" } else { "" };
-        write!(text, "{count} {name}{plural_suffix}").unwrap();
+        write!(text, "{count} {name}{plural_suffix}").expect("writing to a String can't fail");
         wrote_once = true;
     }
     text.push(')');
@@ -262,7 +262,7 @@ mod tests {
     }
 
     #[test]
-    fn test_write_selection_stats() {
+    fn write_selection_stats_formats_counts() {
         assert_eq!(written(SelectionStats { lines: 0, characters: 0, selections: 1 }), "");
         assert_eq!(written(SelectionStats { lines: 1, characters: 1, selections: 1 }), " (1 character)");
         assert_eq!(written(SelectionStats { lines: 3, characters: 12, selections: 1 }), " (3 lines, 12 characters)");

@@ -8,7 +8,7 @@ use std::time::Instant;
 
 pub use autoscroll::Autoscroll;
 pub use autoscroll::AutoscrollStrategy;
-use gpui::Along;
+use gpui::Along as _;
 use gpui::App;
 use gpui::AppContext as _;
 use gpui::Axis;
@@ -24,7 +24,7 @@ use gpui::point;
 use language::Bias;
 pub use scroll_amount::ScrollAmount;
 use ui::scrollbars::ScrollbarAutoHide;
-use util::ResultExt;
+use util::ResultExt as _;
 
 use crate::Anchor;
 use crate::DisplayPoint;
@@ -33,12 +33,12 @@ use crate::Editor;
 use crate::EditorEvent;
 use crate::EditorMode;
 use crate::MultiBufferSnapshot;
-use crate::RowExt;
+use crate::RowExt as _;
 use crate::SelectionEffects;
 use crate::SizingBehavior;
-use crate::ToPoint;
+use crate::ToPoint as _;
 use crate::display_map::DisplaySnapshot;
-use crate::display_map::ToDisplayPoint;
+use crate::display_map::ToDisplayPoint as _;
 use crate::hover_popover::hide_hover;
 
 const SCROLLBAR_SHOW_INTERVAL: Duration = Duration::from_secs(1);

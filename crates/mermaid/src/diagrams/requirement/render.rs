@@ -33,9 +33,9 @@ use crate::svg::theme::class_names;
 use crate::svg::theme::resolve_style;
 use crate::text::label::Label;
 use crate::text::label::layout_label;
+use crate::text::measure;
 use crate::text::measure::BOLD;
 use crate::text::measure::ITALIC;
-use crate::text::measure::{self};
 use crate::util::chars::is_space;
 use crate::yaml::push_number;
 
@@ -283,7 +283,6 @@ fn stereotype(text: &str) -> String {
 }
 
 /// Draws `model`.
-#[expect(clippy::too_many_lines, reason = "mirrors Pele's draw")]
 pub(crate) fn render(model: &RequirementDb, options: &Options) -> Rendered {
     let graph = build_requirement_graph(model);
     let size = options.font_size;
@@ -348,7 +347,10 @@ pub(crate) fn render(model: &RequirementDb, options: &Options) -> Rendered {
         views.push(NodeView { h: head_height + body_height, head_height, key_width, kind, name, rows, style, w });
         cnodes.push(c);
     }
-    let find = |id: Option<&str>| id.and_then(|id| index.iter().find(|(own, _)| *own == id).map(|&(_, at)| at));
+    let find = |id: Option<&str>| {
+        let id = id?;
+        index.iter().find(|(own, _)| *own == id).map(|&(_, at)| at)
+    };
 
     let root_dir = direction(Some(graph.direction));
     let sideways = matches!(root_dir, Dir::Lr | Dir::Rl);

@@ -21,26 +21,26 @@ use gpui::FocusHandle;
 use gpui::Focusable;
 use gpui::SharedString;
 use gpui::Task;
-use gpui::TaskExt;
+use gpui::TaskExt as _;
 use gpui::WeakEntity;
 use project::Project;
 use project::git_store::Repository;
 use rustc_hash::FxHashSet;
-use ui::prelude::ActiveTheme;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::Button;
-use ui::prelude::Clickable;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
 use ui::prelude::Icon;
 use ui::prelude::IconButton;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
-use ui::prelude::InteractiveElement;
+use ui::prelude::InteractiveElement as _;
 use ui::prelude::IntoElement;
 use ui::prelude::Label;
-use ui::prelude::ParentElement;
+use ui::prelude::ParentElement as _;
 use ui::prelude::Render;
-use ui::prelude::Styled;
-use ui::prelude::StyledExt;
+use ui::prelude::Styled as _;
+use ui::prelude::StyledExt as _;
 use ui::prelude::Window;
 use ui::prelude::h_flex;
 use util::ResultExt as _;
@@ -71,7 +71,7 @@ impl RemoteBranchName {
         if remote_name.is_empty() || branch_name.is_empty() {
             return None;
         }
-        Some(Self { remote_name: remote_name.to_string(), branch_name: branch_name.to_string() })
+        Some(Self { remote_name: remote_name.to_owned(), branch_name: branch_name.to_owned() })
     }
 
     pub fn display_name(&self) -> String {
@@ -104,9 +104,9 @@ impl WorktreeCreateTarget {
             WorktreeCreateTarget::DefaultBranch(default_branch) => default_branch.display_name(),
             WorktreeCreateTarget::CurrentBranch => {
                 if has_multiple_repositories {
-                    "current branches".to_string()
+                    "current branches".to_owned()
                 } else {
-                    current_branch_name.unwrap_or("HEAD").to_string()
+                    current_branch_name.unwrap_or("HEAD").to_owned()
                 }
             }
         }
@@ -323,12 +323,10 @@ pub fn classify_worktrees(project: &Project, cx: &gpui::App) -> (Vec<Entity<Repo
         let matching_repo = repositories
             .iter()
             .filter_map(|(id, repo)| {
-                let work_dir = repo.read(cx).work_directory_abs_path.clone();
-                if wt_path.starts_with(work_dir.as_ref()) {
-                    Some((*id, repo.clone(), work_dir.as_ref().components().count()))
-                } else {
-                    None
-                }
+                let work_dir = Arc::clone(&repo.read(cx).work_directory_abs_path);
+                wt_path
+                    .starts_with(work_dir.as_ref())
+                    .then(|| (*id, repo.clone(), work_dir.as_ref().components().count()))
             })
             .max_by(|(left_id, _left_repo, left_depth), (right_id, _right_repo, right_depth)| {
                 left_depth.cmp(right_depth).then_with(|| left_id.cmp(right_id))
@@ -416,7 +414,7 @@ fn start_worktree_creations(
 
     let worktree_name = worktree_name.unwrap_or_else(|| {
         let existing_refs: Vec<&str> = existing_worktree_names.iter().map(String::as_str).collect();
-        worktree_names::generate_worktree_name(&existing_refs, rng).unwrap_or_else(|| "worktree".to_string())
+        worktree_names::generate_worktree_name(&existing_refs, rng).unwrap_or_else(|| "worktree".to_owned())
     });
 
     for repo in git_repos {
@@ -425,7 +423,7 @@ fn start_worktree_creations(
             if existing_worktree_paths.contains(&new_path) {
                 anyhow::bail!("A worktree already exists at {}", new_path.display());
             }
-            let work_dir = repo.work_directory_abs_path.clone();
+            let work_dir = Arc::clone(&repo.work_directory_abs_path);
             // Only the first repo that resolves to a given target path
             // actually creates the worktree; subsequent linked worktrees of
             // the same repository just contribute a path remapping.
@@ -587,7 +585,7 @@ fn create_worktree_workspace_inner(
 
     let worktree_name = action.worktree_name.clone();
     let branch_target = action.branch_target.clone();
-    let display_name: SharedString = worktree_name.as_deref().unwrap_or("worktree").to_string().into();
+    let display_name: SharedString = worktree_name.as_deref().unwrap_or("worktree").to_owned().into();
 
     workspace.set_active_worktree_creation(Some(display_name), false, cx);
 
@@ -716,7 +714,7 @@ async fn do_create_worktree(
             Ok(Ok(worktrees)) => {
                 for worktree in worktrees {
                     if let Some(name) = worktree.path.parent().and_then(|p| p.file_name()).and_then(|n| n.to_str()) {
-                        existing_worktree_names.push(name.to_string());
+                        existing_worktree_names.push(name.to_owned());
                     }
                     existing_worktree_paths.insert(worktree.path);
                 }
@@ -731,8 +729,8 @@ async fn do_create_worktree(
     if remote_branch_fetch_mode.should_fetch()
         && let Some((remote_name, branch_name)) = remote_branch_to_fetch(&branch_target)
     {
-        let remote_name = remote_name.to_string();
-        let branch_name = branch_name.to_string();
+        let remote_name = remote_name.to_owned();
+        let branch_name = branch_name.to_owned();
         if let Err(error) = fetch_remote_for_worktree_base(&git_repos, remote_name.clone(), cx).await {
             return Err(WorktreeFetchError { remote_name, branch_name, source: error }.into());
         }
@@ -839,19 +837,14 @@ async fn open_worktree_workspace(
     }
 
     #[allow(clippy::type_complexity)]
-    let init: Option<Box<dyn FnOnce(&mut Workspace, &mut gpui::Window, &mut gpui::Context<Workspace>) + Send>> =
-        if transfer_state {
+    let init = transfer_state.then(
+        || -> Box<dyn FnOnce(&mut Workspace, &mut gpui::Window, &mut gpui::Context<Workspace>) + Send> {
             let dock_structure = previous_state.dock_structure;
-            Some(Box::new(
-                move |workspace: &mut Workspace, window: &mut gpui::Window, cx: &mut gpui::Context<Workspace>| {
-                    workspace.set_dock_structure(dock_structure, window, cx);
-                },
-            ))
-        } else {
-            None
-        };
+            Box::new(move |workspace, window, cx| workspace.set_dock_structure(dock_structure, window, cx))
+        },
+    );
 
-    let app_state = source_workspace.read_with(cx, |workspace, _| workspace.app_state().clone());
+    let app_state = source_workspace.read_with(cx, |workspace, _| Arc::clone(workspace.app_state()));
     let new_workspace = cx
         .update(|_, cx| {
             Workspace::new_local(all_paths.clone(), app_state, Some(window_handle), init, OpenMode::Activate, cx)

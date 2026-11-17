@@ -5,7 +5,7 @@ use std::sync::Arc;
 use heapless::Vec as ArrayVec;
 
 use super::Bias;
-use super::CapacityResultExt;
+use super::CapacityResultExt as _;
 use super::Dimension;
 use super::Item;
 use super::Node;
@@ -141,7 +141,11 @@ where
         self.assert_did_seek();
         if let Some(entry) = self.stack.last() {
             if entry.index() == entry.tree.0.items().len() - 1 {
-                if let Some(next_leaf) = self.next_leaf() { Some(next_leaf.0.items().first().unwrap()) } else { None }
+                if let Some(next_leaf) = self.next_leaf() {
+                    Some(next_leaf.0.items().first().expect("leaves are non-empty"))
+                } else {
+                    None
+                }
             } else {
                 match *entry.tree.0 {
                     Node::Leaf { ref items, .. } => Some(&items[entry.index() + 1]),
@@ -175,7 +179,11 @@ where
         self.assert_did_seek();
         if let Some(entry) = self.stack.last() {
             if entry.index() == 0 {
-                if let Some(prev_leaf) = self.prev_leaf() { Some(prev_leaf.0.items().last().unwrap()) } else { None }
+                if let Some(prev_leaf) = self.prev_leaf() {
+                    Some(prev_leaf.0.items().last().expect("leaves are non-empty"))
+                } else {
+                    None
+                }
             } else {
                 match *entry.tree.0 {
                     Node::Leaf { ref items, .. } => Some(&items[entry.index() - 1]),
@@ -241,7 +249,7 @@ where
                 self.position = D::zero(self.cx);
             }
 
-            let entry = self.stack.last_mut().unwrap();
+            let entry = self.stack.last_mut().expect("stack is non-empty");
             if !descending {
                 if entry.index() == 0 {
                     self.stack.pop();
@@ -300,7 +308,7 @@ where
 
         while !self.stack.is_empty() {
             let new_subtree = {
-                let entry = self.stack.last_mut().unwrap();
+                let entry = self.stack.last_mut().expect("stack is non-empty");
                 match entry.tree.0.as_ref() {
                     Node::Internal { child_trees, child_summaries, .. } => {
                         if !descend {

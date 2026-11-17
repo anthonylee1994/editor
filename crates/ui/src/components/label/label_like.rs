@@ -5,23 +5,23 @@ use gpui::UnderlineStyle;
 use smallvec::SmallVec;
 
 use crate::font;
-use crate::prelude::ActiveTheme;
+use crate::prelude::ActiveTheme as _;
 use crate::prelude::AnyElement;
 use crate::prelude::App;
 use crate::prelude::Color;
 use crate::prelude::Div;
-use crate::prelude::FluentBuilder;
+use crate::prelude::FluentBuilder as _;
 use crate::prelude::IntoElement;
 use crate::prelude::ParentElement;
 use crate::prelude::RenderOnce;
-use crate::prelude::Styled;
-use crate::prelude::StyledTypography;
+use crate::prelude::Styled as _;
+use crate::prelude::StyledTypography as _;
 use crate::prelude::Window;
 use crate::prelude::div;
 use crate::prelude::px;
 use crate::prelude::relative;
 
-/// Sets the size of a label
+/// Sets the size of a label.
 #[derive(Debug, PartialEq, Clone, Copy, Default)]
 pub enum LabelSize {
     /// The default size of a label.
@@ -37,7 +37,7 @@ pub enum LabelSize {
     Custom(Rems),
 }
 
-/// Sets the line height of a label
+/// Sets the line height of a label.
 #[derive(Default, PartialEq, Eq, Copy, Clone)]
 pub enum LineHeightStyle {
     /// The default line height style of a label,
@@ -69,7 +69,7 @@ pub trait LabelCommon {
     /// Sets the italic property of the label.
     fn italic(self) -> Self;
 
-    /// Sets the underline property of the label
+    /// Sets the underline property of the label.
     fn underline(self) -> Self;
 
     /// Sets the alpha property of the label, overwriting the alpha value of the color.
@@ -81,7 +81,7 @@ pub trait LabelCommon {
     /// Sets the label to render as a single line.
     fn single_line(self) -> Self;
 
-    /// Sets the font to the buffer's
+    /// Sets the font to the buffer's.
     fn buffer_font(self) -> Self;
 
     /// Styles the label to look like inline code.
@@ -138,10 +138,8 @@ impl LabelLike {
             truncate_middle: false,
         }
     }
-}
 
-// Style methods.
-impl LabelLike {
+    // Style methods.
     fn style(&mut self) -> &mut StyleRefinement {
         self.base.style()
     }

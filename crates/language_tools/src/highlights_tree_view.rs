@@ -8,9 +8,9 @@ use editor::Editor;
 use editor::HighlightKey;
 use editor::MultiBufferSnapshot;
 use editor::SelectionEffects;
-use editor::ToPoint;
+use editor::ToPoint as _;
 use editor::scroll::Autoscroll;
-use gpui::Action;
+use gpui::Action as _;
 use gpui::App;
 use gpui::AppContext as _;
 use gpui::Context;
@@ -22,16 +22,16 @@ use gpui::FocusHandle;
 use gpui::Focusable;
 use gpui::HighlightStyle;
 use gpui::Hsla;
-use gpui::InteractiveElement;
+use gpui::InteractiveElement as _;
 use gpui::IntoElement;
 use gpui::MouseButton;
 use gpui::MouseDownEvent;
 use gpui::MouseMoveEvent;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Render;
 use gpui::ScrollStrategy;
 use gpui::SharedString;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Task;
 use gpui::UniformListScrollHandle;
 use gpui::WeakEntity;
@@ -42,28 +42,28 @@ use gpui::rems;
 use gpui::uniform_list;
 use language::BufferId;
 use language::Point;
-use language::ToOffset;
+use language::ToOffset as _;
 use menu::SelectNext;
 use menu::SelectPrevious;
-use theme::ActiveTheme;
+use theme::ActiveTheme as _;
 use theme::SyntaxTheme;
 use ui::ButtonLike;
 use ui::ContextMenu;
 use ui::PopoverMenu;
 use ui::PopoverMenuHandle;
 use ui::Tooltip;
-use ui::WithScrollbar;
+use ui::WithScrollbar as _;
 use ui::prelude::Color;
-use ui::prelude::FluentBuilder;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::IconButton;
 use ui::prelude::IconName;
 use ui::prelude::IconPosition;
 use ui::prelude::IconSize;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
-use ui::prelude::StyledExt;
-use ui::prelude::Toggleable;
+use ui::prelude::StyledExt as _;
+use ui::prelude::Toggleable as _;
 use ui::prelude::h_flex;
 use ui::prelude::v_flex;
 use workspace::Event as WorkspaceEvent;
@@ -139,7 +139,7 @@ impl HighlightCategory {
                     }
                     (Some(token_type), None) => format!("semantic token: {token_type}"),
                     (None, Some(modifiers)) => format!("semantic token [{modifiers}]"),
-                    (None, None) => "semantic token".to_string(),
+                    (None, None) => "semantic token".to_owned(),
                 };
 
                 if let Some(theme_key) = theme_key {
@@ -240,8 +240,10 @@ impl HighlightsTreeView {
 
         this.handle_item_updated(active_item, window, cx);
 
-        cx.subscribe_in(&workspace_handle.upgrade().unwrap(), window, move |this, workspace, event, window, cx| {
-            match event {
+        cx.subscribe_in(
+            &workspace_handle.upgrade().expect("workspace is alive during construction"),
+            window,
+            move |this, workspace, event, window, cx| match event {
                 WorkspaceEvent::ItemAdded { .. } | WorkspaceEvent::ActiveItemChanged => {
                     this.handle_item_updated(workspace.read(cx).active_item(cx), window, cx);
                 }
@@ -249,8 +251,8 @@ impl HighlightsTreeView {
                     this.handle_item_removed(*item_id, window, cx);
                 }
                 _ => {}
-            }
-        })
+            },
+        )
         .detach();
 
         this
@@ -356,11 +358,11 @@ impl HighlightsTreeView {
         let (text_highlights, semantic_token_highlights) = display_map.update(cx, |display_map, _| {
             let text_highlights = display_map
                 .all_text_highlights()
-                .map(|(key, highlights)| (*key, highlights.clone()))
+                .map(|(key, highlights)| (*key, Arc::clone(highlights)))
                 .collect::<Vec<_>>();
             let semantic_token_highlights = display_map
                 .all_semantic_token_highlights()
-                .map(|(buffer_id, (tokens, interner))| (*buffer_id, tokens.clone(), interner.clone()))
+                .map(|(buffer_id, (tokens, interner))| (*buffer_id, Arc::clone(tokens), Arc::clone(interner)))
                 .collect::<Vec<_>>();
             (text_highlights, semantic_token_highlights)
         });
@@ -979,7 +981,7 @@ fn excerpt_label_for(entry: &HighlightEntry, snapshot: &MultiBufferSnapshot, cx:
         .and_then(|(anchor, _)| snapshot.buffer_for_id(anchor.buffer_id))
         .and_then(|buf| buf.file())
         .map_or_else(
-            || "untitled".to_string(),
+            || "untitled".to_owned(),
             |file| {
                 let full_path = file.full_path(cx);
                 full_path.to_string_lossy().to_string()
@@ -1057,7 +1059,7 @@ fn build_highlight_entries(
             };
 
             let theme_key =
-                syntax_theme.get_capture_name(highlight_id).map(|theme_key| SharedString::from(theme_key.to_string()));
+                syntax_theme.get_capture_name(highlight_id).map(|theme_key| SharedString::from(theme_key.to_owned()));
 
             let capture_name = grammars[capture.grammar_index]
                 .highlights_config
@@ -1065,7 +1067,7 @@ fn build_highlight_entries(
                 .and_then(|config| config.query.capture_names().get(capture.index as usize))
                 .map_or_else(
                     || SharedString::from("unknown"),
-                    |capture_name| SharedString::from((*capture_name).to_string()),
+                    |capture_name| SharedString::from((*capture_name).to_owned()),
                 );
 
             let start_anchor = buffer_snapshot.anchor_before(capture.node.start_byte());
@@ -1146,19 +1148,19 @@ fn render_style_preview(style: HighlightStyle, selected: bool, cx: &App) -> Div 
         parts.push(format_hsla_as_hex(color));
     }
     if style.font_weight.is_some() {
-        parts.push("bold".to_string());
+        parts.push("bold".to_owned());
     }
     if style.font_style.is_some() {
-        parts.push("italic".to_string());
+        parts.push("italic".to_owned());
     }
     if style.strikethrough.is_some() {
-        parts.push("strike".to_string());
+        parts.push("strike".to_owned());
     }
     if style.underline.is_some() {
-        parts.push("underline".to_string());
+        parts.push("underline".to_owned());
     }
 
-    let label_text = if parts.is_empty() { "none".to_string() } else { parts.join(" ") };
+    let label_text = if parts.is_empty() { "none".to_owned() } else { parts.join(" ") };
 
     preview.child(
         Label::new(label_text)

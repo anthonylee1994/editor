@@ -1,7 +1,7 @@
 use std::ptr::NonNull;
 
 use block2::RcBlock;
-use futures::StreamExt;
+use futures::StreamExt as _;
 use futures::channel::mpsc;
 use gpui::ForegroundExecutor;
 use gpui::Task;

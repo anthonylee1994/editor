@@ -1,6 +1,6 @@
 use gpui::App;
 use gpui::Hsla;
-use theme::ActiveTheme;
+use theme::ActiveTheme as _;
 
 /// Sets a color that has a consistent meaning across all themes.
 #[derive(Debug, Default, Eq, PartialEq, Copy, Clone)]

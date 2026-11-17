@@ -5,12 +5,12 @@ use git::RestoreTrackedFiles;
 use git::repository::RepoPath;
 use git_ui_core::notifications::show_error_toast;
 use gpui::PromptLevel;
-use gpui::TaskExt;
-use itertools::Itertools;
+use gpui::TaskExt as _;
+use itertools::Itertools as _;
 use ui::prelude::Context;
 use ui::prelude::Window;
 use util::markdown::MarkdownInlineCode;
-use workspace::notifications::DetachAndPromptErr;
+use workspace::notifications::DetachAndPromptErr as _;
 
 use super::GitPanel;
 use super::GitStatusEntry;
@@ -339,7 +339,7 @@ impl GitPanel {
         let mut details = entries
             .iter()
             .filter_map(|entry| entry.repo_path.as_ref().file_name())
-            .map(|filename| filename.to_string())
+            .map(|filename| filename.to_owned())
             .take(5)
             .join("\n");
         if entries.len() > 5 {
@@ -385,7 +385,7 @@ impl GitPanel {
 
         let mut details = to_delete
             .iter()
-            .map(|entry| entry.repo_path.as_ref().file_name().map_or_default(|f| f.to_string()))
+            .map(|entry| entry.repo_path.as_ref().file_name().map_or_default(|f| f.to_owned()))
             .take(5)
             .join("\n");
 
@@ -435,7 +435,7 @@ mod tests {
     use super::restore_title;
 
     #[test]
-    fn test_restore_title() {
+    fn restore_title_works() {
         assert_eq!(restore_title(SelectionTargetKind::Directory, true, false, 3), "Delete Folder");
         assert_eq!(restore_title(SelectionTargetKind::Directory, false, false, 3), "Discard Changes");
         assert_eq!(restore_title(SelectionTargetKind::File, true, false, 1), "Delete File");
@@ -448,7 +448,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bulk_revert_prompt() {
+    fn bulk_revert_prompt_works() {
         assert_eq!(bulk_revert_prompt(0, 0), None);
         assert_eq!(bulk_revert_prompt(2, 0), Some(("Discard changes to 2 files?".into(), "Discard")));
         assert_eq!(bulk_revert_prompt(0, 3), Some(("Do you want to delete 3 files?".into(), "Delete")));

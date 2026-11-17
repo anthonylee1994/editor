@@ -419,7 +419,6 @@ impl<'a> Lexer<'a> {
     }
 
     /// Reads the whole source.
-    #[expect(clippy::too_many_lines, reason = "mirrors Pele's tokenize")]
     fn run(mut self) -> Vec<Token<'a>> {
         let n = self.src.len();
         loop {

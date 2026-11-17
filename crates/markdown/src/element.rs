@@ -3,18 +3,18 @@ use std::cell::RefCell;
 
 use gpui::Div;
 use gpui::Empty;
-use gpui::InteractiveElement;
+use gpui::InteractiveElement as _;
 use gpui::ListAlignment;
 use gpui::ListSizingBehavior;
 use gpui::ListState;
-use gpui::Refineable;
-use gpui::StatefulInteractiveElement;
-use gpui::StyledImage;
+use gpui::Refineable as _;
+use gpui::StatefulInteractiveElement as _;
+use gpui::StyledImage as _;
 use gpui::list;
-use gpui::prelude::FluentBuilder;
-use ui::LabelCommon;
-use ui::WithScrollbar;
-use ui::prelude::ActiveTheme;
+use gpui::prelude::FluentBuilder as _;
+use ui::LabelCommon as _;
+use ui::WithScrollbar as _;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::Color;
 use ui::prelude::Element;
 use ui::prelude::ElementId;
@@ -25,9 +25,9 @@ use ui::prelude::IntoElement;
 use ui::prelude::Label;
 use ui::prelude::ParentElement;
 use ui::prelude::Styled;
-use ui::prelude::StyledExt;
+use ui::prelude::StyledExt as _;
 use ui::prelude::ToggleState;
-use ui::prelude::VisibleOnHover;
+use ui::prelude::VisibleOnHover as _;
 use ui::prelude::div;
 use ui::prelude::h_flex;
 use ui::prelude::px;
@@ -86,7 +86,7 @@ use super::Rc;
 use super::RenderBlock;
 use super::RenderedMarkdown;
 use super::RenderedText;
-use super::ResultExt;
+use super::ResultExt as _;
 use super::ScrollAxes;
 use super::ScrollHandle;
 use super::Scrollbars;
@@ -211,7 +211,7 @@ impl MarkdownListState {
             } else {
                 this.list.splice(old_range, new_count);
             }
-            this.blocks = blocks.clone();
+            this.blocks = Arc::clone(blocks);
         }
         this.list.clone()
     }
@@ -312,6 +312,238 @@ impl MarkdownElement {
         self.list_state = Some(list_state);
         self
     }
+
+    /// Registered before the children paint, so their handlers run first in
+    /// the bubble phase. `rendered_text` and `was_hovering_clickable` are
+    /// read when an event arrives, since a virtualized element only knows its
+    /// text once its blocks have painted.
+    fn paint_mouse_listeners(
+        &mut self,
+        hitbox: &Hitbox,
+        rendered_text: &Rc<RefCell<RenderedText>>,
+        was_hovering_clickable: &Rc<Cell<bool>>,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        if self.renderer.style.prevent_mouse_interaction {
+            return;
+        }
+
+        let on_open_url = self.renderer.on_url_click.clone();
+        let on_url_hover = self.on_url_hover.take();
+        let on_source_click = self.on_source_click.take();
+        let text_covers_document = self.list_state.is_none();
+
+        self.on_mouse_event(window, cx, {
+            let hitbox = hitbox.clone();
+            let rendered_text = Rc::clone(rendered_text);
+            move |markdown, event: &MouseDownEvent, phase, window, _cx| {
+                if phase.capture() && event.button == MouseButton::Right && hitbox.is_hovered(window) {
+                    let rendered_text = rendered_text.borrow().clone();
+                    let link = rendered_text
+                        .source_index_for_position(event.position)
+                        .ok()
+                        .and_then(|ix| rendered_text.link_for_source_index(ix))
+                        .map(|link| link.destination_url.clone());
+                    markdown.capture_for_context_menu(link, text_covers_document.then_some(&rendered_text));
+                }
+            }
+        });
+
+        self.on_mouse_event(window, cx, {
+            let rendered_text = Rc::clone(rendered_text);
+            let hitbox = hitbox.clone();
+            move |markdown, event: &MouseDownEvent, phase, window, cx| {
+                let rendered_text = rendered_text.borrow().clone();
+                if hitbox.is_hovered(window) {
+                    if phase.bubble() && event.button != MouseButton::Right {
+                        let position_result = rendered_text.source_index_for_position(event.position);
+
+                        if let Ok(source_index) = position_result {
+                            if let Some(footnote_ref) = rendered_text.footnote_ref_for_source_index(source_index) {
+                                markdown.pressed_footnote_ref = Some(footnote_ref.clone());
+                            } else if let Some(link) = rendered_text.link_for_source_index(source_index) {
+                                markdown.pressed_link = Some(link.clone());
+                            }
+                        }
+
+                        if markdown.pressed_footnote_ref.is_none() && markdown.pressed_link.is_none() {
+                            let source_index = match position_result {
+                                Ok(ix) | Err(ix) => ix,
+                            };
+                            if let Some(handler) = on_source_click.as_ref() {
+                                let blocked = handler(source_index, event.click_count, window, cx);
+                                if blocked {
+                                    markdown.selection = Selection::default();
+                                    markdown.pressed_link = None;
+                                    window.prevent_default();
+                                    cx.notify();
+                                    return;
+                                }
+                            }
+                            let (range, mode, reversed) = match event.click_count {
+                                1 if event.modifiers.shift => {
+                                    let tail = markdown.selection.tail();
+                                    let reversed = source_index < tail;
+                                    let range = if reversed { source_index..tail } else { tail..source_index };
+                                    (range, SelectMode::Character, reversed)
+                                }
+                                1 => {
+                                    let range = source_index..source_index;
+                                    (range, SelectMode::Character, false)
+                                }
+                                2 => {
+                                    let range = rendered_text.surrounding_word_range(source_index);
+                                    (range.clone(), SelectMode::Word(range), false)
+                                }
+                                3 => {
+                                    let range = rendered_text.surrounding_line_range(source_index);
+                                    (range.clone(), SelectMode::Line(range), false)
+                                }
+                                _ => {
+                                    let range = 0..rendered_text.select_all_end();
+                                    (range, SelectMode::All, false)
+                                }
+                            };
+                            markdown.selection =
+                                Selection { start: range.start, end: range.end, reversed, pending: true, mode };
+                            window.focus(&markdown.focus_handle, cx);
+                        }
+
+                        window.prevent_default();
+                        cx.notify();
+                    }
+                } else if phase.capture() && event.button == MouseButton::Left {
+                    markdown.selection = Selection::default();
+                    markdown.pressed_link = None;
+                    cx.notify();
+                }
+            }
+        });
+        self.on_mouse_event(window, cx, {
+            let rendered_text = Rc::clone(rendered_text);
+            let hitbox = hitbox.clone();
+            let was_hovering_clickable = Rc::clone(was_hovering_clickable);
+            move |markdown, event: &MouseMoveEvent, phase, window, cx| {
+                if phase.capture() {
+                    return;
+                }
+                let rendered_text = rendered_text.borrow().clone();
+
+                if markdown.selection.pending {
+                    let source_index = match rendered_text.source_index_for_position(event.position) {
+                        Ok(ix) | Err(ix) => ix,
+                    };
+                    markdown.selection.set_head(source_index, &rendered_text);
+                    markdown.autoscroll_code_block(source_index, event.position);
+                    markdown.autoscroll_request = Some(source_index);
+                    cx.notify();
+                } else {
+                    let is_hitbox_hovered = hitbox.is_hovered(window);
+                    let source_index = is_hitbox_hovered
+                        .then(|| rendered_text.source_index_for_position(event.position).ok())
+                        .flatten();
+                    let hovered_url = is_hitbox_hovered
+                        .then(|| rendered_text.image_link_for_position(event.position))
+                        .flatten()
+                        .map(|image| image.destination_url.clone())
+                        .or_else(|| {
+                            source_index
+                                .and_then(|source_index| rendered_text.link_for_source_index(source_index))
+                                .map(|link| link.destination_url.clone())
+                        });
+                    let is_hovering_clickable = hovered_url.is_some()
+                        || source_index.is_some_and(|source_index| {
+                            rendered_text.footnote_ref_for_source_index(source_index).is_some()
+                        });
+                    if let Some(on_url_hover) = on_url_hover.as_ref() {
+                        on_url_hover(hovered_url, window, cx);
+                    }
+                    if is_hovering_clickable != was_hovering_clickable.get() {
+                        cx.notify();
+                    }
+                }
+            }
+        });
+        self.on_mouse_event(window, cx, {
+            let rendered_text = Rc::clone(rendered_text);
+            move |markdown, event: &MouseUpEvent, phase, window, cx| {
+                let rendered_text = rendered_text.borrow().clone();
+                if phase.bubble() {
+                    let source_index = rendered_text.source_index_for_position(event.position).ok();
+                    if let Some(pressed_footnote_ref) = markdown.pressed_footnote_ref.take()
+                        && source_index.and_then(|ix| rendered_text.footnote_ref_for_source_index(ix))
+                            == Some(&pressed_footnote_ref)
+                    {
+                        if let Some(source_index) =
+                            markdown.footnote_definition_content_start(&pressed_footnote_ref.label)
+                        {
+                            markdown.autoscroll_request = Some(source_index);
+                            cx.notify();
+                        }
+                    } else if let Some(pressed_link) = markdown.pressed_link.take()
+                        && source_index.and_then(|ix| rendered_text.link_for_source_index(ix)) == Some(&pressed_link)
+                    {
+                        if let Some(open_url) = on_open_url.as_ref() {
+                            open_url(pressed_link.destination_url, window, cx);
+                        } else {
+                            cx.open_url(&pressed_link.destination_url);
+                        }
+                    }
+                } else if markdown.selection.pending {
+                    markdown.selection.pending = false;
+
+                    cx.notify();
+                }
+            }
+        });
+    }
+
+    fn autoscroll(&self, rendered_text: &RenderedText, window: &mut Window, cx: &mut App) -> Option<()> {
+        let autoscroll_index = self.renderer.markdown.update(cx, |markdown, _| markdown.autoscroll_request.take())?;
+
+        match &self.autoscroll {
+            AutoscrollBehavior::Controlled(scroll_handle) => {
+                let (position, line_height) = rendered_text.position_for_source_index(autoscroll_index)?;
+                let viewport = scroll_handle.bounds();
+                let margin = line_height * 3.;
+                let top_goal = viewport.top() + margin;
+                let bottom_goal = viewport.bottom() - margin;
+                let current_offset = scroll_handle.offset();
+
+                let new_offset_y = if position.y < top_goal {
+                    current_offset.y + (top_goal - position.y)
+                } else if position.y + line_height > bottom_goal {
+                    current_offset.y + (bottom_goal - (position.y + line_height))
+                } else {
+                    current_offset.y
+                };
+
+                scroll_handle.set_offset(point(
+                    current_offset.x,
+                    new_offset_y.clamp(-scroll_handle.max_offset().y, Pixels::ZERO),
+                ));
+            }
+            AutoscrollBehavior::Propagate => {
+                request_autoscroll(rendered_text, autoscroll_index, &self.renderer.style, window)?;
+            }
+        }
+        Some(())
+    }
+
+    fn on_mouse_event<T: MouseEvent>(
+        &self,
+        window: &mut Window,
+        _cx: &mut App,
+        mut f: impl 'static + FnMut(&mut Markdown, &T, DispatchPhase, &mut Window, &mut Context<Markdown>),
+    ) {
+        window.on_mouse_event({
+            let markdown = self.renderer.markdown.downgrade();
+            move |event, phase, window, cx| {
+                markdown.update(cx, |markdown, cx| f(markdown, event, phase, window, cx)).log_err();
+            }
+        });
+    }
 }
 
 impl BlockRenderer {
@@ -349,7 +581,7 @@ impl BlockRenderer {
                 let markdown = self.markdown.clone();
                 let url_click = self.on_url_click.clone();
                 let bounds = Rc::new(Cell::new(None));
-                builder.push_image_link(url.clone(), bounds.clone());
+                builder.push_image_link(url.clone(), Rc::clone(&bounds));
                 wrapper
                     .relative()
                     .cursor_pointer()
@@ -626,9 +858,7 @@ impl BlockRenderer {
         builder.pop_div();
         builder.pop_div();
     }
-}
 
-impl BlockRenderer {
     /// Sets the cursor for the text under the mouse, and returns whether it is
     /// over something clickable. Called before the children paint, so their
     /// cursors take precedence.
@@ -652,239 +882,70 @@ impl BlockRenderer {
         }
         is_hovering_clickable
     }
-}
 
-impl MarkdownElement {
-    /// Registered before the children paint, so their handlers run first in
-    /// the bubble phase. `rendered_text` and `was_hovering_clickable` are
-    /// read when an event arrives, since a virtualized element only knows its
-    /// text once its blocks have painted.
-    fn paint_mouse_listeners(
-        &mut self,
-        hitbox: &Hitbox,
-        rendered_text: &Rc<RefCell<RenderedText>>,
-        was_hovering_clickable: &Rc<Cell<bool>>,
+    /// Renders the events in `events`, which must open and close the same
+    /// containers.
+    fn render(
+        &self,
+        frame: &RenderFrame,
+        events: Range<usize>,
+        footnote_separator_rendered: bool,
+        container_style: &StyleRefinement,
         window: &mut Window,
         cx: &mut App,
-    ) {
-        if self.renderer.style.prevent_mouse_interaction {
-            return;
+    ) -> RenderedMarkdown {
+        let mut builder = MarkdownElementBuilder::new(
+            container_style,
+            self.style.base_text_style.clone(),
+            self.style.syntax,
+            self.highlights(cx),
+            frame.parsed.first_rendered_block_start(),
+        );
+        builder.rendered_footnote_separator = footnote_separator_rendered;
+        let parsed = &frame.parsed;
+        let mut pass = RenderPass {
+            renderer: self,
+            frame,
+            builder,
+            markdown_end: parsed.events.last().map_or(0, |(range, _)| range.end),
+            code_block_text: None,
+            image_range: None,
+            skip_until: None,
+        };
+
+        for (index, (range, event)) in parsed.events.iter().enumerate().take(events.end).skip(events.start) {
+            // Skip alt text for images that rendered
+            if pass.image_range.as_ref().is_some_and(|image_range| image_range.end > range.end) {
+                continue;
+            }
+            if let Some(skip_until) = &pass.skip_until {
+                if let MarkdownEvent::End(end) = event
+                    && end == skip_until
+                {
+                    pass.skip_until = None;
+                }
+                continue;
+            }
+            pass.event(index, range, event, window, cx);
         }
-
-        let on_open_url = self.renderer.on_url_click.clone();
-        let on_url_hover = self.on_url_hover.take();
-        let on_source_click = self.on_source_click.take();
-        let text_covers_document = self.list_state.is_none();
-
-        self.on_mouse_event(window, cx, {
-            let hitbox = hitbox.clone();
-            let rendered_text = rendered_text.clone();
-            move |markdown, event: &MouseDownEvent, phase, window, _cx| {
-                if phase.capture() && event.button == MouseButton::Right && hitbox.is_hovered(window) {
-                    let rendered_text = rendered_text.borrow().clone();
-                    let link = rendered_text
-                        .source_index_for_position(event.position)
-                        .ok()
-                        .and_then(|ix| rendered_text.link_for_source_index(ix))
-                        .map(|link| link.destination_url.clone());
-                    markdown.capture_for_context_menu(link, text_covers_document.then_some(&rendered_text));
-                }
-            }
-        });
-
-        self.on_mouse_event(window, cx, {
-            let rendered_text = rendered_text.clone();
-            let hitbox = hitbox.clone();
-            move |markdown, event: &MouseDownEvent, phase, window, cx| {
-                let rendered_text = rendered_text.borrow().clone();
-                if hitbox.is_hovered(window) {
-                    if phase.bubble() && event.button != MouseButton::Right {
-                        let position_result = rendered_text.source_index_for_position(event.position);
-
-                        if let Ok(source_index) = position_result {
-                            if let Some(footnote_ref) = rendered_text.footnote_ref_for_source_index(source_index) {
-                                markdown.pressed_footnote_ref = Some(footnote_ref.clone());
-                            } else if let Some(link) = rendered_text.link_for_source_index(source_index) {
-                                markdown.pressed_link = Some(link.clone());
-                            }
-                        }
-
-                        if markdown.pressed_footnote_ref.is_none() && markdown.pressed_link.is_none() {
-                            let source_index = match position_result {
-                                Ok(ix) | Err(ix) => ix,
-                            };
-                            if let Some(handler) = on_source_click.as_ref() {
-                                let blocked = handler(source_index, event.click_count, window, cx);
-                                if blocked {
-                                    markdown.selection = Selection::default();
-                                    markdown.pressed_link = None;
-                                    window.prevent_default();
-                                    cx.notify();
-                                    return;
-                                }
-                            }
-                            let (range, mode, reversed) = match event.click_count {
-                                1 if event.modifiers.shift => {
-                                    let tail = markdown.selection.tail();
-                                    let reversed = source_index < tail;
-                                    let range = if reversed { source_index..tail } else { tail..source_index };
-                                    (range, SelectMode::Character, reversed)
-                                }
-                                1 => {
-                                    let range = source_index..source_index;
-                                    (range, SelectMode::Character, false)
-                                }
-                                2 => {
-                                    let range = rendered_text.surrounding_word_range(source_index);
-                                    (range.clone(), SelectMode::Word(range), false)
-                                }
-                                3 => {
-                                    let range = rendered_text.surrounding_line_range(source_index);
-                                    (range.clone(), SelectMode::Line(range), false)
-                                }
-                                _ => {
-                                    let range = 0..rendered_text.select_all_end();
-                                    (range, SelectMode::All, false)
-                                }
-                            };
-                            markdown.selection =
-                                Selection { start: range.start, end: range.end, reversed, pending: true, mode };
-                            window.focus(&markdown.focus_handle, cx);
-                        }
-
-                        window.prevent_default();
-                        cx.notify();
-                    }
-                } else if phase.capture() && event.button == MouseButton::Left {
-                    markdown.selection = Selection::default();
-                    markdown.pressed_link = None;
-                    cx.notify();
-                }
-            }
-        });
-        self.on_mouse_event(window, cx, {
-            let rendered_text = rendered_text.clone();
-            let hitbox = hitbox.clone();
-            let was_hovering_clickable = was_hovering_clickable.clone();
-            move |markdown, event: &MouseMoveEvent, phase, window, cx| {
-                if phase.capture() {
-                    return;
-                }
-                let rendered_text = rendered_text.borrow().clone();
-
-                if markdown.selection.pending {
-                    let source_index = match rendered_text.source_index_for_position(event.position) {
-                        Ok(ix) | Err(ix) => ix,
-                    };
-                    markdown.selection.set_head(source_index, &rendered_text);
-                    markdown.autoscroll_code_block(source_index, event.position);
-                    markdown.autoscroll_request = Some(source_index);
-                    cx.notify();
-                } else {
-                    let is_hitbox_hovered = hitbox.is_hovered(window);
-                    let source_index = is_hitbox_hovered
-                        .then(|| rendered_text.source_index_for_position(event.position).ok())
-                        .flatten();
-                    let hovered_url = is_hitbox_hovered
-                        .then(|| rendered_text.image_link_for_position(event.position))
-                        .flatten()
-                        .map(|image| image.destination_url.clone())
-                        .or_else(|| {
-                            source_index
-                                .and_then(|source_index| rendered_text.link_for_source_index(source_index))
-                                .map(|link| link.destination_url.clone())
-                        });
-                    let is_hovering_clickable = hovered_url.is_some()
-                        || source_index.is_some_and(|source_index| {
-                            rendered_text.footnote_ref_for_source_index(source_index).is_some()
-                        });
-                    if let Some(on_url_hover) = on_url_hover.as_ref() {
-                        on_url_hover(hovered_url, window, cx);
-                    }
-                    if is_hovering_clickable != was_hovering_clickable.get() {
-                        cx.notify();
-                    }
-                }
-            }
-        });
-        self.on_mouse_event(window, cx, {
-            let rendered_text = rendered_text.clone();
-            move |markdown, event: &MouseUpEvent, phase, window, cx| {
-                let rendered_text = rendered_text.borrow().clone();
-                if phase.bubble() {
-                    let source_index = rendered_text.source_index_for_position(event.position).ok();
-                    if let Some(pressed_footnote_ref) = markdown.pressed_footnote_ref.take()
-                        && source_index.and_then(|ix| rendered_text.footnote_ref_for_source_index(ix))
-                            == Some(&pressed_footnote_ref)
-                    {
-                        if let Some(source_index) =
-                            markdown.footnote_definition_content_start(&pressed_footnote_ref.label)
-                        {
-                            markdown.autoscroll_request = Some(source_index);
-                            cx.notify();
-                        }
-                    } else if let Some(pressed_link) = markdown.pressed_link.take()
-                        && source_index.and_then(|ix| rendered_text.link_for_source_index(ix)) == Some(&pressed_link)
-                    {
-                        if let Some(open_url) = on_open_url.as_ref() {
-                            open_url(pressed_link.destination_url, window, cx);
-                        } else {
-                            cx.open_url(&pressed_link.destination_url);
-                        }
-                    }
-                } else if markdown.selection.pending {
-                    markdown.selection.pending = false;
-
-                    cx.notify();
-                }
-            }
-        });
+        pass.builder.build()
     }
 
-    fn autoscroll(&self, rendered_text: &RenderedText, window: &mut Window, cx: &mut App) -> Option<()> {
-        let autoscroll_index = self.renderer.markdown.update(cx, |markdown, _| markdown.autoscroll_request.take())?;
-
-        match &self.autoscroll {
-            AutoscrollBehavior::Controlled(scroll_handle) => {
-                let (position, line_height) = rendered_text.position_for_source_index(autoscroll_index)?;
-                let viewport = scroll_handle.bounds();
-                let margin = line_height * 3.;
-                let top_goal = viewport.top() + margin;
-                let bottom_goal = viewport.bottom() - margin;
-                let current_offset = scroll_handle.offset();
-
-                let new_offset_y = if position.y < top_goal {
-                    current_offset.y + (top_goal - position.y)
-                } else if position.y + line_height > bottom_goal {
-                    current_offset.y + (bottom_goal - (position.y + line_height))
-                } else {
-                    current_offset.y
-                };
-
-                scroll_handle.set_offset(point(
-                    current_offset.x,
-                    new_offset_y.clamp(-scroll_handle.max_offset().y, Pixels::ZERO),
-                ));
-            }
-            AutoscrollBehavior::Propagate => {
-                request_autoscroll(rendered_text, autoscroll_index, &self.renderer.style, window)?;
-            }
+    fn highlights(&self, cx: &App) -> MarkdownHighlights {
+        let markdown = self.markdown.read(cx);
+        let colors = cx.theme().colors();
+        let selection = &markdown.selection;
+        MarkdownHighlights {
+            search_highlights: Rc::clone(&markdown.search_highlights),
+            active_search_highlight: markdown.active_search_highlight,
+            search_match_color: colors.search_match_background,
+            active_search_match_color: colors.search_active_match_background,
+            selection: (selection.start < selection.end)
+                .then_some((selection.start..selection.end, self.style.selection_background_color)),
+            next_search_highlight_ix: 0,
+            base_background: self.style.highlight_base_background,
+            minimum_contrast: self.style.minimum_highlight_contrast,
         }
-        Some(())
-    }
-
-    fn on_mouse_event<T: MouseEvent>(
-        &self,
-        window: &mut Window,
-        _cx: &mut App,
-        mut f: impl 'static + FnMut(&mut Markdown, &T, DispatchPhase, &mut Window, &mut Context<Markdown>),
-    ) {
-        window.on_mouse_event({
-            let markdown = self.renderer.markdown.downgrade();
-            move |event, phase, window, cx| {
-                markdown.update(cx, |markdown, cx| f(markdown, event, phase, window, cx)).log_err();
-            }
-        });
     }
 }
 
@@ -1001,73 +1062,6 @@ pub struct MarkdownLayout {
     /// For a virtualized element, filled in once the visible blocks painted.
     text: Rc<RefCell<RenderedText>>,
     painted: Option<Rc<PaintedBlocks>>,
-}
-
-impl BlockRenderer {
-    /// Renders the events in `events`, which must open and close the same
-    /// containers.
-    fn render(
-        &self,
-        frame: &RenderFrame,
-        events: Range<usize>,
-        footnote_separator_rendered: bool,
-        container_style: &StyleRefinement,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> RenderedMarkdown {
-        let mut builder = MarkdownElementBuilder::new(
-            container_style,
-            self.style.base_text_style.clone(),
-            self.style.syntax,
-            self.highlights(cx),
-            frame.parsed.first_rendered_block_start(),
-        );
-        builder.rendered_footnote_separator = footnote_separator_rendered;
-        let parsed = &frame.parsed;
-        let mut pass = RenderPass {
-            renderer: self,
-            frame,
-            builder,
-            markdown_end: parsed.events.last().map_or(0, |(range, _)| range.end),
-            code_block_text: None,
-            image_range: None,
-            skip_until: None,
-        };
-
-        for (index, (range, event)) in parsed.events.iter().enumerate().take(events.end).skip(events.start) {
-            // Skip alt text for images that rendered
-            if pass.image_range.as_ref().is_some_and(|image_range| image_range.end > range.end) {
-                continue;
-            }
-            if let Some(skip_until) = &pass.skip_until {
-                if let MarkdownEvent::End(end) = event
-                    && end == skip_until
-                {
-                    pass.skip_until = None;
-                }
-                continue;
-            }
-            pass.event(index, range, event, window, cx);
-        }
-        pass.builder.build()
-    }
-
-    fn highlights(&self, cx: &App) -> MarkdownHighlights {
-        let markdown = self.markdown.read(cx);
-        let colors = cx.theme().colors();
-        let selection = &markdown.selection;
-        MarkdownHighlights {
-            search_highlights: markdown.search_highlights.clone(),
-            active_search_highlight: markdown.active_search_highlight,
-            search_match_color: colors.search_match_background,
-            active_search_match_color: colors.search_active_match_background,
-            selection: (selection.start < selection.end)
-                .then_some((selection.start..selection.end, self.style.selection_background_color)),
-            next_search_highlight_ix: 0,
-            base_background: self.style.highlight_base_background,
-            minimum_contrast: self.style.minimum_highlight_contrast,
-        }
-    }
 }
 
 /// The state of one [`BlockRenderer::render`] call as it walks its events.
@@ -1309,7 +1303,7 @@ impl RenderPass<'_> {
     fn start_image(&mut self, index: usize, range: &Range<usize>, dest_url: &SharedString, cx: &App) {
         let parsed = &self.frame.parsed;
         let source = if let Some(image) = self.frame.images.get(&range.start) {
-            Some(image.clone().into())
+            Some(Arc::clone(image).into())
         } else {
             self.renderer.image_resolver.as_ref().and_then(|resolve| resolve(dest_url.as_ref(), cx))
         };
@@ -1345,11 +1339,10 @@ impl RenderPass<'_> {
 
         let language = parsed.code_block_language(kind);
 
-        let scroll_handle = if renderer.style.code_block_overflow_x_scroll {
-            Some(renderer.markdown.update(cx, |markdown, _| markdown.code_block_scroll_handle(range.start)))
-        } else {
-            None
-        };
+        let scroll_handle = renderer
+            .style
+            .code_block_overflow_x_scroll
+            .then(|| renderer.markdown.update(cx, |markdown, _| markdown.code_block_scroll_handle(range.start)));
 
         // This is a parent container that we can position the copy button inside.
         let mut parent_container =
@@ -1422,7 +1415,7 @@ impl RenderPass<'_> {
         let parsed = &self.frame.parsed;
         let bullet = if let Some((task_range, checked)) = task_list_marker_for_item(&parsed.events, index) {
             let source = &parsed.source()[range.clone()];
-            let checkbox = Checkbox::new(ElementId::Name(source.to_string().into()), ToggleState::from(checked)).fill();
+            let checkbox = Checkbox::new(ElementId::Name(source.to_owned().into()), ToggleState::from(checked)).fill();
 
             let checkbox = if let Some(on_toggle) = renderer.on_checkbox_toggle.clone() {
                 checkbox.on_click(move |_state, window, cx| {
@@ -1563,7 +1556,7 @@ impl Element for MarkdownElement {
         let frame = {
             let markdown = self.renderer.markdown.read(cx);
             RenderFrame {
-                parsed: markdown.parsed_markdown.clone(),
+                parsed: Arc::clone(&markdown.parsed_markdown),
                 images: markdown.images_by_source_offset.clone(),
                 active_root_block: markdown.active_root_block,
             }
@@ -1593,8 +1586,8 @@ impl Element for MarkdownElement {
         let vertical_padding = (block_container_style.padding.top.take(), block_container_style.padding.bottom.take());
         let painted = Rc::new(PaintedBlocks::default());
         let mut element = list(list_state, {
-            let renderer = self.renderer.clone();
-            let painted = painted.clone();
+            let renderer = Rc::clone(&self.renderer);
+            let painted = Rc::clone(&painted);
             move |block_index, window, cx| {
                 let Some(block) = frame.parsed.blocks.get(block_index) else {
                     return Empty.into_any_element();
@@ -1611,8 +1604,8 @@ impl Element for MarkdownElement {
                     element: div().w_full().child(rendered.element).into_any_element(),
                     text: rendered.text,
                     block_index,
-                    renderer: renderer.clone(),
-                    painted: painted.clone(),
+                    renderer: Rc::clone(&renderer),
+                    painted: Rc::clone(&painted),
                 }
                 .into_any_element()
             }
@@ -1684,7 +1677,7 @@ impl Element for MarkdownElement {
         let markdown = self.renderer.markdown.clone();
         window.on_action(TypeId::of::<crate::Copy>(), {
             let entity = markdown.clone();
-            let text = self.list_state.is_none().then(|| layout.text.clone());
+            let text = self.list_state.is_none().then(|| Rc::clone(&layout.text));
             move |_, phase, window, cx| {
                 if phase == DispatchPhase::Bubble {
                     let text = text.as_ref().map(|text| text.borrow().clone());

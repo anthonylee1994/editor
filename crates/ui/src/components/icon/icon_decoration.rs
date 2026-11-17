@@ -8,15 +8,15 @@ use strum::EnumIter;
 use strum::EnumString;
 use strum::IntoStaticStr;
 
-use crate::prelude::ActiveTheme;
+use crate::prelude::ActiveTheme as _;
 use crate::prelude::App;
-use crate::prelude::FluentBuilder;
-use crate::prelude::InteractiveElement;
-use crate::prelude::ParentElement;
+use crate::prelude::FluentBuilder as _;
+use crate::prelude::InteractiveElement as _;
+use crate::prelude::ParentElement as _;
 use crate::prelude::Pixels;
 use crate::prelude::RenderOnce;
 use crate::prelude::SharedString;
-use crate::prelude::Styled;
+use crate::prelude::Styled as _;
 use crate::prelude::Window;
 use crate::prelude::div;
 use crate::prelude::px;
@@ -131,7 +131,7 @@ impl IconDecoration {
         self
     }
 
-    /// Sets the name of the group the decoration belongs to
+    /// Sets the name of the group the decoration belongs to.
     pub fn group_name(mut self, name: Option<SharedString>) -> Self {
         self.group_name = name;
         self

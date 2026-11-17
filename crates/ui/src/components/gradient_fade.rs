@@ -5,14 +5,14 @@ use gpui::linear_color_stop;
 use gpui::linear_gradient;
 use gpui::px;
 
-use crate::prelude::ActiveTheme;
+use crate::prelude::ActiveTheme as _;
 use crate::prelude::App;
-use crate::prelude::FluentBuilder;
-use crate::prelude::InteractiveElement;
+use crate::prelude::FluentBuilder as _;
+use crate::prelude::InteractiveElement as _;
 use crate::prelude::IntoElement;
 use crate::prelude::RenderOnce;
-use crate::prelude::StatefulInteractiveElement;
-use crate::prelude::Styled;
+use crate::prelude::StatefulInteractiveElement as _;
+use crate::prelude::Styled as _;
 use crate::prelude::Window;
 use crate::prelude::div;
 

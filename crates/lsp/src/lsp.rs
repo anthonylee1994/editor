@@ -15,8 +15,8 @@ use std::collections::BTreeSet;
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::fmt;
-use std::io::Write;
-use std::ops::DerefMut;
+use std::io::Write as _;
+use std::ops::DerefMut as _;
 use std::path::Path;
 use std::path::PathBuf;
 use std::pin::Pin;
@@ -33,16 +33,16 @@ use anyhow::Result;
 use anyhow::anyhow;
 use async_macos::command::Child;
 use async_macos::command::Stdio;
-use futures::AsyncBufReadExt;
+use futures::AsyncBufReadExt as _;
 use futures::AsyncRead;
 use futures::AsyncWrite;
-use futures::AsyncWriteExt;
+use futures::AsyncWriteExt as _;
 use futures::Future;
-use futures::FutureExt;
-use futures::StreamExt;
-use futures::channel::oneshot::{self};
+use futures::FutureExt as _;
+use futures::StreamExt as _;
+use futures::channel::oneshot;
+use futures::future;
 use futures::future::Either;
-use futures::future::{self};
 use futures::io::BufReader;
 use futures::io::BufWriter;
 use futures::select;
@@ -52,8 +52,8 @@ use gpui::AsyncApp;
 use gpui::BackgroundExecutor;
 use gpui::SharedString;
 use gpui::Task;
-use gpui_util::ResultExt;
-use gpui_util::TryFutureExt;
+use gpui_util::ResultExt as _;
+use gpui_util::TryFutureExt as _;
 #[allow(clippy::wildcard_imports)]
 pub use lsp_types::request::*;
 #[allow(clippy::wildcard_imports)]
@@ -199,7 +199,7 @@ impl LanguageServerName {
 
 impl<'a> From<&'a str> for LanguageServerName {
     fn from(str: &'a str) -> LanguageServerName {
-        LanguageServerName(str.to_string().into())
+        LanguageServerName(str.to_owned().into())
     }
 }
 
@@ -223,7 +223,7 @@ pub enum Subscription {
 
 /// Language server protocol RPC request message ID.
 ///
-/// [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#requestMessage)
+/// [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#requestMessage).
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum RequestId {
@@ -249,7 +249,7 @@ fn deserialize_result<T: DeserializeOwned + 'static>(result: &str) -> serde_json
 
 /// Language server protocol RPC request message.
 ///
-/// [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#requestMessage)
+/// [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#requestMessage).
 #[derive(Serialize, Deserialize)]
 pub struct Request<'a, T>
 where
@@ -275,7 +275,7 @@ struct AnyResponse<'a> {
 
 /// Language server protocol RPC request response message.
 ///
-/// [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#responseMessage)
+/// [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#responseMessage).
 #[derive(Serialize)]
 struct Response<T> {
     jsonrpc: &'static str,
@@ -294,7 +294,7 @@ enum LspResult<T> {
 
 /// Language server protocol RPC notification message.
 ///
-/// [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#notificationMessage)
+/// [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#notificationMessage).
 #[derive(Serialize, Deserialize)]
 struct Notification<'a, T>
 where
@@ -521,9 +521,9 @@ impl LanguageServer {
 
         let mut server = command.spawn().with_context(|| format!("failed to spawn command {command:?}"))?;
 
-        let stdin = server.stdin.take().unwrap();
-        let stdout = server.stdout.take().unwrap();
-        let stderr = server.stderr.take().unwrap();
+        let stdin = server.stdin.take().expect("stdin is piped");
+        let stdout = server.stdout.take().expect("stdout is piped");
+        let stderr = server.stderr.take().expect("stderr is piped");
         let server = Self::new_internal(
             server_id,
             server_name,
@@ -542,7 +542,7 @@ impl LanguageServer {
                     "Language server with id {} sent unhandled notification {}:\n{}",
                     server_id,
                     notification.method,
-                    serde_json::to_string_pretty(&notification.params).unwrap(),
+                    serde_json::to_string_pretty(&notification.params).expect("json value serializes"),
                 );
                 false
             },
@@ -598,10 +598,10 @@ impl LanguageServer {
                     }
                 }
             };
-            let notification_handlers = notification_handlers.clone();
-            let response_handlers = response_handlers.clone();
-            let io_handlers = io_handlers.clone();
-            let pending_respond_tasks = pending_respond_tasks.clone();
+            let notification_handlers = Arc::clone(&notification_handlers);
+            let response_handlers = Arc::clone(&response_handlers);
+            let io_handlers = Arc::clone(&io_handlers);
+            let pending_respond_tasks = Arc::clone(&pending_respond_tasks);
             async move |cx| {
                 Self::handle_incoming_messages(
                     stdout,
@@ -619,8 +619,8 @@ impl LanguageServer {
         let stderr_input_task = stderr.map_or_else(
             || Task::ready(None),
             |stderr| {
-                let io_handlers = io_handlers.clone();
-                let stderr_captures = stderr_capture.clone();
+                let io_handlers = Arc::clone(&io_handlers);
+                let stderr_captures = Arc::clone(&stderr_capture);
                 cx.background_spawn(
                     async move { Self::handle_stderr(stderr, io_handlers, stderr_captures).log_err().await },
                 )
@@ -635,8 +635,8 @@ impl LanguageServer {
                 stdin,
                 serialized_rx,
                 output_done_tx,
-                response_handlers.clone(),
-                io_handlers.clone(),
+                Arc::clone(&response_handlers),
+                Arc::clone(&io_handlers),
             )
             .log_err()
         });
@@ -699,7 +699,7 @@ impl LanguageServer {
     {
         let stdout = BufReader::new(stdout);
         let _clear_response_handlers = gpui_util::defer({
-            let response_handlers = response_handlers.clone();
+            let response_handlers = Arc::clone(&response_handlers);
             move || {
                 response_handlers.lock().take();
             }
@@ -792,7 +792,7 @@ impl LanguageServer {
     {
         let mut stdin = BufWriter::new(stdin);
         let _clear_response_handlers = util::defer({
-            let response_handlers = response_handlers.clone();
+            let response_handlers = Arc::clone(&response_handlers);
             move || {
                 response_handlers.lock().take();
             }
@@ -805,7 +805,7 @@ impl LanguageServer {
             }
 
             content_len_buffer.clear();
-            write!(content_len_buffer, "{}", message.len()).unwrap();
+            write!(content_len_buffer, "{}", message.len()).expect("writing to a Vec can't fail");
             stdin.write_all(CONTENT_LEN_HEADER.as_bytes()).await?;
             stdin.write_all(&content_len_buffer).await?;
             stdin.write_all(b"\r\n\r\n").await?;
@@ -886,12 +886,12 @@ impl LanguageServer {
                         data_support: Some(true),
                         resolve_support: Some(CodeActionCapabilityResolveSupport {
                             properties: vec![
-                                "kind".to_string(),
-                                "diagnostics".to_string(),
-                                "isPreferred".to_string(),
-                                "disabled".to_string(),
-                                "edit".to_string(),
-                                "command".to_string(),
+                                "kind".to_owned(),
+                                "diagnostics".to_owned(),
+                                "isPreferred".to_owned(),
+                                "disabled".to_owned(),
+                                "edit".to_owned(),
+                                "command".to_owned(),
                             ],
                         }),
                         dynamic_registration: Some(true),
@@ -902,10 +902,10 @@ impl LanguageServer {
                             snippet_support: Some(true),
                             resolve_support: Some(CompletionItemCapabilityResolveSupport {
                                 properties: vec![
-                                    "additionalTextEdits".to_string(),
-                                    "command".to_string(),
-                                    "detail".to_string(),
-                                    "documentation".to_string(),
+                                    "additionalTextEdits".to_owned(),
+                                    "command".to_owned(),
+                                    "detail".to_owned(),
+                                    "documentation".to_owned(),
                                     // NB: Do not have this resolved, otherwise ed becomes slow to complete things
                                     // "textEdit".to_string(),
                                 ],
@@ -947,11 +947,11 @@ impl LanguageServer {
                     inlay_hint: Some(InlayHintClientCapabilities {
                         resolve_support: Some(InlayHintResolveClientCapabilities {
                             properties: vec![
-                                "textEdits".to_string(),
-                                "tooltip".to_string(),
-                                "label.tooltip".to_string(),
-                                "label.location".to_string(),
-                                "label.command".to_string(),
+                                "textEdits".to_owned(),
+                                "tooltip".to_owned(),
+                                "label.tooltip".to_owned(),
+                                "label.location".to_owned(),
+                                "label.command".to_owned(),
                             ],
                         }),
                         dynamic_registration: Some(true),
@@ -1036,7 +1036,7 @@ impl LanguageServer {
             },
             trace: None,
             workspace_folders: Some(workspace_folders),
-            client_info: Some(ClientInfo { name: "ed".to_string(), version: None }),
+            client_info: Some(ClientInfo { name: "ed".to_owned(), version: None }),
             locale: None,
             ..InitializeParams::default()
         }
@@ -1045,7 +1045,7 @@ impl LanguageServer {
     /// Initializes a language server by sending the `Initialize` request.
     /// Note that `options` is used directly to construct [`InitializeParams`], which is why it is owned.
     ///
-    /// [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#initialize)
+    /// [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#initialize).
     pub fn initialize(
         mut self,
         params: InitializeParams,
@@ -1075,11 +1075,11 @@ impl LanguageServer {
     pub fn shutdown(&self) -> Option<impl 'static + Send + Future<Output = Option<()>> + use<>> {
         let tasks = self.io_tasks.lock().take()?;
 
-        let response_handlers = self.response_handlers.clone();
+        let response_handlers = Arc::clone(&self.response_handlers);
         let next_id = AtomicI32::new(self.next_id.load(SeqCst));
         let outbound_tx = self.outbound_tx.clone();
         let executor = self.executor.clone();
-        let output_done = self.output_done_rx.lock().take().unwrap();
+        let output_done = self.output_done_rx.lock().take().expect("output task is only awaited once");
         let shutdown_request = Self::request_internal::<request::Shutdown>(
             &next_id,
             &response_handlers,
@@ -1089,7 +1089,7 @@ impl LanguageServer {
             (),
         );
 
-        let server = self.server.clone();
+        let server = Arc::clone(&self.server);
         let name = self.name.clone();
         let server_id = self.server_id;
         let mut timer = self.executor.timer(SERVER_SHUTDOWN_TIMEOUT).fuse();
@@ -1143,7 +1143,7 @@ impl LanguageServer {
 
     /// Register a handler to handle incoming LSP notifications.
     ///
-    /// [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#notificationMessage)
+    /// [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#notificationMessage).
     #[must_use]
     pub fn on_notification<T, F>(&self, f: F) -> Subscription
     where
@@ -1155,7 +1155,7 @@ impl LanguageServer {
 
     /// Register a handler to handle incoming LSP requests.
     ///
-    /// [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#requestMessage)
+    /// [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#requestMessage).
     #[must_use]
     pub fn on_request<T, F, Fut>(&self, f: F) -> Subscription
     where
@@ -1205,7 +1205,7 @@ impl LanguageServer {
         Res: Serialize,
     {
         let outbound_tx = self.outbound_tx.clone();
-        let pending_respond_tasks = self.pending_respond_tasks.clone();
+        let pending_respond_tasks = Arc::clone(&self.pending_respond_tasks);
         let prev_handler = self.notification_handlers.lock().insert(
             method,
             Box::new(move |id, params, cx| {
@@ -1215,7 +1215,7 @@ impl LanguageServer {
                             let response = f(params, cx);
                             let task = cx.foreground_executor().spawn({
                                 let outbound_tx = outbound_tx.clone();
-                                let pending_respond_tasks = pending_respond_tasks.clone();
+                                let pending_respond_tasks = Arc::clone(&pending_respond_tasks);
                                 let id = id.clone();
                                 async move {
                                     let response = match response.await {
@@ -1335,7 +1335,7 @@ impl LanguageServer {
 
     /// Send a RPC request to the language server.
     ///
-    /// [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#requestMessage)
+    /// [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#requestMessage).
     pub fn request<T: request::Request>(
         &self,
         params: T::Params,
@@ -1497,7 +1497,7 @@ impl LanguageServer {
 
     /// Sends a RPC notification to the language server.
     ///
-    /// [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#notificationMessage)
+    /// [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#notificationMessage).
     pub fn notify<T: notification::Notification>(&self, params: T::Params) -> Result<()> {
         Self::notify_internal::<T>(&self.outbound_tx, params)
     }
@@ -1507,7 +1507,8 @@ impl LanguageServer {
         params: T::Params,
     ) -> Result<()> {
         let message = OutboundMessage::PendingSerialization(Box::new(move || {
-            serde_json::to_string(&Notification { jsonrpc: JSON_RPC_VERSION, method: T::METHOD, params }).unwrap()
+            serde_json::to_string(&Notification { jsonrpc: JSON_RPC_VERSION, method: T::METHOD, params })
+                .expect("notification serializes")
         }));
 
         outbound_tx.send_blocking(message)?;
@@ -1520,8 +1521,8 @@ impl LanguageServer {
             .capabilities()
             .workspace
             .and_then(|ws| {
-                ws.workspace_folders
-                    .and_then(|folders| folders.change_notifications.map(|caps| matches!(caps, OneOf::Left(false))))
+                let folders = ws.workspace_folders?;
+                folders.change_notifications.map(|caps| matches!(caps, OneOf::Left(false)))
             })
             .unwrap_or(true)
         {
@@ -1546,8 +1547,8 @@ impl LanguageServer {
             .capabilities()
             .workspace
             .and_then(|ws| {
-                ws.workspace_folders
-                    .and_then(|folders| folders.change_notifications.map(|caps| !matches!(caps, OneOf::Left(false))))
+                let folders = ws.workspace_folders?;
+                folders.change_notifications.map(|caps| !matches!(caps, OneOf::Left(false)))
             })
             .unwrap_or(true)
         {

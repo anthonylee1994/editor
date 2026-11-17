@@ -1,4 +1,5 @@
 use std::cell::Cell;
+use std::rc::Rc;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -17,11 +18,11 @@ use gpui::fill;
 use gpui::motion;
 use gpui::point;
 use ui::Window;
-use ui::prelude::ActiveTheme;
-use ui::prelude::FluentBuilder;
-use ui::prelude::InteractiveElement;
-use ui::prelude::ParentElement;
-use ui::prelude::Styled;
+use ui::prelude::ActiveTheme as _;
+use ui::prelude::FluentBuilder as _;
+use ui::prelude::InteractiveElement as _;
+use ui::prelude::ParentElement as _;
+use ui::prelude::Styled as _;
 use ui::prelude::div;
 use ui::prelude::h_flex;
 use ui::prelude::px;
@@ -184,7 +185,7 @@ impl Workspace {
                 DockPosition::Bottom => container.pt(CARD_GAP),
             };
             // Docks flex-shrink and clamp, so the stored size can differ from what's drawn.
-            let motion = self.dock_motions[dock_index(position)].clone();
+            let motion = Rc::clone(&self.dock_motions[dock_index(position)]);
             container = container.relative().child(
                 canvas(
                     move |bounds, _, _| {
@@ -240,7 +241,7 @@ impl Workspace {
         }
         let open = dock.read(cx).is_open();
         // Advanced at prepaint, after the dock (an earlier sibling) recorded this frame's extent.
-        let motion = self.dock_motions[dock_index(position)].clone();
+        let motion = Rc::clone(&self.dock_motions[dock_index(position)]);
         let colors = cx.theme().colors();
         let (curtain, panel) = (colors.background, colors.panel_background);
 

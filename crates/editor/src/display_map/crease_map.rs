@@ -11,7 +11,7 @@ use multi_buffer::Anchor;
 use multi_buffer::AnchorRangeExt;
 use multi_buffer::MultiBufferRow;
 use multi_buffer::MultiBufferSnapshot;
-use multi_buffer::ToPoint;
+use multi_buffer::ToPoint as _;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
@@ -44,6 +44,64 @@ impl CreaseMap {
             next_id: CreaseId::default(),
             id_to_range: FxHashMap::default(),
         }
+    }
+
+    pub fn snapshot(&self) -> CreaseSnapshot {
+        self.snapshot.clone()
+    }
+
+    pub fn insert(
+        &mut self,
+        creases: impl IntoIterator<Item = Crease<Anchor>>,
+        snapshot: &MultiBufferSnapshot,
+    ) -> Vec<CreaseId> {
+        let mut new_ids = Vec::new();
+        self.snapshot.creases = {
+            let mut new_creases = SumTree::new(snapshot);
+            let mut cursor = self.snapshot.creases.cursor::<ItemSummary>(snapshot);
+            for crease in creases {
+                let crease_range = crease.range().clone();
+                new_creases.append(cursor.slice(&crease_range, Bias::Left), snapshot);
+
+                let id = self.next_id;
+                self.next_id.0 += 1;
+                self.id_to_range.insert(id, crease_range);
+                new_creases.push(CreaseItem { id, crease }, snapshot);
+                new_ids.push(id);
+            }
+            new_creases.append(cursor.suffix(), snapshot);
+            new_creases
+        };
+        new_ids
+    }
+
+    pub fn remove(
+        &mut self,
+        ids: impl IntoIterator<Item = CreaseId>,
+        snapshot: &MultiBufferSnapshot,
+    ) -> Vec<(CreaseId, Range<Anchor>)> {
+        let mut removals = Vec::new();
+        let mut ids_to_remove = FxHashSet::default();
+        for id in ids {
+            if let Some(range) = self.id_to_range.remove(&id) {
+                ids_to_remove.insert(id);
+                removals.push((id, range));
+            }
+        }
+
+        if !ids_to_remove.is_empty() {
+            self.snapshot.creases = {
+                let mut new_creases = SumTree::new(snapshot);
+                for item in self.snapshot.creases.iter() {
+                    if !ids_to_remove.contains(&item.id) {
+                        new_creases.push(item.clone(), snapshot);
+                    }
+                }
+                new_creases
+            };
+        }
+
+        removals
     }
 }
 
@@ -212,66 +270,6 @@ where
 struct CreaseItem {
     id: CreaseId,
     crease: Crease<Anchor>,
-}
-
-impl CreaseMap {
-    pub fn snapshot(&self) -> CreaseSnapshot {
-        self.snapshot.clone()
-    }
-
-    pub fn insert(
-        &mut self,
-        creases: impl IntoIterator<Item = Crease<Anchor>>,
-        snapshot: &MultiBufferSnapshot,
-    ) -> Vec<CreaseId> {
-        let mut new_ids = Vec::new();
-        self.snapshot.creases = {
-            let mut new_creases = SumTree::new(snapshot);
-            let mut cursor = self.snapshot.creases.cursor::<ItemSummary>(snapshot);
-            for crease in creases {
-                let crease_range = crease.range().clone();
-                new_creases.append(cursor.slice(&crease_range, Bias::Left), snapshot);
-
-                let id = self.next_id;
-                self.next_id.0 += 1;
-                self.id_to_range.insert(id, crease_range);
-                new_creases.push(CreaseItem { id, crease }, snapshot);
-                new_ids.push(id);
-            }
-            new_creases.append(cursor.suffix(), snapshot);
-            new_creases
-        };
-        new_ids
-    }
-
-    pub fn remove(
-        &mut self,
-        ids: impl IntoIterator<Item = CreaseId>,
-        snapshot: &MultiBufferSnapshot,
-    ) -> Vec<(CreaseId, Range<Anchor>)> {
-        let mut removals = Vec::new();
-        let mut ids_to_remove = FxHashSet::default();
-        for id in ids {
-            if let Some(range) = self.id_to_range.remove(&id) {
-                ids_to_remove.insert(id);
-                removals.push((id, range));
-            }
-        }
-
-        if !ids_to_remove.is_empty() {
-            self.snapshot.creases = {
-                let mut new_creases = SumTree::new(snapshot);
-                for item in self.snapshot.creases.iter() {
-                    if !ids_to_remove.contains(&item.id) {
-                        new_creases.push(item.clone(), snapshot);
-                    }
-                }
-                new_creases
-            };
-        }
-
-        removals
-    }
 }
 
 #[derive(Debug, Clone)]

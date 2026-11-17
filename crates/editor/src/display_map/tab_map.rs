@@ -11,13 +11,13 @@ use multi_buffer::MultiBufferSnapshot;
 use sum_tree::Bias;
 
 use super::Highlights;
+use super::fold_map;
 use super::fold_map::Chunk;
 use super::fold_map::FoldChunks;
 use super::fold_map::FoldEdit;
 use super::fold_map::FoldOffset;
 use super::fold_map::FoldPoint;
 use super::fold_map::FoldSnapshot;
-use super::fold_map::{self};
 
 const MAX_EXPANSION_COLUMN: u32 = 256;
 const MAX_ROW_SCAN_CHUNKS: usize = 8;
@@ -162,7 +162,7 @@ impl TabMap {
         let _old_alloc_ptr = fold_edits.as_ptr();
         // Combine any edits that overlap due to the expansion.
         let mut fold_edits = fold_edits.into_iter();
-        let mut first_edit = fold_edits.next().unwrap();
+        let mut first_edit = fold_edits.next().expect("fold edits are non-empty");
         // This code relies on reusing allocations from the Vec<_> - at the time of writing .flatten() prevents them.
         #[allow(clippy::filter_map_identity)]
         let mut v: Vec<_> = fold_edits
@@ -693,7 +693,7 @@ impl<'a> Iterator for TabChunks<'a> {
         let prefix_len = self.chunk.tabs.trailing_zeros() as usize;
         let (prefix, suffix) = self.chunk.text.split_at(prefix_len);
 
-        let mask = 1u128.unbounded_shl(prefix_len as u32).wrapping_sub(1);
+        let mask = 1_u128.unbounded_shl(prefix_len as u32).wrapping_sub(1);
         let prefix_chars = self.chunk.chars & mask;
         let prefix_newlines = self.chunk.newlines & mask;
 
@@ -729,7 +729,7 @@ struct TabStopCursor<'a> {
     byte_offset: u32,
     char_offset: u32,
     /// Chunk
-    /// last tab position iterated through
+    /// last tab position iterated through.
     current_chunk: Option<(TabStopChunk<'a>, u32)>,
     /// Whether a seek moved past the end of the row it started on, which only
     /// happens for columns beyond the end of the row.
@@ -820,11 +820,11 @@ impl<'a> TabStopCursor<'a> {
 
     fn is_char_boundary(&self) -> bool {
         self.current_chunk.as_ref().is_some_and(|&(ref chunk, idx)| {
-            (1u128.unbounded_shl(idx) & chunk.chars) != 0 || idx as usize == chunk.text.len()
+            (1_u128.unbounded_shl(idx) & chunk.chars) != 0 || idx as usize == chunk.text.len()
         })
     }
 
-    /// distance: length to move forward while searching for the next tab stop
+    /// distance: length to move forward while searching for the next tab stop.
     fn seek_forward(&mut self, distance: u32) -> Option<TabStop> {
         if distance == 0 {
             return None;

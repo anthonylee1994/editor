@@ -5,17 +5,17 @@ use gpui::Entity;
 use gpui::FocusHandle;
 use gpui::Focusable;
 use gpui::IntoElement;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Pixels;
 use gpui::Render;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Subscription;
 use gpui::Window;
 use ui::ButtonSize;
-use ui::prelude::ActiveTheme;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::Color;
 use ui::prelude::DynamicSpacing;
-use ui::prelude::InteractiveElement;
+use ui::prelude::InteractiveElement as _;
 use ui::prelude::h_flex;
 use ui::prelude::px;
 
@@ -121,9 +121,7 @@ impl StatusBar {
             .overflow_x_hidden()
             .children(self.right_items.iter().rev().map(|item| item.to_any()))
     }
-}
 
-impl StatusBar {
     pub fn new(active_pane: &Entity<Pane>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let this = Self {
             left_items: Vec::default(),
@@ -227,13 +225,13 @@ mod tests {
     use super::vertical_padding;
 
     #[test]
-    fn test_status_item_color() {
+    fn status_item_color_works() {
         assert_eq!(status_item_color(true), Color::Accent);
         assert_eq!(status_item_color(false), Color::Default);
     }
 
     #[test]
-    fn test_bar_height_pads_items_evenly() {
+    fn bar_height_pads_items_evenly() {
         assert_eq!(bar_height(gpui::px(22.)), gpui::px(34.));
         assert_eq!(bar_height(gpui::px(0.)), vertical_padding() * 2.);
     }

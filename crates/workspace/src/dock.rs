@@ -17,11 +17,11 @@ use gpui::KeyContext;
 use gpui::MouseButton;
 use gpui::MouseDownEvent;
 use gpui::MouseUpEvent;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Render;
 use gpui::SharedString;
 use gpui::StyleRefinement;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Subscription;
 use gpui::WeakEntity;
 use gpui::Window;
@@ -35,16 +35,16 @@ use ui::Divider;
 use ui::DividerColor;
 use ui::IconButton;
 use ui::Tooltip;
-use ui::prelude::ActiveTheme;
-use ui::prelude::ButtonCommon;
-use ui::prelude::Clickable;
-use ui::prelude::FluentBuilder;
+use ui::prelude::ActiveTheme as _;
+use ui::prelude::ButtonCommon as _;
+use ui::prelude::Clickable as _;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::IconSize;
-use ui::prelude::InteractiveElement;
+use ui::prelude::InteractiveElement as _;
 use ui::prelude::Pixels;
-use ui::prelude::StatefulInteractiveElement;
-use ui::prelude::StyledExt;
-use ui::prelude::Toggleable;
+use ui::prelude::StatefulInteractiveElement as _;
+use ui::prelude::StyledExt as _;
+use ui::prelude::Toggleable as _;
 use ui::prelude::h_flex;
 use util::ResultExt as _;
 
@@ -437,11 +437,13 @@ impl Dock {
     }
 
     fn active_panel_entry(&self) -> Option<&PanelEntry> {
-        self.active_panel_index.and_then(|index| self.panel_entries.get(index))
+        let index = self.active_panel_index?;
+        self.panel_entries.get(index)
     }
 
     fn active_panel_entry_mut(&mut self) -> Option<&mut PanelEntry> {
-        self.active_panel_index.and_then(|index| self.panel_entries.get_mut(index))
+        let index = self.active_panel_index?;
+        self.panel_entries.get_mut(index)
     }
 
     pub const fn active_panel_index(&self) -> Option<usize> {
@@ -671,7 +673,7 @@ impl Dock {
 
     pub fn zoomed_panel(&self, window: &Window, cx: &App) -> Option<Arc<dyn PanelHandle>> {
         let entry = self.visible_entry()?;
-        if entry.panel.is_zoomed(window, cx) { Some(entry.panel.clone()) } else { None }
+        entry.panel.is_zoomed(window, cx).then(|| Arc::clone(&entry.panel))
     }
 
     /// Panel buttons focus this before dispatching their action. A zoomed panel isn't rendered inside
@@ -914,7 +916,7 @@ impl Render for PanelButtons {
                 let button = IconButton::new((name, is_active_button as u64), icon)
                     .icon_size(IconSize::Small)
                     .toggle_state(is_active_button)
-                    .tab_index(0isize)
+                    .tab_index(0_isize)
                     .on_click({
                         let action = action.boxed_clone();
                         move |_, window, cx| {
@@ -980,7 +982,7 @@ mod tests {
     use super::next_dock_cycle_panel;
 
     #[test]
-    fn test_next_dock_cycle_panel() {
+    fn next_dock_cycle_panel_works() {
         assert_eq!(next_dock_cycle_panel(&[true, true], None), Some(0));
         assert_eq!(next_dock_cycle_panel(&[true, true], Some(0)), Some(1));
         assert_eq!(next_dock_cycle_panel(&[true, true], Some(1)), None);
@@ -993,7 +995,7 @@ mod tests {
     }
 
     #[test]
-    fn test_clamp_resized_panel_size() {
+    fn clamp_resized_panel_size_works() {
         assert_eq!(clamp_resized_panel_size(px(300.4), Some(SIDEBAR_MIN_WIDTH)), px(300.));
         assert_eq!(clamp_resized_panel_size(px(100.), Some(SIDEBAR_MIN_WIDTH)), SIDEBAR_MIN_WIDTH);
         assert_eq!(clamp_resized_panel_size(px(100.), None), px(100.));

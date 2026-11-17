@@ -18,12 +18,12 @@ use gpui::Subscription;
 use gpui::WeakEntity;
 use gpui::canvas;
 use gpui::prelude::Context;
-use gpui::prelude::InteractiveElement;
-use gpui::prelude::IntoElement;
-use gpui::prelude::ParentElement;
+use gpui::prelude::InteractiveElement as _;
+use gpui::prelude::IntoElement as _;
+use gpui::prelude::ParentElement as _;
 use gpui::prelude::Render;
 use gpui::prelude::RenderOnce;
-use gpui::prelude::Styled;
+use gpui::prelude::Styled as _;
 use language::Buffer;
 use language::Capability;
 use multi_buffer::Anchor;
@@ -47,8 +47,8 @@ use text::ToPoint as _;
 use ui::Toggleable as _;
 use ui::Tooltip;
 use ui::prelude::App;
-use ui::prelude::ButtonCommon;
-use ui::prelude::Clickable;
+use ui::prelude::ButtonCommon as _;
+use ui::prelude::Clickable as _;
 use ui::prelude::IconButton;
 use ui::prelude::IconName;
 use ui::prelude::SharedString;
@@ -773,7 +773,7 @@ impl SplittableEditor {
             editor.inlay_hint_visibility_changed(cx);
         });
 
-        let lhs = self.lhs.as_ref().unwrap();
+        let lhs = self.lhs.as_ref().expect("lhs was just set");
 
         let shared_scroll_anchor = self.rhs_editor.read(cx).scroll_manager.scroll_anchor_entity();
         lhs.editor.update(cx, |editor, _cx| {

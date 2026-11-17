@@ -9,14 +9,14 @@ use crate::LabelCommon;
 use crate::LabelLike;
 use crate::LabelSize;
 use crate::LineHeightStyle;
-use crate::prelude::ActiveTheme;
+use crate::prelude::ActiveTheme as _;
 use crate::prelude::App;
 use crate::prelude::Color;
 use crate::prelude::IntoElement;
-use crate::prelude::ParentElement;
+use crate::prelude::ParentElement as _;
 use crate::prelude::RenderOnce;
 use crate::prelude::SharedString;
-use crate::prelude::Styled;
+use crate::prelude::Styled as _;
 use crate::prelude::Window;
 use crate::utils::replace_control_characters_remapping_offsets;
 
@@ -78,9 +78,7 @@ impl HighlightedLabel {
         self.base = self.base.truncate_middle();
         self
     }
-}
 
-impl HighlightedLabel {
     fn style(&mut self) -> &mut StyleRefinement {
         self.base.base.style()
     }

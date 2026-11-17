@@ -1,6 +1,6 @@
 use anyhow::Result;
 use buffer_diff::BufferDiff;
-use futures::FutureExt;
+use futures::FutureExt as _;
 use futures::future::LocalBoxFuture;
 use git::repository::RepoPath;
 use git::status::DiffTreeType;
@@ -23,7 +23,7 @@ use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use sum_tree::SumTree;
 use text::BufferId;
-use util::ResultExt;
+use util::ResultExt as _;
 
 use crate::ConflictSet;
 use crate::git_store::GitStore;

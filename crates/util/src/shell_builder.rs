@@ -7,7 +7,7 @@ use crate::shell::get_system_shell;
 /// ShellBuilder is used to turn a user-requested task into a
 /// program that can be executed by the shell.
 pub struct ShellBuilder {
-    /// The shell to run
+    /// The shell to run.
     program: String,
     args: Vec<String>,
     interactive: bool,
@@ -33,7 +33,7 @@ impl ShellBuilder {
         self
     }
 
-    /// Returns the label to show in the terminal tab
+    /// Returns the label to show in the terminal tab.
     pub fn command_label(&self, command_to_use_in_label: &str) -> String {
         if command_to_use_in_label.trim().is_empty() {
             self.program.clone()
@@ -127,14 +127,14 @@ mod tests {
 
     fn build_redirected(program: &str, quote: bool) -> Vec<String> {
         let builder = ShellBuilder::new(&Shell::Program(program.into())).non_interactive().redirect_stdin_to_dev_null();
-        let command = Some("echo".to_string());
-        let args = ["a b".to_string()];
+        let command = Some("echo".to_owned());
+        let args = ["a b".to_owned()];
         let (_, args) = if quote { builder.build(command, &args) } else { builder.build_no_quote(command, &args) };
         args
     }
 
     #[test]
-    fn test_build_redirect_stdin() {
+    fn build_redirect_stdin() {
         assert_eq!(build_redirected("/bin/zsh", true), ["-c", "exec </dev/null\necho 'a b'"]);
         assert_eq!(build_redirected("/opt/homebrew/bin/fish", true), ["-c", "begin; echo 'a b'; end </dev/null"]);
         // Unsupported shells are treated as POSIX.
@@ -142,7 +142,7 @@ mod tests {
     }
 
     #[test]
-    fn test_build_no_quote_redirect_stdin() {
+    fn build_no_quote_redirect_stdin() {
         assert_eq!(build_redirected("/bin/zsh", false), ["-c", "exec </dev/null\necho a b"]);
         assert_eq!(build_redirected("fish", false), ["-c", "begin; echo a b; end </dev/null"]);
     }

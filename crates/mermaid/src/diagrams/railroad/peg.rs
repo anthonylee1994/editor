@@ -139,7 +139,7 @@ fn definition(r: &mut Reader<'_>, ast: &mut Vec<AstNode<Peg>>) -> Result<usize, 
     let root = add(ast, Peg::OrderedChoice);
     let mut top = frame(ast, None, root, None);
     loop {
-        let mut operator = if r.kind() == t::AND || r.kind() == t::NOT { Some(r.take().to_owned()) } else { None };
+        let mut operator = (r.kind() == t::AND || r.kind() == t::NOT).then(|| r.take().to_owned());
         let mut primary = match r.kind() {
             t::STRING => add(ast, Peg::Literal(unescape(r.take()))),
             t::ID => add(ast, Peg::Identifier(r.take().to_owned())),
@@ -158,8 +158,7 @@ fn definition(r: &mut Reader<'_>, ast: &mut Vec<AstNode<Peg>>) -> Result<usize, 
             }
         };
         loop {
-            let suffix_operator =
-                if matches!(r.kind(), t::QUESTION | t::STAR | t::PLUS) { Some(r.take().to_owned()) } else { None };
+            let suffix_operator = matches!(r.kind(), t::QUESTION | t::STAR | t::PLUS).then(|| r.take().to_owned());
             let suffix = add(ast, Peg::Suffix(suffix_operator));
             attach(ast, suffix, primary);
             let prefix = add(ast, Peg::Prefix(operator.take()));

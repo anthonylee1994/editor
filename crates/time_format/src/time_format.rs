@@ -53,9 +53,9 @@ fn format_absolute_date(
         let timestamp_date = timestamp.date();
         let reference_date = reference.date();
         if timestamp_date == reference_date {
-            "Today".to_string()
+            "Today".to_owned()
         } else if reference_date.previous_day() == Some(timestamp_date) {
-            "Yesterday".to_string()
+            "Yesterday".to_owned()
         } else {
             macos::format_date(&timestamp)
         }
@@ -109,9 +109,9 @@ fn format_absolute_date_medium(
         let timestamp_date = timestamp.date();
         let reference_date = reference.date();
         if timestamp_date == reference_date {
-            "Today".to_string()
+            "Today".to_owned()
         } else if reference_date.previous_day() == Some(timestamp_date) {
-            "Yesterday".to_string()
+            "Yesterday".to_owned()
         } else {
             macos::format_date_medium(&timestamp)
         }
@@ -126,13 +126,13 @@ fn format_relative_time(timestamp: OffsetDateTime, reference: OffsetDateTime) ->
     let difference = reference - timestamp;
     let minutes = difference.whole_minutes();
     match minutes {
-        0 => Some("Just now".to_string()),
-        1 => Some("1 minute ago".to_string()),
+        0 => Some("Just now".to_owned()),
+        1 => Some("1 minute ago".to_owned()),
         2..=59 => Some(format!("{minutes} minutes ago")),
         _ => {
             let hours = difference.whole_hours();
             match hours {
-                1 => Some("1 hour ago".to_string()),
+                1 => Some("1 hour ago".to_owned()),
                 2..=23 => Some(format!("{hours} hours ago")),
                 _ => None,
             }
@@ -146,18 +146,18 @@ fn format_relative_date(timestamp: OffsetDateTime, reference: OffsetDateTime) ->
     let difference = reference_date - timestamp_date;
     let days = difference.whole_days();
     match days {
-        0 => "Today".to_string(),
-        1 => "Yesterday".to_string(),
+        0 => "Today".to_owned(),
+        1 => "Yesterday".to_owned(),
         2..=6 => format!("{days} days ago"),
         _ => {
             let weeks = difference.whole_weeks();
             match weeks {
-                1 => "1 week ago".to_string(),
+                1 => "1 week ago".to_owned(),
                 2..=4 => format!("{weeks} weeks ago"),
                 _ => {
                     let month_diff = calculate_month_difference(timestamp, reference);
                     match month_diff {
-                        0..=1 => "1 month ago".to_string(),
+                        0..=1 => "1 month ago".to_owned(),
                         2..=11 => format!("{month_diff} months ago"),
                         // Match git's `show_date_relative` behavior: for dates under 5 years old,
                         // include both years and months so, for example, 22 months is shown as

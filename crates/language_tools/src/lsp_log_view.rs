@@ -18,9 +18,9 @@ use gpui::EventEmitter;
 use gpui::FocusHandle;
 use gpui::Focusable;
 use gpui::IntoElement;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Render;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Subscription;
 use gpui::WeakEntity;
 use gpui::Window;
@@ -37,12 +37,12 @@ use lsp::TraceValue;
 use lsp::notification::SetTrace;
 use project::LanguageServerStatus;
 use project::Project;
+use project::lsp_store::log_store;
 use project::lsp_store::log_store::Event;
 use project::lsp_store::log_store::LanguageServerLogKey;
 use project::lsp_store::log_store::LogKind;
 use project::lsp_store::log_store::LogStore;
 use project::lsp_store::log_store::Message;
-use project::lsp_store::log_store::{self};
 use project::search::SearchQuery;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
@@ -51,7 +51,7 @@ use ui::ContextMenu;
 use ui::PopoverMenu;
 use ui::ToggleState;
 use ui::prelude::Button;
-use ui::prelude::Clickable;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
 use ui::prelude::Icon;
 use ui::prelude::IconName;
@@ -248,7 +248,12 @@ impl LspLogView {
                             cx,
                         );
                         if text.len() > 1024 {
-                            let b = editor.buffer().read(cx).as_singleton().unwrap().read(cx);
+                            let b = editor
+                                .buffer()
+                                .read(cx)
+                                .as_singleton()
+                                .expect("log editor has a singleton buffer")
+                                .read(cx);
                             let fold_offset = b.as_rope().ceil_char_boundary(last_offset.0 + 1024);
                             editor.fold_ranges(
                                 vec![MultiBufferOffset(fold_offset)..MultiBufferOffset(b.as_rope().len())],
@@ -338,7 +343,7 @@ impl LspLogView {
             NAME = info.status.name,
             ID = info.id,
             VERSION = info.status.server_version.as_ref().map_or("Unknown", AsRef::as_ref),
-            BINARY = info.status.binary.as_ref().map_or_else(|| "Unknown".to_string(), |binary| format!("{binary:#?}")),
+            BINARY = info.status.binary.as_ref().map_or_else(|| "Unknown".to_owned(), |binary| format!("{binary:#?}")),
             WORKSPACE_FOLDERS = info
                 .status
                 .workspace_folders
@@ -354,7 +359,7 @@ impl LspLogView {
                 .map(|configuration| serde_json::to_string_pretty(&configuration))
                 .transpose()
                 .unwrap_or_else(|e| Some(format!("Failed to serialize configuration: {e}")))
-                .unwrap_or_else(|| "Unknown".to_string()),
+                .unwrap_or_else(|| "Unknown".to_owned()),
         );
         let editor = initialize_new_editor(server_info, false, window, cx);
         let editor_subscription =
@@ -377,8 +382,8 @@ impl LspLogView {
             .map(|(key, state)| {
                 let worktree_root_name =
                     state.worktree_id.and_then(|id| self.project.read(cx).worktree_for_id(id, cx)).map_or_else(
-                        || "Unknown worktree".to_string(),
-                        |worktree| worktree.read(cx).root_name_str().to_string(),
+                        || "Unknown worktree".to_owned(),
+                        |worktree| worktree.read(cx).root_name_str().to_owned(),
                     );
 
                 LogMenuItem {

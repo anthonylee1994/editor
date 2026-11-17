@@ -20,7 +20,7 @@ use gpui::Point;
 use gpui::Render;
 use gpui::SharedString;
 use gpui::Task;
-use gpui::TaskExt;
+use gpui::TaskExt as _;
 use gpui::WeakEntity;
 use gpui::Window;
 use language::Capability;
@@ -31,16 +31,16 @@ use project::ProjectPath;
 use smallvec::SmallVec;
 use ui::Color;
 use ui::Icon;
-use ui::IntoElement;
+use ui::IntoElement as _;
 use ui::Label;
-use ui::LabelCommon;
+use ui::LabelCommon as _;
 
 use crate::ItemNavHistory;
 use crate::Workspace;
 use crate::invalid_item_view::InvalidItemView;
 use crate::item_registry::SerializableItemRegistry;
+use crate::pane;
 use crate::pane::Pane;
-use crate::pane::{self};
 use crate::searchable::SearchableItemHandle;
 
 #[derive(Clone, Copy, Debug)]
@@ -157,7 +157,7 @@ pub trait Item: Focusable + EventEmitter<Self::Event> + Render + Sized {
         false
     }
 
-    /// (model id, Item)
+    /// (model id, Item).
     fn for_each_project_item(&self, _: &App, _: &mut dyn FnMut(EntityId, &dyn project::ProjectItem)) {}
     fn buffer_kind(&self, _cx: &App) -> ItemBufferKind {
         ItemBufferKind::None
@@ -209,7 +209,7 @@ pub trait Item: Focusable + EventEmitter<Self::Event> + Render + Sized {
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) -> Task<Result<()>> {
-        unimplemented!("save() must be implemented if can_save() returns true")
+        unreachable!("save() must be implemented if can_save() returns true")
     }
     fn save_as(
         &mut self,
@@ -218,14 +218,14 @@ pub trait Item: Focusable + EventEmitter<Self::Event> + Render + Sized {
         _window: &mut Window,
         _cx: &mut Context<Self>,
     ) -> Task<Result<()>> {
-        unimplemented!("save_as() must be implemented if can_save() returns true")
+        unreachable!("save_as() must be implemented if can_save() returns true")
     }
     fn reload(&mut self, _project: Entity<Project>, _window: &mut Window, _cx: &mut Context<Self>) -> Task<Result<()>> {
-        unimplemented!("reload() must be implemented if can_save() returns true")
+        unreachable!("reload() must be implemented if can_save() returns true")
     }
 
     fn act_as_type<'a>(&'a self, type_id: TypeId, self_handle: &'a Entity<Self>, _: &'a App) -> Option<AnyEntity> {
-        if TypeId::of::<Self>() == type_id { Some(self_handle.clone().into()) } else { None }
+        (TypeId::of::<Self>() == type_id).then(|| self_handle.clone().into())
     }
 
     fn as_searchable(&self, _: &Entity<Self>, _: &App) -> Option<Box<dyn SearchableItemHandle>> {
@@ -402,7 +402,8 @@ impl dyn ItemHandle {
     }
 
     pub fn act_as<V: 'static>(&self, cx: &App) -> Option<Entity<V>> {
-        self.act_as_type(TypeId::of::<V>(), cx).and_then(|t| t.downcast().ok())
+        let t = self.act_as_type(TypeId::of::<V>(), cx)?;
+        t.downcast().ok()
     }
 }
 
@@ -804,7 +805,7 @@ mod tab_content_params_tests {
     use super::TabContentParams;
 
     #[test]
-    fn test_icon_color() {
+    fn icon_color() {
         let params = |selected: bool, deemphasized: bool| TabContentParams {
             selected,
             deemphasized,

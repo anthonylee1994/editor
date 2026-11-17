@@ -10,7 +10,7 @@ use gpui::SharedString;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use serde::Serialize;
-use util::ResultExt;
+use util::ResultExt as _;
 use util::rel_path::RelPath;
 
 use crate::Oid;
@@ -109,9 +109,9 @@ impl FileStatus {
     }
 
     /// Generate a FileStatus Code from a byte pair, as described in
-    /// https://git-scm.com/docs/git-status#_output
+    /// https://git-scm.com/docs/git-status#_output.
     ///
-    /// NOTE: That instead of '', we use ' ' to denote no change
+    /// NOTE: That instead of '', we use ' ' to denote no change.
     fn from_bytes(bytes: [u8; 2]) -> anyhow::Result<Self> {
         let status = match bytes {
             [b'?', b'?'] => FileStatus::Untracked,
@@ -399,7 +399,7 @@ impl FromStr for GitStatus {
                 if path.ends_with('/') {
                     return None;
                 }
-                let status = entry.as_bytes()[0..2].try_into().unwrap();
+                let status = entry.as_bytes()[0..2].try_into().expect("slice has length 2");
                 let status = FileStatus::from_bytes(status).log_err()?;
                 // git-status outputs `/`-delimited repo paths, even on Windows.
                 let path = RepoPath::from_rel_path(RelPath::from_unix_str(path).log_err()?);

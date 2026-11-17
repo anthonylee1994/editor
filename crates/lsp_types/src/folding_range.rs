@@ -48,7 +48,7 @@ impl From<bool> for FoldingRangeProviderCapability {
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
-pub struct FoldingProviderOptions {}
+pub struct FoldingProviderOptions;
 
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -67,7 +67,7 @@ pub struct FoldingRangeCapability {
     /// If set, the client signals that it supports setting collapsedText on
     /// folding ranges to display custom labels instead of the default text.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub collapsed_text: Option<bool>,
 }
@@ -93,25 +93,25 @@ pub struct FoldingRangeClientCapabilities {
 
     /// Specific options for the folding range kind.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub folding_range_kind: Option<FoldingRangeKindCapability>,
 
     /// Specific options for the folding range.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub folding_range: Option<FoldingRangeCapability>,
 }
 
-/// Enum of known range kinds
+/// Enum of known range kinds.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum FoldingRangeKind {
-    /// Folding range for a comment
+    /// Folding range for a comment.
     Comment,
-    /// Folding range for a imports or includes
+    /// Folding range for a imports or includes.
     Imports,
-    /// Folding range for a region (e.g. `#region`)
+    /// Folding range for a region (e.g. `#region`).
     Region,
     /// Folding range for other kinds, as certain language servers may extend the defined list.
     Other(String),
@@ -174,7 +174,7 @@ pub struct FoldingRange {
     /// collapsed. If not defined or not supported by the client, a default
     /// will be chosen by the client.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub collapsed_text: Option<String>,
 }

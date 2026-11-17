@@ -26,7 +26,7 @@ use gpui::MouseButton;
 use gpui::MouseDownEvent;
 use gpui::MouseUpEvent;
 use gpui::Pixels;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::canvas;
 use gpui::deferred;
 use gpui::fill;
@@ -35,7 +35,7 @@ use gpui::motion;
 use gpui::point;
 use gpui::px;
 use smallvec::SmallVec;
-use ui::prelude::ActiveTheme;
+use ui::prelude::ActiveTheme as _;
 
 use crate::CARD_RADIUS;
 
@@ -347,7 +347,7 @@ pub(crate) fn render_overlay(
                 } else {
                     PaneOverlay::default()
                 };
-                (overlay, motion.clone())
+                (overlay, Rc::clone(&motion))
             },
             move |_, (overlay, motion), window, _| {
                 for bounds in overlay.covers {
@@ -370,7 +370,7 @@ pub(crate) fn render_overlay(
                     }
                 }
                 window.on_mouse_event({
-                    let motion = motion.clone();
+                    let motion = Rc::clone(&motion);
                     move |event: &MouseDownEvent, phase, _, _| {
                         if phase == DispatchPhase::Capture && event.button == MouseButton::Left {
                             motion.borrow_mut().pointer_pressed = true;

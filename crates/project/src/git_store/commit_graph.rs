@@ -8,11 +8,11 @@ use std::time::Duration;
 use anyhow::Result;
 use async_channel::Receiver;
 use async_channel::Sender;
-use futures::FutureExt;
-use futures::StreamExt;
-use futures::channel::oneshot::{self};
+use futures::FutureExt as _;
+use futures::StreamExt as _;
+use futures::channel::oneshot;
+use futures::future;
 use futures::future::Shared;
-use futures::future::{self};
 use futures::stream::FuturesUnordered;
 use git::Oid;
 use git::repository::CommitData;
@@ -23,7 +23,7 @@ use git::repository::LogOrder;
 use git::repository::LogSource;
 use git::repository::RepoPath;
 use git::repository::SearchCommitArgs;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::AsyncApp;
 use gpui::BackgroundExecutor;
 use gpui::Context;
@@ -31,7 +31,7 @@ use gpui::SharedString;
 use gpui::Task;
 use gpui::WeakEntity;
 use rustc_hash::FxHashMap;
-use util::ResultExt;
+use util::ResultExt as _;
 
 use super::Repository;
 use super::RepositoryEvent;
@@ -51,12 +51,12 @@ pub(super) struct CommitDataHandler {
 }
 
 /// Represents the handler of a git cat-file --batch process within ed
-/// It's used to lazily fetch commit data as needed (whatever a user is viewing)
+/// It's used to lazily fetch commit data as needed (whatever a user is viewing).
 pub(super) enum CommitDataHandlerState {
-    /// The handler is open and processing requests
+    /// The handler is open and processing requests.
     Open(CommitDataHandler),
     /// The handler closed because it didn't receive any requests in the last 10s
-    /// or hasn't been open before
+    /// or hasn't been open before.
     Closed,
 }
 
@@ -321,7 +321,7 @@ impl Repository {
                     if let CommitDataHandlerState::Open(handler) = &mut this.commit_data_handler {
                         handler.pending_requests.remove(&sha);
                         if let Some(completion_sender) = handler.completion_senders.remove(&sha) {
-                            completion_sender.send(data.clone()).ok();
+                            completion_sender.send(Arc::clone(&data)).ok();
                         }
                     } else {
                         log::error!("The handler state has to be open for this task to exist");

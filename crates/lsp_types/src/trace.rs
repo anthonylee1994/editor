@@ -15,10 +15,10 @@ pub struct SetTraceParams {
 #[derive(Debug, Eq, PartialEq, Clone, Copy, Deserialize, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub enum TraceValue {
-    /// The server should not send any `$/logTrace` notification
+    /// The server should not send any `$/logTrace` notification.
     #[default]
     Off,
-    /// The server should not add the 'verbose' field in the `LogTraceParams`
+    /// The server should not add the 'verbose' field in the `LogTraceParams`.
     Messages,
     Verbose,
 }
@@ -29,7 +29,7 @@ pub struct LogTraceParams {
     /// The message to be logged.
     pub message: String,
     /// Additional information that can be computed if the `trace` configuration
-    /// is set to `'verbose'`
+    /// is set to `'verbose'`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub verbose: Option<String>,
 }
@@ -43,12 +43,12 @@ mod tests {
     use crate::tests::test_serialization;
 
     #[test]
-    fn test_set_trace_params() {
+    fn set_trace_params() {
         test_serialization(&SetTraceParams { value: TraceValue::Off }, r#"{"value":"off"}"#);
     }
 
     #[test]
-    fn test_log_trace_params() {
+    fn log_trace_params() {
         test_serialization(&LogTraceParams { message: "message".into(), verbose: None }, r#"{"message":"message"}"#);
 
         test_serialization(
@@ -58,7 +58,7 @@ mod tests {
     }
 
     #[test]
-    fn test_trace_value() {
+    fn trace_value() {
         test_serialization(
             &vec![TraceValue::Off, TraceValue::Messages, TraceValue::Verbose],
             r#"["off","messages","verbose"]"#,

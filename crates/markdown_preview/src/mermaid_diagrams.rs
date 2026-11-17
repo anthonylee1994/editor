@@ -7,7 +7,7 @@ use std::sync::OnceLock;
 use std::time::Duration;
 
 use gpui::Animation;
-use gpui::AnimationExt;
+use gpui::AnimationExt as _;
 use gpui::AnyElement;
 use gpui::App;
 use gpui::AppContext as _;
@@ -37,31 +37,31 @@ use ui::CopyButton;
 use ui::ScrollAxes;
 use ui::Scrollbars;
 use ui::TintColor;
-use ui::WithScrollbar;
+use ui::WithScrollbar as _;
 use ui::font;
 use ui::font::UI_FONT_SIZE;
-use ui::prelude::ActiveTheme;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::Button;
 use ui::prelude::ButtonStyle;
-use ui::prelude::Clickable;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
 use ui::prelude::Div;
 use ui::prelude::ElementId;
-use ui::prelude::FluentBuilder;
-use ui::prelude::InteractiveElement;
+use ui::prelude::FluentBuilder as _;
+use ui::prelude::InteractiveElement as _;
 use ui::prelude::IntoElement;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
-use ui::prelude::ParentElement;
+use ui::prelude::ParentElement as _;
 use ui::prelude::Pixels;
-use ui::prelude::Refineable;
-use ui::prelude::SelectableButton;
+use ui::prelude::Refineable as _;
+use ui::prelude::SelectableButton as _;
 use ui::prelude::SharedString;
-use ui::prelude::StatefulInteractiveElement;
-use ui::prelude::Styled;
-use ui::prelude::StyledImage;
-use ui::prelude::Toggleable;
+use ui::prelude::StatefulInteractiveElement as _;
+use ui::prelude::Styled as _;
+use ui::prelude::StyledImage as _;
+use ui::prelude::Toggleable as _;
 use ui::prelude::div;
 use ui::prelude::h_flex;
 use ui::prelude::px;
@@ -129,7 +129,7 @@ impl MermaidDiagrams {
         if self.synced_events.as_ref().is_some_and(|events| Arc::ptr_eq(events, parsed.events())) {
             return;
         }
-        self.synced_events = Some(parsed.events().clone());
+        self.synced_events = Some(Arc::clone(parsed.events()));
         self.diagrams =
             parsed.code_blocks().filter_map(|block| Some((block.source_offset, diagram_contents(&block)?))).collect();
         self.views.retain(|offset, _| self.diagrams.contains_key(offset));
@@ -162,7 +162,8 @@ impl MermaidDiagrams {
             return None;
         }
 
-        old_order.get(idx).and_then(|old_content| cache.get(old_content)?.latest_image())
+        let old_content = old_order.get(idx)?;
+        cache.get(old_content)?.latest_image()
     }
 
     fn update_cache(&mut self, cx: &mut Context<Self>) {
@@ -230,7 +231,7 @@ impl MermaidDiagrams {
         // Prefer the current raster, then the previous one while the current
         // one renders, and show the code when neither is available.
         let raster = match cached.and_then(|cached| cached.render_image.get()) {
-            Some(Ok(image)) => Some(image.clone()),
+            Some(Ok(image)) => Some(Arc::clone(image)),
             Some(Err(_)) => None,
             None => cached.and_then(|cached| cached.fallback_image.clone()),
         };
@@ -284,7 +285,7 @@ impl CachedMermaidDiagram {
         let theme = mermaid_theme(cx);
 
         let task = cx.spawn({
-            let render_image = render_image.clone();
+            let render_image = Arc::clone(&render_image);
             let fallback_image = fallback_image.clone();
             async move |this, cx| {
                 let value = cx
@@ -332,7 +333,7 @@ impl CachedMermaidDiagram {
 
     fn drop_images(&self, cx: &mut App) {
         if let Some(Ok(render_image)) = self.render_image.get() {
-            cx.drop_image(render_image.clone(), None);
+            cx.drop_image(Arc::clone(render_image), None);
         }
         if let Some(fallback_image) = self.fallback_image.clone() {
             cx.drop_image(fallback_image, None);
@@ -400,7 +401,7 @@ fn diagram_contents(block: &CodeBlock) -> Option<DiagramContents> {
         }
         _ => return None,
     };
-    Some(DiagramContents { contents: block.contents.to_string().into(), scale })
+    Some(DiagramContents { contents: block.contents.to_owned().into(), scale })
 }
 
 fn parse_mermaid_info(info: &str) -> Option<u32> {

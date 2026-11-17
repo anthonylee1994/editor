@@ -1,11 +1,11 @@
+use std::alloc;
 use std::alloc::handle_alloc_error;
-use std::alloc::{self};
 use std::cell::Cell;
 use std::num::NonZeroUsize;
 use std::ops::Deref;
 use std::ops::DerefMut;
+use std::ptr;
 use std::ptr::NonNull;
-use std::ptr::{self};
 use std::rc::Rc;
 
 struct ArenaElement {
@@ -16,7 +16,9 @@ struct ArenaElement {
 impl Drop for ArenaElement {
     #[inline(always)]
     fn drop(&mut self) {
-        unsafe { (self.drop)(self.value) };
+        unsafe {
+            (self.drop)(self.value);
+        }
     }
 }
 
@@ -40,7 +42,7 @@ impl Drop for Chunk {
 impl Chunk {
     fn new(chunk_size: NonZeroUsize) -> Self {
         // this only fails if chunk_size is unreasonably huge
-        let layout = alloc::Layout::from_size_align(chunk_size.get(), 1).unwrap();
+        let layout = alloc::Layout::from_size_align(chunk_size.get(), 1).expect("chunk size is a valid layout");
         let start = unsafe { alloc::alloc(layout) };
         if start.is_null() {
             handle_alloc_error(layout);
@@ -92,7 +94,7 @@ impl Drop for Arena {
 
 impl Arena {
     pub fn new(chunk_size: usize) -> Self {
-        let chunk_size = NonZeroUsize::try_from(chunk_size).unwrap();
+        let chunk_size = NonZeroUsize::try_from(chunk_size).expect("chunk size must be non-zero");
         Self {
             chunks: vec![Chunk::new(chunk_size)],
             elements: Vec::new(),
@@ -156,11 +158,15 @@ impl Arena {
         where
             F: FnOnce() -> T,
         {
-            unsafe { ptr::write(ptr, f()) };
+            unsafe {
+                ptr::write(ptr, f());
+            }
         }
 
         unsafe fn drop<T>(ptr: *mut u8) {
-            unsafe { ptr::drop_in_place(ptr.cast::<T>()) };
+            unsafe {
+                ptr::drop_in_place(ptr.cast::<T>());
+            }
         }
 
         let layout = alloc::Layout::new::<T>();
@@ -171,10 +177,12 @@ impl Arena {
             self.allocate_next_chunk(layout)
         };
 
-        unsafe { inner_writer(ptr.cast(), f) };
+        unsafe {
+            inner_writer(ptr.cast(), f);
+        }
         self.elements.push(ArenaElement { value: ptr, drop: drop::<T> });
 
-        ArenaBox { ptr: ptr.cast(), valid: self.valid.clone() }
+        ArenaBox { ptr: ptr.cast(), valid: Rc::clone(&self.valid) }
     }
 
     #[inline(never)]

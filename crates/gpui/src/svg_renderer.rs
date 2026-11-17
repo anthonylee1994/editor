@@ -15,7 +15,7 @@ use usvg::fontdb::Weight;
 
 use crate::AssetSource;
 use crate::DevicePixels;
-use crate::IsZero;
+use crate::IsZero as _;
 use crate::RenderImage;
 use crate::Result;
 use crate::SharedString;
@@ -26,8 +26,8 @@ const EMOJI_FONT_FAMILIES: &[&str] = &["Apple Color Emoji", ".AppleColorEmojiUI"
 
 fn is_emoji_presentation(c: char) -> bool {
     static EMOJI_PRESENTATION_REGEX: LazyLock<regex::Regex> =
-        LazyLock::new(|| regex::Regex::new("\\p{Emoji_Presentation}").unwrap());
-    let mut buf = [0u8; 4];
+        LazyLock::new(|| regex::Regex::new("\\p{Emoji_Presentation}").expect("emoji regex is valid"));
+    let mut buf = [0_u8; 4];
     EMOJI_PRESENTATION_REGEX.is_match(c.encode_utf8(&mut buf))
 }
 
@@ -159,7 +159,8 @@ impl SvgRenderer {
             }
         };
         let pixmap = rasterize_tree(&svg.0, size)?;
-        let mut buffer = image::ImageBuffer::from_raw(pixmap.width(), pixmap.height(), pixmap.take()).unwrap();
+        let mut buffer = image::ImageBuffer::from_raw(pixmap.width(), pixmap.height(), pixmap.take())
+            .expect("pixmap size matches its buffer");
 
         for pixel in buffer.as_chunks_mut::<4>().0 {
             swap_rgba_pa_to_bgra(pixel);

@@ -14,7 +14,7 @@ use lyon::path::Builder;
 use lyon::path::BuilderImpl;
 use lyon::path::Polygon;
 use lyon::path::builder::WithSvg;
-use lyon::path::traits::SvgPathBuilder;
+use lyon::path::traits::SvgPathBuilder as _;
 use lyon::tessellation::BuffersBuilder;
 pub use lyon::tessellation::FillOptions;
 use lyon::tessellation::FillTessellator;
@@ -30,11 +30,11 @@ use crate::Point;
 use crate::point;
 use crate::px;
 
-/// Style of the PathBuilder
+/// Style of the PathBuilder.
 pub enum PathStyle {
-    /// Stroke style
+    /// Stroke style.
     Stroke(StrokeOptions),
-    /// Fill style
+    /// Fill style.
     Fill(FillOptions),
 }
 
@@ -42,7 +42,7 @@ pub enum PathStyle {
 pub struct PathBuilder {
     raw: WithSvg<BuilderImpl>,
     transform: Option<Transform>,
-    /// PathStyle of the PathBuilder
+    /// PathStyle of the PathBuilder.
     pub style: PathStyle,
     dash_array: Option<Vec<Pixels>>,
 }
@@ -107,7 +107,7 @@ impl PathBuilder {
 
     /// Sets the dash array of the [`PathBuilder`].
     ///
-    /// [MDN](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/stroke-dasharray)
+    /// [MDN](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/stroke-dasharray).
     pub fn dash_array(mut self, dash_array: &[Pixels]) -> Self {
         // If an odd number of values is provided, then the list of values is repeated to yield an even number of values.
         // Thus, 5,3,2 is equivalent to 5,3,2,5,3,2.

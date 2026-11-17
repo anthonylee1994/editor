@@ -2,7 +2,7 @@ use std::slice;
 
 use super::Anchor;
 use super::App;
-use super::AppContext;
+use super::AppContext as _;
 use super::Arc;
 use super::BlockProperties;
 use super::BufferId;
@@ -27,13 +27,13 @@ use super::MultiBufferSnapshot;
 use super::PULL_DIAGNOSTICS_DEBOUNCE;
 use super::Point;
 use super::Range;
-use super::ResultExt;
+use super::ResultExt as _;
 use super::Selection;
 use super::SelectionEffects;
 use super::SharedString;
 use super::Task;
-use super::ToOffset;
-use super::ToPoint;
+use super::ToOffset as _;
+use super::ToPoint as _;
 use super::ToggleDiagnostics;
 use super::WeakEntity;
 use super::Window;
@@ -70,7 +70,7 @@ pub(super) struct GlobalDiagnosticRenderer(Arc<dyn DiagnosticRenderer>);
 
 impl GlobalDiagnosticRenderer {
     pub(super) fn global(cx: &App) -> Option<Arc<dyn DiagnosticRenderer>> {
-        cx.try_global::<Self>().map(|g| g.0.clone())
+        cx.try_global::<Self>().map(|g| Arc::clone(&g.0))
     }
 }
 
@@ -380,7 +380,7 @@ impl Editor {
             let diagnostic_group =
                 buffer.diagnostic_group(buffer_id, diagnostic.diagnostic.group_id).collect::<Vec<_>>();
 
-            let language_registry = self.project().map(|project| project.read(cx).languages().clone());
+            let language_registry = self.project().map(|project| Arc::clone(project.read(cx).languages()));
 
             let blocks =
                 renderer.render_group(diagnostic_group, buffer_id, snapshot, cx.weak_entity(), language_registry, cx);

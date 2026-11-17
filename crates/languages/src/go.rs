@@ -295,7 +295,7 @@ impl RunnableResolver for GoRunnableResolver {
         Some(ResolvedRunnable {
             run_range: run_capture.range(),
             extra_captures: smallvec::smallvec![(
-                TABLE_TEST_CASE_NAME.to_string(),
+                TABLE_TEST_CASE_NAME.to_owned(),
                 buffer.text_for_range(run_capture.range()).collect(),
             )],
         })
@@ -348,7 +348,7 @@ impl ContextProvider for GoContextProvider {
                 let module_dir = buffer_dir
                     .ancestors()
                     .find(|dir| dir.join("go.mod").is_file())
-                    .map_or_else(|| ".".to_string(), |dir| dir.to_string_lossy().into_owned());
+                    .map_or_else(|| ".".to_owned(), |dir| dir.to_string_lossy().into_owned());
 
                 (GO_MODULE_ROOT_TASK_VARIABLE.clone(), module_dir)
             });
@@ -384,7 +384,7 @@ impl ContextProvider for GoContextProvider {
 
     fn associated_tasks(&self, _: Option<Entity<Buffer>>, _: &App) -> Task<Option<TaskTemplates>> {
         let package_cwd =
-            if GO_PACKAGE_TASK_VARIABLE.template_value() == "." { None } else { Some("$ED_DIRNAME".to_string()) };
+            if GO_PACKAGE_TASK_VARIABLE.template_value() == "." { None } else { Some("$ED_DIRNAME".to_owned()) };
         let module_cwd = Some(GO_MODULE_ROOT_TASK_VARIABLE.template_value());
 
         Task::ready(Some(TaskTemplates(vec![
@@ -578,7 +578,7 @@ fn extract_subtest_name(input: &str) -> String {
 /// Settings for Go.
 pub(crate) fn settings() -> LanguageSettings {
     LanguageSettings {
-        tab_size: NonZeroU32::new(4).unwrap(),
+        tab_size: NonZeroU32::new(4).expect("non-zero"),
         hard_tabs: true,
         soft_wrap: false,
         preferred_line_length: 120,
@@ -598,7 +598,7 @@ pub(crate) fn settings() -> LanguageSettings {
 /// Settings for Go Mod and Go Work.
 pub(crate) fn mod_settings() -> LanguageSettings {
     LanguageSettings {
-        tab_size: NonZeroU32::new(4).unwrap(),
+        tab_size: NonZeroU32::new(4).expect("non-zero"),
         hard_tabs: true,
         soft_wrap: false,
         preferred_line_length: 120,
@@ -621,14 +621,14 @@ pub(crate) fn languages() -> Vec<LanguageDef> {
     vec![
         LanguageDef {
             grammar: Some(tree_sitter_go::LANGUAGE.into()),
-            adapters: vec![adapter.clone()],
-            context: Some(context.clone()),
+            adapters: vec![Arc::clone(&adapter)],
+            context: Some(Arc::clone(&context)),
             semantic_token_rules: Some(semantic_token_rules()),
             ..LanguageDef::new("go", settings())
         },
         LanguageDef {
-            adapters: vec![adapter.clone()],
-            context: Some(context.clone()),
+            adapters: vec![Arc::clone(&adapter)],
+            context: Some(Arc::clone(&context)),
             ..LanguageDef::new("gomod", mod_settings())
         },
         LanguageDef { adapters: vec![adapter], context: Some(context), ..LanguageDef::new("gowork", mod_settings()) },

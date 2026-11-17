@@ -1,7 +1,7 @@
 use std::str::FromStr;
 use std::sync::Arc;
 
-use anyhow::Context;
+use anyhow::Context as _;
 use anyhow::Result;
 use anyhow::anyhow;
 
@@ -62,7 +62,7 @@ impl FromStr for GitStash {
     }
 }
 
-/// Parse a single stash line in the format: "stash@{N}\0<oid>\0<timestamp>\0<message>"
+/// Parse a single stash line in the format: "stash@{N}\0<oid>\0<timestamp>\0<message>".
 fn parse_stash_line(line: &str) -> Result<StashEntry> {
     let parts: Vec<&str> = line.splitn(4, '\0').collect();
 
@@ -80,10 +80,10 @@ fn parse_stash_line(line: &str) -> Result<StashEntry> {
 
     let (branch, message) = parse_stash_message(parts[3]);
 
-    Ok(StashEntry { index, oid, message: message.to_string(), branch: branch.map(Into::into), timestamp })
+    Ok(StashEntry { index, oid, message: message.to_owned(), branch: branch.map(Into::into), timestamp })
 }
 
-/// Parse stash index from format "stash@{N}" where N is the index
+/// Parse stash index from format "stash@{N}" where N is the index.
 fn parse_stash_index(input: &str) -> Result<usize> {
     let trimmed = input.trim();
 
@@ -99,7 +99,7 @@ fn parse_stash_index(input: &str) -> Result<usize> {
     index_str.parse::<usize>().with_context(|| format!("Invalid stash index number: '{index_str}'"))
 }
 
-/// Parse stash message and extract branch information if present
+/// Parse stash message and extract branch information if present.
 ///
 /// Handles the following formats:
 /// - "WIP on <branch>: <message>" -> (Some(branch), message)

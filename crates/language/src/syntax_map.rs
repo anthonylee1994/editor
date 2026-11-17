@@ -1,7 +1,7 @@
 use std::borrow::Cow;
+use std::cmp;
 use std::cmp::Ordering;
 use std::cmp::Reverse;
-use std::cmp::{self};
 use std::collections::BinaryHeap;
 use std::error;
 use std::fmt;
@@ -19,7 +19,7 @@ use std::thread::Builder;
 use std::time::Duration;
 use std::time::Instant;
 
-use futures::FutureExt;
+use futures::FutureExt as _;
 use gpui::SharedString;
 use language_core::highlight_map::HighlightCaptureRef;
 use rustc_hash::FxHashMap;
@@ -31,11 +31,11 @@ use sum_tree::SumTree;
 use text::Anchor;
 use text::BufferId;
 use text::BufferSnapshot;
-use text::OffsetRangeExt;
+use text::OffsetRangeExt as _;
 use text::Point;
 use text::Rope;
 use text::ToOffset;
-use text::ToPoint;
+use text::ToPoint as _;
 use tree_sitter::Node;
 use tree_sitter::Query;
 use tree_sitter::QueryCapture;
@@ -44,7 +44,7 @@ use tree_sitter::QueryCursor;
 use tree_sitter::QueryMatch;
 use tree_sitter::QueryMatches;
 use tree_sitter::QueryPredicateArg;
-use tree_sitter::StreamingIterator;
+use tree_sitter::StreamingIterator as _;
 
 use crate::CaptureId;
 use crate::File;
@@ -85,18 +85,20 @@ impl Drop for SyntaxSnapshot {
             tx
         });
         // This does allocate a new Arc, but it's cheap and avoids blocking the main thread without needing to use an `Option` or `MaybeUninit`.
-        let _ = DROP_TX.send(mem::replace(
-            &mut self.layers,
-            SumTree::from_summary(SyntaxLayerSummary {
-                min_depth: Default::default(),
-                max_depth: Default::default(),
-                // Deliberately bogus anchors, doesn't matter in this context
-                range: Anchor::min_min_range_for_buffer(BufferId::new(1).unwrap()),
-                last_layer_range: Anchor::min_min_range_for_buffer(BufferId::new(1).unwrap()),
-                last_layer_language: Option::default(),
-                contains_unknown_injections: Default::default(),
-            }),
-        ));
+        DROP_TX
+            .send(mem::replace(
+                &mut self.layers,
+                SumTree::from_summary(SyntaxLayerSummary {
+                    min_depth: Default::default(),
+                    max_depth: Default::default(),
+                    // Deliberately bogus anchors, doesn't matter in this context
+                    range: Anchor::min_min_range_for_buffer(BufferId::new(1).expect("non-zero")),
+                    last_layer_range: Anchor::min_min_range_for_buffer(BufferId::new(1).expect("non-zero")),
+                    last_layer_language: Option::default(),
+                    contains_unknown_injections: Default::default(),
+                }),
+            ))
+            .ok();
     }
 }
 
@@ -251,7 +253,7 @@ impl SyntaxLayerContent {
     fn language_name(&self) -> SharedString {
         match self {
             SyntaxLayerContent::Parsed { language, .. } => language.name().0,
-            SyntaxLayerContent::Pending { language_name, .. } => SharedString::from(language_name.clone()),
+            SyntaxLayerContent::Pending { language_name, .. } => SharedString::from(Arc::clone(language_name)),
         }
     }
 }
@@ -325,7 +327,7 @@ impl ParseStepLanguage {
     fn name(&self) -> SharedString {
         match self {
             ParseStepLanguage::Loaded { language } => language.name().0,
-            ParseStepLanguage::Pending { name } => name.clone().into(),
+            ParseStepLanguage::Pending { name } => Arc::clone(name).into(),
         }
     }
 
@@ -416,7 +418,7 @@ impl SyntaxSnapshot {
 
     pub fn root_language(&self) -> Option<Arc<Language>> {
         match &self.layers.first()?.content {
-            SyntaxLayerContent::Parsed { language, .. } => Some(language.clone()),
+            SyntaxLayerContent::Parsed { language, .. } => Some(Arc::clone(language)),
             SyntaxLayerContent::Pending { .. } => None,
         }
     }
@@ -561,7 +563,7 @@ impl SyntaxSnapshot {
     ) -> Result<(), ParseTimeout> {
         let budget = &mut budget;
         let edit_ranges = text.edits_since::<usize>(&self.parsed_version).map(|edit| edit.new).collect::<Vec<_>>();
-        self.reparse_with_ranges(text, file, root_language.clone(), edit_ranges, registry.as_ref(), budget)?;
+        self.reparse_with_ranges(text, file, Arc::clone(&root_language), edit_ranges, registry.as_ref(), budget)?;
 
         if let Some(registry) = registry
             && registry.version() != self.language_registry_version
@@ -901,8 +903,8 @@ impl SyntaxSnapshot {
                     // Layers built from more than one included range don't cover their
                     // whole span, so record the sub-ranges to let callers tell which
                     // offsets actually belong to this layer.
-                    let included_sub_ranges: Option<Vec<Range<Anchor>>> = if is_combined || included_ranges.len() > 1 {
-                        Some(
+                    let included_sub_ranges: Option<Vec<Range<Anchor>>> = (is_combined || included_ranges.len() > 1)
+                        .then(|| {
                             included_ranges
                                 .into_iter()
                                 .filter(|r| r.start_byte < r.end_byte)
@@ -910,11 +912,8 @@ impl SyntaxSnapshot {
                                     text.anchor_before(r.start_byte + step_start_byte)
                                         ..text.anchor_after(r.end_byte + step_start_byte)
                                 })
-                                .collect(),
-                        )
-                    } else {
-                        None
-                    };
+                                .collect()
+                        });
                     SyntaxLayerContent::Parsed { tree, language, included_sub_ranges }
                 }
                 ParseStepLanguage::Pending { name } => SyntaxLayerContent::Pending {
@@ -1126,7 +1125,7 @@ impl SyntaxSnapshot {
             if let SyntaxLayerContent::Pending { language_name, content_range } = &layer.content {
                 let content_range = content_range.to_offset(buffer);
                 if content_range.start < range.end && content_range.end > range.start {
-                    injections.push((language_name.clone(), content_range));
+                    injections.push((Arc::clone(language_name), content_range));
                 }
             }
             cursor.next();
@@ -1286,7 +1285,7 @@ impl<'a> SyntaxMapMatches<'a> {
                 result.grammars.len() - 1
             });
             let mut layer = SyntaxMapMatchesLayer {
-                language: layer.language.clone(),
+                language: Arc::clone(layer.language),
                 depth: layer.depth,
                 grammar_index,
                 matches,
@@ -1326,7 +1325,7 @@ impl<'a> SyntaxMapMatches<'a> {
         }
 
         Some(SyntaxMapMatch {
-            language: layer.language.clone(),
+            language: Arc::clone(&layer.language),
             depth: layer.depth,
             grammar_index: layer.grammar_index,
             pattern_index: layer.next_pattern_index,
@@ -1459,13 +1458,13 @@ fn join_ranges(a: impl Iterator<Item = Range<usize>>, b: impl Iterator<Item = Ra
         let range = match (a.peek(), b.peek()) {
             (Some(range_a), Some(range_b)) => {
                 if range_a.start < range_b.start {
-                    a.next().unwrap()
+                    a.next().expect("peeked item exists")
                 } else {
-                    b.next().unwrap()
+                    b.next().expect("peeked item exists")
                 }
             }
-            (None, Some(_)) => b.next().unwrap(),
-            (Some(_), None) => a.next().unwrap(),
+            (None, Some(_)) => b.next().expect("peeked item exists"),
+            (Some(_), None) => a.next().expect("peeked item exists"),
             (None, None) => break,
         };
 
@@ -1575,7 +1574,8 @@ fn get_injections(
                 continue;
             }
 
-            let content_range = content_ranges.first().unwrap().start_byte..content_ranges.last().unwrap().end_byte;
+            let content_range = content_ranges.first().expect("content ranges are non-empty").start_byte
+                ..content_ranges.last().expect("content ranges are non-empty").end_byte;
 
             // Avoid duplicate matches if two changed ranges intersect the same injection.
             if let Some((prev_pattern_ix, prev_range)) = &prev_match
@@ -1635,7 +1635,7 @@ fn get_injections(
                     if let Some(group_key) = group_key {
                         injection_groups
                             .entry(group_key)
-                            .or_insert_with(|| (language.clone(), Vec::new()))
+                            .or_insert_with(|| (Arc::clone(&language), Vec::new()))
                             .1
                             .extend(content_ranges);
                     } else {
@@ -1705,10 +1705,10 @@ pub(crate) fn splice_included_ranges(
 
         let (remove, insert) = match (next_removed_range, next_new_range) {
             (None, None) => break,
-            (Some(_), None) => (removed_ranges.next().unwrap(), None),
+            (Some(_), None) => (removed_ranges.next().expect("peeked item exists"), None),
             (Some(next_removed_range), Some(next_new_range)) => {
                 if next_removed_range.end < next_new_range.start_byte {
-                    (removed_ranges.next().unwrap(), None)
+                    (removed_ranges.next().expect("peeked item exists"), None)
                 } else {
                     let mut start = next_new_range.start_byte;
                     let mut end = next_new_range.end_byte;
@@ -1717,17 +1717,18 @@ pub(crate) fn splice_included_ranges(
                         if next_removed_range.start > next_new_range.end_byte {
                             break;
                         }
-                        let next_removed_range = removed_ranges.next().unwrap();
+                        let next_removed_range = removed_ranges.next().expect("peeked item exists");
                         start = cmp::min(start, next_removed_range.start);
                         end = cmp::max(end, next_removed_range.end);
                     }
 
-                    (start..end, Some(new_ranges.next().unwrap()))
+                    (start..end, Some(new_ranges.next().expect("peeked item exists")))
                 }
             }
-            (None, Some(next_new_range)) => {
-                (next_new_range.start_byte..next_new_range.end_byte, Some(new_ranges.next().unwrap()))
-            }
+            (None, Some(next_new_range)) => (
+                next_new_range.start_byte..next_new_range.end_byte,
+                Some(new_ranges.next().expect("peeked item exists")),
+            ),
         };
 
         let mut start_ix = ranges_ix
@@ -1830,7 +1831,7 @@ impl OwnedSyntaxLayer {
 impl<'a> SyntaxLayer<'a> {
     /// Returns an owned version of this layer.
     pub fn to_owned(&self) -> OwnedSyntaxLayer {
-        OwnedSyntaxLayer { tree: self.tree.clone(), offset: self.offset, language: self.language.clone() }
+        OwnedSyntaxLayer { tree: self.tree.clone(), offset: self.offset, language: Arc::clone(self.language) }
     }
 
     /// Returns the root node for this layer.
@@ -2082,19 +2083,19 @@ impl Deref for QueryCursorHandle {
     type Target = QueryCursor;
 
     fn deref(&self) -> &Self::Target {
-        self.0.as_ref().unwrap()
+        self.0.as_ref().expect("cursor is only taken on drop")
     }
 }
 
 impl DerefMut for QueryCursorHandle {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.0.as_mut().unwrap()
+        self.0.as_mut().expect("cursor is only taken on drop")
     }
 }
 
 impl Drop for QueryCursorHandle {
     fn drop(&mut self) {
-        let mut cursor = self.0.take().unwrap();
+        let mut cursor = self.0.take().expect("cursor is only taken on drop");
         cursor.set_byte_range(0..usize::MAX);
         cursor.set_point_range(Point::zero().to_ts_point()..Point::MAX.to_ts_point());
         cursor.set_containing_byte_range(0..usize::MAX);

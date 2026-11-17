@@ -6,13 +6,13 @@ use crate::ListHeader;
 use crate::prelude::App;
 use crate::prelude::Color;
 use crate::prelude::DynamicSpacing;
-use crate::prelude::FluentBuilder;
+use crate::prelude::FluentBuilder as _;
 use crate::prelude::IntoElement;
-use crate::prelude::LabelCommon;
+use crate::prelude::LabelCommon as _;
 use crate::prelude::ParentElement;
 use crate::prelude::RenderOnce;
 use crate::prelude::SharedString;
-use crate::prelude::Styled;
+use crate::prelude::Styled as _;
 use crate::prelude::Window;
 use crate::prelude::v_flex;
 
@@ -24,7 +24,7 @@ pub enum EmptyMessage {
 #[derive(IntoElement)]
 pub struct List {
     /// Message to display when the list is empty
-    /// Defaults to "No items"
+    /// Defaults to "No items".
     empty_message: EmptyMessage,
     header: Option<ListHeader>,
     toggle: Option<bool>,

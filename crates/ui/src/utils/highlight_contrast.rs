@@ -140,7 +140,7 @@ mod tests {
     }
 
     #[test]
-    fn test_merge_highlight_backgrounds() {
+    fn merge_highlight_backgrounds_works() {
         let base = hsla(0., 0., 0., 1.);
         let red = hsla(0., 1., 0.5, 1.);
         let blue = hsla(0.66, 1., 0.5, 1.);
@@ -149,7 +149,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ensure_highlight_contrast_splits_runs() {
+    fn ensure_highlight_contrast_splits_runs() {
         let text = hsla(0., 0., 0.5, 1.);
         let bg = hsla(0., 0., 0.55, 1.);
         let runs = ensure_highlight_contrast(&[run(4, text), run(4, text)], &[(3..5, bg)], 45., 0);

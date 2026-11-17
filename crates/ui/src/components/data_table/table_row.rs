@@ -119,7 +119,7 @@ impl<T> TableRow<T> {
         TableRow(self.0.iter().map(f).collect())
     }
 
-    /// Number of columns (alias to `len()` with more semantic meaning)
+    /// Number of columns (alias to `len()` with more semantic meaning).
     pub const fn cols(&self) -> usize {
         self.0.len()
     }

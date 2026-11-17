@@ -7,7 +7,7 @@ use std::sync::Weak;
 use std::time::Duration;
 use std::time::Instant;
 
-use futures::StreamExt;
+use futures::StreamExt as _;
 use futures::channel::mpsc;
 use gpui::App;
 use gpui::AppContext as _;
@@ -16,7 +16,7 @@ use gpui::Entity;
 use gpui::EventEmitter;
 use gpui::Global;
 use gpui::Subscription;
-use gpui::TaskExt;
+use gpui::TaskExt as _;
 use gpui::WeakEntity;
 use language::WorktreeId;
 use lsp::IoKind;
@@ -281,9 +281,8 @@ impl RpcRequestTracker {
             self.insert(PendingRequestKey { kind, id }, observed_at);
             None
         } else {
-            self.pending_requests
-                .remove(&PendingRequestKey { kind: kind.opposite(), id })
-                .and_then(|started_at| observed_at.checked_duration_since(started_at))
+            let started_at = self.pending_requests.remove(&PendingRequestKey { kind: kind.opposite(), id })?;
+            observed_at.checked_duration_since(started_at)
         }
     }
 
@@ -465,7 +464,7 @@ impl LogStore {
                 let io_tx = self.io_tx.clone();
                 server_state.io_logs_subscription = Some(server.on_io(move |io_kind, message| {
                     let observed_at = Instant::now();
-                    io_tx.unbounded_send((server_key.clone(), io_kind, message.to_string(), observed_at)).ok();
+                    io_tx.unbounded_send((server_key.clone(), io_kind, message.to_owned(), observed_at)).ok();
                 }));
             }
         }
@@ -483,7 +482,7 @@ impl LogStore {
         let language_server_state = self.get_language_server_state(key)?;
 
         let log_lines = &mut language_server_state.log_messages;
-        let message = message.trim_end().to_string();
+        let message = message.trim_end().to_owned();
         if let Some(new_message) =
             Self::push_new_message(log_lines, LogMessage { message, typ }, language_server_state.log_level)
         {
@@ -504,7 +503,7 @@ impl LogStore {
         let log_lines = &mut language_server_state.trace_messages;
         if let Some(new_message) = Self::push_new_message(
             log_lines,
-            TraceMessage { message: message.trim().to_string(), is_verbose: false },
+            TraceMessage { message: message.trim().to_owned(), is_verbose: false },
             TraceValue::Messages,
         ) {
             if let Some(verbose_message) = verbose_info.as_ref() {
@@ -529,7 +528,7 @@ impl LogStore {
         }
         let visible = message.should_include(current_severity);
 
-        let visible_message = visible.then(|| message.as_ref().to_string());
+        let visible_message = visible.then(|| message.as_ref().to_owned());
         log_lines.push_back(message);
         visible_message
     }

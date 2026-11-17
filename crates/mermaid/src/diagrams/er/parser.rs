@@ -310,7 +310,6 @@ impl<'s> Parser<'s, '_> {
 /// # Errors
 ///
 /// Returns a syntax error for input Mermaid rejects.
-#[allow(clippy::too_many_lines, reason = "mirrors Pele's parseEr")]
 pub(crate) fn parse_er(src: &str, db: &mut ErDb) -> Result<(), Error> {
     let tokens = tokenize(src);
     let mut p = Parser { i: 0, src, tokens: &tokens };

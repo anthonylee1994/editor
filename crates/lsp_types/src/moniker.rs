@@ -37,15 +37,15 @@ pub struct MonikerRegistrationOptions {
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize, Copy, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum UniquenessLevel {
-    /// The moniker is only unique inside a document
+    /// The moniker is only unique inside a document.
     Document,
-    /// The moniker is unique inside a project for which a dump got created
+    /// The moniker is unique inside a project for which a dump got created.
     Project,
-    /// The moniker is unique inside the group to which a project belongs
+    /// The moniker is unique inside the group to which a project belongs.
     Group,
     /// The moniker is unique inside the moniker scheme.
     Scheme,
-    /// The moniker is globally unique
+    /// The moniker is globally unique.
     Global,
 }
 
@@ -53,9 +53,9 @@ pub enum UniquenessLevel {
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize, Copy, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum MonikerKind {
-    /// The moniker represent a symbol that is imported into a project
+    /// The moniker represent a symbol that is imported into a project.
     Import,
-    /// The moniker represent a symbol that is exported into a project
+    /// The moniker represent a symbol that is exported into a project.
     Export,
     /// The moniker represents a symbol that is local to a project (e.g. a local
     /// variable of a function, a class not visible outside the project, ...)
@@ -79,14 +79,14 @@ pub struct MonikerParams {
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Moniker {
-    /// The scheme of the moniker. For example tsc or .Net
+    /// The scheme of the moniker. For example tsc or .Net.
     pub scheme: String,
 
     /// The identifier of the moniker. The value is opaque in LSIF however
     /// schema owners are allowed to define the structure if they want.
     pub identifier: String,
 
-    /// The scope in which the moniker is unique
+    /// The scope in which the moniker is unique.
     pub unique: UniquenessLevel,
 
     /// The moniker kind if known.

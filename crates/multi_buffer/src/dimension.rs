@@ -1,10 +1,10 @@
-use std::cmp::{self};
+use std::cmp;
 use std::fmt;
 use std::hash::Hash;
+use std::ops;
 use std::ops::AddAssign;
 use std::ops::Sub;
 use std::ops::SubAssign;
-use std::ops::{self};
 use std::str;
 
 use anyhow::Result;
@@ -23,9 +23,9 @@ use text::TextSummary;
 use super::MultiBufferSnapshot;
 
 pub type MultiBufferPoint = Point;
-/// ExcerptOffset is offset into the non-deleted text of the multibuffer
+/// ExcerptOffset is offset into the non-deleted text of the multibuffer.
 pub(super) type ExcerptOffset = ExcerptDimension<MultiBufferOffset>;
-/// ExcerptOffset is based on the non-deleted text of the multibuffer
+/// ExcerptOffset is based on the non-deleted text of the multibuffer.
 
 #[derive(Copy, Clone, Debug, Default, Eq, Ord, PartialOrd, PartialEq, Hash, serde::Deserialize)]
 #[serde(transparent)]
@@ -373,22 +373,22 @@ pub struct MBTextSummary {
     pub len: MultiBufferOffset,
     /// Length in UTF-8.
     pub chars: usize,
-    /// Length in UTF-16 code units
+    /// Length in UTF-16 code units.
     pub len_utf16: OffsetUtf16,
     /// A point representing the number of lines and the length of the last line.
     ///
     /// In other words, it marks the point after the last byte in the text, (if
     /// EOF was a character, this would be its position).
     pub lines: Point,
-    /// How many `char`s are in the first line
+    /// How many `char`s are in the first line.
     pub first_line_chars: u32,
-    /// How many `char`s are in the last line
+    /// How many `char`s are in the last line.
     pub last_line_chars: u32,
-    /// How many UTF-16 code units are in the last line
+    /// How many UTF-16 code units are in the last line.
     pub last_line_len_utf16: u32,
-    /// The row idx of the longest row
+    /// The row idx of the longest row.
     pub longest_row: u32,
-    /// How many `char`s are in the longest row
+    /// How many `char`s are in the longest row.
     pub longest_row_chars: u32,
 }
 

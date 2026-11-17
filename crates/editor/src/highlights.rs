@@ -5,7 +5,7 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::Context;
 use gpui::HighlightStyle;
 use gpui::Hsla;
@@ -16,11 +16,11 @@ use lsp::LanguageServerId;
 use multi_buffer::Anchor;
 use multi_buffer::MultiBufferOffset;
 use multi_buffer::MultiBufferSnapshot;
-use multi_buffer::ToPoint;
+use multi_buffer::ToPoint as _;
 use project::search::SearchQuery;
 use rustc_hash::FxHashMap;
 use theme::Theme;
-use util::ResultExt;
+use util::ResultExt as _;
 use util::paths::PathMatcher;
 use util::post_inc;
 
@@ -30,7 +30,7 @@ use super::EditorMode;
 use super::LSP_HIGHLIGHT_DEBOUNCE;
 use super::LineHighlight;
 use super::NavigationTargetOverlay;
-use super::RangeToAnchorExt;
+use super::RangeToAnchorExt as _;
 use super::RowHighlight;
 use super::RowHighlightOptions;
 use super::SELECTION_HIGHLIGHT_DEBOUNCE_TIMEOUT;
@@ -39,7 +39,7 @@ use crate::display_map::DisplayRow;
 use crate::display_map::DisplaySnapshot;
 use crate::display_map::HighlightKey;
 use crate::display_map::NavigationOverlayKey;
-use crate::display_map::ToDisplayPoint;
+use crate::display_map::ToDisplayPoint as _;
 
 impl Editor {
     pub(crate) fn refresh_document_highlights(&mut self, cx: &mut Context<Self>) -> Option<()> {
@@ -529,13 +529,8 @@ impl Editor {
         self.highlighted_rows
             .values()
             .flat_map(|highlighted_rows| highlighted_rows.iter())
-            .filter_map(|highlight| {
-                if highlight.options.autoscroll {
-                    Some(highlight.range.start.to_display_point(snapshot).row())
-                } else {
-                    None
-                }
-            })
+            .filter(|&highlight| highlight.options.autoscroll)
+            .map(|highlight| highlight.range.start.to_display_point(snapshot).row())
             .min()
     }
 

@@ -20,7 +20,7 @@ pub enum InlineValueServerCapabilities {
 
 /// Inline value options used during static registration.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 pub struct InlineValueOptions {
     #[serde(flatten)]
@@ -29,7 +29,7 @@ pub struct InlineValueOptions {
 
 /// Inline value options used during static or dynamic registration.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 pub struct InlineValueRegistrationOptions {
     #[serde(flatten)]
@@ -44,7 +44,7 @@ pub struct InlineValueRegistrationOptions {
 
 /// A parameter literal used in inline value requests.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InlineValueParams {
@@ -62,7 +62,7 @@ pub struct InlineValueParams {
     pub context: InlineValueContext,
 }
 
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InlineValueContext {
@@ -77,7 +77,7 @@ pub struct InlineValueContext {
 
 /// Provide inline value as text.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 pub struct InlineValueText {
     /// The document range for which the inline value applies.
@@ -94,7 +94,7 @@ pub struct InlineValueText {
 ///
 /// An optional variable name can be used to override the extracted name.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InlineValueVariableLookup {
@@ -118,7 +118,7 @@ pub struct InlineValueVariableLookup {
 ///
 /// An optional expression can be used to override the extracted expression.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InlineValueEvaluatableExpression {
@@ -138,7 +138,7 @@ pub struct InlineValueEvaluatableExpression {
 /// - as an evaluatable expression (class InlineValueEvaluatableExpression)
 ///   The InlineValue types combines all inline value types into one type.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum InlineValue {
@@ -171,7 +171,7 @@ impl From<InlineValueEvaluatableExpression> for InlineValue {
 /// Client workspace capabilities specific to inline values.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[serde(rename_all = "camelCase")]
 pub struct InlineValueWorkspaceClientCapabilities {
     /// Whether the client implementation supports a refresh request sent from

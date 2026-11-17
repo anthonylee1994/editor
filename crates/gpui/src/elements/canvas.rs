@@ -22,7 +22,7 @@ pub fn canvas<T>(
 }
 
 /// A canvas element, meant for accessing the low level paint API without defining a whole
-/// custom element
+/// custom element.
 pub struct Canvas<T> {
     prepaint: Option<Box<dyn FnOnce(Bounds<Pixels>, &mut Window, &mut App) -> T>>,
     paint: Option<Box<dyn FnOnce(Bounds<Pixels>, T, &mut Window, &mut App)>>,
@@ -65,7 +65,7 @@ impl<T: 'static> Element for Canvas<T> {
         window: &mut Window,
         cx: &mut App,
     ) -> Option<T> {
-        Some(self.prepaint.take().unwrap()(bounds, window, cx))
+        Some(self.prepaint.take().expect("prepaint is called once")(bounds, window, cx))
     }
 
     fn paint(
@@ -77,8 +77,10 @@ impl<T: 'static> Element for Canvas<T> {
         window: &mut Window,
         cx: &mut App,
     ) {
-        let prepaint = prepaint.take().unwrap();
-        style.paint(bounds, window, cx, |window, cx| (self.paint.take().unwrap())(bounds, prepaint, window, cx));
+        let prepaint = prepaint.take().expect("prepaint state is set");
+        style.paint(bounds, window, cx, |window, cx| {
+            (self.paint.take().expect("paint is called once"))(bounds, prepaint, window, cx);
+        });
     }
 }
 

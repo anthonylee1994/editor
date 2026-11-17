@@ -43,7 +43,7 @@ pub struct WorkDoneProgressCancelParams {
     pub token: ProgressToken,
 }
 
-/// An optional token that a server can use to report work done progress
+/// An optional token that a server can use to report work done progress.
 #[derive(Debug, Eq, PartialEq, Default, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkDoneProgressParams {
@@ -78,7 +78,7 @@ pub struct WorkDoneProgressBegin {
     /// to ignore the `percentage` value in subsequent in report notifications.
     ///
     /// The value should be steadily rising. Clients are free to ignore values
-    /// that are not following this rule. The value range is [0, 100]
+    /// that are not following this rule. The value range is [0, 100].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub percentage: Option<u32>,
 }
@@ -104,7 +104,7 @@ pub struct WorkDoneProgressReport {
     /// to ignore the `percentage` value in subsequent in report notifications.
     ///
     /// The value should be steadily rising. Clients are free to ignore values
-    /// that are not following this rule. The value range is [0, 100]
+    /// that are not following this rule. The value range is [0, 100].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub percentage: Option<u32>,
 }

@@ -360,7 +360,7 @@ impl Cache {
                 let new_lines = (edit.new.end.row - edit.new.start.row + 1) as usize;
                 self.lines.splice(
                     old_start_row..=old_end_row,
-                    (0..new_lines).map(|_| Line { dirty: true, ..Line::default() }),
+                    std::iter::repeat_with(|| Line { dirty: true, ..Line::default() }).take(new_lines),
                 );
             }
         }
@@ -549,12 +549,12 @@ mod tests {
             .highlight_runs(text, 0..text.len())
             .unwrap()
             .into_iter()
-            .map(|(range, id)| (text.text_for_range(range).collect(), theme.get_capture_name(id).unwrap().to_string()))
+            .map(|(range, id)| (text.text_for_range(range).collect(), theme.get_capture_name(id).unwrap().to_owned()))
             .collect()
     }
 
     #[test]
-    fn test_highlights_c_and_tracks_edits() {
+    fn highlights_c_and_tracks_edits() {
         let theme = theme();
         set_theme(&theme);
         let mut buffer = TextBuffer::new(BufferId::new(1).unwrap(), "int main() {\n    return 0; // done\n}\n");
@@ -578,7 +578,7 @@ mod tests {
     }
 
     #[test]
-    fn test_highlights_regex_query() {
+    fn highlights_regex_query() {
         let theme = theme();
         set_theme(&theme);
         let buffer = TextBuffer::new(BufferId::new(1).unwrap(), r"^fn\s+(\w+)\(.*$");
@@ -589,7 +589,7 @@ mod tests {
     }
 
     #[test]
-    fn test_highlights_multiline_toml_inline_table() {
+    fn highlights_multiline_toml_inline_table() {
         let theme = theme();
         set_theme(&theme);
         let source = "a = {\n  version = \"1\", # c\n  b = [\n    \"x\",\n  ],\n}\nk = 1\n";
@@ -604,7 +604,7 @@ mod tests {
     }
 
     #[test]
-    fn test_highlights_injection() {
+    fn highlights_injection() {
         let theme = theme();
         set_theme(&theme);
         let source = "# q\n```sql\nSELECT 1\nFROM t;\n```\n";
@@ -616,7 +616,7 @@ mod tests {
         let runs = |range: Range<usize>| {
             highlight_injection("sql", text, content_range.clone(), range)
                 .into_iter()
-                .map(|(range, id)| (source[range].to_string(), theme.get_capture_name(id).unwrap().to_string()))
+                .map(|(range, id)| (source[range].to_string(), theme.get_capture_name(id).unwrap().to_owned()))
                 .collect::<Vec<_>>()
         };
 
@@ -632,7 +632,7 @@ mod tests {
     }
 
     #[test]
-    fn test_syntax_selection() {
+    fn syntax_selection() {
         let text = |text: &str| TextBuffer::new(BufferId::new(1).unwrap(), text).snapshot().clone();
         let syntax = |file_name: Option<&str>, language: Option<&str>, first_line: &str| {
             let language = language.map(|name| {
@@ -642,7 +642,7 @@ mod tests {
                 )
             });
             FallbackHighlighter::for_buffer(language.as_ref(), file_name, &text(first_line))
-                .map(|highlighter| highlighter.syntax_name().to_string())
+                .map(|highlighter| highlighter.syntax_name().to_owned())
         };
         assert_eq!(syntax(Some("Cargo.toml"), None, "").as_deref(), Some("TOML"));
         assert_eq!(syntax(Some("Dockerfile"), None, "").as_deref(), Some("Dockerfile"));
@@ -654,7 +654,7 @@ mod tests {
     }
 
     #[test]
-    fn test_incremental_matches_fresh_highlighting() {
+    fn incremental_matches_fresh_highlighting() {
         let theme = theme();
         set_theme(&theme);
         let line = "fn main() { let s = \"a /* b\"; } // c\n";
@@ -662,7 +662,7 @@ mod tests {
         let highlighter = FallbackHighlighter::for_buffer(None, Some("main.rs"), buffer.snapshot()).unwrap();
         highlighted(&highlighter, buffer.snapshot(), &theme);
 
-        let mut rng = 7u64;
+        let mut rng = 7_u64;
         let mut next = |bound: usize| {
             rng = rng.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
             (rng >> 33) as usize % bound.max(1)
@@ -694,6 +694,7 @@ mod tests {
 
     #[test]
     #[ignore = "benchmark"]
+    #[expect(clippy::print_stderr, clippy::use_debug, reason = "benchmark output")]
     fn bench_large_file() {
         set_theme(&theme());
         let source = "static int add(int a, int b) {\n    /* sum */ return a + b; // ok\n}\n";

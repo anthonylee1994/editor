@@ -1,8 +1,8 @@
 //! Classifies file contents as text or binary and decodes text of any
 //! supported encoding into UTF-8, both whole and as a stream.
 
+use std::io;
 use std::io::Read;
-use std::io::{self};
 
 use anyhow::Result;
 use async_macos::yield_now;
@@ -232,9 +232,9 @@ pub fn analyze_byte_content(bytes: &[u8]) -> ByteContent {
     }
 
     let limit = bytes.len().min(FILE_ANALYSIS_BYTES);
-    let mut even_null_count = 0usize;
-    let mut odd_null_count = 0usize;
-    let mut non_text_like_count = 0usize;
+    let mut even_null_count = 0_usize;
+    let mut odd_null_count = 0_usize;
+    let mut non_text_like_count = 0_usize;
 
     for (i, &byte) in bytes[..limit].iter().enumerate() {
         if byte == 0 {
@@ -393,9 +393,9 @@ fn is_safetensors_header(bytes: &[u8]) -> bool {
 // bytes as UTF-16 and reject if too many code units land in control character
 // ranges or form unpaired surrogates, which real text almost never contains.
 fn is_plausible_utf16_text(bytes: &[u8], little_endian: bool) -> bool {
-    let mut suspicious_count = 0usize;
-    let mut word_like_count = 0usize;
-    let mut total = 0usize;
+    let mut suspicious_count = 0_usize;
+    let mut word_like_count = 0_usize;
+    let mut total = 0_usize;
 
     let mut i = 0;
     while let Some(code_unit) = read_u16(bytes, i, little_endian) {

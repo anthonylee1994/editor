@@ -15,7 +15,7 @@ use crate::BufferSnapshot;
 use crate::Language;
 use crate::Point;
 use crate::ToPoint;
-use crate::ToTreeSitterPoint;
+use crate::ToTreeSitterPoint as _;
 
 /// An outline of all the symbols contained in a buffer.
 #[derive(Debug)]

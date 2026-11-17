@@ -3,9 +3,9 @@ use gpui::IntoElement;
 use crate::IconDecoration;
 use crate::prelude::App;
 use crate::prelude::Icon;
-use crate::prelude::ParentElement;
+use crate::prelude::ParentElement as _;
 use crate::prelude::RenderOnce;
-use crate::prelude::Styled;
+use crate::prelude::Styled as _;
 use crate::prelude::Window;
 use crate::prelude::div;
 

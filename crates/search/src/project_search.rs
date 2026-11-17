@@ -2,7 +2,7 @@ use std::any::Any;
 use std::any::TypeId;
 use std::iter::Peekable;
 use std::mem;
-use std::ops::Not;
+use std::ops::Not as _;
 use std::ops::Range;
 use std::pin::pin;
 use std::slice;
@@ -30,7 +30,7 @@ use editor::actions::ToggleFoldAll;
 use editor::actions::UnfoldAll;
 use editor::items::active_match_index;
 use editor::scroll::Autoscroll;
-use futures::StreamExt;
+use futures::StreamExt as _;
 use futures::stream::FuturesOrdered;
 use gpui::Action;
 use gpui::AnyElement;
@@ -46,23 +46,23 @@ use gpui::FocusHandle;
 use gpui::Focusable;
 use gpui::Global;
 use gpui::Hsla;
-use gpui::InteractiveElement;
+use gpui::InteractiveElement as _;
 use gpui::IntoElement;
 use gpui::KeyContext;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Point;
 use gpui::Render;
 use gpui::SharedString;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Subscription;
 use gpui::Task;
-use gpui::TaskExt;
-use gpui::UpdateGlobal;
+use gpui::TaskExt as _;
+use gpui::UpdateGlobal as _;
 use gpui::WeakEntity;
 use gpui::Window;
 use gpui::actions;
 use gpui::div;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use language::Buffer;
 use menu::Confirm;
 use multi_buffer;
@@ -74,26 +74,26 @@ use project::search::SearchQuery;
 use project::search::SearchResult;
 use project::search_history::SearchHistoryCursor;
 use rustc_hash::FxHashMap;
-use text::OffsetRangeExt;
-use ui::CommonAnimationExt;
+use text::OffsetRangeExt as _;
+use ui::CommonAnimationExt as _;
 use ui::IconButtonShape;
 use ui::KeyBinding;
-use ui::Toggleable;
+use ui::Toggleable as _;
 use ui::Tooltip;
-use ui::prelude::ActiveTheme;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::Button;
-use ui::prelude::ButtonCommon;
-use ui::prelude::Clickable;
+use ui::prelude::ButtonCommon as _;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
-use ui::prelude::FluentBuilder;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Icon;
 use ui::prelude::IconButton;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
-use ui::prelude::StatefulInteractiveElement;
+use ui::prelude::StatefulInteractiveElement as _;
 use ui::prelude::h_flex;
 use ui::prelude::rems_from_px;
 use ui::prelude::v_flex;
@@ -115,7 +115,7 @@ use workspace::item::SaveOptions;
 use workspace::searchable::Direction;
 use workspace::searchable::SearchEvent;
 use workspace::searchable::SearchToken;
-use workspace::searchable::SearchableItem;
+use workspace::searchable::SearchableItem as _;
 use workspace::searchable::SearchableItemHandle;
 
 use crate::BufferSearchBar;
@@ -526,7 +526,7 @@ impl ProjectSearch {
     fn search(&mut self, query: SearchQuery, mode: SearchMode, retains_verdict: bool, cx: &mut Context<Self>) {
         let project_search_turning_into_text_finder = Arc::clone(&self.project_search_turning_into_text_finder);
         let search = self.project.update(cx, |project, cx| project.search(query.clone(), cx));
-        self.last_search_query_text = Some(query.as_str().to_string());
+        self.last_search_query_text = Some(query.as_str().to_owned());
         self.search_id += 1;
         self.active_query = Some(query);
         match mode {
@@ -569,7 +569,7 @@ impl ProjectSearch {
         self.project.update(cx, |project, _| {
             project
                 .search_history_mut(SearchInputKind::Query)
-                .add(&mut self.search_history_cursor, query.as_str().to_string());
+                .add(&mut self.search_history_cursor, query.as_str().to_owned());
             let included = query.as_inner().files_to_include().sources().join(",");
             if !included.is_empty() {
                 project
@@ -1325,7 +1325,7 @@ impl ProjectSearchView {
             project = entity.project.clone();
             excerpts = entity.excerpts.clone();
             if let Some(active_query) = entity.active_query.as_ref() {
-                query_text = active_query.as_str().to_string();
+                active_query.as_str().clone_into(&mut query_text);
                 replacement_text = active_query.replacement().map(ToOwned::to_owned);
                 options = SearchOptions::from_query(active_query);
             }
@@ -1498,8 +1498,7 @@ impl ProjectSearchView {
     fn search_in_new(workspace: &mut Workspace, _: &SearchInNew, window: &mut Window, cx: &mut Context<Workspace>) {
         if let Some(search_view) = workspace.active_item(cx).and_then(|item| item.downcast::<ProjectSearchView>()) {
             let new_query = search_view.update(cx, |search_view, cx| {
-                let open_buffers =
-                    if search_view.included_opened_only { Some(search_view.open_buffers(cx, workspace)) } else { None };
+                let open_buffers = search_view.included_opened_only.then(|| search_view.open_buffers(cx, workspace));
                 let new_query = search_view.build_search_query(cx, open_buffers);
                 if new_query.is_some()
                     && let Some(old_query) = search_view.entity.read(cx).active_query.clone()
@@ -1935,7 +1934,7 @@ impl ProjectSearchView {
         window.focus(&editor_handle, cx);
     }
 
-    /// Apply some state (from the textfinder) to the project search UI
+    /// Apply some state (from the textfinder) to the project search UI.
     pub(crate) fn adopt_text_finder_state(
         &mut self,
         search_options: SearchOptions,
@@ -1946,7 +1945,7 @@ impl ProjectSearchView {
         self.search_options = search_options;
         self.adjust_query_regex_language(cx);
         if let Some(query) = active_query {
-            let query_text = query.as_str().to_string();
+            let query_text = query.as_str().to_owned();
             self.entity.update(cx, |search, _| {
                 search.active_query = Some(query.clone());
                 search.last_search_query_text = Some(query_text.clone());
@@ -2431,7 +2430,7 @@ impl ProjectSearchBar {
                             let project = model.project.clone();
 
                             if let Some(new_query) = project.update(cx, |project, _| {
-                                project.search_history_mut(kind).next(model.cursor_mut(kind)).map(str::to_string)
+                                project.search_history_mut(kind).next(model.cursor_mut(kind)).map(str::to_owned)
                             }) {
                                 Some(new_query)
                             } else {
@@ -2469,7 +2468,7 @@ impl ProjectSearchBar {
                                 .read(cx)
                                 .search_history(kind)
                                 .current(search_view.entity.read(cx).cursor(kind))
-                                .map(str::to_string)
+                                .map(str::to_owned)
                         {
                             search_view.set_search_editor(kind, &new_query, window, cx);
                             return;
@@ -2482,7 +2481,7 @@ impl ProjectSearchBar {
                                 project
                                     .search_history_mut(kind)
                                     .previous(model.cursor_mut(kind), &current_query)
-                                    .map(str::to_string)
+                                    .map(str::to_owned)
                             })
                         }) {
                             search_view.set_search_editor(kind, &new_query, window, cx);
@@ -2567,7 +2566,7 @@ impl Render for ProjectSearchBar {
                     None
                 }
             })
-            .unwrap_or_else(|| "0/0".to_string());
+            .unwrap_or_else(|| "0/0".to_owned());
 
         let query_focus = search.query_editor.focus_handle(cx);
 

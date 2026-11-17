@@ -47,13 +47,13 @@ pub struct CodeActionClientCapabilities {
 
     /// Whether code action supports the `isPreferred` property.
     ///
-    /// @since 3.15.0
+    /// @since 3.15.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_preferred_support: Option<bool>,
 
     /// Whether code action supports the `disabled` property.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub disabled_support: Option<bool>,
 
@@ -61,14 +61,14 @@ pub struct CodeActionClientCapabilities {
     /// preserved between a `textDocument/codeAction` and a
     /// `codeAction/resolve` request.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data_support: Option<bool>,
 
     /// Whether the client supports resolving additional code action
     /// properties via a separate `codeAction/resolve` request.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resolve_support: Option<CodeActionCapabilityResolveSupport>,
 
@@ -78,7 +78,7 @@ pub struct CodeActionClientCapabilities {
     /// the workspace edit in the user interface and asking
     /// for confirmation.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub honors_change_annotations: Option<bool>,
 }
@@ -86,7 +86,7 @@ pub struct CodeActionClientCapabilities {
 /// Whether the client supports resolving additional code action
 /// properties via a separate `codeAction/resolve` request.
 ///
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CodeActionCapabilityResolveSupport {
@@ -111,7 +111,7 @@ pub struct CodeActionKindLiteralSupport {
     pub value_set: Vec<String>,
 }
 
-/// Params for the CodeActionRequest
+/// Params for the CodeActionRequest.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CodeActionParams {
@@ -131,7 +131,7 @@ pub struct CodeActionParams {
     pub partial_result_params: PartialResultParams,
 }
 
-/// response for CodeActionRequest
+/// response for CodeActionRequest.
 pub type CodeActionResponse = Vec<CodeActionOrCommand>;
 
 #[allow(clippy::large_enum_variant)]
@@ -161,13 +161,13 @@ impl CodeActionKind {
     /// Empty kind.
     pub const EMPTY: CodeActionKind = CodeActionKind::new("");
 
-    /// Base kind for quickfix actions: 'quickfix'
+    /// Base kind for quickfix actions: 'quickfix'.
     pub const QUICKFIX: CodeActionKind = CodeActionKind::new("quickfix");
 
-    /// Base kind for refactoring actions: 'refactor'
+    /// Base kind for refactoring actions: 'refactor'.
     pub const REFACTOR: CodeActionKind = CodeActionKind::new("refactor");
 
-    /// Base kind for refactoring extraction actions: 'refactor.extract'
+    /// Base kind for refactoring extraction actions: 'refactor.extract'.
     ///
     /// Example extract actions:
     ///
@@ -178,7 +178,7 @@ impl CodeActionKind {
     /// - ...
     pub const REFACTOR_EXTRACT: CodeActionKind = CodeActionKind::new("refactor.extract");
 
-    /// Base kind for refactoring inline actions: 'refactor.inline'
+    /// Base kind for refactoring inline actions: 'refactor.inline'.
     ///
     /// Example inline actions:
     ///
@@ -188,7 +188,7 @@ impl CodeActionKind {
     /// - ...
     pub const REFACTOR_INLINE: CodeActionKind = CodeActionKind::new("refactor.inline");
 
-    /// Base kind for refactoring rewrite actions: 'refactor.rewrite'
+    /// Base kind for refactoring rewrite actions: 'refactor.rewrite'.
     ///
     /// Example rewrite actions:
     ///
@@ -200,12 +200,12 @@ impl CodeActionKind {
     /// - ...
     pub const REFACTOR_REWRITE: CodeActionKind = CodeActionKind::new("refactor.rewrite");
 
-    /// Base kind for source actions: `source`
+    /// Base kind for source actions: `source`.
     ///
     /// Source code actions apply to the entire file.
     pub const SOURCE: CodeActionKind = CodeActionKind::new("source");
 
-    /// Base kind for an organize imports source action: `source.organizeImports`
+    /// Base kind for an organize imports source action: `source.organizeImports`.
     pub const SOURCE_ORGANIZE_IMPORTS: CodeActionKind = CodeActionKind::new("source.organizeImports");
 
     /// Base kind for a 'fix all' source action: `source.fixAll`.
@@ -214,7 +214,7 @@ impl CodeActionKind {
     /// do not require user input. They should not suppress errors or perform
     /// unsafe fixes such as generating new types or classes.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     pub const SOURCE_FIX_ALL: CodeActionKind = CodeActionKind::new("source.fixAll");
 
     pub const fn new(tag: &'static str) -> Self {
@@ -268,7 +268,7 @@ pub struct CodeAction {
     /// A quick fix should be marked preferred if it properly addresses the underlying error.
     /// A refactoring should be marked preferred if it is the most reasonable choice of actions to take.
     ///
-    /// @since 3.15.0
+    /// @since 3.15.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_preferred: Option<bool>,
 
@@ -287,14 +287,14 @@ pub struct CodeAction {
     ///   actions are returned, the client should show the user an error message with `reason`
     ///   in the editor.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub disabled: Option<CodeActionDisabled>,
 
     /// A data entry field that is preserved on a code action between
     /// a `textDocument/codeAction` and a `codeAction/resolve` request.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<Value>,
 }
@@ -310,7 +310,7 @@ pub struct CodeActionDisabled {
 
 /// The reason why code actions were requested.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Eq, PartialEq, Clone, Copy, Deserialize, Serialize)]
 #[serde(transparent)]
 pub struct CodeActionTriggerKind(i32);
@@ -344,7 +344,7 @@ pub struct CodeActionContext {
 
     /// The reason why code actions were requested.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub trigger_kind: Option<CodeActionTriggerKind>,
 }
@@ -365,7 +365,7 @@ pub struct CodeActionOptions {
     /// The server provides support to resolve additional
     /// information for a code action.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resolve_provider: Option<bool>,
 }
@@ -379,16 +379,16 @@ mod tests {
     use crate::tests::test_serialization;
 
     #[test]
-    fn test_code_action_response() {
+    fn code_action_response() {
         test_serialization(
             &vec![
                 CodeActionOrCommand::Command(Command {
-                    title: "title".to_string(),
-                    command: "command".to_string(),
+                    title: "title".to_owned(),
+                    command: "command".to_owned(),
                     arguments: None,
                 }),
                 CodeActionOrCommand::CodeAction(CodeAction {
-                    title: "title".to_string(),
+                    title: "title".to_owned(),
                     kind: Some(CodeActionKind::QUICKFIX),
                     command: None,
                     diagnostics: None,

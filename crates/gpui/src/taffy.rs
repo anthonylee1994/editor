@@ -150,6 +150,7 @@ impl TaffyLayoutEngine {
 
     // Used to understand performance
     #[allow(dead_code)]
+    #[expect(clippy::print_stdout, clippy::use_debug, reason = "manual layout debugging helper")]
     fn max_depth(&self, depth: u32, parent: LayoutId) -> anyhow::Result<u32> {
         println!("{parent:?} at depth {depth} has {} children", self.taffy.child_count(parent.0));
 
@@ -354,7 +355,7 @@ impl TaffyLayoutEngine {
     }
 }
 
-/// A unique identifier for a layout node, generated when requesting a layout from Taffy
+/// A unique identifier for a layout node, generated when requesting a layout from Taffy.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 #[repr(transparent)]
 pub struct LayoutId(NodeId);
@@ -603,15 +604,15 @@ where
     }
 }
 
-/// The space available for an element to be laid out in
+/// The space available for an element to be laid out in.
 #[derive(Copy, Clone, Default, Debug, Eq, PartialEq)]
 pub enum AvailableSpace {
-    /// The amount of space available is the specified number of pixels
+    /// The amount of space available is the specified number of pixels.
     Definite(Pixels),
-    /// The amount of space available is indefinite and the node should be laid out under a min-content constraint
+    /// The amount of space available is indefinite and the node should be laid out under a min-content constraint.
     #[default]
     MinContent,
-    /// The amount of space available is indefinite and the node should be laid out under a max-content constraint
+    /// The amount of space available is indefinite and the node should be laid out under a max-content constraint.
     MaxContent,
 }
 

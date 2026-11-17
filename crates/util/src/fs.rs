@@ -1,6 +1,6 @@
 use std::fs::Permissions;
 use std::io;
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::PermissionsExt as _;
 use std::path::Path;
 
 /// Set the permissions for the given path so that the file becomes executable.

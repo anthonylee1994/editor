@@ -17,7 +17,7 @@ pub(crate) struct SubscriberSet<EmitterKey, Callback>(Rc<RefCell<SubscriberSetSt
 
 impl<EmitterKey, Callback> Clone for SubscriberSet<EmitterKey, Callback> {
     fn clone(&self) -> Self {
-        SubscriberSet(self.0.clone())
+        SubscriberSet(Rc::clone(&self.0))
     }
 }
 
@@ -76,11 +76,11 @@ where
         lock.subscribers
             .entry(emitter_key.clone())
             .or_default()
-            .insert(subscriber_id, Subscriber { state: state.clone(), callback });
-        let this = self.0.clone();
+            .insert(subscriber_id, Subscriber { state: Rc::clone(&state), callback });
+        let this = Rc::clone(&self.0);
 
         let subscription = Subscription::new({
-            let state = state.clone();
+            let state = Rc::clone(&state);
             move || {
                 state.set(SubscriberState::Dropped);
 
@@ -130,7 +130,7 @@ where
 
 impl<Callback> Clone for SingleSubscriberSet<Callback> {
     fn clone(&self) -> Self {
-        SingleSubscriberSet(self.0.clone())
+        SingleSubscriberSet(Rc::clone(&self.0))
     }
 }
 
@@ -156,11 +156,11 @@ impl<Callback: 'static> SingleSubscriberSet<Callback> {
         let state = Rc::new(Cell::new(SubscriberState::Pending));
         let mut lock = self.0.borrow_mut();
         let subscriber_id = post_inc(&mut lock.next_subscriber_id);
-        lock.subscribers.insert(subscriber_id, Subscriber { state: state.clone(), callback });
-        let this = self.0.clone();
+        lock.subscribers.insert(subscriber_id, Subscriber { state: Rc::clone(&state), callback });
+        let this = Rc::clone(&self.0);
 
         let subscription = Subscription::new({
-            let state = state.clone();
+            let state = Rc::clone(&state);
             move || {
                 state.set(SubscriberState::Dropped);
                 this.borrow_mut().subscribers.remove(&subscriber_id);
@@ -223,7 +223,7 @@ impl Subscription {
 
     /// Detaches the subscription from this handle. The callback will
     /// continue to be invoked until the entities it has been
-    /// subscribed to are dropped
+    /// subscribed to are dropped.
     pub fn detach(mut self) {
         self.unsubscribe.take();
     }
@@ -270,9 +270,9 @@ mod tests {
     use super::Subscription;
 
     #[test]
-    fn test_immediate_and_pending_insertions() {
+    fn immediate_and_pending_insertions() {
         let subscribers = SubscriberSet::new();
-        let first = subscribers.insert(1usize, 10);
+        let first = subscribers.insert(1_usize, 10);
         let (second, activate_second) = subscribers.insert_pending(1, 20);
         let mut visited = Vec::new();
         subscribers.retain(&1, |callback| {
@@ -292,7 +292,7 @@ mod tests {
     }
 
     #[test]
-    fn test_single_immediate_and_pending_insertions() {
+    fn single_immediate_and_pending_insertions() {
         let subscribers = SingleSubscriberSet::new();
         let first = subscribers.insert(10);
         let (second, activate_second) = subscribers.insert_pending(20);
@@ -314,9 +314,9 @@ mod tests {
     }
 
     #[test]
-    fn test_activation_after_drop_during_retain() {
+    fn activation_after_drop_during_retain() {
         let subscribers = SubscriberSet::new();
-        let (first, activate_first) = subscribers.insert_pending(1usize, 10);
+        let (first, activate_first) = subscribers.insert_pending(1_usize, 10);
         let (second, activate_second) = subscribers.insert_pending(1, 20);
         subscribers.retain(&1, |_| panic!("pending subscriber invoked"));
         activate_first();
@@ -337,7 +337,7 @@ mod tests {
     }
 
     #[test]
-    fn test_single_activation_after_drop_during_retain() {
+    fn single_activation_after_drop_during_retain() {
         let subscribers = SingleSubscriberSet::new();
         let (first, activate_first) = subscribers.insert_pending(10);
         let (second, activate_second) = subscribers.insert_pending(20);
@@ -360,10 +360,10 @@ mod tests {
     }
 
     #[test]
-    fn test_drop_own_subscription_during_retain() {
+    fn drop_own_subscription_during_retain() {
         let subscribers = SubscriberSet::new();
         let own: Rc<RefCell<Option<Subscription>>> = Rc::default();
-        *own.borrow_mut() = Some(subscribers.insert(1usize, 10));
+        *own.borrow_mut() = Some(subscribers.insert(1_usize, 10));
         let other = subscribers.insert(2, 20);
 
         subscribers.retain(&1, |_| {

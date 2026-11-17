@@ -6,7 +6,7 @@ use gpui::Entity;
 use gpui::FocusHandle;
 use gpui::Focusable;
 use gpui::prelude::Context;
-use gpui::prelude::InteractiveElement;
+use gpui::prelude::InteractiveElement as _;
 use gpui::prelude::IntoElement;
 use gpui::prelude::Render;
 use ui::prelude::Window;
@@ -30,7 +30,7 @@ impl Head {
         window: &mut Window,
         cx: &mut Context<V>,
     ) -> Self {
-        let editor = (ui_input::ERASED_EDITOR_FACTORY.get().unwrap())(window, cx);
+        let editor = (ui_input::ERASED_EDITOR_FACTORY.get().expect("editor factory is initialized"))(window, cx);
         Self::with_editor(editor, placeholder_text, edit_handler, window, cx)
     }
 

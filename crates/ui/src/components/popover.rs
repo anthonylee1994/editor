@@ -1,18 +1,18 @@
 use gpui::AnyElement;
 use gpui::App;
-use gpui::Element;
+use gpui::Element as _;
 use gpui::IntoElement;
 use gpui::ParentElement;
 use gpui::Pixels;
 use gpui::RenderOnce;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Window;
 use gpui::div;
 use smallvec::SmallVec;
 
-use crate::prelude::ActiveTheme;
-use crate::prelude::FluentBuilder;
-use crate::prelude::StyledExt;
+use crate::prelude::ActiveTheme as _;
+use crate::prelude::FluentBuilder as _;
+use crate::prelude::StyledExt as _;
 use crate::prelude::px;
 use crate::v_flex;
 

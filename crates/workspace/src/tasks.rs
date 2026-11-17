@@ -1,4 +1,4 @@
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::AsyncWindowContext;
 use gpui::Context;
 use task::ResolvedTask;

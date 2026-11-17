@@ -1,6 +1,6 @@
 use gpui::FocusHandle;
-use ui::ButtonCommon;
-use ui::Clickable;
+use ui::ButtonCommon as _;
+use ui::Clickable as _;
 use ui::Context;
 use ui::Render;
 use ui::Tooltip;
@@ -8,7 +8,7 @@ use ui::Window;
 use ui::prelude::IconButton;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
-use ui::prelude::ParentElement;
+use ui::prelude::ParentElement as _;
 use ui::prelude::div;
 use workspace::ItemHandle;
 use workspace::StatusItemView;
@@ -44,7 +44,7 @@ impl Render for SearchButton {
             IconButton::new("project-search-indicator", SEARCH_ICON)
                 .icon_size(IconSize::Small)
                 .icon_color(status_item_color(self.search_active))
-                .tab_index(0isize)
+                .tab_index(0_isize)
                 .tooltip(move |_window, cx| {
                     if let Some(focus_handle) = &focus_handle {
                         Tooltip::for_action_in("Project Search", &workspace::DeploySearch::default(), focus_handle, cx)

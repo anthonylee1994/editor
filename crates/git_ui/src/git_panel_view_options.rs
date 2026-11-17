@@ -57,7 +57,7 @@ mod tests {
     use super::GitPanelViewOptions;
 
     #[test]
-    fn test_default_is_tree_grouped_by_status() {
+    fn default_is_tree_grouped_by_status() {
         assert_eq!(
             GitPanelViewOptions::default(),
             GitPanelViewOptions { sort_by: GitPanelSortBy::Path, group_by: GitPanelGroupBy::Status, tree_view: true }

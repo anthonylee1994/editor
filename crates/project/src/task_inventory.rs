@@ -19,7 +19,7 @@ use task::TaskTemplates;
 use task::TaskVariables;
 use task::VariableName;
 use text::Point;
-use text::ToPoint;
+use text::ToPoint as _;
 
 use crate::git_store::GitStore;
 use crate::worktree_store::WorktreeStore;
@@ -116,11 +116,11 @@ impl ContextProvider for BasicContextProvider {
             task_variables.insert(VariableName::WorktreeRoot, worktree_root.to_string_lossy().into_owned());
             if let Some(current_file) = current_file.as_ref() {
                 let relative_path = current_file.path();
-                task_variables.insert(VariableName::RelativeFile, relative_path.display().to_string());
+                task_variables.insert(VariableName::RelativeFile, relative_path.display().to_owned());
                 if let Some(relative_dir) = relative_path.parent() {
                     task_variables.insert(
                         VariableName::RelativeDir,
-                        if relative_dir.is_empty() { String::from(".") } else { relative_dir.display().to_string() },
+                        if relative_dir.is_empty() { String::from(".") } else { relative_dir.display().to_owned() },
                     );
                 }
             }

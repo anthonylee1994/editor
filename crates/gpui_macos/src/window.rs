@@ -1,11 +1,10 @@
 use core::char;
 use std::cell::Cell;
 use std::ffi::c_void;
-use std::mem;
 use std::ops::Range;
 use std::path::Path;
+use std::ptr;
 use std::ptr::NonNull;
-use std::ptr::{self};
 use std::rc::Rc;
 use std::slice;
 use std::sync::Arc;
@@ -52,9 +51,9 @@ use gpui::point;
 use gpui::px;
 use gpui::size;
 use gpui_apple::display_link::MetalFrameSource;
-use objc2::AnyThread;
-use objc2::ClassType;
-use objc2::DefinedClass;
+use objc2::AnyThread as _;
+use objc2::ClassType as _;
+use objc2::DefinedClass as _;
 use objc2::MainThreadMarker;
 use objc2::MainThreadOnly;
 use objc2::class;
@@ -104,7 +103,7 @@ use raw_window_handle as rwh;
 
 use crate::MacDisplay;
 use crate::NSRange;
-use crate::NSStringExt;
+use crate::NSStringExt as _;
 use crate::TISCopyCurrentKeyboardInputSource;
 use crate::TISGetInputSourceProperty;
 use crate::display_link::MetalFrames;
@@ -1032,7 +1031,6 @@ impl MacWindow {
             show,
             display_id,
             window_min_size,
-            ..
         }: WindowParams,
         cursor_visible: Arc<AtomicBool>,
         foreground_executor: ForegroundExecutor,
@@ -1150,7 +1148,7 @@ impl MacWindow {
                 background_appearance: WindowBackgroundAppearance::Opaque,
                 cursor_style: CursorStyle::Arrow,
                 cursor_visible,
-                metal_frames: metal_frames.clone(),
+                metal_frames: Rc::clone(&metal_frames),
                 renderer: renderer::new_renderer(
                     renderer_context,
                     native_window.cast::<c_void>(),
@@ -1190,9 +1188,9 @@ impl MacWindow {
             }));
             let mut window = Self(state, marker, metal_frames);
 
-            window_state_ivar(&*native_window).set(Arc::into_raw(window.0.clone()));
+            window_state_ivar(&*native_window).set(Arc::into_raw(Arc::clone(&window.0)));
             let _: () = msg_send![native_window, setDelegate: native_window];
-            window_state_ivar(&*native_view).set(Arc::into_raw(window.0.clone()));
+            window_state_ivar(&*native_view).set(Arc::into_raw(Arc::clone(&window.0)));
 
             if let Some(title) = titlebar.as_ref().and_then(|t| t.title.as_ref().map(AsRef::as_ref)) {
                 window.set_title(title);
@@ -1305,12 +1303,8 @@ impl MacWindow {
                 return None;
             }
 
-            if msg_send![main_window, isKindOfClass: GPUIWindow::class()] {
-                let handle = get_window_state(&*main_window).lock().handle;
-                Some(handle)
-            } else {
-                None
-            }
+            let is_gpui_window: bool = msg_send![main_window, isKindOfClass: GPUIWindow::class()];
+            is_gpui_window.then(|| get_window_state(&*main_window).lock().handle)
         }
     }
 
@@ -1393,7 +1387,7 @@ impl PlatformWindow for MacWindow {
     fn resize(&mut self, size: Size<Pixels>) {
         let this = self.0.lock();
         let window = this.native_window;
-        let closed = this.closed.clone();
+        let closed = Arc::clone(&this.closed);
         this.foreground_executor
             .spawn(async move {
                 if_window_not_closed(closed, || unsafe {
@@ -1613,13 +1607,13 @@ impl PlatformWindow for MacWindow {
 
         let block = RcBlock::new(move |answer: NSInteger| {
             if let Some(done_tx) = done_tx.take() {
-                let _ = done_tx.send(answer.try_into().unwrap());
+                done_tx.send(answer.try_into().expect("alert answer is non-negative")).ok();
             }
         });
 
         let lock = self.0.lock();
         let native_window = lock.native_window;
-        let closed = lock.closed.clone();
+        let closed = Arc::clone(&lock.closed);
         let executor = lock.foreground_executor.clone();
         executor
             .spawn(async move {
@@ -1640,7 +1634,7 @@ impl PlatformWindow for MacWindow {
         let lock = self.0.lock();
         let window = lock.native_window;
         let view = lock.native_view.as_ptr();
-        let closed = lock.closed.clone();
+        let closed = Arc::clone(&lock.closed);
         let executor = lock.foreground_executor.clone();
         executor
             .spawn(async move {
@@ -1695,7 +1689,7 @@ impl PlatformWindow for MacWindow {
     fn get_title(&self) -> String {
         unsafe {
             let title: id = msg_send![self.0.lock().native_window, title];
-            if title.is_null() { String::new() } else { title.to_str().to_string() }
+            if title.is_null() { String::new() } else { title.to_str().to_owned() }
         }
     }
 
@@ -1794,7 +1788,7 @@ impl PlatformWindow for MacWindow {
     fn zoom(&self) {
         let this = self.0.lock();
         let window = this.native_window;
-        let closed = this.closed.clone();
+        let closed = Arc::clone(&this.closed);
         this.foreground_executor
             .spawn(async move {
                 if_window_not_closed(closed, || unsafe {
@@ -1807,7 +1801,7 @@ impl PlatformWindow for MacWindow {
     fn toggle_fullscreen(&self) {
         let this = self.0.lock();
         let window = this.native_window;
-        let closed = this.closed.clone();
+        let closed = Arc::clone(&this.closed);
         this.foreground_executor
             .spawn(async move {
                 if_window_not_closed(closed, || unsafe {
@@ -1818,10 +1812,10 @@ impl PlatformWindow for MacWindow {
     }
 
     fn toggle_simple_fullscreen(&self) {
-        let state = self.0.clone();
+        let state = Arc::clone(&self.0);
         let (foreground_executor, closed) = {
             let this = self.0.lock();
-            (this.foreground_executor.clone(), this.closed.clone())
+            (this.foreground_executor.clone(), Arc::clone(&this.closed))
         };
         foreground_executor
             .spawn(async move {
@@ -1831,7 +1825,9 @@ impl PlatformWindow for MacWindow {
                         (lock.native_window, lock.native_view.as_ptr() as id, lock.toggle_simple_fullscreen())
                     };
                     if let Some(plan) = plan {
-                        unsafe { apply_simple_fullscreen_plan(native_window, native_view, plan) };
+                        unsafe {
+                            apply_simple_fullscreen_plan(native_window, native_view, plan);
+                        }
                     }
                 });
             })
@@ -1918,7 +1914,7 @@ impl PlatformWindow for MacWindow {
     }
 
     fn sprite_atlas(&self) -> Arc<dyn PlatformAtlas> {
-        self.0.lock().renderer.sprite_atlas().clone()
+        Arc::clone(self.0.lock().renderer.sprite_atlas()) as Arc<dyn PlatformAtlas>
     }
 
     fn gpu_specs(&self) -> Option<gpui::GpuSpecs> {
@@ -1946,7 +1942,7 @@ impl PlatformWindow for MacWindow {
             return;
         }
         let window = this.native_window;
-        let closed = this.closed.clone();
+        let closed = Arc::clone(&this.closed);
         this.foreground_executor
             .spawn(async move {
                 if_window_not_closed(closed, || {
@@ -2077,10 +2073,8 @@ fn window_state_ivar(object: &AnyObject) -> &Cell<*const Mutex<MacWindowState>> 
 unsafe fn get_window_state(object: &AnyObject) -> Arc<Mutex<MacWindowState>> {
     unsafe {
         let raw = window_state_ivar(object).get();
-        let rc1 = Arc::from_raw(raw);
-        let rc2 = rc1.clone();
-        mem::forget(rc1);
-        rc2
+        Arc::increment_strong_count(raw);
+        Arc::from_raw(raw)
     }
 }
 
@@ -2417,7 +2411,9 @@ fn handle_view_event(this: &AnyObject, native_event: id) {
         match &event {
             PlatformInput::MouseDown(_) => {
                 drop(lock);
-                unsafe { input_context_handle_event(this, native_event) };
+                unsafe {
+                    input_context_handle_event(this, native_event);
+                }
                 lock = window_state.as_ref().lock();
             }
             PlatformInput::MouseMove(event @ MouseMoveEvent { pressed_button: Some(_), .. }) => {
@@ -2484,7 +2480,7 @@ fn report_visibility(window_state: &Arc<Mutex<MacWindowState>>) {
     // notifications collapses to the final value.
     executor
         .spawn({
-            let window_state = window_state.clone();
+            let window_state = Arc::clone(window_state);
             async move {
                 let mut state = window_state.lock();
                 let visibility = visibility(&state);
@@ -2634,7 +2630,7 @@ fn report_display_change(window_state: &Arc<Mutex<MacWindowState>>) {
     // from `setFrame:`, so deliver after that update completes.
     executor
         .spawn({
-            let window_state = window_state.clone();
+            let window_state = Arc::clone(window_state);
             async move {
                 let callback = window_state.lock().display_changed_callback.take();
                 if let Some(mut callback) = callback {
@@ -2816,7 +2812,7 @@ fn display_layer(this: &AnyObject, _: id) {
 
 fn metal_frame(window_state: &Arc<Mutex<MacWindowState>>, update: &CAMetalDisplayLinkUpdate) {
     let mut lock = window_state.lock();
-    let metal_frames = lock.metal_frames.clone();
+    let metal_frames = Rc::clone(&lock.metal_frames);
     let Some(mut callback) = lock.request_frame_callback.take() else {
         return;
     };
@@ -2926,7 +2922,9 @@ fn attributed_substring_for_proposed_range(this: &AnyObject, range: NSRange, act
         if let Some(adjusted) = adjusted
             && adjusted != range
         {
-            unsafe { actual_range.write(NSRange::from(adjusted)) };
+            unsafe {
+                actual_range.write(NSRange::from(adjusted));
+            }
         }
         unsafe {
             let string: id = msg_send![class!(NSAttributedString), alloc];

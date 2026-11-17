@@ -8,7 +8,7 @@ use smallvec::SmallVec;
 use crate::App;
 use crate::Bounds;
 use crate::DevicePixels;
-use crate::Half;
+use crate::Half as _;
 use crate::Hsla;
 use crate::LineLayout;
 use crate::Pixels;
@@ -47,16 +47,16 @@ pub struct DecorationRun {
     /// The length of the run in utf-8 bytes.
     pub len: u32,
 
-    /// The color for this run
+    /// The color for this run.
     pub color: Hsla,
 
-    /// The background color for this run
+    /// The background color for this run.
     pub background_color: Option<Hsla>,
 
-    /// The underline style for this run
+    /// The underline style for this run.
     pub underline: Option<UnderlineStyle>,
 
-    /// The strikethrough style for this run
+    /// The strikethrough style for this run.
     pub strikethrough: Option<StrikethroughStyle>,
 }
 
@@ -238,7 +238,7 @@ impl ShapedLine {
         // Partition decoration runs. A run straddling the boundary is split into two.
         let mut left_decorations = SmallVec::new();
         let mut right_decorations = SmallVec::new();
-        let mut decoration_offset = 0u32;
+        let mut decoration_offset = 0_u32;
         let split_point = byte_index as u32;
 
         for decoration in &self.decoration_runs {
@@ -446,7 +446,7 @@ fn paint_line(
         let mut color = black();
         let mut current_underline: Option<(Point<Pixels>, UnderlineStyle, Range<usize>)> = None;
         let mut current_strikethrough: Option<(Point<Pixels>, StrikethroughStyle)> = None;
-        let text_system = cx.text_system().clone();
+        let text_system = Arc::clone(cx.text_system());
         let mut glyph_origin = point(
             aligned_origin_x(origin, align_width.unwrap_or(layout.width), px(0.0), align, layout, wraps.peek()),
             origin.y,
@@ -686,7 +686,7 @@ fn paint_line_background(
         let mut wraps = wrap_boundaries.iter().peekable();
         let mut run_end = 0;
         let mut current_background: Option<(Point<Pixels>, Hsla)> = None;
-        let text_system = cx.text_system().clone();
+        let text_system = Arc::clone(cx.text_system());
         let mut glyph_origin = point(
             aligned_origin_x(origin, align_width.unwrap_or(layout.width), px(0.0), align, layout, wraps.peek()),
             origin.y,

@@ -1,5 +1,5 @@
 use std::num::NonZeroU32;
-use std::str::FromStr;
+use std::str::FromStr as _;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -44,8 +44,9 @@ impl ContextProvider for JsonTaskProvider {
         let Some(file) = project::File::from_dyn(file).cloned() else {
             return Task::ready(None);
         };
-        let is_package_json = file.path.ends_with(RelPath::from_unix_str("package.json").unwrap());
-        let is_composer_json = file.path.ends_with(RelPath::from_unix_str("composer.json").unwrap());
+        let is_package_json = file.path.ends_with(RelPath::from_unix_str("package.json").expect("valid relative path"));
+        let is_composer_json =
+            file.path.ends_with(RelPath::from_unix_str("composer.json").expect("valid relative path"));
         if !is_package_json && !is_composer_json {
             return Task::ready(None);
         }
@@ -243,7 +244,7 @@ fn unquote_filter_texts(items: &mut [lsp::CompletionItem]) {
 /// Settings for JSON and JSONC.
 pub(crate) fn settings() -> LanguageSettings {
     LanguageSettings {
-        tab_size: NonZeroU32::new(2).unwrap(),
+        tab_size: NonZeroU32::new(2).expect("non-zero"),
         hard_tabs: false,
         soft_wrap: false,
         preferred_line_length: 120,
@@ -266,8 +267,8 @@ pub(crate) fn languages(registry: Arc<LanguageRegistry>, biome: Arc<dyn LspAdapt
     vec![
         LanguageDef {
             grammar: Some(tree_sitter_json::LANGUAGE.into()),
-            adapters: vec![adapter.clone(), biome.clone()],
-            context: Some(context.clone()),
+            adapters: vec![Arc::clone(&adapter), Arc::clone(&biome)],
+            context: Some(Arc::clone(&context)),
             ..LanguageDef::new("json", settings())
         },
         LanguageDef {

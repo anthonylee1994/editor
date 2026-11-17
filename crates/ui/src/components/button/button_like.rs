@@ -17,7 +17,7 @@ use smallvec::SmallVec;
 
 use crate::DynamicSpacing;
 use crate::ElevationIndex;
-use crate::prelude::ActiveTheme;
+use crate::prelude::ActiveTheme as _;
 use crate::prelude::App;
 use crate::prelude::Clickable;
 use crate::prelude::Color;
@@ -25,16 +25,16 @@ use crate::prelude::Disableable;
 use crate::prelude::Div;
 use crate::prelude::ElementId;
 use crate::prelude::FixedWidth;
-use crate::prelude::FluentBuilder;
-use crate::prelude::InteractiveElement;
+use crate::prelude::FluentBuilder as _;
+use crate::prelude::InteractiveElement as _;
 use crate::prelude::IntoElement;
 use crate::prelude::ParentElement;
 use crate::prelude::RenderOnce;
 use crate::prelude::SharedString;
-use crate::prelude::StatefulInteractiveElement;
-use crate::prelude::Styled;
-use crate::prelude::StyledExt;
-use crate::prelude::StyledTypography;
+use crate::prelude::StatefulInteractiveElement as _;
+use crate::prelude::Styled as _;
+use crate::prelude::StyledExt as _;
+use crate::prelude::StyledTypography as _;
 use crate::prelude::Toggleable;
 use crate::prelude::VisibleOnHover;
 use crate::prelude::Window;
@@ -188,13 +188,13 @@ pub enum ButtonStyle {
 /// Rounding for a button that may have straight edges.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 pub(crate) struct ButtonLikeRounding {
-    /// Top-left corner rounding
+    /// Top-left corner rounding.
     pub top_left: bool,
-    /// Top-right corner rounding
+    /// Top-right corner rounding.
     pub top_right: bool,
-    /// Bottom-right corner rounding
+    /// Bottom-right corner rounding.
     pub bottom_right: bool,
-    /// Bottom-left corner rounding
+    /// Bottom-left corner rounding.
     pub bottom_left: bool,
 }
 

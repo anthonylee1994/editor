@@ -410,7 +410,7 @@ impl Anchor {
         self.text_anchor().map(|a| a.opaque_id())
     }
 
-    /// Note: anchor_to_buffer_anchor is probably what you want
+    /// Note: anchor_to_buffer_anchor is probably what you want.
     pub const fn raw_text_anchor(&self) -> Option<text::Anchor> {
         match self {
             Anchor::Min | Anchor::Max => None,

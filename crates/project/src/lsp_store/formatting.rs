@@ -10,9 +10,9 @@ use std::vec;
 use anyhow::Context as _;
 use anyhow::Result;
 use async_macos::command;
-use futures::AsyncWriteExt;
+use futures::AsyncWriteExt as _;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::AsyncApp;
 use gpui::Context;
 use gpui::Entity;
@@ -22,8 +22,8 @@ use itertools::Itertools as _;
 use language::Buffer;
 use language::CachedLspAdapter;
 use language::Diff;
-use language::LocalFile;
-use language::ToOffset;
+use language::LocalFile as _;
+use language::ToOffset as _;
 use language::ToPointUtf16;
 use language::Transaction;
 use language::language_settings::Formatter;
@@ -45,7 +45,7 @@ use rustc_hash::FxHashSet;
 use text::Anchor;
 use text::BufferId;
 use text::LineEnding;
-use text::OffsetRangeExt;
+use text::OffsetRangeExt as _;
 use text::ToPoint as _;
 use util::defer;
 use worktree::File;
@@ -57,13 +57,13 @@ use super::capabilities::lsp_ranges_conflict;
 use super::capabilities::lsp_ranges_overlap;
 use super::capabilities::text_document_capabilities_for_buffer;
 use crate::CodeAction;
-use crate::ProjectItem;
+use crate::ProjectItem as _;
 use crate::ProjectTransaction;
 use crate::biome;
+use crate::lsp_command;
 use crate::lsp_command::GetCodeActions;
 use crate::lsp_command::OnTypeFormatting;
 use crate::lsp_command::file_path_to_lsp_url;
-use crate::lsp_command::{self};
 
 pub enum LspFormatTarget {
     Buffers,
@@ -224,7 +224,7 @@ impl LocalLspStore {
                         lsp_store
                             .local
                             .language_servers_for_buffer(buffer, cx)
-                            .map(|(adapter, lsp)| (adapter.clone(), lsp.clone()))
+                            .map(|(adapter, lsp)| (Arc::clone(adapter), Arc::clone(lsp)))
                             .collect::<Vec<_>>()
                     };
                 let settings = LanguageSettings::for_buffer(buffer, cx);

@@ -13,7 +13,7 @@ pub type DocumentColorClientCapabilities = DynamicRegistrationClientCapabilities
 
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ColorProviderOptions {}
+pub struct ColorProviderOptions;
 
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -55,7 +55,7 @@ impl From<bool> for ColorProviderCapability {
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentColorParams {
-    /// The text document
+    /// The text document.
     pub text_document: TextDocumentIdentifier,
 
     #[serde(flatten)]

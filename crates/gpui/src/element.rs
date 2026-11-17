@@ -32,9 +32,9 @@
 //! your own custom layout algorithm or rendering a code editor.
 
 use std::any::Any;
+use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Display;
-use std::fmt::{self};
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::iter;
@@ -121,7 +121,7 @@ pub trait Element: 'static + IntoElement {
 /// Implemented by any type that can be converted into an element.
 pub trait IntoElement: Sized {
     /// The specific type of element into which the implementing type is converted.
-    /// Useful for converting other types into elements automatically, like Strings
+    /// Useful for converting other types into elements automatically, like Strings.
     type Element: Element;
 
     /// Convert self into a type that implements [`Element`].
@@ -161,7 +161,7 @@ pub trait RenderOnce: 'static {
 }
 
 /// This is a helper trait to provide a uniform interface for constructing elements that
-/// can accept any number of any kind of child elements
+/// can accept any number of any kind of child elements.
 pub trait ParentElement {
     /// Extend this element's children with the given child elements.
     fn extend(&mut self, elements: impl IntoIterator<Item = AnyElement>);
@@ -205,8 +205,8 @@ pub(crate) const EMPTY_PATH_HASH: u64 = 0;
 
 /// The hash of the path `prefix` + `id`, given the hash of `prefix`.
 pub(crate) fn extend_path_hash(prefix: u64, id: &ElementId) -> u64 {
-    use std::hash::Hash;
-    use std::hash::Hasher;
+    use std::hash::Hash as _;
+    use std::hash::Hasher as _;
     let mut hasher = rustc_hash::FxHasher::with_seed(prefix as usize);
     id.hash(&mut hasher);
     hasher.finish()

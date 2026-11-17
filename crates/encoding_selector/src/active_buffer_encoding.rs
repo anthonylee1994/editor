@@ -4,16 +4,16 @@ use encoding_rs::UTF_8;
 use gpui::Context;
 use gpui::Entity;
 use gpui::IntoElement;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Render;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Subscription;
 use gpui::WeakEntity;
 use gpui::Window;
 use gpui::div;
 use ui::Button;
-use ui::ButtonCommon;
-use ui::Clickable;
+use ui::ButtonCommon as _;
+use ui::Clickable as _;
 use ui::LabelSize;
 use ui::Tooltip;
 use workspace::StatusItemView;
@@ -68,7 +68,7 @@ impl Render for ActiveBufferEncoding {
             return div().hidden();
         }
 
-        let mut text = active_encoding.name().to_string();
+        let mut text = active_encoding.name().to_owned();
         if self.has_bom {
             text.push_str(" (BOM)");
         }
@@ -79,7 +79,7 @@ impl Render for ActiveBufferEncoding {
         div().child(
             Button::new("change-encoding", text)
                 .label_size(LabelSize::Small)
-                .tab_index(0isize)
+                .tab_index(0_isize)
                 .on_click(cx.listener(move |this, _, window, cx| {
                     if disabled {
                         return;
@@ -135,7 +135,7 @@ mod tests {
     use super::is_non_standard_encoding;
 
     #[test]
-    fn test_is_non_standard_encoding() {
+    fn is_non_standard_encoding_works() {
         assert!(!is_non_standard_encoding(UTF_8, false));
         assert!(is_non_standard_encoding(UTF_8, true));
         assert!(is_non_standard_encoding(UTF_16LE, false));

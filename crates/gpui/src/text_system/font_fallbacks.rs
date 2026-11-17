@@ -9,12 +9,12 @@ use serde::Serialize;
 pub struct FontFallbacks(pub Arc<Vec<String>>);
 
 impl FontFallbacks {
-    /// Get the fallback fonts family names
+    /// Get the fallback fonts family names.
     pub fn fallback_list(&self) -> &[String] {
         self.0.as_slice()
     }
 
-    /// Create a font fallback from a list of strings
+    /// Create a font fallback from a list of strings.
     pub fn from_fonts(fonts: Vec<String>) -> Self {
         FontFallbacks(Arc::new(fonts))
     }

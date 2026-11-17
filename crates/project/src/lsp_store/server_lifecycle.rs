@@ -17,13 +17,13 @@ use async_macos::command;
 use async_trait::async_trait;
 use fs::Fs;
 use futures::Future;
-use futures::FutureExt;
-use futures::StreamExt;
+use futures::FutureExt as _;
+use futures::StreamExt as _;
 use futures::future::Shared;
 use futures::future::join_all;
 use futures::select;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::AsyncApp;
 use gpui::Context;
 use gpui::Entity;
@@ -41,7 +41,7 @@ use language::File as _;
 use language::LanguageName;
 use language::LanguageRegistry;
 use language::LanguageServerStatusUpdate;
-use language::LocalFile;
+use language::LocalFile as _;
 use language::LspAdapter;
 use language::LspAdapterDelegate;
 use language::ServerNotInstalled;
@@ -166,7 +166,14 @@ impl LocalLspAdapterDelegate {
     }
 
     pub fn from_local_lsp(local: &LocalLspStore, worktree: &Entity<Worktree>, cx: &mut App) -> Arc<Self> {
-        Self::new(local.languages.clone(), &local.environment, local.weak.clone(), worktree, local.fs.clone(), cx)
+        Self::new(
+            Arc::clone(&local.languages),
+            &local.environment,
+            local.weak.clone(),
+            worktree,
+            Arc::clone(&local.fs),
+            cx,
+        )
     }
 }
 
@@ -236,7 +243,7 @@ impl LspAdapterDelegate for LocalLspAdapterDelegate {
         self.language_registry
             .all_lsp_adapters()
             .into_iter()
-            .map(|adapter| adapter.adapter.clone() as Arc<dyn LspAdapter>)
+            .map(|adapter| Arc::clone(&adapter.adapter) as Arc<dyn LspAdapter>)
             .sorted_by_key(|adapter| adapter.name())
             .collect()
     }
@@ -286,7 +293,7 @@ impl LocalLspStore {
             self.language_server_start_overrides.insert(key.name.clone(), true);
         }
         if let Some(state) = self.language_server_ids.get_mut(&key) {
-            state.project_roots.insert(disposition.path.path.clone());
+            state.project_roots.insert(Arc::clone(&disposition.path.path));
             Some(state.id)
         } else {
             if start_mode == LanguageServerStartMode::Automatic && !self.can_start_language_server(&key.name) {
@@ -301,7 +308,7 @@ impl LocalLspStore {
             let new_language_server_id =
                 self.start_language_server(worktree_handle, delegate, adapter, key.clone(), language_name.clone(), cx);
             if let Some(state) = self.language_server_ids.get_mut(&key) {
-                state.project_roots.insert(disposition.path.path.clone());
+                state.project_roots.insert(Arc::clone(&disposition.path.path));
             }
             Some(new_language_server_id)
         }
@@ -332,14 +339,15 @@ impl LocalLspStore {
             adapter.name.0
         );
 
-        let binary = self.get_language_server_binary(adapter.clone(), delegate.clone(), cx);
+        let binary =
+            self.get_language_server_binary(Arc::clone(&adapter), Arc::<LocalLspAdapterDelegate>::clone(&delegate), cx);
         let pending_workspace_folders = Arc::<Mutex<BTreeSet<Uri>>>::default();
 
         let pending_server = cx.spawn({
-            let adapter = adapter.clone();
+            let adapter = Arc::clone(&adapter);
             let server_name = adapter.name.clone();
-            let stderr_capture = stderr_capture.clone();
-            let pending_workspace_folders = pending_workspace_folders.clone();
+            let stderr_capture = Arc::clone(&stderr_capture);
+            let pending_workspace_folders = Arc::clone(&pending_workspace_folders);
             async move |cx| {
                 let binary = binary.await?;
 
@@ -361,18 +369,19 @@ impl LocalLspStore {
             let server_name = adapter.name.0.clone();
             let delegate = delegate as Arc<dyn LspAdapterDelegate>;
             let key = key.clone();
-            let adapter = adapter.clone();
+            let adapter = Arc::clone(&adapter);
             let lsp_store = self.weak.clone();
-            let pending_workspace_folders = pending_workspace_folders.clone();
+            let pending_workspace_folders = Arc::clone(&pending_workspace_folders);
             cx.spawn(async move |cx| {
                 let result = async {
                     let language_server = pending_server.await?;
 
                     let workspace_config =
-                        Self::workspace_configuration_for_adapter(adapter.adapter.clone(), &delegate, None, cx).await?;
+                        Self::workspace_configuration_for_adapter(Arc::clone(&adapter.adapter), &delegate, None, cx)
+                            .await?;
 
                     let initialization_options =
-                        Self::initialization_options_for_adapter(adapter.adapter.clone(), &delegate, cx).await?;
+                        Self::initialization_options_for_adapter(Arc::clone(&adapter.adapter), &delegate, cx).await?;
 
                     let initialization_params = cx.update(|cx| {
                         let mut params = language_server.default_initialize_params();
@@ -380,7 +389,12 @@ impl LocalLspStore {
                         adapter.adapter.prepare_initialize_params(params, cx)
                     })?;
 
-                    Self::setup_lsp_messages(lsp_store.clone(), &language_server, delegate.clone(), adapter.clone());
+                    Self::setup_lsp_messages(
+                        lsp_store.clone(),
+                        &language_server,
+                        Arc::clone(&delegate),
+                        Arc::clone(&adapter),
+                    );
 
                     let did_change_configuration_params =
                         lsp::DidChangeConfigurationParams { settings: workspace_config };
@@ -417,7 +431,7 @@ impl LocalLspStore {
                             .update(cx, |lsp_store, cx| {
                                 lsp_store.insert_newly_running_language_server(
                                     adapter,
-                                    server.clone(),
+                                    Arc::clone(&server),
                                     server_id,
                                     key,
                                     language_name,
@@ -500,10 +514,10 @@ impl LocalLspStore {
         let server_id = language_server.server_id();
         language_server
             .on_notification::<PublishDiagnostics, _>({
-                let adapter = adapter.clone();
+                let adapter = Arc::clone(&adapter);
                 let this = lsp_store.clone();
                 move |mut params, cx| {
-                    let adapter = adapter.clone();
+                    let adapter = Arc::clone(&adapter);
                     if let Some(this) = this.upgrade() {
                         this.update(cx, |this, cx| {
                             adapter.process_diagnostics(&mut params, server_id);
@@ -528,11 +542,11 @@ impl LocalLspStore {
             .detach();
         language_server
             .on_request::<WorkspaceConfiguration, _, _>({
-                let adapter = adapter.adapter.clone();
-                let delegate = delegate.clone();
+                let adapter = Arc::clone(&adapter.adapter);
+                let delegate = Arc::clone(&delegate);
                 move |params, cx| {
-                    let adapter = adapter.clone();
-                    let delegate = delegate.clone();
+                    let adapter = Arc::clone(&adapter);
+                    let delegate = Arc::clone(&delegate);
                     let mut cx = cx.clone();
                     async move {
                         let mut scope_uri_to_workspace_config = BTreeMap::new();
@@ -545,7 +559,7 @@ impl LocalLspStore {
                                 continue;
                             };
                             let workspace_config = Self::workspace_configuration_for_adapter(
-                                adapter.clone(),
+                                Arc::clone(&adapter),
                                 &delegate,
                                 scope_uri,
                                 &mut cx,
@@ -736,11 +750,11 @@ impl LocalLspStore {
             .on_request::<ShowMessageRequest, _, _>({
                 let lsp_store = lsp_store.clone();
                 let name = name.to_string();
-                let adapter = adapter.clone();
+                let adapter = Arc::clone(&adapter);
                 move |params, cx| {
                     let lsp_store = lsp_store.clone();
                     let name = name.clone();
-                    let adapter = adapter.clone();
+                    let adapter = Arc::clone(&adapter);
                     let mut cx = cx.clone();
                     async move {
                         let actions = params.actions.unwrap_or_default();
@@ -812,9 +826,10 @@ impl LocalLspStore {
                     };
                     let request = LanguageServerPromptRequest::new(level, params.message, vec![], name, tx);
 
-                    let _ = this.update(&mut cx, |_, cx| {
+                    this.update(&mut cx, |_, cx| {
                         cx.emit(LspStoreEvent::LanguageServerPrompt(request));
-                    });
+                    })
+                    .ok();
                 }
             })
             .detach();
@@ -907,14 +922,13 @@ impl LocalLspStore {
         delegate: &Arc<dyn LspAdapterDelegate>,
         cx: &mut AsyncApp,
     ) -> Result<Option<serde_json::Value>> {
-        let mut initialization_config = adapter.clone().initialization_options(delegate, cx).await?;
+        let mut initialization_config = Arc::clone(&adapter).initialization_options(delegate, cx).await?;
 
         for other_adapter in delegate.registered_lsp_adapters() {
             if other_adapter.name() == adapter.name() {
                 continue;
             }
-            if let Some(target_config) = other_adapter
-                .clone()
+            if let Some(target_config) = Arc::clone(&other_adapter)
                 .additional_initialization_options(adapter.name(), delegate)
                 .await
                 .with_context(|| {
@@ -943,14 +957,13 @@ impl LocalLspStore {
         requested_uri: Option<Uri>,
         cx: &mut AsyncApp,
     ) -> Result<serde_json::Value> {
-        let mut workspace_config = adapter.clone().workspace_configuration(delegate, requested_uri, cx).await?;
+        let mut workspace_config = Arc::clone(&adapter).workspace_configuration(delegate, requested_uri, cx).await?;
 
         for other_adapter in delegate.registered_lsp_adapters() {
             if other_adapter.name() == adapter.name() {
                 continue;
             }
-            if let Some(target_config) = other_adapter
-                .clone()
+            if let Some(target_config) = Arc::clone(&other_adapter)
                 .additional_workspace_configuration(adapter.name(), delegate, cx)
                 .await
                 .with_context(|| {
@@ -977,19 +990,19 @@ impl LspStore {
         let local = &mut self.local;
         let mut adapters = BTreeMap::default();
         let get_adapter = {
-            let languages = local.languages.clone();
+            let languages = Arc::clone(&local.languages);
             let environment = local.environment.clone();
             let weak = local.weak.clone();
             let worktree_store = local.worktree_store.clone();
-            let fs = local.fs.clone();
+            let fs = Arc::clone(&local.fs);
             move |worktree_id, cx: &mut App| {
                 let worktree = worktree_store.read(cx).worktree_for_id(worktree_id, cx)?;
                 Some(LocalLspAdapterDelegate::new(
-                    languages.clone(),
+                    Arc::clone(&languages),
                     &environment,
                     weak.clone(),
                     &worktree,
-                    fs.clone(),
+                    Arc::clone(&fs),
                     cx,
                 ))
             }
@@ -1025,7 +1038,7 @@ impl LspStore {
                     adapters.entry(worktree_id).or_insert_with(|| get_adapter(worktree_id, cx)).clone()
                 {
                     let delegate = Arc::new(ManifestQueryDelegate::new(worktree.read(cx).snapshot()));
-                    let path = file.path().parent().map_or_else(|| file.path().clone(), Arc::from);
+                    let path = file.path().parent().map_or_else(|| Arc::clone(file.path()), Arc::from);
                     let worktree_path = ProjectPath { worktree_id, path };
                     let abs_path = file.abs_path(cx);
                     let nodes = rebase
@@ -1042,7 +1055,7 @@ impl LspStore {
 
                             let server_id = local.get_or_insert_language_server(
                                 &worktree,
-                                lsp_delegate.clone(),
+                                Arc::clone(&lsp_delegate),
                                 disposition,
                                 &language.name(),
                                 LanguageServerStartMode::Automatic,
@@ -1092,11 +1105,11 @@ impl LspStore {
                             let worktree = lsp_store.worktree_store.read(cx).worktree_for_id(seed.worktree_id, cx);
                             let delegate: Arc<dyn LspAdapterDelegate> = worktree.map(|worktree| {
                                 LocalLspAdapterDelegate::new(
-                                    local.languages.clone(),
+                                    Arc::clone(&local.languages),
                                     &local.environment,
                                     cx.weak_entity(),
                                     &worktree,
-                                    local.fs.clone(),
+                                    Arc::clone(&local.fs),
                                     cx,
                                 )
                             })?;
@@ -1107,12 +1120,12 @@ impl LspStore {
                             match states {
                                 LanguageServerState::Starting { .. } => None,
                                 LanguageServerState::Running { adapter, server, .. } => {
-                                    let adapter = adapter.clone();
-                                    let server = server.clone();
+                                    let adapter = Arc::clone(adapter);
+                                    let server = Arc::clone(server);
                                     refreshed_servers.insert(server.name());
                                     Some(cx.spawn(async move |_, cx| {
                                         let settings = LocalLspStore::workspace_configuration_for_adapter(
-                                            adapter.adapter.clone(),
+                                            Arc::clone(&adapter.adapter),
                                             &delegate,
                                             None,
                                             cx,
@@ -1398,7 +1411,7 @@ impl LspStore {
         for (worktree_id, summaries) in &mut self.diagnostic_summaries {
             summaries.retain(|path, summaries_by_server_id| {
                 if summaries_by_server_id.remove(&server_id).is_some() {
-                    cleared_paths.push(ProjectPath { worktree_id: *worktree_id, path: path.clone() });
+                    cleared_paths.push(ProjectPath { worktree_id: *worktree_id, path: Arc::clone(path) });
                     !summaries_by_server_id.is_empty()
                 } else {
                     true
@@ -1656,7 +1669,7 @@ impl LspStore {
             .clone()
             .and_then(|provider| {
                 let workspace_refresher =
-                    lsp_workspace_diagnostics_refresh(None, provider, language_server.clone(), cx)?;
+                    lsp_workspace_diagnostics_refresh(None, provider, Arc::clone(&language_server), cx)?;
 
                 Some((None, workspace_refresher))
             })
@@ -1666,8 +1679,8 @@ impl LspStore {
             server_id,
             LanguageServerState::Running {
                 workspace_diagnostics_refresh_tasks,
-                adapter: adapter.clone(),
-                server: language_server.clone(),
+                adapter: Arc::clone(&adapter),
+                server: Arc::clone(&language_server),
                 simulate_disk_based_diagnostics_completion: None,
             },
         );
@@ -1767,7 +1780,7 @@ impl LspStore {
                         .and_modify(|_| panic!("There should not be an existing snapshot for a newly inserted buffer"))
                         .or_insert_with(|| vec![LspBufferSnapshot { version: 0, snapshot: buffer.text_snapshot() }]);
 
-                    let snapshot = versions.last().unwrap();
+                    let snapshot = versions.last().expect("snapshot versions are never empty");
                     let version = snapshot.version;
                     let initial_snapshot = &snapshot.snapshot;
                     language_server.register_buffer(

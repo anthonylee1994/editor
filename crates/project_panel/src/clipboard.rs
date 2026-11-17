@@ -16,10 +16,10 @@ use gpui::Window;
 use project::Entry;
 use project::ProjectPath;
 use project::Worktree;
-use util::ResultExt;
+use util::ResultExt as _;
 use util::rel_path::RelPath;
 use workspace::SelectedEntry;
-use workspace::notifications::NotifyResultExt;
+use workspace::notifications::NotifyResultExt as _;
 use worktree::CreatedEntry;
 
 use super::ClipboardEntry;
@@ -65,11 +65,11 @@ impl ProjectPanel {
         let source_worktree = self.project.read(cx).worktree_for_entry(source.entry_id, cx)?;
         let source_entry = source_worktree.read(cx).entry_for_id(source.entry_id)?;
 
-        let source_file_name = source_entry.path.file_name()?.to_string();
-        new_path.push(RelPath::from_unix_str(&source_file_name).unwrap());
+        let source_file_name = source_entry.path.file_name()?.to_owned();
+        new_path.push(RelPath::from_unix_str(&source_file_name).expect("file name is a valid relative path"));
 
         let (extension, file_name_without_extension) = if source_entry.is_file() {
-            (new_path.extension().map(ToString::to_string), new_path.file_stem()?.to_string())
+            (new_path.extension().map(str::to_owned), new_path.file_stem()?.to_owned())
         } else {
             (None, source_file_name)
         };
@@ -99,7 +99,7 @@ impl ProjectPanel {
                     new_file_name.push_str(extension);
                 }
 
-                new_path.push(RelPath::from_unix_str(&new_file_name).unwrap());
+                new_path.push(RelPath::from_unix_str(&new_file_name).expect("file name is a valid relative path"));
 
                 disambiguation_range = Some(0..(file_name_len + disambiguation_len));
                 ix += 1;

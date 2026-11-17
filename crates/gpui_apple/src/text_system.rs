@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 use std::char;
-use std::convert::TryFrom;
+use std::convert::TryFrom as _;
 use std::ffi::c_void;
 use std::ptr;
 use std::ptr::NonNull;
@@ -426,8 +426,8 @@ impl AppleTextSystemState {
     fn layout_line(&mut self, text: &str, font_size: Pixels, font_runs: &[FontRun]) -> LineLayout {
         // Construct the attributed string, converting UTF8 ranges to UTF16 ranges.
         let string = CFMutableAttributedString::new(None, 0).expect("failed to create an attributed string");
-        let mut max_ascent = 0.0f32;
-        let mut max_descent = 0.0f32;
+        let mut max_ascent = 0.0_f32;
+        let mut max_descent = 0.0_f32;
 
         {
             let mut text = text;
@@ -496,7 +496,7 @@ impl AppleTextSystemState {
                 Some(run) if run.font_id == font_id => &mut run.glyphs,
                 _ => {
                     runs.push(ShapedRun { font_id, glyphs: Vec::with_capacity(glyph_count) });
-                    &mut runs.last_mut().unwrap().glyphs
+                    &mut runs.last_mut().expect("run was just pushed").glyphs
                 }
             };
             let run_glyphs = unsafe { run_values(&run, glyph_count, CTRun::glyphs_ptr, CTRun::glyphs) };
@@ -506,7 +506,7 @@ impl AppleTextSystemState {
             for ((&glyph_id, position), &glyph_utf16_ix) in
                 run_glyphs.iter().zip(run_positions.iter()).zip(run_string_indices.iter())
             {
-                let glyph_utf16_ix = usize::try_from(glyph_utf16_ix).unwrap();
+                let glyph_utf16_ix = usize::try_from(glyph_utf16_ix).expect("glyph index is non-negative");
                 if ix_converter.utf16_ix > glyph_utf16_ix {
                     // We cannot reuse current index converter, as it can only seek forward. Restart the search.
                     ix_converter = StringIndexConverter::new(text);
@@ -535,9 +535,9 @@ impl AppleTextSystemState {
 #[derive(Debug, Clone)]
 struct StringIndexConverter<'a> {
     text: &'a str,
-    /// Index in UTF-8 bytes
+    /// Index in UTF-8 bytes.
     utf8_ix: usize,
-    /// Index in UTF-16 code units
+    /// Index in UTF-16 code units.
     utf16_ix: usize,
 }
 
@@ -578,7 +578,9 @@ unsafe fn run_values<T: Copy + Default>(
     let mut values = vec![T::default(); count];
     if let Some(buffer) = NonNull::new(values.as_mut_ptr()) {
         // A zero-length range copies the whole run.
-        unsafe { copy(run, CFRange::new(0, 0), buffer) };
+        unsafe {
+            copy(run, CFRange::new(0, 0), buffer);
+        }
     }
     Cow::Owned(values)
 }

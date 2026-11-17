@@ -11,22 +11,22 @@ use gpui::Keystroke;
 use gpui::MouseButton;
 use gpui::Render;
 use gpui::Subscription;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use serde_json::json;
 use ui::Button;
-use ui::ButtonCommon;
+use ui::ButtonCommon as _;
 use ui::ButtonStyle;
-use ui::Clickable;
+use ui::Clickable as _;
 use ui::Context;
-use ui::FluentBuilder;
-use ui::InteractiveElement;
+use ui::FluentBuilder as _;
+use ui::InteractiveElement as _;
 use ui::Label;
-use ui::LabelCommon;
+use ui::LabelCommon as _;
 use ui::LabelSize;
-use ui::ParentElement;
+use ui::ParentElement as _;
 use ui::SharedString;
-use ui::StatefulInteractiveElement;
-use ui::Styled;
+use ui::StatefulInteractiveElement as _;
+use ui::Styled as _;
 use ui::Window;
 use ui::div;
 use ui::h_flex;
@@ -113,16 +113,7 @@ impl KeyContextView {
             _subscriptions: [sub1, sub2],
         }
     }
-}
 
-impl EventEmitter<()> for KeyContextView {}
-
-impl Focusable for KeyContextView {
-    fn focus_handle(&self, _: &App) -> gpui::FocusHandle {
-        self.focus_handle.clone()
-    }
-}
-impl KeyContextView {
     fn set_context_stack(&mut self, stack: Vec<KeyContext>, cx: &mut Context<Self>) {
         self.context_stack = stack;
         cx.notify();
@@ -134,6 +125,14 @@ impl KeyContextView {
 
     fn action_matches(&self, a: Option<&dyn Action>, b: &dyn Action) -> bool {
         if let Some(last_action) = a { last_action.partial_eq(b) } else { b.name() == "ed::NoAction" }
+    }
+}
+
+impl EventEmitter<()> for KeyContextView {}
+
+impl Focusable for KeyContextView {
+    fn focus_handle(&self, _: &App) -> gpui::FocusHandle {
+        self.focus_handle.clone()
     }
 }
 
@@ -149,7 +148,7 @@ impl Item for KeyContextView {
 
 impl Render for KeyContextView {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl ui::IntoElement {
-        use itertools::Itertools;
+        use itertools::Itertools as _;
 
         let key_equivalents = cx.keyboard_mapper().get_key_equivalents();
         v_flex()

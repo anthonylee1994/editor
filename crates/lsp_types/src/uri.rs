@@ -113,7 +113,7 @@ impl Display for Uri {
 mod tests {
     use std::collections::HashMap;
 
-    use super::FromStr;
+    use super::FromStr as _;
     use super::Uri;
     use crate::Location;
     use crate::Position;
@@ -129,7 +129,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_str_and_deserialize_consistency() {
+    fn from_str_and_deserialize_consistency() {
         let test_cases = vec![
             "file:///Users/test/[slug].tsx",
             "file:///Users/test/blog/[id]/[slug].tsx",
@@ -162,7 +162,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bracket_percent_encoding_issue() {
+    fn bracket_percent_encoding_issue() {
         // This demonstrates the actual issue: brackets should be percent-encoded in URIs for LSP
         let file_path_with_brackets = "file:///Users/test/blog/[slug].tsx";
 
@@ -182,7 +182,7 @@ mod tests {
     }
 
     #[test]
-    fn test_uri_behavior_with_brackets() {
+    fn uri_behavior_with_brackets() {
         // Test how the Uri handles different ways of creating URIs with brackets
 
         // Method 1: Parse a string with unencoded brackets
@@ -204,7 +204,7 @@ mod tests {
     }
 
     #[test]
-    fn test_uri_with_brackets_serialization() {
+    fn uri_with_brackets_serialization() {
         // Create a URI with brackets like Fresh framework uses: [slug].tsx
         let file_path = "file:///Users/test/project/routes/blog/[slug].tsx";
         let uri = Uri::from_str(file_path).expect("Should parse URI with brackets");
@@ -237,16 +237,14 @@ mod tests {
     }
 
     #[test]
-    fn test_workspace_edit_with_bracket_uris() {
+    fn workspace_edit_with_bracket_uris() {
         // Test WorkspaceEdit which uses the custom url_map serializer
         let file_path = "file:///Users/test/project/routes/blog/[slug].tsx";
         let uri = Uri::from_str(file_path).expect("Should parse URI with brackets");
 
         let mut changes = HashMap::new();
-        changes.insert(
-            uri,
-            vec![TextEdit::new(Range::new(Position::new(0, 0), Position::new(0, 5)), "Hello".to_string())],
-        );
+        changes
+            .insert(uri, vec![TextEdit::new(Range::new(Position::new(0, 0), Position::new(0, 5)), "Hello".to_owned())]);
 
         let workspace_edit = WorkspaceEdit::new(changes);
         let serialized = serde_json::to_string(&workspace_edit).expect("Should serialize WorkspaceEdit");
@@ -271,7 +269,7 @@ mod tests {
     }
 
     #[test]
-    fn test_uri_serialization_roundtrip() {
+    fn uri_serialization_roundtrip() {
         let test_cases = vec![
             "file:///Users/test/[slug].tsx",
             "file:///Users/test/blog/[id]/[slug].tsx",
@@ -313,7 +311,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_file_path() {
+    fn from_file_path_works() {
         // Test basic file path conversion
         let uri = Uri::from_file_path("/Users/test/file.txt").expect("Should convert file path");
         assert_eq!(uri.scheme(), "file");
@@ -322,7 +320,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_file_path_with_brackets() {
+    fn from_file_path_with_brackets() {
         use std::path::Path;
 
         // Test file path with brackets
@@ -341,7 +339,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_file_path_consistency_with_from_str() {
+    fn from_file_path_consistency_with_from_str() {
         use std::path::Path;
 
         let test_paths = vec!["/Users/test/file.txt", "/Users/test/[slug].tsx", "/Users/test/blog/[id]/[slug].tsx"];
@@ -370,7 +368,7 @@ mod tests {
     }
 
     #[test]
-    fn test_display_shows_original_url() {
+    fn display_shows_original_url() {
         // Test that Display shows the original URL without bracket encoding
         let test_cases = vec![
             ("file:///Users/test/[slug].tsx", "[slug].tsx"),
@@ -401,7 +399,7 @@ mod tests {
     }
 
     #[test]
-    fn test_display_vs_serialization() {
+    fn display_vs_serialization() {
         // Test the difference between Display (original URL) and serialization (encoded brackets)
         let uri_str = "file:///Users/test/[slug].tsx";
         let uri = Uri::from_str(uri_str).expect("Should parse URI");

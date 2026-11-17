@@ -230,7 +230,7 @@ pub(crate) fn layout_c4(db: &C4Db, size: f64, small: f64) -> Layout {
     let mut order: Vec<usize> = vec![0];
     let mut i = 0;
     while let Some(&at) = order.get(i) {
-        order.extend_from_slice(groups.get(at).map_or(&[][..], |g| &g.kids[..]));
+        order.extend_from_slice(groups.get(at).map_or(&[][..], |g| &*g.kids));
         i += 1;
     }
     for (index, shape) in db.shapes.iter().enumerate() {

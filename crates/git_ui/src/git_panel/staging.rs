@@ -4,7 +4,7 @@ use git::StageAll;
 use git::UnstageAll;
 use git::repository::RepoPath;
 use git::status::StageStatus;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use project::git_store::Repository;
 use project::git_store::RepositoryId;
 use ui::prelude::App;
@@ -205,7 +205,7 @@ impl GitPanel {
         };
 
         let show_placeholders = self.show_placeholders && !self.has_staged_changes();
-        let mut fully_staged_count = 0usize;
+        let mut fully_staged_count = 0_usize;
         let mut any_staged_or_partially_staged = false;
 
         for descendant in descendants {

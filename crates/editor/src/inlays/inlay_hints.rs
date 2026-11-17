@@ -12,8 +12,8 @@ use gpui::App;
 use gpui::Entity;
 use gpui::Pixels;
 use gpui::Task;
-use gpui::TaskExt;
-use itertools::Itertools;
+use gpui::TaskExt as _;
+use itertools::Itertools as _;
 use language::BufferRow;
 use language::BufferSnapshot;
 use language::language_settings::InlayHintKind;
@@ -38,7 +38,7 @@ use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use text::Bias;
 use text::BufferId;
-use text::ToOffset;
+use text::ToOffset as _;
 use ui::Context;
 use ui::Window;
 
@@ -54,8 +54,8 @@ use crate::display_map::DisplaySnapshot;
 use crate::hover_links::InlayHighlight;
 use crate::hover_links::TriggerPoint;
 use crate::hover_links::show_link_definition;
+use crate::hover_popover;
 use crate::hover_popover::InlayHover;
-use crate::hover_popover::{self};
 
 #[derive(Debug)]
 pub(crate) struct HoveredInlayHintCommand {
@@ -599,7 +599,7 @@ impl Editor {
                 invalidate_hints_for_buffers.extend(self.buffer().read(cx).all_buffers().into_iter().filter_map(
                     |buffer| {
                         let buffer = buffer.read(cx);
-                        if buffer.language() == Some(&affected_language) { Some(buffer.buffer_id()) } else { None }
+                        (buffer.language() == Some(&affected_language)).then(|| buffer.buffer_id())
                     },
                 ));
 
@@ -923,7 +923,7 @@ impl Editor {
                     .current_inlays()
                     .filter_map(|inlay| {
                         let anchor = inlay.position.raw_text_anchor()?;
-                        if buffers_removed.contains(&anchor.buffer_id) { Some(inlay.id) } else { None }
+                        buffers_removed.contains(&anchor.buffer_id).then_some(inlay.id)
                     })
                     .collect::<Vec<_>>();
                 self.splice_inlays(&to_remove, Vec::new(), cx);
@@ -1285,7 +1285,7 @@ mod tests {
     use super::hint_query_range;
 
     #[test]
-    fn test_hint_query_range() {
+    fn hint_query_range_works() {
         assert_eq!(hint_query_range(10..20, 500, MAX_ROWS_TO_FETCH_WHOLE, true), 0..500);
         assert_eq!(hint_query_range(10..20, 500, MAX_ROWS_TO_FETCH_WHOLE + 1, true), 10..20);
         assert_eq!(hint_query_range(10..20, 500, 5, false), 10..20);

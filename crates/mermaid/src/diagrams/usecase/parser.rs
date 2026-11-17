@@ -838,7 +838,6 @@ impl Parser<'_> {
         Ok(out)
     }
 
-    #[allow(clippy::too_many_lines, reason = "mirrors Pele's topStatement")]
     /// Reads a statement at the top level.
     fn top_statement(&mut self) -> Result<(), Error> {
         let k = self.p;

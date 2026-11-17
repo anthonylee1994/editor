@@ -1,8 +1,8 @@
-use gpui::InteractiveElement;
-use gpui::ParentElement;
-use gpui::Refineable;
-use gpui::Styled;
-use gpui::prelude::FluentBuilder;
+use gpui::InteractiveElement as _;
+use gpui::ParentElement as _;
+use gpui::Refineable as _;
+use gpui::Styled as _;
+use gpui::prelude::FluentBuilder as _;
 use ui::prelude::ElementId;
 use ui::prelude::IntoElement;
 use ui::prelude::ToggleState;
@@ -155,7 +155,7 @@ struct PendingLine {
     runs: Vec<TextRun>,
     source_mappings: Vec<SourceMapping>,
     /// Rendered (not source) indices, so chips hug the glyphs and ignore
-    /// unrendered characters like the surrounding backticks
+    /// unrendered characters like the surrounding backticks.
     code_chips: Vec<(Range<usize>, Hsla)>,
 }
 
@@ -295,7 +295,7 @@ impl MarkdownElementBuilder {
                 }
             }
         });
-        self.div_stack.last_mut().unwrap().line_break_mode = LineBreakMode::FlexWrap;
+        self.div_stack.last_mut().expect("div stack is never empty").line_break_mode = LineBreakMode::FlexWrap;
         self.append_child(child.into_any_element());
     }
 
@@ -317,7 +317,7 @@ impl MarkdownElementBuilder {
     }
 
     fn append_child(&mut self, child: AnyElement) {
-        self.div_stack.last_mut().unwrap().div.extend([child]);
+        self.div_stack.last_mut().expect("div stack is never empty").div.extend([child]);
     }
 
     fn uses_flex_line_breaks(&self) -> bool {
@@ -361,7 +361,7 @@ impl MarkdownElementBuilder {
             self.folded_divs -= 1;
             return;
         }
-        let div = self.div_stack.pop().unwrap().div.into_any_element();
+        let div = self.div_stack.pop().expect("div stack is never empty").div.into_any_element();
         self.append_child(div);
     }
 
@@ -376,11 +376,10 @@ impl MarkdownElementBuilder {
     }
 
     pub(crate) fn next_bullet_index(&mut self) -> Option<u64> {
-        self.list_stack.last_mut().and_then(|entry| {
-            let item_index = entry.bullet_index.as_mut()?;
-            *item_index += 1;
-            Some(*item_index - 1)
-        })
+        let entry = self.list_stack.last_mut()?;
+        let item_index = entry.bullet_index.as_mut()?;
+        *item_index += 1;
+        Some(*item_index - 1)
     }
 
     pub(crate) fn pop_list(&mut self) {
@@ -430,7 +429,7 @@ impl MarkdownElementBuilder {
             && let Some(resolved) = highlights
         {
             let runs = if resolved.is_current() {
-                resolved.runs.clone()
+                Arc::clone(&resolved.runs)
             } else {
                 language.highlight_text_resolved(text, 0..text.len()).runs
             };
@@ -461,7 +460,7 @@ impl MarkdownElementBuilder {
     pub(crate) fn trim_trailing_newline(&mut self) {
         if self.pending_line.text.ends_with('\n') {
             self.pending_line.text.truncate(self.pending_line.text.len() - 1);
-            self.pending_line.runs.last_mut().unwrap().len -= 1;
+            self.pending_line.runs.last_mut().expect("pending line with text has a run").len -= 1;
             self.current_source_index -= 1;
         }
     }
@@ -571,14 +570,14 @@ impl MarkdownElementBuilder {
             highlights,
             code_chips: line.code_chips.into_iter().collect(),
         });
-        self.rendered_lines.push(rendered_line.clone());
+        self.rendered_lines.push(Rc::clone(&rendered_line));
         self.append_child(RenderedLineElement { text, line: rendered_line }.into_any_element());
     }
 
     pub(crate) fn build(mut self) -> RenderedMarkdown {
         self.flush_text();
         RenderedMarkdown {
-            element: self.div_stack.pop().unwrap().div.into_any_element(),
+            element: self.div_stack.pop().expect("div stack is never empty").div.into_any_element(),
             text: RenderedText {
                 lines: self.rendered_lines.into(),
                 links: self.rendered_links.into(),

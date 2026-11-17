@@ -16,7 +16,7 @@ use fuzzy::StringMatchCandidate;
 use gpui::AnyElement;
 use gpui::AppContext as _;
 use gpui::Entity;
-use gpui::Focusable;
+use gpui::Focusable as _;
 use gpui::FontWeight;
 use gpui::HighlightStyle;
 use gpui::ListSizingBehavior;
@@ -27,12 +27,12 @@ use gpui::Size;
 use gpui::StrikethroughStyle;
 use gpui::StyledText;
 use gpui::Task;
-use gpui::TaskExt;
+use gpui::TaskExt as _;
 use gpui::UniformListScrollHandle;
 use gpui::div;
 use gpui::px;
 use gpui::uniform_list;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use language::Buffer;
 use language::CodeLabel;
 use language::LanguageName;
@@ -57,28 +57,28 @@ use ui::ListItem;
 use ui::ListSubHeader;
 use ui::Popover;
 use ui::Tooltip;
-use ui::prelude::ActiveTheme;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::Color;
 use ui::prelude::Context;
 use ui::prelude::Div;
-use ui::prelude::FluentBuilder;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Icon;
 use ui::prelude::IconSize;
-use ui::prelude::InteractiveElement;
-use ui::prelude::IntoElement;
+use ui::prelude::InteractiveElement as _;
+use ui::prelude::IntoElement as _;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
-use ui::prelude::ParentElement;
+use ui::prelude::ParentElement as _;
 use ui::prelude::Pixels;
-use ui::prelude::StatefulInteractiveElement;
-use ui::prelude::Styled;
-use ui::prelude::Toggleable;
+use ui::prelude::StatefulInteractiveElement as _;
+use ui::prelude::Styled as _;
+use ui::prelude::Toggleable as _;
 use ui::prelude::Window;
 use ui::prelude::h_flex;
 use ui::prelude::rems;
 use ui::prelude::rems_from_px;
-use util::ResultExt;
+use util::ResultExt as _;
 
 use crate::CodeActionProvider;
 use crate::CodeActionSource;
@@ -293,33 +293,33 @@ enum MarkdownCacheKey {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum CompletionsMenuSource {
-    /// Show all completions (words, snippets, LSP)
+    /// Show all completions (words, snippets, LSP).
     Normal,
-    /// Show only snippets (not words or LSP)
+    /// Show only snippets (not words or LSP).
     ///
-    /// Used after typing a non-word character
+    /// Used after typing a non-word character.
     SnippetsOnly,
-    /// Tab stops within a snippet that have a predefined finite set of choices
+    /// Tab stops within a snippet that have a predefined finite set of choices.
     SnippetChoices,
-    /// Show only words (not snippets or LSP)
+    /// Show only words (not snippets or LSP).
     ///
-    /// Used when word completions are explicitly triggered
+    /// Used when word completions are explicitly triggered.
     Words { ignore_threshold: bool },
 }
 
 pub struct CompletionMatchResults {
-    /// Fuzzy match result against the filter text
+    /// Fuzzy match result against the filter text.
     filter_matches: Vec<StringMatch>,
-    /// Fuzzy match result against the displayed label
+    /// Fuzzy match result against the displayed label.
     label_matches: Box<[Option<StringMatch>]>,
 }
 
 /// The state for a second fuzzy match against the displayed label, used to
 /// render match highlights when the filter text differs from the label.
 struct LabelMatchState {
-    /// Candidates for the label match
+    /// Candidates for the label match.
     candidates: Arc<[StringMatchCandidate]>,
-    /// Results of the label match
+    /// Results of the label match.
     label_matches: Rc<RefCell<Box<[Option<StringMatch>]>>>,
 }
 
@@ -652,7 +652,7 @@ impl CompletionsMenu {
         }
 
         let resolve_task =
-            provider.resolve_completions(self.buffer.clone(), candidate_ids, self.completions.clone(), cx);
+            provider.resolve_completions(self.buffer.clone(), candidate_ids, Rc::clone(&self.completions), cx);
 
         let completion_id = self.id;
         cx.spawn(async move |editor, cx| {
@@ -845,10 +845,10 @@ impl CompletionsMenu {
         };
 
         let selected_item = self.selected_item;
-        let completions = self.completions.clone();
-        let entries = self.entries.clone();
-        let label_matches = self.label_match_state.label_matches.clone();
-        let last_rendered_range = self.last_rendered_range.clone();
+        let completions = Rc::clone(&self.completions);
+        let entries = Rc::clone(&self.entries);
+        let label_matches = Rc::clone(&self.label_match_state.label_matches);
+        let last_rendered_range = Rc::clone(&self.last_rendered_range);
         let style = style.clone();
         let list = uniform_list(
             "completions",
@@ -936,8 +936,8 @@ impl CompletionsMenu {
 
                         let ((main_text, main_highlights), (suffix_text, suffix_highlights)) =
                             split_completion_label(&completion.label.text, &completion.label.filter_range, &highlights);
-                        let main_label = StyledText::new(main_text.to_string())
-                            .with_default_highlights(&style.text, main_highlights);
+                        let main_label =
+                            StyledText::new(main_text.to_owned()).with_default_highlights(&style.text, main_highlights);
 
                         let suffix_label = if suffix_text.is_empty() {
                             None
@@ -945,7 +945,7 @@ impl CompletionsMenu {
                             let suffix_text_style =
                                 gpui::TextStyle { color: cx.theme().colors().text_muted, ..style.text.clone() };
                             Some(
-                                StyledText::new(suffix_text.to_string())
+                                StyledText::new(suffix_text.to_owned())
                                     .with_default_highlights(&suffix_text_style, suffix_highlights),
                             )
                         };
@@ -959,7 +959,7 @@ impl CompletionsMenu {
                                     None
                                 } else {
                                     Some(
-                                        Label::new(text.trim().to_string())
+                                        Label::new(text.trim().to_owned())
                                             .ml_4()
                                             .size(LabelSize::Small)
                                             .color(Color::Muted),
@@ -1151,10 +1151,10 @@ impl CompletionsMenu {
     ) -> Task<CompletionMatchResults> {
         let buffer_snapshot = buffer.read(cx).snapshot();
         let background_executor = cx.background_executor().clone();
-        let match_candidates = self.match_candidates.clone();
-        let label_match_candidates = self.label_match_state.candidates.clone();
-        let cancel_filter = self.cancel_filter.clone();
-        let default_query = query.clone();
+        let match_candidates = Arc::clone(&self.match_candidates);
+        let label_match_candidates = Arc::clone(&self.label_match_state.candidates);
+        let cancel_filter = Arc::clone(&self.cancel_filter);
+        let default_query = Arc::clone(&query);
 
         let matches_task = cx.background_spawn(async move {
             let queries_and_candidates = match_candidates
@@ -1162,7 +1162,7 @@ impl CompletionsMenu {
                 .map(|(query_start, candidates)| {
                     let query_for_batch = match query_start {
                         Some(start) => Arc::new(buffer_snapshot.text_for_range(*start..query_end).collect()),
-                        None => default_query.clone(),
+                        None => Arc::clone(&default_query),
                     };
                     (query_for_batch, candidates)
                 })
@@ -1222,7 +1222,7 @@ impl CompletionsMenu {
             CompletionMatchResults { filter_matches: filter_match_results, label_matches: label_match_results }
         });
 
-        let completions = self.completions.clone();
+        let completions = Rc::clone(&self.completions);
         let sort_completions = self.sort_completions;
         cx.foreground_executor().spawn(async move {
             let mut results = matches_task.await;
@@ -1354,7 +1354,7 @@ impl CompletionsMenu {
     }
 
     pub fn preserve_markdown_cache(&mut self, prev_menu: CompletionsMenu) {
-        self.markdown_cache = prev_menu.markdown_cache.clone();
+        self.markdown_cache = Rc::clone(&prev_menu.markdown_cache);
 
         // Convert ForCandidate cache keys to ForCompletionMatch keys.
         let prev_completions = prev_menu.completions.borrow();
@@ -1596,7 +1596,7 @@ impl CodeActionContents {
             .chain(self.actions.iter().flat_map(|actions| {
                 actions.iter().map(|available| CodeActionsItem::CodeAction {
                     action: available.action.clone(),
-                    provider: available.provider.clone(),
+                    provider: Rc::clone(&available.provider),
                 })
             }))
     }
@@ -1613,7 +1613,7 @@ impl CodeActionContents {
         {
             return Some(CodeActionsItem::CodeAction {
                 action: available.action.clone(),
-                provider: available.provider.clone(),
+                provider: Rc::clone(&available.provider),
             });
         }
 
@@ -1810,8 +1810,8 @@ mod tests {
     fn completion(label: &str) -> Completion {
         Completion {
             replace_range: Anchor::min_min_range_for_buffer(BufferId::new(1).unwrap()),
-            new_text: label.to_string(),
-            label: CodeLabel::plain(label.to_string(), None),
+            new_text: label.to_owned(),
+            label: CodeLabel::plain(label.to_owned(), None),
             documentation: None,
             source: CompletionSource::Custom,
             icon_path: None,

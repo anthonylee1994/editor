@@ -10,11 +10,11 @@ use gpui::Window;
 use language::language_settings::INDENT_GUIDES;
 use multi_buffer::IndentGuide;
 use multi_buffer::MultiBufferRow;
-use multi_buffer::ToPoint;
+use multi_buffer::ToPoint as _;
 use rustc_hash::FxHashSet;
 use text::LineIndent;
 use text::Point;
-use util::ResultExt;
+use util::ResultExt as _;
 
 use crate::DisplaySnapshot;
 use crate::Editor;

@@ -7,7 +7,7 @@ use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 use text::BufferId;
 use tree_sitter::QueryCapture;
-use util::RangeExt;
+use util::RangeExt as _;
 
 use crate::BufferSnapshot;
 use crate::Language;
@@ -96,7 +96,7 @@ pub(crate) fn runnable_ranges(
                         mat.captures,
                         runnable_config,
                         mat.pattern_index,
-                        mat.language.clone(),
+                        Arc::clone(&mat.language),
                         offset_range.clone(),
                     )
                 } else {
@@ -228,7 +228,7 @@ fn runnable_ranges_from_grouped_matches(
     let shared_extras: SmallVec<[(String, String); 4]> = shared_captures
         .iter()
         .filter_map(|capture| {
-            capture.name().map(|name| (name.to_string(), buffer.text_for_range(capture.range()).collect::<String>()))
+            capture.name().map(|name| (name.to_owned(), buffer.text_for_range(capture.range()).collect::<String>()))
         })
         .collect();
 
@@ -251,7 +251,7 @@ fn runnable_ranges_from_grouped_matches(
         runnable_ranges.push(RunnableRange {
             run_range,
             full_range: group.range,
-            runnable: Runnable { tags: tags.clone(), language: language.clone(), buffer: buffer_id },
+            runnable: Runnable { tags: tags.clone(), language: Arc::clone(&language), buffer: buffer_id },
             extra_captures,
             buffer_id,
         });
@@ -281,14 +281,15 @@ fn runnable_range_from_captures(
     });
 
     let extra_captures: SmallVec<[_; 1]> = SmallVec::from_iter(captures.iter().filter_map(|capture| {
-        runnable_config.extra_captures.get(capture.index as usize).cloned().and_then(|tag_name| match tag_name {
+        let tag_name = runnable_config.extra_captures.get(capture.index as usize).cloned()?;
+        match tag_name {
             RunnableCapture::Named(name) => Some((capture.node.byte_range(), name)),
             RunnableCapture::Run => {
-                let _ = run_range.insert(capture.node.byte_range());
+                run_range = Some(capture.node.byte_range());
                 None
             }
             RunnableCapture::RunItem => None,
-        })
+        }
     }));
     let run_range = run_range?;
     let tags = runnable_tags_from_pattern(&runnable_config.query, pattern_index);
@@ -313,7 +314,7 @@ mod tests {
     use super::is_runnable_layer;
 
     #[test]
-    fn test_only_root_layer_is_runnable() {
+    fn only_root_layer_is_runnable() {
         assert!(is_runnable_layer(0));
         assert!(!is_runnable_layer(1));
         assert!(!is_runnable_layer(2));

@@ -17,13 +17,13 @@ use project::search::SearchQuery;
 pub use project_search::ProjectSearchView;
 use ui::IconButtonShape;
 use ui::Tooltip;
-use ui::prelude::ButtonCommon;
-use ui::prelude::Clickable;
+use ui::prelude::ButtonCommon as _;
+use ui::prelude::Clickable as _;
 use ui::prelude::Context;
-use ui::prelude::FluentBuilder;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::IconButton;
 use ui::prelude::IconName;
-use ui::prelude::Toggleable;
+use ui::prelude::Toggleable as _;
 use util::paths::PathMatcher;
 
 use crate::project_search::ProjectSearchBar;
@@ -117,7 +117,7 @@ impl SearchSource<'_, '_> {
 
 impl SearchOption {
     pub const fn as_options(&self) -> SearchOptions {
-        SearchOptions::from_bits(1 << *self as u8).unwrap()
+        SearchOptions::from_bits(1 << *self as u8).expect("each option is a valid flag")
     }
 
     pub const fn label(&self) -> &'static str {

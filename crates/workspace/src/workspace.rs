@@ -56,14 +56,14 @@ use dock::Dock;
 use dock::DockPosition;
 pub use dock::Panel;
 use dock::PanelButtons;
-use futures::FutureExt;
+use futures::FutureExt as _;
 use futures::channel::oneshot;
 use futures::future::Shared;
 use gpui::Action;
 use gpui::AnyView;
 use gpui::AnyWeakView;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::AsyncApp;
 use gpui::Bounds;
 use gpui::Context;
@@ -86,7 +86,7 @@ use gpui::Size;
 use gpui::StyleRefinement;
 use gpui::Subscription;
 use gpui::Task;
-use gpui::TaskExt;
+use gpui::TaskExt as _;
 use gpui::WeakEntity;
 use gpui::WindowBounds;
 use gpui::WindowHandle;
@@ -107,7 +107,7 @@ pub use item_registry::register_serializable_item;
 use language::LanguageRegistry;
 #[allow(clippy::wildcard_imports)]
 pub use modal_layer::*;
-use notifications::DetachAndPromptErr;
+use notifications::DetachAndPromptErr as _;
 use notifications::Notifications;
 use notifications::dismiss_app_notification;
 use notifications::simple_message_notification::MessageNotification;
@@ -153,7 +153,7 @@ use status_bar::StatusBar;
 pub use status_bar::StatusItemView;
 pub use status_bar::status_item_color;
 use task::SpawnInTerminal;
-use theme::ActiveTheme;
+use theme::ActiveTheme as _;
 pub use toast_layer::ToastAction;
 pub use toast_layer::ToastLayer;
 pub use toast_layer::ToastView;
@@ -165,17 +165,17 @@ pub use toolbar::ToolbarItemView;
 pub use ui;
 use ui::Window;
 use ui::prelude::Div;
-use ui::prelude::FluentBuilder;
-use ui::prelude::InteractiveElement;
+use ui::prelude::FluentBuilder as _;
+use ui::prelude::InteractiveElement as _;
 use ui::prelude::IntoElement;
-use ui::prelude::ParentElement;
+use ui::prelude::ParentElement as _;
 use ui::prelude::Pixels;
 use ui::prelude::SharedString;
-use ui::prelude::Styled;
+use ui::prelude::Styled as _;
 use ui::prelude::div;
 use ui::prelude::h_flex;
 use ui::prelude::px;
-use util::ResultExt;
+use util::ResultExt as _;
 use uuid::Uuid;
 
 use crate::docks::adjust_active_dock_size_by_px;
@@ -211,7 +211,7 @@ const WINDOW_TITLE_SEPARATOR: &str = " — ";
 fn window_title(project_name: &str, file_name: Option<&str>) -> String {
     match file_name {
         Some(file_name) if !file_name.is_empty() => format!("{project_name}{WINDOW_TITLE_SEPARATOR}{file_name}"),
-        _ => project_name.to_string(),
+        _ => project_name.to_owned(),
     }
 }
 
@@ -590,8 +590,8 @@ pub struct OpenTerminal {
 pub fn init(app_state: Arc<AppState>, cx: &mut App) {
     theme_preview::init(cx);
     toast_layer::init(cx);
-    persistence::init(app_state.fs.clone(), cx);
-    history_manager::init(app_state.fs.clone(), cx);
+    persistence::init(Arc::clone(&app_state.fs), cx);
+    history_manager::init(Arc::clone(&app_state.fs), cx);
 
     cx.on_app_quit(flush_windows_serialization_on_quit).detach();
 
@@ -648,10 +648,10 @@ pub struct PreviousWorkspaceState {
 impl AppState {
     #[track_caller]
     pub fn global(cx: &App) -> Arc<Self> {
-        cx.global::<GlobalAppState>().0.clone()
+        Arc::clone(&cx.global::<GlobalAppState>().0)
     }
     pub fn try_global(cx: &App) -> Option<Arc<Self>> {
-        cx.try_global::<GlobalAppState>().map(|state| state.0.clone())
+        cx.try_global::<GlobalAppState>().map(|state| Arc::clone(&state.0))
     }
     pub fn set_global(state: Arc<AppState>, cx: &mut App) {
         cx.set_global(GlobalAppState(state));
@@ -935,13 +935,13 @@ impl Workspace {
 
         let weak_handle = cx.entity().downgrade();
         let pane_history_timestamp = Arc::new(AtomicUsize::new(0));
-        let nav_history = NavHistory::new(weak_handle.clone(), pane_history_timestamp.clone());
+        let nav_history = NavHistory::new(weak_handle.clone(), Arc::clone(&pane_history_timestamp));
 
         let center_pane = cx.new(|cx| {
             let mut center_pane = Pane::new(
                 weak_handle.clone(),
                 project.clone(),
-                pane_history_timestamp.clone(),
+                Arc::clone(&pane_history_timestamp),
                 Some(Arc::new(|dragged, _, cx| !is_dragged_terminal(dragged, cx))),
                 NewFile.boxed_clone(),
                 window,
@@ -961,7 +961,7 @@ impl Workspace {
         let git_history_pane = Self::new_git_history_pane(
             weak_handle.clone(),
             project.clone(),
-            pane_history_timestamp.clone(),
+            Arc::clone(&pane_history_timestamp),
             nav_history.clone(),
             window,
             cx,
@@ -1096,7 +1096,7 @@ impl Workspace {
         open_mode: OpenMode,
         cx: &mut App,
     ) -> Task<anyhow::Result<OpenResult>> {
-        let project_handle = Project::local(app_state.languages.clone(), app_state.fs.clone(), cx);
+        let project_handle = Project::local(Arc::clone(&app_state.languages), Arc::clone(&app_state.fs), cx);
 
         cx.spawn(async move |cx| {
             let mut paths_to_open = Vec::with_capacity(abs_paths.len());
@@ -1133,11 +1133,30 @@ impl Workspace {
                 OpenMode::Activate => requesting_window,
             };
 
-            let (window, workspace): (WindowHandle<Workspace>, Entity<Workspace>) =
-                if let Some(window) = window_to_replace {
-                    let workspace = window.update(cx, |_, window, cx| {
-                        replace_window_workspace(window, cx, |window, cx| {
-                            let mut workspace = Workspace::new(project_handle.clone(), app_state.clone(), window, cx);
+            let (window, workspace): (WindowHandle<Workspace>, Entity<Workspace>) = if let Some(window) =
+                window_to_replace
+            {
+                let workspace = window.update(cx, |_, window, cx| {
+                    replace_window_workspace(window, cx, |window, cx| {
+                        let mut workspace = Workspace::new(project_handle.clone(), Arc::clone(&app_state), window, cx);
+
+                        // Call init callback to add items before window renders
+                        if let Some(init) = init {
+                            init(&mut workspace, window, cx);
+                        }
+
+                        workspace
+                    })
+                })?;
+                (window, workspace)
+            } else {
+                let options = cx.update(|cx| (app_state.build_window_options)(None, cx));
+                let window = cx.open_window(options, {
+                    let app_state = Arc::clone(&app_state);
+                    let project_handle = project_handle.clone();
+                    move |window, cx| {
+                        cx.new(|cx| {
+                            let mut workspace = Workspace::new(project_handle, app_state, window, cx);
 
                             // Call init callback to add items before window renders
                             if let Some(init) = init {
@@ -1146,29 +1165,11 @@ impl Workspace {
 
                             workspace
                         })
-                    })?;
-                    (window, workspace)
-                } else {
-                    let options = cx.update(|cx| (app_state.build_window_options)(None, cx));
-                    let window = cx.open_window(options, {
-                        let app_state = app_state.clone();
-                        let project_handle = project_handle.clone();
-                        move |window, cx| {
-                            cx.new(|cx| {
-                                let mut workspace = Workspace::new(project_handle, app_state, window, cx);
-
-                                // Call init callback to add items before window renders
-                                if let Some(init) = init {
-                                    init(&mut workspace, window, cx);
-                                }
-
-                                workspace
-                            })
-                        }
-                    })?;
-                    let workspace = window.update(cx, |_, _, cx| cx.entity())?;
-                    (window, workspace)
-                };
+                    }
+                })?;
+                let workspace = window.update(cx, |_, _, cx| cx.entity())?;
+                (window, workspace)
+            };
 
             let opened_items = window
                 .update(cx, |_, window, cx| open_items(serialized_workspace, project_paths, window, cx))?
@@ -1385,12 +1386,12 @@ impl Workspace {
         let mut state = self.dispatching_keystrokes.borrow_mut();
         if !state.dispatched.insert(keystrokes.clone()) {
             cx.propagate();
-            return state.task.clone().unwrap();
+            return state.task.clone().expect("dispatch task is set while dispatching");
         }
 
         state.queue.extend(keystrokes);
 
-        let keystrokes = self.dispatching_keystrokes.clone();
+        let keystrokes = Rc::clone(&self.dispatching_keystrokes);
         if state.task.is_none() {
             state.task = Some(
                 window
@@ -1435,7 +1436,7 @@ impl Workspace {
                     .shared(),
             );
         }
-        state.task.clone().unwrap()
+        state.task.clone().expect("dispatch task was just set")
     }
 
     /// Saves every dirty item that already has a file, without prompting for
@@ -1472,13 +1473,9 @@ impl Workspace {
             .panes
             .iter()
             .flat_map(|pane| {
-                pane.read(cx).items().filter_map(|item| {
-                    if item.is_dirty(cx) {
-                        item.tab_content_text(0, cx);
-                        Some((pane.clone(), item.boxed_clone()))
-                    } else {
-                        None
-                    }
+                pane.read(cx).items().filter(|&item| item.is_dirty(cx)).map(|item| {
+                    item.tab_content_text(0, cx);
+                    (pane.clone(), item.boxed_clone())
                 })
             })
             .collect::<Vec<_>>();
@@ -1547,7 +1544,8 @@ impl Workspace {
     }
 
     fn active_project_path(&self, cx: &App) -> Option<ProjectPath> {
-        self.active_item(cx).and_then(|item| item.project_path(cx))
+        let item = self.active_item(cx)?;
+        item.project_path(cx)
     }
 
     pub fn most_recent_active_path(&self, cx: &App) -> Option<PathBuf> {
@@ -1695,7 +1693,7 @@ impl Workspace {
                     return None;
                 }
                 let panel = dock.active_panel()?;
-                if panel.is_zoomed(window, cx) { Some(panel.activation_focus_handle(cx)) } else { None }
+                panel.is_zoomed(window, cx).then(|| panel.activation_focus_handle(cx))
             })
             .unwrap_or_else(|| self.shown_pane().read(cx).focus_handle(cx))
     }
@@ -1773,8 +1771,8 @@ impl Workspace {
         let project = self.project().read(cx);
         let active_project_path = self.active_item(cx).and_then(|item| item.project_path(cx));
         let file_name = active_project_path.as_ref().and_then(|project_path| {
-            project_path.path.file_name().map(ToString::to_string).or_else(|| {
-                Some(project.worktree_for_id(project_path.worktree_id, cx)?.read(cx).root_name_str().to_string())
+            project_path.path.file_name().map(str::to_owned).or_else(|| {
+                Some(project.worktree_for_id(project_path.worktree_id, cx)?.read(cx).root_name_str().to_owned())
             })
         });
         let title = window_title(&project_window_title(project, cx), file_name.as_deref());
@@ -1909,7 +1907,7 @@ impl Workspace {
     pub fn key_context(&self, cx: &App) -> KeyContext {
         let mut context = KeyContext::new_with_defaults();
         context.add("Workspace");
-        context.set("keyboard_layout", cx.keyboard_layout().name().to_string());
+        context.set("keyboard_layout", cx.keyboard_layout().name().to_owned());
         if self.left_dock.read(cx).is_open()
             && let Some(active_panel) = self.left_dock.read(cx).active_panel()
         {
@@ -2244,7 +2242,7 @@ impl Workspace {
         let callback = Arc::new(callback);
 
         self.workspace_actions.push(Box::new(move |div, _, _, cx| {
-            let callback = callback.clone();
+            let callback = Arc::clone(&callback);
             div.on_action(cx.listener(move |workspace, event, window, cx| (callback)(workspace, event, window, cx)))
         }));
         self
@@ -2505,7 +2503,7 @@ fn project_window_title(project: &Project, cx: &App) -> String {
 
     if title.is_empty() {
         // Keep the default untitled-window text instead of showing a blank title.
-        "empty project".to_string()
+        "empty project".to_owned()
     } else {
         title
     }
@@ -2794,8 +2792,8 @@ mod tests {
     use super::WorkspaceMode;
 
     #[test]
-    fn test_mode_action_names() {
-        use gpui::Action;
+    fn mode_action_names() {
+        use gpui::Action as _;
 
         // The built-in keymap binds `cmd-1` / `cmd-2` by these names.
         assert_eq!(Editor::name_for_type(), "mode::Editor");
@@ -2803,7 +2801,7 @@ mod tests {
     }
 
     #[test]
-    fn test_restored_active_pane() {
+    fn restored_active_pane_works() {
         use super::restored_active_pane;
 
         assert_eq!(restored_active_pane(Some(1), None), Some(1));
@@ -2813,7 +2811,7 @@ mod tests {
     }
 
     #[test]
-    fn test_hidden_by_zoom() {
+    fn hidden_by_zoom_works() {
         use super::DockPosition;
         use super::hidden_by_zoom;
 
@@ -2824,7 +2822,7 @@ mod tests {
     }
 
     #[test]
-    fn test_status_bar_shown() {
+    fn status_bar_shown_works() {
         use super::status_bar_shown;
 
         assert!(status_bar_shown(WorkspaceMode::Editor, false));
@@ -2834,7 +2832,7 @@ mod tests {
     }
 
     #[test]
-    fn test_window_title() {
+    fn window_title_works() {
         use super::window_title;
 
         assert_eq!(window_title("editor", Some("main.rs")), "editor — main.rs");
@@ -2843,7 +2841,7 @@ mod tests {
     }
 
     #[test]
-    fn test_window_bounds_or_fill() {
+    fn window_bounds_or_fill_works() {
         use gpui::Bounds;
         use gpui::DEFAULT_WINDOW_SIZE;
         use gpui::point;
@@ -2858,7 +2856,7 @@ mod tests {
     }
 
     #[test]
-    fn test_opens_in_history_pane() {
+    fn opens_in_history_pane() {
         assert!(WorkspaceMode::GitHistory.opens_in_history_pane(false));
         assert!(!WorkspaceMode::GitHistory.opens_in_history_pane(true));
         assert!(!WorkspaceMode::Editor.opens_in_history_pane(false));
@@ -2866,7 +2864,7 @@ mod tests {
     }
 
     #[test]
-    fn test_has_docks() {
+    fn has_docks() {
         assert!(WorkspaceMode::Editor.has_docks());
         assert!(!WorkspaceMode::GitHistory.has_docks());
     }

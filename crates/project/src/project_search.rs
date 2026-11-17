@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use std::io;
 use std::io::Cursor;
 use std::io::ErrorKind;
-use std::io::Read;
+use std::io::Read as _;
 use std::mem;
 use std::ops::Range;
 use std::path::Path;
@@ -14,7 +14,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 
-use anyhow::Context;
+use anyhow::Context as _;
 use async_channel::Receiver;
 use async_channel::Sender;
 use async_channel::bounded;
@@ -28,13 +28,13 @@ use file_content::detect_encoding;
 use fs::Fs;
 use fs::ReadSeek;
 use futures::FutureExt as _;
-use futures::StreamExt;
+use futures::StreamExt as _;
 use futures::channel::oneshot;
 use futures::future;
 use futures::select_biased;
 use futures::stream::FuturesOrdered;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::AsyncApp;
 use gpui::BackgroundExecutor;
 use gpui::Entity;
@@ -45,7 +45,7 @@ use language::BufferSnapshot;
 use language::Point;
 use rustc_hash::FxHashMap;
 use text::Rope;
-use util::ResultExt;
+use util::ResultExt as _;
 use util::rel_path::RelPath;
 use worktree::Entry;
 use worktree::ProjectEntryId;
@@ -53,7 +53,7 @@ use worktree::Snapshot;
 use worktree::Worktree;
 use worktree::WorktreeSettings;
 
-use crate::ProjectItem;
+use crate::ProjectItem as _;
 use crate::ProjectPath;
 use crate::buffer_store::BufferStore;
 use crate::search::MatchPositionHint;
@@ -68,7 +68,7 @@ pub struct Search {
     kind: SearchKind,
 }
 
-/// Represents search setup, before it is actually kicked off with Search::into_results
+/// Represents search setup, before it is actually kicked off with Search::into_results.
 enum SearchKind {
     /// Search for candidates by inspecting file contents on file system, avoiding loading the buffer unless we know that a given file contains a match.
     Local { fs: Arc<dyn Fs>, worktrees: Vec<Entity<Worktree>> },
@@ -163,7 +163,7 @@ impl Search {
             } else if searches_all_unnamed_buffers {
                 if let (SearchKind::Local { .. }, Some(file)) = (&self.kind, buffer.file()) {
                     self.limit = self.limit.saturating_sub(1);
-                    let sort_key = (file.worktree_id(cx).to_usize(), file.path().clone());
+                    let sort_key = (file.worktree_id(cx).to_usize(), Arc::clone(file.path()));
                     entryless_file_buffers.push((sort_key, handle));
                 } else {
                     self.limit = self.limit.saturating_sub(1);
@@ -213,7 +213,7 @@ impl Search {
                         let tasks = vec![
                             cx.spawn(Self::provide_search_paths(
                                 mem::take(worktrees),
-                                query.clone(),
+                                Arc::clone(&query),
                                 input_paths_tx,
                                 sorted_search_results_tx,
                                 tx.clone(),
@@ -258,8 +258,8 @@ impl Search {
                             let worker_count = (num_cpus - 1).max(1);
                             for _ in 0..worker_count {
                                 let worker = Worker {
-                                    query: query.clone(),
-                                    open_buffers: open_buffers.clone(),
+                                    query: Arc::clone(&query),
+                                    open_buffers: Arc::clone(&open_buffers),
                                     candidates: candidate_searcher.clone(),
                                     find_all_matches_rx: find_all_matches_rx.clone(),
                                 };
@@ -323,7 +323,7 @@ impl Search {
     ) -> impl AsyncFnOnce(&mut AsyncApp) {
         async move |cx| {
             _ = async move {
-                let gitignored_tracker = PathInclusionMatcher::new(query.clone());
+                let gitignored_tracker = PathInclusionMatcher::new(Arc::clone(&query));
                 let include_ignored = query.include_ignored();
                 for worktree in worktrees {
                     let mut scan_complete = pin!(worktree.read_with(cx, |worktree, _| worktree.scan_complete()));
@@ -341,7 +341,7 @@ impl Search {
 
                         for entry in snapshot.entries(query.include_ignored(), 0) {
                             if gitignored_tracker.should_scan_gitignored_dir(entry, &snapshot, &worktree_settings) {
-                                entries_to_refresh.push(entry.path.clone());
+                                entries_to_refresh.push(Arc::clone(&entry.path));
                             }
                         }
                         let barrier = worktree.update(cx, |this, _| {
@@ -368,7 +368,7 @@ impl Search {
                                 let Ok(()) = tx
                                     .send(InputPath {
                                         entry: entry.clone(),
-                                        snapshot: snapshot.clone(),
+                                        snapshot: Arc::clone(&snapshot),
                                         should_scan_tx,
                                     })
                                     .await
@@ -431,7 +431,7 @@ impl Search {
                 });
                 let mut line_hints = requested_paths.iter().map(|(_, line)| *line);
                 let mut sort_keys =
-                    requested_paths.iter().map(|(path, _)| (path.worktree_id.to_usize(), path.path.clone()));
+                    requested_paths.iter().map(|(path, _)| (path.worktree_id.to_usize(), Arc::clone(&path.path)));
                 while let Some(buffer) = buffers.next().await {
                     let line_hint = line_hints.next().unwrap_or_default();
                     if let Some(sort_key) = sort_keys.next() {
@@ -539,7 +539,7 @@ impl Search {
 fn path_key_sort_key(buffer: &Entity<Buffer>, cx: &App) -> (Option<usize>, Option<Arc<RelPath>>, String) {
     let buffer = buffer.read(cx);
     match buffer.file() {
-        Some(file) => (Some(file.worktree_id(cx).to_usize()), Some(file.path().clone()), String::new()),
+        Some(file) => (Some(file.worktree_id(cx).to_usize()), Some(Arc::clone(file.path())), String::new()),
         None => (None, None, buffer.buffer_id().to_string()),
     }
 }
@@ -733,15 +733,15 @@ impl RequestHandler<'_> {
                     return Ok(());
                 }
                 _ = should_scan_tx.send((
-                    ProjectPath { worktree_id: snapshot.id(), path: entry.path.clone() },
+                    ProjectPath { worktree_id: snapshot.id(), path: Arc::clone(&entry.path) },
                     MatchPositionHint::default(),
                 ));
             } else {
                 self.confirm_contents_will_match_tx
                     .send(MatchingEntry {
                         should_scan_tx,
-                        worktree_root: snapshot.abs_path().clone(),
-                        path: ProjectPath { worktree_id: snapshot.id(), path: entry.path.clone() },
+                        worktree_root: Arc::clone(snapshot.abs_path()),
+                        path: ProjectPath { worktree_id: snapshot.id(), path: Arc::clone(&entry.path) },
                     })
                     .await?;
             }

@@ -8,14 +8,14 @@ use crate::components::tab::FOLDER_TAB_RADIUS;
 use crate::prelude::App;
 use crate::prelude::DynamicSpacing;
 use crate::prelude::ElementId;
-use crate::prelude::FluentBuilder;
-use crate::prelude::InteractiveElement;
+use crate::prelude::FluentBuilder as _;
+use crate::prelude::InteractiveElement as _;
 use crate::prelude::IntoElement;
 use crate::prelude::ParentElement;
 use crate::prelude::Pixels;
 use crate::prelude::RenderOnce;
-use crate::prelude::StatefulInteractiveElement;
-use crate::prelude::Styled;
+use crate::prelude::StatefulInteractiveElement as _;
+use crate::prelude::Styled as _;
 use crate::prelude::Window;
 use crate::prelude::div;
 use crate::prelude::h_flex;
@@ -147,7 +147,7 @@ mod tests {
     use super::px;
 
     #[test]
-    fn test_end_inset() {
+    fn end_inset_works() {
         assert_eq!(end_inset(TabStyle::Folder, false), FOLDER_TAB_RADIUS);
         assert_eq!(end_inset(TabStyle::Folder, true), px(0.));
         assert_eq!(end_inset(TabStyle::Pill, false), px(0.));

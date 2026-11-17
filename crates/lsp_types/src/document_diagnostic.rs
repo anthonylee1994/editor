@@ -14,7 +14,7 @@ use crate::WorkDoneProgressParams;
 
 /// Client capabilities specific to diagnostic pull requests.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiagnosticClientCapabilities {
@@ -31,14 +31,14 @@ pub struct DiagnosticClientCapabilities {
 
     /// Whether the client supports `MarkupContent` in diagnostic messages.
     ///
-    /// @since 3.18.0
+    /// @since 3.18.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub markup_message_support: Option<bool>,
 }
 
 /// Diagnostic options.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiagnosticOptions {
@@ -61,7 +61,7 @@ pub struct DiagnosticOptions {
 
 /// Diagnostic registration options.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiagnosticRegistrationOptions {
@@ -84,7 +84,7 @@ pub enum DiagnosticServerCapabilities {
 
 /// Parameters of the document diagnostic request.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentDiagnosticParams {
@@ -108,7 +108,7 @@ pub struct DocumentDiagnosticParams {
 
 /// A diagnostic report with a full set of problems.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, PartialEq, Eq, Default, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct FullDocumentDiagnosticReport {
@@ -125,7 +125,7 @@ pub struct FullDocumentDiagnosticReport {
 ///
 /// A server can only return `unchanged` if result ids are provided.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct UnchangedDocumentDiagnosticReport {
@@ -135,7 +135,7 @@ pub struct UnchangedDocumentDiagnosticReport {
 
 /// The document diagnostic report kinds.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize, Clone)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum DocumentDiagnosticReportKind {
@@ -159,7 +159,7 @@ impl From<UnchangedDocumentDiagnosticReport> for DocumentDiagnosticReportKind {
 
 /// A full diagnostic report with a set of related documents.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, PartialEq, Eq, Default, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RelatedFullDocumentDiagnosticReport {
@@ -169,7 +169,7 @@ pub struct RelatedFullDocumentDiagnosticReport {
     /// diagnostics in a file B which A depends on. An example of such a language is C/C++ where
     /// macro definitions in a file `a.cpp` result in errors in a header file `b.hpp`.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(with = "crate::url_map")]
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
@@ -181,7 +181,7 @@ pub struct RelatedFullDocumentDiagnosticReport {
 
 /// An unchanged diagnostic report with a set of related documents.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct RelatedUnchangedDocumentDiagnosticReport {
@@ -191,7 +191,7 @@ pub struct RelatedUnchangedDocumentDiagnosticReport {
     /// diagnostics in a file B which A depends on. An example of such a language is C/C++ where
     /// macro definitions in a file `a.cpp` result in errors in a header file `b.hpp`.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(with = "crate::url_map")]
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
@@ -207,7 +207,7 @@ pub struct RelatedUnchangedDocumentDiagnosticReport {
 /// an unchanged report indicating that nothing has changed in terms of diagnostics in comparison
 /// to the last pull request.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize, Clone)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum DocumentDiagnosticReport {
@@ -231,7 +231,7 @@ impl From<RelatedUnchangedDocumentDiagnosticReport> for DocumentDiagnosticReport
 
 /// A partial result for a document diagnostic report.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, PartialEq, Eq, Default, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentDiagnosticReportPartialResult {
@@ -265,7 +265,7 @@ impl From<DocumentDiagnosticReportPartialResult> for DocumentDiagnosticReportRes
 ///
 /// If no data is provided, it defaults to `{ retrigger_request: true }`.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DiagnosticServerCancellationData {

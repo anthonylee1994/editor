@@ -63,7 +63,9 @@ impl AsyncWrite for UnixStream {
 
     fn poll_close(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<io::Result<()>> {
         // SAFETY: shutdown on a socket we own.
-        unsafe { libc::shutdown(self.0.as_raw_fd(), libc::SHUT_WR) };
+        unsafe {
+            libc::shutdown(self.0.as_raw_fd(), libc::SHUT_WR);
+        }
         Poll::Ready(Ok(()))
     }
 }
@@ -95,7 +97,7 @@ mod tests {
             let client = async {
                 let mut stream = UnixStream::connect(&path).await.unwrap();
                 // Larger than the socket buffer, so both sides hit `WouldBlock`.
-                let payload = (0..1_000_000u32).map(|i| i as u8).collect::<Vec<_>>();
+                let payload = (0..1_000_000_u32).map(|i| i as u8).collect::<Vec<_>>();
                 let mut writer = stream.clone();
                 let write = async {
                     writer.write_all(&payload).await.unwrap();

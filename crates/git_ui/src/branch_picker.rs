@@ -17,15 +17,15 @@ use gpui::EventEmitter;
 use gpui::FocusHandle;
 use gpui::Focusable;
 use gpui::Global;
-use gpui::InteractiveElement;
+use gpui::InteractiveElement as _;
 use gpui::IntoElement;
 use gpui::Modifiers;
 use gpui::ModifiersChangedEvent;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::PromptLevel;
 use gpui::Render;
 use gpui::SharedString;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Subscription;
 use gpui::Task;
 use gpui::WeakEntity;
@@ -52,27 +52,27 @@ use ui::PopoverMenu;
 use ui::PopoverMenuHandle;
 use ui::Severity;
 use ui::Tooltip;
-use ui::prelude::ActiveTheme;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::AnyElement;
-use ui::prelude::BorrowAppContext;
+use ui::prelude::BorrowAppContext as _;
 use ui::prelude::Button;
-use ui::prelude::ButtonCommon;
-use ui::prelude::Clickable;
+use ui::prelude::ButtonCommon as _;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
-use ui::prelude::Disableable;
+use ui::prelude::Disableable as _;
 use ui::prelude::Div;
-use ui::prelude::FluentBuilder;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Icon;
 use ui::prelude::IconButton;
 use ui::prelude::IconName;
 use ui::prelude::IconPosition;
 use ui::prelude::IconSize;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
 use ui::prelude::Rems;
-use ui::prelude::StatefulInteractiveElement;
-use ui::prelude::Toggleable;
+use ui::prelude::StatefulInteractiveElement as _;
+use ui::prelude::Toggleable as _;
 use ui::prelude::div;
 use ui::prelude::h_flex;
 use ui::prelude::px;
@@ -80,10 +80,10 @@ use ui::prelude::rems_from_px;
 use ui::prelude::v_flex;
 use ui_input::ErasedEditor;
 use url::Url;
-use util::ResultExt;
+use util::ResultExt as _;
 use workspace::ModalView;
 use workspace::Workspace;
-use workspace::notifications::DetachAndPromptErr;
+use workspace::notifications::DetachAndPromptErr as _;
 
 use crate::branch_picker;
 
@@ -324,7 +324,7 @@ impl BranchList {
             subscriptions.push(cx.subscribe_in(repo, window, move |this, repo, event, window, cx| {
                 if matches!(event, RepositoryEvent::BranchListChanged) {
                     let snapshot = repo.read(cx);
-                    let branch_list = snapshot.branch_list.clone();
+                    let branch_list = Arc::clone(&snapshot.branch_list);
                     let branch_list_error = snapshot.branch_list_error.clone();
                     this.picker.update(cx, |picker, cx| {
                         picker.delegate.restore_selected_branch = picker
@@ -689,13 +689,13 @@ impl BranchSelectionContext {
 
 #[derive(Debug)]
 enum PickerState {
-    /// When we display list of branches/remotes
+    /// When we display list of branches/remotes.
     List,
-    /// When we set an url to create a new remote
+    /// When we set an url to create a new remote.
     NewRemote,
-    /// When we confirm the new remote url (after NewRemote)
+    /// When we confirm the new remote url (after NewRemote).
     CreateRemote(SharedString),
-    /// When we set a new branch to create
+    /// When we set a new branch to create.
     NewBranch,
 }
 
@@ -801,7 +801,10 @@ pub(crate) fn normalize_branch_name(query: &str) -> String {
 }
 
 fn branch_remote_name(branch: &Branch) -> Option<&str> {
-    branch.remote_name().or_else(|| branch.upstream.as_ref().and_then(|upstream| upstream.remote_name()))
+    branch.remote_name().or_else(|| {
+        let upstream = branch.upstream.as_ref()?;
+        upstream.remote_name()
+    })
 }
 
 fn sort_branch_entries(matches: &mut [Entry], branch_selection_context: Option<&BranchSelectionContext>) {
@@ -967,7 +970,7 @@ impl BranchListDelegate {
             }
 
             let is_remote = branch.is_remote();
-            let branch_name = branch.name().to_string();
+            let branch_name = branch.name().to_owned();
             let initial_result =
                 repo.update(cx, |repo, _| repo.delete_branch(is_remote, branch_name.clone(), force)).await?;
 
@@ -1063,7 +1066,7 @@ impl PickerDelegate for BranchListDelegate {
         _window: &mut Window,
         _cx: &mut Context<Picker<Self>>,
     ) -> Option<Div> {
-        let editor = editor.as_any().downcast_ref::<Entity<Editor>>().unwrap();
+        let editor = editor.as_any().downcast_ref::<Entity<Editor>>().expect("picker editor is an Editor");
         let editor_start = matches!(self.editor_position(), PickerEditorPosition::Start);
         let editor_bottom = matches!(self.editor_position(), PickerEditorPosition::End);
 
@@ -1299,7 +1302,7 @@ impl PickerDelegate for BranchListDelegate {
 
                 let branch = branch.clone();
                 cx.spawn(async move |_, cx| {
-                    repo.update(cx, |repo, _| repo.change_branch(branch.name().to_string())).await??;
+                    repo.update(cx, |repo, _| repo.change_branch(branch.name().to_owned())).await??;
 
                     anyhow::Ok(())
                 })
@@ -1404,7 +1407,7 @@ impl PickerDelegate for BranchListDelegate {
             Entry::NewRemoteName { name, .. } => {
                 Label::new(format!("Create Remote: \"{name}\"")).single_line().truncate().into_any_element()
             }
-            Entry::Branch { branch, positions } => HighlightedLabel::new(branch.name().to_string(), positions.clone())
+            Entry::Branch { branch, positions } => HighlightedLabel::new(branch.name().to_owned(), positions.clone())
                 .single_line()
                 .truncate()
                 .into_any_element(),
@@ -1496,7 +1499,7 @@ impl PickerDelegate for BranchListDelegate {
                                         {
                                             format!("Based off {current_branch}")
                                         } else {
-                                            "Based off the current branch".to_string()
+                                            "Based off the current branch".to_owned()
                                         }
                                     }
                                     Entry::Branch { .. } => String::new(),
@@ -1545,7 +1548,7 @@ impl PickerDelegate for BranchListDelegate {
                                         .into_any_element()
                                 }
                             })
-                            .when_some(entry.as_branch().map(|b| b.name().to_string()), |this, branch_name| {
+                            .when_some(entry.as_branch().map(|b| b.name().to_owned()), |this, branch_name| {
                                 let absolute_time = absolute_time.clone();
                                 this.tooltip({
                                     let is_head = is_head_branch;
@@ -1753,14 +1756,14 @@ mod tests {
     use super::normalize_branch_name;
 
     #[test]
-    fn test_normalize_branch_name() {
+    fn normalize_branch_name_works() {
         assert_eq!(normalize_branch_name(" branch-name "), "branch-name");
         assert_eq!(normalize_branch_name("branch name"), "branch-name");
         assert_eq!(normalize_branch_name("  branch  name  "), "branch--name");
     }
 
     #[test]
-    fn test_branch_list_placeholder() {
+    fn branch_list_placeholder_works() {
         assert_eq!(branch_list_placeholder(&PickerState::List, true), "Select a branch…");
         assert_eq!(branch_list_placeholder(&PickerState::List, false), "Switch or type to create a branch…");
         assert_eq!(branch_list_placeholder(&PickerState::NewBranch, false), "Switch or type to create a branch…");

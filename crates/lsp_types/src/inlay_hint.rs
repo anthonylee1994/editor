@@ -24,7 +24,7 @@ pub enum InlayHintServerCapabilities {
 
 /// Inlay hint client capabilities.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InlayHintClientCapabilities {
@@ -40,7 +40,7 @@ pub struct InlayHintClientCapabilities {
 
 /// Inlay hint options used during static registration.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InlayHintOptions {
@@ -55,7 +55,7 @@ pub struct InlayHintOptions {
 
 /// Inlay hint options used during static or dynamic registration.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InlayHintRegistrationOptions {
@@ -71,7 +71,7 @@ pub struct InlayHintRegistrationOptions {
 
 /// A parameter literal used in inlay hint requests.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InlayHintParams {
@@ -87,7 +87,7 @@ pub struct InlayHintParams {
 
 /// Inlay hint information.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InlayHint {
@@ -246,7 +246,7 @@ impl From<MarkupContent> for InlayHintLabelPartTooltip {
 
 /// Inlay hint kinds.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Eq, PartialEq, Copy, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct InlayHintKind(i32);
@@ -262,7 +262,7 @@ impl InlayHintKind {
 
 /// Inlay hint client capabilities.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InlayHintResolveClientCapabilities {
@@ -272,7 +272,7 @@ pub struct InlayHintResolveClientCapabilities {
 
 /// Client workspace capabilities specific to inlay hints.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InlayHintWorkspaceClientCapabilities {

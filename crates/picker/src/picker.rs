@@ -32,12 +32,12 @@ use gpui::actions;
 use gpui::canvas;
 use gpui::div;
 use gpui::list;
-use gpui::prelude::FluentBuilder;
-use gpui::prelude::InteractiveElement;
+use gpui::prelude::FluentBuilder as _;
+use gpui::prelude::InteractiveElement as _;
 use gpui::prelude::IntoElement;
-use gpui::prelude::ParentElement;
-use gpui::prelude::StatefulInteractiveElement;
-use gpui::prelude::Styled;
+use gpui::prelude::ParentElement as _;
+use gpui::prelude::StatefulInteractiveElement as _;
+use gpui::prelude::Styled as _;
 use gpui::uniform_list;
 use head::Head;
 use serde::Deserialize;
@@ -46,7 +46,7 @@ use ui::Divider;
 use ui::DocumentationAside;
 use ui::KeyBinding;
 use ui::Tooltip;
-use ui::prelude::ActiveTheme;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::Div;
 use ui::prelude::DynamicSpacing;
 use ui::prelude::Label;
@@ -142,9 +142,9 @@ pub struct Picker<D: PickerDelegate> {
     show_scrollbar: bool,
     /// How the picker is presented, which controls its chrome and behavior.
     presentation: Presentation,
-    /// Bounds tracking for the picker container (for aside positioning)
+    /// Bounds tracking for the picker container (for aside positioning).
     picker_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
-    /// Bounds tracking for items (for aside positioning) - maps item index to bounds
+    /// Bounds tracking for items (for aside positioning) - maps item index to bounds.
     item_bounds: Rc<RefCell<HashMap<usize, Bounds<Pixels>>>>,
     reopenable: bool,
 }
@@ -152,9 +152,9 @@ pub struct Picker<D: PickerDelegate> {
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum PickerEditorPosition {
     #[default]
-    /// Render the editor at the start of the picker. Usually the top
+    /// Render the editor at the start of the picker. Usually the top.
     Start,
-    /// Render the editor at the end of the picker. Usually the bottom
+    /// Render the editor at the end of the picker. Usually the bottom.
     End,
 }
 
@@ -848,7 +848,12 @@ impl<D: PickerDelegate> Picker<D> {
             delegate_update_matches: Some(delegate_pending_update_matches),
             _task: cx.spawn_in(window, async move |this, cx| {
                 let delegate_pending_update_matches = this.update(cx, |this, _| {
-                    this.pending_update_matches.as_mut().unwrap().delegate_update_matches.take().unwrap()
+                    this.pending_update_matches
+                        .as_mut()
+                        .expect("pending update is set before the task runs")
+                        .delegate_update_matches
+                        .take()
+                        .expect("pending update is set before the task runs")
                 })?;
                 delegate_pending_update_matches.await;
                 this.update_in(cx, |this, window, cx| {
@@ -926,7 +931,7 @@ impl<D: PickerDelegate> Picker<D> {
     }
 
     fn render_element(&self, window: &mut Window, cx: &mut Context<Self>, ix: usize) -> impl IntoElement + use<D> {
-        let item_bounds = self.item_bounds.clone();
+        let item_bounds = Rc::clone(&self.item_bounds);
         let selectable = ix < self.delegate.match_count() && self.delegate.can_select(ix, window, cx);
 
         let supports_multi_select = self.delegate.supports_multi_select();

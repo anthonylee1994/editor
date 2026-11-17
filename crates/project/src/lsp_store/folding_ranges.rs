@@ -11,7 +11,7 @@ use gpui::Context;
 use gpui::Entity;
 use gpui::SharedString;
 use gpui::Task;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use language::Buffer;
 use lsp::LanguageServerId;
 use rustc_hash::FxHashMap;

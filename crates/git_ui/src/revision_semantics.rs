@@ -90,7 +90,7 @@ impl RevisionSemanticsProvider {
         }
         let project = self.project.upgrade()?;
         let open = project.update(cx, |project, cx| project.open_buffer(live_path.clone(), cx));
-        let cache = self.live_buffers.clone();
+        let cache = Rc::clone(&self.live_buffers);
         Some(cx.spawn(async move |cx| {
             let buffer = open.await?;
             if !cache.borrow().contains_key(&live_path) {
@@ -448,7 +448,7 @@ mod tests {
     use super::map_unchanged_row;
 
     #[test]
-    fn test_map_unchanged_row() {
+    fn map_unchanged_row_works() {
         assert_eq!(map_unchanged_row(&[], 7), Some(7));
         // Two lines replaced by three at rows 2..4, one line inserted before row 9.
         let hunks = [(2..4, 2..5), (9..9, 10..11)];
@@ -462,7 +462,7 @@ mod tests {
     }
 
     #[test]
-    fn test_map_unchanged_row_through_line_diff() {
+    fn map_unchanged_row_through_line_diff() {
         let revision = "use a;\nfn one() {}\nfn two() {}\nfn three() {}\n";
         let live = "use a;\nuse b;\n\nfn one() {}\nfn two() { changed }\nfn three() {}\n";
         let hunks = language::line_diff(revision, live);
@@ -473,7 +473,7 @@ mod tests {
     }
 
     #[test]
-    fn test_map_origin_to_revision() {
+    fn map_origin_to_revision_works() {
         let origin = Point::new(10, 4)..Point::new(10, 9);
         assert_eq!(map_origin_to_revision(origin, 10, 3), Some(Point::new(3, 4)..Point::new(3, 9)));
         assert_eq!(map_origin_to_revision(Point::new(10, 4)..Point::new(11, 0), 10, 3), None);
@@ -489,8 +489,8 @@ mod tests {
                 worktree_id: WorktreeId::from_usize(1),
                 path: RelPath::new_test(path).into_arc(),
             }),
-            label: CodeLabel::plain(name.to_string(), None),
-            name: name.to_string(),
+            label: CodeLabel::plain(name.to_owned(), None),
+            name: name.to_owned(),
             kind: SymbolKind::Function,
             range: Unclipped(PointUtf16::new(0, 0))..Unclipped(PointUtf16::new(0, 1)),
             container_name: None,
@@ -501,14 +501,14 @@ mod tests {
         symbols
             .iter()
             .map(|symbol| match &symbol.path {
-                SymbolLocation::InProject(path) => path.path.as_unix_str().to_string(),
+                SymbolLocation::InProject(path) => path.path.as_unix_str().to_owned(),
                 SymbolLocation::OutsideProject { .. } => String::new(),
             })
             .collect()
     }
 
     #[test]
-    fn test_exact_symbol_matches() {
+    fn exact_symbol_matches_works() {
         let symbols = || vec![symbol("open", "a.rs"), symbol("open_all", "b.rs"), symbol("open", "c.rs")];
         let live_path =
             ProjectPath { worktree_id: WorktreeId::from_usize(1), path: RelPath::new_test("c.rs").into_arc() };

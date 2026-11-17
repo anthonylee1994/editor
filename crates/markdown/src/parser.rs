@@ -339,10 +339,10 @@ pub(crate) fn parse_markdown_with_options(text: &str, options: MarkdownOptions) 
                             // (Models are told to specify them relative to a workspace root.)
                         } else if info.contains('/') {
                             let path_range = PathWithRange::new(info);
-                            language_paths.insert(path_range.path.clone());
+                            language_paths.insert(Arc::clone(&path_range.path));
                             CodeBlockKind::FencedSrc(path_range)
                         } else {
-                            let language = SharedString::from(info.to_string());
+                            let language = SharedString::from(info.to_owned());
                             language_names.insert(language.clone());
                             CodeBlockKind::FencedLang(language)
                         };
@@ -473,7 +473,8 @@ pub(crate) fn parse_markdown_with_options(text: &str, options: MarkdownOptions) 
                     last_len = next_len;
                 }
 
-                let mut merged_text = String::with_capacity(ranges.last().unwrap().merged_range.end);
+                let mut merged_text =
+                    String::with_capacity(ranges.last().expect("ranges are non-empty").merged_range.end);
                 for range in &ranges {
                     merged_text.push_str(&range.parsed);
                 }
@@ -490,7 +491,7 @@ pub(crate) fn parse_markdown_with_options(text: &str, options: MarkdownOptions) 
                         let link_end_in_merged = link.end();
 
                         while ranges.peek().is_some_and(|range| range.merged_range.end <= link_start_in_merged) {
-                            let range = ranges.next().unwrap();
+                            let range = ranges.next().expect("range was just peeked");
                             let (range, event) = event_for(text, range.source_range, &range.parsed);
                             state.push_event(range, event);
                         }
@@ -514,7 +515,7 @@ pub(crate) fn parse_markdown_with_options(text: &str, options: MarkdownOptions) 
                         let mut link_events = Vec::new();
 
                         while ranges.peek().is_some_and(|range| range.merged_range.end <= link_end_in_merged) {
-                            let range = ranges.next().unwrap();
+                            let range = ranges.next().expect("range was just peeked");
                             link_end_in_source = range.source_range.end;
                             link_events.push(event_for(text, range.source_range, &range.parsed));
                         }
@@ -540,7 +541,7 @@ pub(crate) fn parse_markdown_with_options(text: &str, options: MarkdownOptions) 
                             link_range.clone(),
                             MarkdownEvent::Start(MarkdownTag::Link {
                                 link_type: LinkType::Autolink,
-                                dest_url: SharedString::from(link.as_str().to_string()),
+                                dest_url: SharedString::from(link.as_str().to_owned()),
                                 title: SharedString::default(),
                                 id: SharedString::default(),
                             }),
@@ -755,7 +756,7 @@ pub enum CodeBlockKind {
     Indented,
     /// "Fenced" means "surrounded by triple backticks."
     /// There can optionally be either a language after the backticks (like in traditional Markdown)
-    /// or a PathRange, e.g. ```path/to/foo.rs#L123-456 instead of ```rust
+    /// or a PathRange, e.g. ```path/to/foo.rs#L123-456 instead of ```rust.
     Fenced,
     FencedLang(SharedString),
     FencedSrc(PathWithRange),

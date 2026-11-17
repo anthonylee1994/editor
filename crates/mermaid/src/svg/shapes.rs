@@ -325,7 +325,7 @@ pub(crate) fn shape_size(shape: &str, tw: f64, th: f64) -> ShapeSize {
 
 /// Draws `shape` at `w` by `h` centered on the origin, with outline attributes `a` and line
 /// attributes `line` for the strokes drawn over it.
-#[expect(clippy::many_single_char_names, reason = "mirrors Pele's geometry names")]
+#[expect(clippy::too_many_lines, clippy::many_single_char_names, reason = "one arm per shape, mirrors Pele's geometry")]
 pub(crate) fn draw_shape(shape: &str, w: f64, h: f64, a: &str, line: &str) -> String {
     match shape {
         "rounded" => rect(w, h, a, &[" rx=\"", &num(12.0_f64.min(h / 2.0)), "\""].concat()),

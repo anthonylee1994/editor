@@ -15,15 +15,15 @@ mod fsevents;
 mod git_clone_progress;
 
 use std::ffi::CString;
-use std::io::Write;
-use std::io::{self};
+use std::io;
+use std::io::Write as _;
 use std::mem::MaybeUninit;
-use std::os::fd::AsFd;
-use std::os::fd::AsRawFd;
-use std::os::unix::ffi::OsStrExt;
-use std::os::unix::fs::FileTypeExt;
-use std::os::unix::fs::MetadataExt;
-use std::os::unix::fs::PermissionsExt;
+use std::os::fd::AsFd as _;
+use std::os::fd::AsRawFd as _;
+use std::os::unix::ffi::OsStrExt as _;
+use std::os::unix::fs::FileTypeExt as _;
+use std::os::unix::fs::MetadataExt as _;
+use std::os::unix::fs::PermissionsExt as _;
 use std::path::Path;
 use std::path::PathBuf;
 use std::pin::Pin;
@@ -43,7 +43,7 @@ use async_macos::unblock;
 use futures::AsyncRead;
 use futures::AsyncReadExt as _;
 use futures::Stream;
-use futures::StreamExt;
+use futures::StreamExt as _;
 use futures::future::BoxFuture;
 use futures::stream::iter;
 use git::repository::GitRepository;
@@ -174,12 +174,12 @@ pub enum TrashRestoreError {
     Unknown { description: String },
 }
 
-impl From<trash::Error> for TrashRestoreError {
-    fn from(err: trash::Error) -> Self {
+impl From<trash::TrashError> for TrashRestoreError {
+    fn from(err: trash::TrashError) -> Self {
         match err {
-            trash::Error::RestoreCollision { path } => TrashRestoreError::Collision { path },
-            trash::Error::NoLongerInTrash { path } => TrashRestoreError::NotFound { path },
-            trash::Error::Unknown { description } => TrashRestoreError::Unknown { description },
+            trash::TrashError::RestoreCollision { path } => TrashRestoreError::Collision { path },
+            trash::TrashError::NoLongerInTrash { path } => TrashRestoreError::NotFound { path },
+            trash::TrashError::Unknown { description } => TrashRestoreError::Unknown { description },
             other => TrashRestoreError::Unknown { description: other.to_string() },
         }
     }
@@ -192,7 +192,7 @@ impl Global for GlobalFs {}
 impl dyn Fs {
     /// Returns the global [`Fs`].
     pub fn global(cx: &App) -> Arc<Self> {
-        GlobalFs::global(cx).0.clone()
+        Arc::clone(&GlobalFs::global(cx).0)
     }
 
     /// Sets the global [`Fs`].
@@ -332,7 +332,7 @@ impl FileHandle for File {
     fn current_path(&self, _: &Arc<dyn Fs>) -> Result<PathBuf> {
         use std::ffi::CStr;
         use std::ffi::OsStr;
-        use std::os::unix::ffi::OsStrExt;
+        use std::os::unix::ffi::OsStrExt as _;
 
         let fd = self.as_fd();
         let mut path_buf = MaybeUninit::<[u8; libc::PATH_MAX as usize]>::uninit();
@@ -348,12 +348,12 @@ impl FileHandle for File {
     }
 }
 
-pub struct RealWatcher {}
+pub struct RealWatcher;
 
 impl RealFs {
     pub fn new(executor: BackgroundExecutor) -> Arc<Self> {
         Arc::new_cyclic(|this| Self {
-            this: this.clone(),
+            this: Weak::clone(this),
             native_watcher: fs_watcher::OsWatcher::new(executor.clone()),
             executor,
             next_job_id: Arc::new(AtomicUsize::new(0)),
@@ -374,9 +374,8 @@ fn rename_without_replace(source: &Path, target: &Path) -> io::Result<()> {
 }
 
 fn path_to_c_string(path: &Path) -> io::Result<CString> {
-    CString::new(path.as_os_str().as_bytes()).map_err(|_| {
-        io::Error::new(io::ErrorKind::InvalidInput, format!("path contains interior NUL: {}", path.display()))
-    })
+    CString::new(path.as_os_str().as_bytes())
+        .map_err(|err| io::Error::new(io::ErrorKind::InvalidInput, format!("{err}: {}", path.display())))
 }
 
 // On Unix targets, std::fs::ReadDir panics in its Drop implementation
@@ -393,7 +392,7 @@ fn path_to_c_string(path: &Path) -> io::Result<CString> {
 
 fn read_dir_entries(path: PathBuf) -> Result<impl Send + Iterator<Item = Result<PathBuf>>> {
     use std::ffi::OsStr;
-    use std::os::unix::ffi::OsStrExt;
+    use std::os::unix::ffi::OsStrExt as _;
 
     use rustix::fs::Dir;
     use rustix::fs::Mode;
@@ -526,7 +525,7 @@ impl Fs for RealFs {
         match result {
             Ok(()) => Ok(()),
             Err(err) if err.kind() == io::ErrorKind::NotFound && options.ignore_if_not_exists => Ok(()),
-            Err(err) => Err(err)?,
+            Err(err) => return Err(err.into()),
         }
     }
 
@@ -534,7 +533,7 @@ impl Fs for RealFs {
         match async_macos::fs::remove_file(path).await {
             Ok(()) => Ok(()),
             Err(err) if err.kind() == io::ErrorKind::NotFound && options.ignore_if_not_exists => Ok(()),
-            Err(err) => Err(err)?,
+            Err(err) => return Err(err.into()),
         }
     }
 
@@ -725,7 +724,7 @@ impl Fs for RealFs {
         latency: Duration,
     ) -> (Pin<Box<dyn Send + Stream<Item = Vec<PathEvent>>>>, Arc<dyn Watcher>) {
         let this = self.this.upgrade().expect("RealFs is only constructed inside an Arc");
-        fs_watcher::watch(this, self.native_watcher.clone(), self.executor.clone(), path, latency).await
+        fs_watcher::watch(this, Arc::clone(&self.native_watcher), self.executor.clone(), path, latency).await
     }
 
     fn open_repo(&self, dotgit_path: &Path, git_binary_path: Option<&Path>) -> Result<Arc<dyn GitRepository>> {
@@ -766,7 +765,7 @@ impl Fs for RealFs {
         let job_info =
             JobInfo { id: job_id, start: Instant::now(), message: SharedString::from(format!("Cloning {repo_url}")) };
 
-        let job_tracker = JobTracker::new(job_info, self.job_event_subscribers.clone());
+        let job_tracker = JobTracker::new(job_info, Arc::clone(&self.job_event_subscribers));
         let mut child = new_command("git")
             .current_dir(abs_work_directory)
             .args(["clone", "--progress", repo_url])
@@ -883,7 +882,7 @@ impl Fs for RealFs {
 
         let (tx, rx) = oneshot::channel();
         Builder::new()
-            .name("restore trashed item".to_string())
+            .name("restore trashed item".to_owned())
             .spawn(move || {
                 let res = trash::restore(item);
                 tx.send(res)
@@ -925,7 +924,7 @@ pub async fn copy_recursive<'a>(
                 }
                 anyhow::bail!("{target_item:?} already exists");
             }
-            let _ = fs.remove_dir(&target_item, RemoveOptions { recursive: true, ignore_if_not_exists: true }).await;
+            fs.remove_dir(&target_item, RemoveOptions { recursive: true, ignore_if_not_exists: true }).await.ok();
             fs.create_dir(&target_item).await?;
         } else {
             fs.copy_file(&item, &target_item, options).await?;
@@ -948,7 +947,7 @@ fn read_recursive<'a>(
     source: &'a Path,
     output: &'a mut Vec<(PathBuf, bool)>,
 ) -> BoxFuture<'a, Result<()>> {
-    use futures::future::FutureExt;
+    use futures::future::FutureExt as _;
 
     async move {
         let metadata = fs.metadata(source).await?.with_context(|| format!("path does not exist: {source:?}"))?;

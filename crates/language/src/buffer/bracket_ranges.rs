@@ -11,9 +11,9 @@ use std::ops::Range;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use text::Bias;
-use text::OffsetRangeExt;
+use text::OffsetRangeExt as _;
 use text::ToOffset;
-use util::RangeExt;
+use util::RangeExt as _;
 
 use crate::BracketsConfig;
 use crate::BufferRow;
@@ -123,14 +123,14 @@ impl BufferSnapshot {
         })
     }
 
-    /// Returns bracket range pairs overlapping or adjacent to `range`
+    /// Returns bracket range pairs overlapping or adjacent to `range`.
     pub fn bracket_ranges<T: ToOffset>(&self, range: Range<T>) -> impl Iterator<Item = BracketMatch> + '_ {
         // Find bracket pairs that *inclusively* contain the given range.
         let range = range.start.to_previous_offset(self)..range.end.to_next_offset(self);
         self.all_bracket_ranges(range).filter(|pair| !pair.newline_only)
     }
 
-    /// Returns enclosing bracket ranges containing the given range
+    /// Returns enclosing bracket ranges containing the given range.
     pub fn enclosing_bracket_ranges<T: ToOffset>(&self, range: Range<T>) -> impl Iterator<Item = BracketMatch> + '_ {
         let range = range.start.to_offset(self)..range.end.to_offset(self);
 
@@ -143,9 +143,9 @@ impl BufferSnapshot {
         })
     }
 
-    /// Returns the smallest enclosing bracket ranges containing the given range or None if no brackets contain range
+    /// Returns the smallest enclosing bracket ranges containing the given range or None if no brackets contain range.
     ///
-    /// Can optionally pass a range_filter to filter the ranges of brackets to consider
+    /// Can optionally pass a range_filter to filter the ranges of brackets to consider.
     pub fn innermost_enclosing_bracket_ranges<T: ToOffset>(
         &self,
         range: Range<T>,
@@ -315,7 +315,7 @@ impl<'a> ChunkBrackets<'a> {
     fn grammar_index(&mut self, grammar: &'a Grammar) -> usize {
         self.grammar_ids.iter().position(|&id| id == grammar.id()).unwrap_or_else(|| {
             self.grammar_ids.push(grammar.id());
-            self.configs.push(grammar.brackets_config.as_ref().unwrap());
+            self.configs.push(grammar.brackets_config.as_ref().expect("grammars were filtered by brackets config"));
             self.grammar_ids.len() - 1
         })
     }

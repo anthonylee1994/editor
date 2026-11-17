@@ -1,8 +1,8 @@
-use std::convert::TryInto;
+use std::convert::TryInto as _;
 use std::ops::ControlFlow;
+use std::path;
 use std::path::Path;
 use std::path::PathBuf;
-use std::path::{self};
 use std::sync::Arc;
 use std::time::Duration;
 use std::vec;
@@ -12,14 +12,14 @@ use anyhow::Result;
 use fs::Fs;
 use fs::PathEvent;
 use fs::PathEventKind;
-use futures::StreamExt;
+use futures::StreamExt as _;
 use globset::Glob;
 use globset::GlobBuilder;
 use globset::GlobMatcher;
 use globset::GlobSet;
 use globset::GlobSetBuilder;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::AsyncApp;
 use gpui::Context;
 use gpui::Entity;
@@ -124,7 +124,7 @@ struct LazyGlobSet {
 
 impl LazyGlobSet {
     fn add(&mut self, registration_id: &str, glob: Glob) {
-        self.globs.entry(registration_id.to_string()).or_default().push(glob);
+        self.globs.entry(registration_id.to_owned()).or_default().push(glob);
         self.compiled = None;
     }
 
@@ -165,7 +165,7 @@ impl LanguageServerWatchedPaths {
                 async move {
                     let mut push_updates = cx
                         .background_spawn({
-                            let abs_path = abs_path.clone();
+                            let abs_path = Arc::clone(&abs_path);
                             async move { fs.watch(&abs_path, LSP_ABS_PATH_OBSERVE).await }
                         })
                         .await;
@@ -281,8 +281,8 @@ impl LocalLspStore {
         if let Some(glob) = Glob::new(&pattern).log_err() {
             if path.components().any(|c| matches!(c, path::Component::Normal(_))) {
                 let abs_path: Arc<Path> = path.into();
-                let fs = self.fs.clone();
-                let entry = watched.abs_paths.entry(abs_path.clone()).or_insert_with(|| {
+                let fs = Arc::clone(&self.fs);
+                let entry = watched.abs_paths.entry(Arc::clone(&abs_path)).or_insert_with(|| {
                     let task = LanguageServerWatchedPaths::spawn_abs_path_watcher(abs_path, fs, language_server_id, cx);
                     (LazyGlobSet::default(), task)
                 });
@@ -328,8 +328,7 @@ impl LocalLspStore {
                     .to_file_path()
                     .ok()?;
                     let relative = base_uri.strip_prefix(&worktree_root_path).ok()?;
-                    let mut literal_prefix = relative.to_owned();
-                    literal_prefix.push(glob_literal_prefix(Path::new(&rp.pattern)));
+                    let literal_prefix = relative.join(glob_literal_prefix(Path::new(&rp.pattern)));
                     Some((worktree.clone(), RelPath::new(&literal_prefix).ok()?.into_arc(), rp.pattern.clone()))
                 }
             }
@@ -361,7 +360,7 @@ impl LocalLspStore {
         }
 
         let registrations = self.language_server_dynamic_registrations.entry(language_server_id).or_default();
-        registrations.did_change_watched_files.insert(registration_id.to_string());
+        registrations.did_change_watched_files.insert(registration_id.to_owned());
 
         cx.notify();
     }
@@ -460,7 +459,7 @@ impl LspStore {
                     let apply_edit = cx.spawn({
                         let old_uri = old_uri.clone();
                         let new_uri = new_uri.clone();
-                        let language_server = language_server.clone();
+                        let language_server = Arc::clone(language_server);
                         async move |this, cx| {
                             let edit = language_server
                                 .request::<WillRenameFiles>(
@@ -477,7 +476,7 @@ impl LspStore {
                                 this.upgrade()?,
                                 edit,
                                 false,
-                                language_server.clone(),
+                                Arc::clone(&language_server),
                                 cx,
                             )
                             .await

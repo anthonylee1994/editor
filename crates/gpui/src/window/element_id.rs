@@ -68,7 +68,7 @@ impl ops::Deref for ElementIdStack {
 /// as other internal representations.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum ElementId {
-    /// The ID of a View element
+    /// The ID of a View element.
     View(EntityId),
     /// An integer ID.
     Integer(u64),
@@ -86,7 +86,7 @@ pub enum ElementId {
     CodeLocation(Location<'static>),
     /// A labeled child of an element.
     NamedChild(Arc<ElementId>, SharedString),
-    /// A byte array ID (used for text-anchors)
+    /// A byte array ID (used for text-anchors).
     OpaqueId([u8; 20]),
 }
 
@@ -109,6 +109,7 @@ impl Display for ElementId {
             ElementId::Path(path) => write!(f, "{}", path.display())?,
             ElementId::CodeLocation(location) => write!(f, "{location}")?,
             ElementId::NamedChild(id, name) => write!(f, "{id}-{name}")?,
+            #[expect(clippy::use_debug, reason = "hex dump of the raw id bytes")]
             ElementId::OpaqueId(opaque_id) => write!(f, "{opaque_id:x?}")?,
         }
 

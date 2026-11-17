@@ -21,12 +21,12 @@ use crate::App;
 use crate::Context;
 use crate::Div;
 use crate::FluentBuilder as _;
-use crate::InteractiveElement;
-use crate::IntoElement;
-use crate::ParentElement;
+use crate::InteractiveElement as _;
+use crate::IntoElement as _;
+use crate::ParentElement as _;
 use crate::Pixels;
-use crate::StatefulInteractiveElement;
-use crate::Styled;
+use crate::StatefulInteractiveElement as _;
+use crate::Styled as _;
 use crate::Window;
 use crate::div;
 use crate::h_flex;
@@ -346,7 +346,8 @@ impl RedistributableColumnsState {
         let mut curr_column = col_idx + step_right - step_left;
 
         while diff_remaining != 0.0 && curr_column < widths.cols() {
-            let Some(min_size) = resize_behavior[curr_column].min_size() else {
+            let min_size = resize_behavior[curr_column].min_size();
+            let Some(min_size) = min_size else {
                 if curr_column == 0 {
                     break;
                 }

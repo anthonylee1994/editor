@@ -116,7 +116,7 @@ const fn floor_boundary(src: &str, mut offset: usize) -> usize {
 
 /// Appends a decimal integer without `core::fmt`.
 pub(crate) fn push_u32(out: &mut String, mut value: u32) {
-    let mut digits = [0u8; 10];
+    let mut digits = [0_u8; 10];
     let mut at = digits.len();
     loop {
         at -= 1;

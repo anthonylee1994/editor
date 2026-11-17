@@ -1,24 +1,24 @@
-use std::cmp::{self};
-use std::iter::{self};
+use std::cmp;
+use std::iter;
 use std::ops::Range;
 
 use base64::engine::general_purpose::STANDARD;
 use convert_case::Case;
-use convert_case::Casing;
+use convert_case::Casing as _;
 use gpui::App;
 use gpui::Context;
 use gpui::Pixels;
 use gpui::Window;
 use gpui::px;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use language::Point;
 use language::Selection;
 use language::SelectionGoal;
 use multi_buffer::Anchor;
 use multi_buffer::MultiBufferOffset;
 use multi_buffer::MultiBufferRow;
-use multi_buffer::ToOffset;
-use multi_buffer::ToPoint;
+use multi_buffer::ToOffset as _;
+use multi_buffer::ToPoint as _;
 use rustc_hash::FxHashMap;
 
 use super::Editor;
@@ -468,7 +468,7 @@ impl Editor {
                 .map(|c| {
                     let code_point = c as u32;
                     if (33..=126).contains(&code_point) {
-                        return char::from_u32(33 + ((code_point + 14) % 94)).unwrap();
+                        return char::from_u32(33 + ((code_point + 14) % 94)).expect("printable ascii");
                     }
                     c
                 })
@@ -484,8 +484,8 @@ impl Editor {
     pub fn convert_from_base64(&mut self, _: &ConvertFromBase64, window: &mut Window, cx: &mut Context<Self>) {
         use base64::Engine as _;
         self.manipulate_text(window, cx, |text| match STANDARD.decode(text) {
-            Ok(bytes) => String::from_utf8(bytes).unwrap_or_else(|_| text.to_string()),
-            Err(_) => text.to_string(),
+            Ok(bytes) => String::from_utf8(bytes).unwrap_or_else(|_| text.to_owned()),
+            Err(_) => text.to_owned(),
         });
     }
 

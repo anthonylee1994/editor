@@ -86,7 +86,7 @@ fn array_index(key: &str) -> Option<u32> {
         return None;
     }
 
-    let value = bytes.iter().fold(0u64, |acc, &b| acc * 10 + u64::from(b - b'0'));
+    let value = bytes.iter().fold(0_u64, |acc, &b| acc * 10 + u64::from(b - b'0'));
     u32::try_from(value).ok().filter(|&index| index != u32::MAX)
 }
 

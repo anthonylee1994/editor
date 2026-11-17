@@ -10,7 +10,7 @@ use gpui::Anchor;
 use gpui::AnchoredPositionMode;
 use gpui::AnyElement;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::Bounds;
 use gpui::DismissEvent;
 use gpui::Entity;
@@ -24,19 +24,19 @@ use gpui::Pixels;
 use gpui::Point;
 use gpui::Size;
 use gpui::Subscription;
-use gpui::TaskExt;
+use gpui::TaskExt as _;
 use gpui::anchored;
 use gpui::canvas;
 use gpui::deferred;
 use gpui::point;
 use gpui::prelude::Context;
 use gpui::prelude::FluentBuilder;
-use gpui::prelude::InteractiveElement;
+use gpui::prelude::InteractiveElement as _;
 use gpui::prelude::IntoElement;
-use gpui::prelude::ParentElement;
+use gpui::prelude::ParentElement as _;
 use gpui::prelude::Render;
-use gpui::prelude::StatefulInteractiveElement;
-use gpui::prelude::Styled;
+use gpui::prelude::StatefulInteractiveElement as _;
+use gpui::prelude::Styled as _;
 use gpui::px;
 use gpui::relative;
 use menu::SelectChild;
@@ -47,7 +47,7 @@ use menu::SelectParent;
 use menu::SelectPrevious;
 use theme::built_in::BUFFER_LINE_HEIGHT;
 
-use crate::ButtonCommon;
+use crate::ButtonCommon as _;
 use crate::ButtonStyle;
 use crate::IconButtonShape;
 use crate::KeyBinding;
@@ -60,10 +60,10 @@ use crate::Tooltip;
 use crate::font;
 use crate::prelude::Button;
 use crate::prelude::ButtonSize;
-use crate::prelude::Clickable;
+use crate::prelude::Clickable as _;
 use crate::prelude::Color;
 use crate::prelude::DefiniteLength;
-use crate::prelude::Disableable;
+use crate::prelude::Disableable as _;
 use crate::prelude::ElementId;
 use crate::prelude::Icon;
 use crate::prelude::IconButton;
@@ -71,12 +71,12 @@ use crate::prelude::IconName;
 use crate::prelude::IconPosition;
 use crate::prelude::IconSize;
 use crate::prelude::Label;
-use crate::prelude::LabelCommon;
+use crate::prelude::LabelCommon as _;
 use crate::prelude::LabelSize;
 use crate::prelude::SharedString;
-use crate::prelude::StyledExt;
-use crate::prelude::Toggleable;
-use crate::prelude::VisibleOnHover;
+use crate::prelude::StyledExt as _;
+use crate::prelude::Toggleable as _;
+use crate::prelude::VisibleOnHover as _;
 use crate::prelude::Window;
 use crate::prelude::div;
 use crate::prelude::h_flex;
@@ -115,7 +115,7 @@ enum HoverTarget {
 pub enum ContextMenuItem {
     Separator,
     Header(SharedString),
-    /// title, link_label, link_url
+    /// title, link_label, link_url.
     HeaderWithLink(SharedString, SharedString, SharedString), // This could be folded into header
     Label(SharedString),
     Entry(ContextMenuEntry),
@@ -147,6 +147,18 @@ impl ContextMenuItem {
             handler: Rc::new(move |_, window, cx| handler(window, cx)),
             selectable: true,
             documentation_aside,
+        }
+    }
+
+    fn is_selectable(&self) -> bool {
+        match self {
+            ContextMenuItem::Header(_)
+            | ContextMenuItem::HeaderWithLink(_, _, _)
+            | ContextMenuItem::Separator
+            | ContextMenuItem::Label { .. } => false,
+            ContextMenuItem::Entry(ContextMenuEntry { disabled, .. }) => !disabled,
+            ContextMenuItem::CustomEntry { selectable, .. } => *selectable,
+            ContextMenuItem::Submenu { .. } => true,
         }
     }
 }
@@ -367,7 +379,7 @@ impl ContextMenu {
             });
             window.refresh();
 
-            (builder.clone())(
+            Rc::clone(&builder)(
                 Self {
                     builder: Some(builder),
                     items: Vec::default(),
@@ -414,7 +426,7 @@ impl ContextMenu {
 
         // The way we rebuild the menu is a bit of a hack.
         let focus_handle = cx.focus_handle();
-        let new_menu = (builder.clone())(
+        let new_menu = Rc::clone(&builder)(
             Self {
                 builder: Some(builder),
                 items: Vec::default(),
@@ -710,7 +722,7 @@ impl ContextMenu {
         disabled: bool,
     ) -> Self {
         self.items.push(ContextMenuItem::Entry(ContextMenuEntry {
-            toggle: if checked { Some((IconPosition::Start, true)) } else { None },
+            toggle: checked.then_some((IconPosition::Start, true)),
             label: label.into(),
             action: Some(action.boxed_clone()),
             handler: Rc::new(move |context, window, cx| {
@@ -897,7 +909,7 @@ impl ContextMenu {
         };
 
         if let Some(ContextMenuItem::Submenu { builder, .. }) = self.items.get(ix) {
-            self.open_submenu(ix, builder.clone(), SubmenuOpenTrigger::Keyboard, window, cx);
+            self.open_submenu(ix, Rc::clone(builder), SubmenuOpenTrigger::Keyboard, window, cx);
 
             if let SubmenuState::Open(open_submenu) = &self.submenu_state {
                 let focus_handle = open_submenu.entity.read(cx).focus_handle.clone();
@@ -938,7 +950,7 @@ impl ContextMenu {
         };
 
         if let Some(ContextMenuItem::Submenu { builder, .. }) = self.items.get(ix) {
-            self.open_submenu(ix, builder.clone(), SubmenuOpenTrigger::Keyboard, window, cx);
+            self.open_submenu(ix, Rc::clone(builder), SubmenuOpenTrigger::Keyboard, window, cx);
 
             if let SubmenuState::Open(open_submenu) = &self.submenu_state {
                 let focus_handle = open_submenu.entity.read(cx).focus_handle.clone();
@@ -1094,7 +1106,7 @@ impl ContextMenu {
             return;
         };
 
-        self.open_submenu(ix, builder.clone(), SubmenuOpenTrigger::Keyboard, window, cx);
+        self.open_submenu(ix, Rc::clone(builder), SubmenuOpenTrigger::Keyboard, window, cx);
 
         if let SubmenuState::Open(open_submenu) = &self.submenu_state {
             let focus_handle = open_submenu.entity.read(cx).focus_handle.clone();
@@ -1124,7 +1136,7 @@ impl ContextMenu {
                 if let SubmenuState::Open(open_submenu) = &parent.submenu_state {
                     let trigger_index = open_submenu.item_index;
                     parent.close_submenu(false, cx);
-                    let _ = parent.select_index(trigger_index, window, cx);
+                    parent.select_index(trigger_index, window, cx);
                     cx.notify();
                 }
             });
@@ -1348,10 +1360,10 @@ impl ContextMenu {
                 .into_any_element(),
             ContextMenuItem::Entry(entry) => self.render_menu_entry(ix, entry, cx).into_any_element(),
             ContextMenuItem::CustomEntry { entry_render, handler, selectable, documentation_aside, .. } => {
-                let handler = handler.clone();
+                let handler = Rc::clone(handler);
                 let menu = cx.entity().downgrade();
                 let selectable = *selectable;
-                let aside_trigger_bounds = self.aside_trigger_bounds.clone();
+                let aside_trigger_bounds = Rc::clone(&self.aside_trigger_bounds);
 
                 div()
                     .id(("context-menu-child", ix))
@@ -1369,7 +1381,7 @@ impl ContextMenu {
                         this.child(
                             canvas(
                                 {
-                                    let aside_trigger_bounds = aside_trigger_bounds.clone();
+                                    let aside_trigger_bounds = Rc::clone(&aside_trigger_bounds);
                                     move |bounds, _window, _cx| {
                                         aside_trigger_bounds.borrow_mut().insert(ix, bounds);
                                     }
@@ -1458,7 +1470,7 @@ impl ContextMenu {
             .child(
                 canvas(
                     {
-                        let trigger_bounds = self.submenu_trigger_bounds.clone();
+                        let trigger_bounds = Rc::clone(&self.submenu_trigger_bounds);
                         move |bounds, _window, _cx| {
                             trigger_bounds.borrow_mut().insert(ix, bounds);
                         }
@@ -1482,7 +1494,7 @@ impl ContextMenu {
                             this.hover_target = HoverTarget::MainMenu;
 
                             if let Some(ContextMenuItem::Submenu { builder, .. }) = this.items.get(ix) {
-                                this.open_submenu(ix, builder.clone(), SubmenuOpenTrigger::Pointer, window, cx);
+                                this.open_submenu(ix, Rc::clone(builder), SubmenuOpenTrigger::Pointer, window, cx);
                             }
 
                             cx.notify();
@@ -1520,7 +1532,7 @@ impl ContextMenu {
                         }
 
                         if let Some(ContextMenuItem::Submenu { builder, .. }) = this.items.get(ix) {
-                            this.open_submenu(ix, builder.clone(), SubmenuOpenTrigger::Pointer, window, cx);
+                            this.open_submenu(ix, Rc::clone(builder), SubmenuOpenTrigger::Pointer, window, cx);
                         }
                     }))
                     .child(
@@ -1568,7 +1580,7 @@ impl ContextMenu {
         let space_on_left = trigger_bounds.left();
         let flip_left = space_on_right < CONTEXT_MENU_MIN_WIDTH && space_on_left > space_on_right;
         let anchor_position = point(if flip_left { px(2.) } else { trigger_bounds.size.width - px(2.) }, px(0.));
-        let bounds_cell = self.submenu_bounds.clone();
+        let bounds_cell = Rc::clone(&self.submenu_bounds);
         let canvas = canvas(
             {
                 move |bounds, _window, _cx| {
@@ -1629,7 +1641,7 @@ impl ContextMenu {
             secondary_handler: _,
         } = entry;
         let this = cx.weak_entity();
-        let handler = handler.clone();
+        let handler = Rc::clone(handler);
         let menu = cx.entity().downgrade();
 
         let icon_color = if *disabled {
@@ -1679,7 +1691,7 @@ impl ContextMenu {
             Label::new(label.clone()).color(label_color).truncate().into_any_element()
         };
 
-        let aside_trigger_bounds = self.aside_trigger_bounds.clone();
+        let aside_trigger_bounds = Rc::clone(&self.aside_trigger_bounds);
 
         div()
             .id(("context-menu-child", ix))
@@ -1697,7 +1709,7 @@ impl ContextMenu {
                 this.child(
                     canvas(
                         {
-                            let aside_trigger_bounds = aside_trigger_bounds.clone();
+                            let aside_trigger_bounds = Rc::clone(&aside_trigger_bounds);
                             move |bounds, _window, _cx| {
                                 aside_trigger_bounds.borrow_mut().insert(ix, bounds);
                             }
@@ -1742,7 +1754,7 @@ impl ContextMenu {
                             }
 
                             if let Some(ContextMenuItem::Submenu { builder, .. }) = this.items.get(ix) {
-                                this.open_submenu(ix, builder.clone(), SubmenuOpenTrigger::Pointer, window, cx);
+                                this.open_submenu(ix, Rc::clone(builder), SubmenuOpenTrigger::Pointer, window, cx);
                             }
                         }))
                         .on_hover(cx.listener(move |this, hovered, window, cx| {
@@ -1826,7 +1838,7 @@ impl ContextMenu {
                                         }
                                     })
                                     .on_click({
-                                        let handler = handler.clone();
+                                        let handler = Rc::clone(handler);
                                         move |_, window, cx| {
                                             handler(None, window, cx);
                                             this.update(cx, |this, cx| {
@@ -1918,20 +1930,6 @@ impl ContextMenu {
     }
 }
 
-impl ContextMenuItem {
-    fn is_selectable(&self) -> bool {
-        match self {
-            ContextMenuItem::Header(_)
-            | ContextMenuItem::HeaderWithLink(_, _, _)
-            | ContextMenuItem::Separator
-            | ContextMenuItem::Label { .. } => false,
-            ContextMenuItem::Entry(ContextMenuEntry { disabled, .. }) => !disabled,
-            ContextMenuItem::CustomEntry { selectable, .. } => *selectable,
-            ContextMenuItem::Submenu { .. } => true,
-        }
-    }
-}
-
 impl Render for ContextMenu {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let ui_font_size = font::ui_font_size(cx);
@@ -1969,7 +1967,7 @@ impl Render for ContextMenu {
         };
 
         let render_menu = |cx: &mut Context<Self>, window: &mut Window| {
-            let bounds_cell = self.main_menu_observed_bounds.clone();
+            let bounds_cell = Rc::clone(&self.main_menu_observed_bounds);
             let menu_bounds_measure = canvas(
                 {
                     move |bounds, _window, _cx| {

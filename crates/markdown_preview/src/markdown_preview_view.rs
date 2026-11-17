@@ -31,9 +31,9 @@ use gpui::EventEmitter;
 use gpui::FocusHandle;
 use gpui::Focusable;
 use gpui::ImageSource;
-use gpui::InteractiveElement;
+use gpui::InteractiveElement as _;
 use gpui::IntoElement;
-use gpui::IsZero;
+use gpui::IsZero as _;
 use gpui::ListOffset;
 use gpui::Pixels;
 use gpui::Render;
@@ -60,23 +60,23 @@ use ui::ContextMenu;
 use ui::LinkPreview;
 use ui::ScrollAxes;
 use ui::Scrollbars;
-use ui::WithScrollbar;
-use ui::prelude::ActiveTheme;
+use ui::WithScrollbar as _;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::Color;
-use ui::prelude::FluentBuilder;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Icon;
 use ui::prelude::IconName;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
-use ui::prelude::ParentElement;
-use ui::prelude::StatefulInteractiveElement;
-use ui::prelude::Styled;
+use ui::prelude::ParentElement as _;
+use ui::prelude::StatefulInteractiveElement as _;
+use ui::prelude::Styled as _;
 use ui::prelude::div;
 use ui::prelude::h_flex;
 use ui::right_click_menu;
 use ui::utils::WithRemSize;
-use util::ResultExt;
+use util::ResultExt as _;
 use util::markdown::source_position_from_fragment;
 use util::markdown::split_local_url_fragment;
 use util::paths::PathWithPosition;
@@ -92,8 +92,8 @@ use workspace::item::ItemHandle;
 use workspace::item::SaveOptions;
 use workspace::item::SerializableItem;
 use workspace::item::TabContentParams;
-use workspace::notifications::NotifyResultExt;
-use workspace::notifications::NotifyTaskExt;
+use workspace::notifications::NotifyResultExt as _;
+use workspace::notifications::NotifyTaskExt as _;
 use workspace::path_link::PathMatching;
 use workspace::path_link::resolve_open_target;
 use workspace::searchable::Direction;
@@ -278,7 +278,7 @@ impl MarkdownPreviewView {
         window: &mut Window,
         cx: &mut Context<Workspace>,
     ) -> Entity<MarkdownPreviewView> {
-        let language_registry = workspace.project().read(cx).languages().clone();
+        let language_registry = Arc::clone(workspace.project().read(cx).languages());
         let workspace_handle = workspace.weak_handle();
         MarkdownPreviewView::new(MarkdownPreviewMode::Default, editor, workspace_handle, language_registry, window, cx)
     }
@@ -289,7 +289,7 @@ impl MarkdownPreviewView {
         window: &mut Window,
         cx: &mut Context<Workspace>,
     ) -> Entity<MarkdownPreviewView> {
-        let language_registry = workspace.project().read(cx).languages().clone();
+        let language_registry = Arc::clone(workspace.project().read(cx).languages());
         let workspace_handle = workspace.weak_handle();
         MarkdownPreviewView::new(MarkdownPreviewMode::Follow, editor, workspace_handle, language_registry, window, cx)
     }
@@ -573,7 +573,7 @@ impl MarkdownPreviewView {
         let (buffer_snapshot, buffer_offset) =
             display_snapshot.buffer_snapshot().point_to_buffer_offset(source_offset)?;
 
-        if buffer_snapshot.buffer_id() == buffer_id { Some(buffer_offset.0) } else { None }
+        (buffer_snapshot.buffer_id() == buffer_id).then_some(buffer_offset.0)
     }
 
     fn sync_preview_to_source_index(&mut self, source_index: usize, reveal: bool, cx: &mut Context<Self>) {
@@ -887,7 +887,7 @@ fn handle_url_click(
     if path_part.is_empty() {
         if let Some(fragment) = fragment {
             let view = view.clone();
-            let slug = SharedString::from(fragment.to_string());
+            let slug = SharedString::from(fragment.to_owned());
             window.defer(cx, move |window, cx| {
                 if let Some(view) = view.upgrade() {
                     let markdown = view.read(cx).markdown.clone();
@@ -905,8 +905,8 @@ fn handle_url_click(
         }
     } else {
         open_preview_url(
-            SharedString::from(path_part.to_string()),
-            fragment.map(|fragment| SharedString::from(fragment.to_string())),
+            SharedString::from(path_part.to_owned()),
+            fragment.map(|fragment| SharedString::from(fragment.to_owned())),
             base_directory,
             Some(view.clone()),
             workspace,
@@ -1120,7 +1120,7 @@ fn resolve_preview_image(
         return None;
     }
 
-    let decoded = urlencoding::decode(dest_url).map_or_else(|_| dest_url.to_string(), |x| x.into_owned());
+    let decoded = urlencoding::decode(dest_url).map_or_else(|_| dest_url.to_owned(), |x| x.into_owned());
     let workspace_relative_path = ['/', '\\'].iter().find_map(|prefix| decoded.strip_prefix(*prefix));
 
     if let (Some(project), Some(source_project_path)) = (project, source_project_path) {
@@ -1214,7 +1214,7 @@ impl Item for MarkdownPreviewView {
         let title = match editor {
             Some(editor) if params.truncate_title_middle => format!("Preview {}", editor.title(cx)),
             Some(editor) => format!("Preview {}", util::truncate_and_trailoff(&editor.title(cx), max_title_len)),
-            None => "Markdown Preview".to_string(),
+            None => "Markdown Preview".to_owned(),
         };
         let description = editor
             .zip(params.detail)
@@ -1504,7 +1504,7 @@ impl SearchableItem for MarkdownPreviewView {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) -> String {
-        self.markdown.read(cx).selected_source().unwrap_or_default().to_string()
+        self.markdown.read(cx).selected_source().unwrap_or_default().to_owned()
     }
 
     fn activate_match(
@@ -1625,7 +1625,7 @@ impl SerializableItem for MarkdownPreviewView {
             let buffer = project.update(cx, |project, cx| project.open_buffer(project_path, cx)).await?;
 
             cx.update(|window, cx| {
-                let language_registry = project.read(cx).languages().clone();
+                let language_registry = Arc::clone(project.read(cx).languages());
                 let editor = cx.new(|cx| Editor::for_buffer(buffer, Some(project.clone()), window, cx));
                 MarkdownPreviewView::new(mode, editor, workspace, language_registry, window, cx)
             })

@@ -6,25 +6,25 @@ use gpui::Focusable;
 use gpui::Hsla;
 use gpui::Length;
 use ui::Tooltip;
-use ui::prelude::ActiveTheme;
-use ui::prelude::ButtonCommon;
-use ui::prelude::Clickable;
+use ui::prelude::ActiveTheme as _;
+use ui::prelude::ButtonCommon as _;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
 use ui::prelude::Context;
-use ui::prelude::FluentBuilder;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Icon;
 use ui::prelude::IconButton;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
-use ui::prelude::InteractiveElement;
+use ui::prelude::InteractiveElement as _;
 use ui::prelude::IntoElement;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
-use ui::prelude::ParentElement;
+use ui::prelude::ParentElement as _;
 use ui::prelude::Render;
 use ui::prelude::SharedString;
-use ui::prelude::Styled;
+use ui::prelude::Styled as _;
 use ui::prelude::Window;
 use ui::prelude::h_flex;
 use ui::prelude::px;
@@ -56,7 +56,7 @@ pub struct InputField {
     ///
     /// For example, a magnifying glass icon in a search field.
     start_icon: Option<IconName>,
-    /// The minimum width of for the input
+    /// The minimum width of for the input.
     min_width: Length,
     /// The tab index for keyboard navigation order.
     tab_index: Option<isize>,
@@ -166,7 +166,7 @@ impl InputField {
 
 impl Render for InputField {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let editor = self.editor.clone();
+        let editor = Arc::clone(&self.editor);
 
         if let Some(masked) = self.masked {
             self.editor.set_masked(masked, window, cx);

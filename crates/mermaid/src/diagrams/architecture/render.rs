@@ -21,8 +21,8 @@ use crate::text::label::Label;
 use crate::text::label::Span;
 use crate::text::label::layout_label;
 use crate::text::label::trim_end;
+use crate::text::measure;
 use crate::text::measure::BOLD;
-use crate::text::measure::{self};
 use crate::yaml::Value;
 use crate::yaml::push_number;
 
@@ -333,7 +333,7 @@ fn path_data(out: &mut String, p: &[f64], start_trim: f64, end_trim: f64) {
 }
 
 /// Draws `model` with the `architecture` section of `config`.
-#[expect(clippy::many_single_char_names, reason = "names mirror Pele's draw")]
+#[expect(clippy::too_many_lines, clippy::many_single_char_names, reason = "names mirror Pele's draw")]
 pub(crate) fn render_architecture(model: &ArchitectureDb, config: &Value, options: &Options) -> Rendered {
     let icon_size = setting(config, "iconSize", 48.0, 8.0, 512.0);
     let size = setting(config, "fontSize", options.font_size, 4.0, 128.0);

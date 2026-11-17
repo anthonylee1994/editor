@@ -321,7 +321,7 @@ impl<'s> Parser<'s, '_> {
         let type2 = self.relation_end();
         let title2 = if self.kind() == T::Str { self.take() } else { "none" };
         let id2 = self.name(true)?;
-        let title = if self.kind() == T::Label { Some(ClassDb::cleanup_label(self.take()).to_owned()) } else { None };
+        let title = (self.kind() == T::Label).then(|| ClassDb::cleanup_label(self.take()).to_owned());
         db.add_relation(ClassRelation {
             id1,
             id2,

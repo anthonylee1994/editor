@@ -470,7 +470,6 @@ fn measure(node: &GraphNode<'_>, size: f64, small: f64, tiny: f64) -> View {
 }
 
 /// Draws `model` with the `usecase` section of `config`.
-#[expect(clippy::too_many_lines, reason = "mirrors Pele's draw")]
 pub(crate) fn render(model: &UsecaseModel, config: &Value, options: &Options) -> Rendered {
     let graph = build_usecase_graph(model);
     let size = options.font_size;

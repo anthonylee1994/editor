@@ -48,13 +48,13 @@ use gpui::WindowAppearance;
 use gpui::WindowKind;
 use gpui::WindowParams;
 use gpui::popup::PopupNotSupportedError;
+use gpui_apple::thermal;
 use gpui_apple::thermal::ThermalObserver;
-use gpui_apple::thermal::{self};
-use gpui_util::ResultExt;
+use gpui_util::ResultExt as _;
 use gpui_util::new_std_command;
-use itertools::Itertools;
-use objc2::ClassType;
-use objc2::DefinedClass;
+use itertools::Itertools as _;
+use objc2::ClassType as _;
+use objc2::DefinedClass as _;
 use objc2::MainThreadMarker;
 use objc2::MainThreadOnly;
 use objc2::class;
@@ -317,7 +317,7 @@ impl MacPlatform {
             activation_policy: ActivationPolicy::Regular,
             application_created: false,
             text_system,
-            background_executor: BackgroundExecutor::new(dispatcher.clone()),
+            background_executor: BackgroundExecutor::new(Arc::<AppleDispatcher>::clone(&dispatcher)),
             foreground_executor: ForegroundExecutor::new(dispatcher),
             renderer_context: renderer::Context::default(),
             general_pasteboard: Pasteboard::general(),
@@ -338,7 +338,7 @@ impl MacPlatform {
             on_system_wake: None,
             system_power_observers_registered: false,
             menus: None,
-            keyboard_layout_id: keyboard_layout.id().to_string(),
+            keyboard_layout_id: keyboard_layout.id().to_owned(),
             cursor_visible: Arc::new(AtomicBool::new(true)),
         });
         Self(state, marker)
@@ -550,7 +550,7 @@ impl Platform for MacPlatform {
     }
 
     fn text_system(&self) -> Arc<dyn PlatformTextSystem> {
-        self.0.lock().text_system.clone()
+        Arc::clone(&self.0.lock().text_system)
     }
 
     fn run(&self, on_finish_launching: Box<dyn FnOnce()>) {
@@ -692,10 +692,10 @@ impl Platform for MacPlatform {
         let (cursor_visible, foreground_executor, background_executor, renderer_context) = {
             let guard = self.0.lock();
             (
-                guard.cursor_visible.clone(),
+                Arc::clone(&guard.cursor_visible),
                 guard.foreground_executor.clone(),
                 guard.background_executor.clone(),
-                guard.renderer_context.clone(),
+                Arc::clone(&guard.renderer_context),
             )
         };
 
@@ -840,7 +840,10 @@ impl Platform for MacPlatform {
                         };
 
                         let result = (response == NSModalResponseOK)
-                            .then(|| panel.URL().filter(|url| url.isFileURL()).and_then(|url| url.to_file_path()))
+                            .then(|| {
+                                let url = panel.URL().filter(|url| url.isFileURL())?;
+                                url.to_file_path()
+                            })
                             .flatten();
 
                         _ = done_tx.send(Ok(result));
@@ -1000,7 +1003,7 @@ impl Platform for MacPlatform {
     }
 
     fn hide_cursor_until_mouse_moves(&self) {
-        let cursor_visible = self.0.lock().cursor_visible.clone();
+        let cursor_visible = Arc::clone(&self.0.lock().cursor_visible);
         if !cursor_visible.swap(false, Ordering::Relaxed) {
             return;
         }
@@ -1051,7 +1054,8 @@ impl Platform for MacPlatform {
 unsafe fn path_from_objc(path: id) -> PathBuf {
     let len: NSUInteger = unsafe { msg_send![path, lengthOfBytesUsingEncoding: NSUTF8StringEncoding] };
     let bytes: *const c_char = unsafe { msg_send![path, UTF8String] };
-    let path = str::from_utf8(unsafe { slice::from_raw_parts(bytes.cast::<u8>(), len) }).unwrap();
+    let path =
+        str::from_utf8(unsafe { slice::from_raw_parts(bytes.cast::<u8>(), len) }).expect("NSString path is utf-8");
     PathBuf::from(path)
 }
 
@@ -1191,7 +1195,7 @@ fn on_keyboard_layout_change(this: &AnyObject, _: id) {
     if keyboard_layout.id() == lock.keyboard_layout_id {
         return;
     }
-    lock.keyboard_layout_id = keyboard_layout.id().to_string();
+    keyboard_layout.id().clone_into(&mut lock.keyboard_layout_id);
     if let Some(mut callback) = lock.on_keyboard_layout_change.take() {
         drop(lock);
         callback();
@@ -1271,7 +1275,7 @@ fn open_urls(this: &AnyObject, _: id, urls: id) {
                 let absolute_string: id = msg_send![url, absoluteString];
                 let utf8: *const c_char = msg_send![absolute_string, UTF8String];
                 match CStr::from_ptr(utf8).to_str() {
-                    Ok(string) => Some(string.to_string()),
+                    Ok(string) => Some(string.to_owned()),
                     Err(err) => {
                         log::error!("error converting path to string: {err}");
                         None

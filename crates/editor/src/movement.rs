@@ -17,11 +17,11 @@ use super::Bias;
 use super::DisplayPoint;
 use super::DisplaySnapshot;
 use super::SelectionGoal;
-use super::ToDisplayPoint;
+use super::ToDisplayPoint as _;
 use crate::DisplayRow;
 use crate::EditorStyle;
-use crate::ToOffset;
-use crate::ToPoint;
+use crate::ToOffset as _;
+use crate::ToPoint as _;
 use crate::scroll::ScrollOffset;
 use crate::scroll::SharedScrollAnchor;
 

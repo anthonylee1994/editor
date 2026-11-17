@@ -39,7 +39,8 @@ const DIRECTIONS: [(&str, T); 4] =
 
 /// The character at `at`, or `None` at the end.
 fn char_at(src: &str, at: usize) -> Option<char> {
-    src.get(at..).and_then(|rest| rest.chars().next())
+    let rest = src.get(at..)?;
+    rest.chars().next()
 }
 
 /// The byte at `at`, or 0 at the end.

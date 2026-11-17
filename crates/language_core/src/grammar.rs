@@ -175,7 +175,7 @@ pub enum RunnableCapture {
 
 pub struct RunnableConfig {
     pub query: Query,
-    /// A mapping from capture index to capture kind
+    /// A mapping from capture index to capture kind.
     pub extra_captures: Vec<RunnableCapture>,
     /// `true` if the query uses `@run_item`, the marker for matches that
     /// emit multiple runnables.
@@ -308,11 +308,8 @@ impl Grammar {
     }
 
     pub fn highlight_id_for_name(&self, name: &str) -> Option<HighlightId> {
-        self.highlights_config
-            .as_ref()?
-            .query
-            .capture_index_for_name(name)
-            .and_then(|capture_id| self.highlight_map.lock().get(CaptureId(capture_id)))
+        let capture_id = self.highlights_config.as_ref()?.query.capture_index_for_name(name)?;
+        self.highlight_map.lock().get(CaptureId(capture_id))
     }
 
     /// Load all queries from `LanguageQueries` into this grammar, mutating the
@@ -388,7 +385,7 @@ impl Grammar {
             .map(|&name| match name {
                 "run" => RunnableCapture::Run,
                 "run_item" => RunnableCapture::RunItem,
-                name => RunnableCapture::Named(name.to_string().into()),
+                name => RunnableCapture::Named(name.to_owned().into()),
             })
             .collect();
         let supports_grouped_runnables =
@@ -604,7 +601,7 @@ impl Grammar {
 
             let value = overrides.get(name).cloned().unwrap_or_default();
             override_configs_by_id
-                .insert(ix as u32, OverrideEntry { name: name.to_string(), range_is_inclusive, value });
+                .insert(ix as u32, OverrideEntry { name: name.to_owned(), range_is_inclusive, value });
         }
 
         let referenced_override_names = overrides.keys().chain(brackets.disabled_scopes_by_bracket_ix.iter().flatten());
@@ -620,11 +617,9 @@ impl Grammar {
                 .disabled_scopes_by_bracket_ix
                 .iter()
                 .enumerate()
-                .filter_map(
-                    |(ix, disabled_scope_names)| {
-                        if disabled_scope_names.contains(&entry.name) { Some(ix as u16) } else { None }
-                    },
-                )
+                .filter_map(|(ix, disabled_scope_names)| {
+                    disabled_scope_names.contains(&entry.name).then_some(ix as u16)
+                })
                 .collect();
         }
 

@@ -11,15 +11,15 @@ use gpui::RenderOnce;
 use gpui::Window;
 
 use crate::Tooltip;
-use crate::prelude::ButtonCommon;
-use crate::prelude::Clickable;
+use crate::prelude::ButtonCommon as _;
+use crate::prelude::Clickable as _;
 use crate::prelude::Color;
-use crate::prelude::Disableable;
+use crate::prelude::Disableable as _;
 use crate::prelude::IconButton;
 use crate::prelude::IconName;
 use crate::prelude::IconSize;
 use crate::prelude::SharedString;
-use crate::prelude::VisibleOnHover;
+use crate::prelude::VisibleOnHover as _;
 
 const COPIED_STATE_DURATION: Duration = Duration::from_secs(2);
 

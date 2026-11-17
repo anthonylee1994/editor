@@ -28,12 +28,12 @@ use text::Anchor;
 use text::Bias;
 use text::BufferId;
 use text::Edit;
-use text::OffsetRangeExt;
+use text::OffsetRangeExt as _;
 use text::Patch;
 use text::Point;
 use text::ToOffset as _;
 use text::ToPoint as _;
-use util::ResultExt;
+use util::ResultExt as _;
 
 pub const MAX_WORD_DIFF_LINE_COUNT: usize = 5;
 
@@ -134,17 +134,17 @@ pub enum DiffHunkStatusKind {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 /// Diff of Working Copy vs Index
-/// aka 'is this hunk staged or not'
+/// aka 'is this hunk staged or not'.
 pub enum DiffHunkSecondaryStatus {
-    /// Unstaged
+    /// Unstaged.
     HasSecondaryHunk,
-    /// Partially staged
+    /// Partially staged.
     OverlapsWithSecondaryHunk,
-    /// Staged
+    /// Staged.
     NoSecondaryHunk,
-    /// We are unstaging
+    /// We are unstaging.
     SecondaryHunkAdditionPending,
-    /// We are stagind
+    /// We are stagind.
     SecondaryHunkRemovalPending,
 }
 
@@ -629,9 +629,7 @@ impl BufferDiffSnapshot {
         let edit = patch.edit_for_old_position(point);
         if point == edit.old.end { edit.new.end } else { edit.new.start }
     }
-}
 
-impl BufferDiffSnapshot {
     // Compute the edits to apply to the index, and the resulting pending hunks,
     // for a stage or unstage operation on the uncommitted diff.
     #[allow(clippy::type_complexity)]
@@ -788,9 +786,7 @@ impl BufferDiffSnapshot {
 
         (Some(edits), pending)
     }
-}
 
-impl BufferDiffSnapshot {
     fn hunks_intersecting_range_impl<'a>(
         &'a self,
         filter: impl 'a + Fn(&DiffHunkSummary) -> bool,
@@ -1394,7 +1390,7 @@ impl BufferDiff {
         let mut changed_start: Option<Anchor> = None;
         let mut changed_end: Option<Anchor> = None;
         let mut base_start = usize::MAX;
-        let mut base_end = 0usize;
+        let mut base_end = 0_usize;
         let mut extend_changed_range = |buffer_range: &Range<Anchor>, base_range: &Range<usize>| {
             changed_start =
                 Some(changed_start.map_or(buffer_range.start, |start| *start.min(&buffer_range.start, buffer)));
@@ -1515,14 +1511,10 @@ impl BufferDiff {
         let base_text_snapshot = base_text_snapshot.clone();
         let base_text_exists = base_text.is_some();
         let unchanged_hunks = self.diff_snapshot.as_ref().and_then(|diff_snapshot| {
-            if diff_snapshot.base_text_exists == base_text_exists
+            (diff_snapshot.base_text_exists == base_text_exists
                 && diff_snapshot.base_text.version() == base_text_snapshot.version()
-                && diff_snapshot.buffer_snapshot.version() == buffer_snapshot.version()
-            {
-                Some(diff_snapshot.hunks.clone())
-            } else {
-                None
-            }
+                && diff_snapshot.buffer_snapshot.version() == buffer_snapshot.version())
+            .then(|| diff_snapshot.hunks.clone())
         });
 
         cx.background_executor().spawn(async move {
@@ -1716,7 +1708,7 @@ impl BufferDiff {
             let Some(base_text_diff) = this
                 .update(cx, |this, cx| {
                     this.base_text_buffer
-                        .update(cx, |base_text_buffer, cx| base_text_buffer.diff(base_text.clone(), cx))
+                        .update(cx, |base_text_buffer, cx| base_text_buffer.diff(Arc::clone(&base_text), cx))
                 })
                 .log_err()
             else {
@@ -1749,7 +1741,7 @@ impl BufferDiff {
                     this.update_diff(
                         buffer.clone(),
                         &base_text_snapshot,
-                        base_text_exists.then(|| base_text.clone()),
+                        base_text_exists.then(|| Arc::clone(&base_text)),
                         cx,
                     )
                 })
@@ -1774,9 +1766,8 @@ impl BufferDiff {
     }
 
     pub fn base_text_string(&self, _cx: &App) -> Option<String> {
-        self.diff_snapshot.as_ref().and_then(|diff_snapshot| {
-            if diff_snapshot.base_text_exists { Some(diff_snapshot.base_text.text()) } else { None }
-        })
+        let diff_snapshot = self.diff_snapshot.as_ref()?;
+        diff_snapshot.base_text_exists.then(|| diff_snapshot.base_text.text())
     }
 
     pub const fn base_text_buffer(&self) -> &Entity<language::Buffer> {

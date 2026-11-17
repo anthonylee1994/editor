@@ -6,14 +6,14 @@ use gpui::ClickEvent;
 use gpui::ElementId;
 use gpui::Hsla;
 use gpui::IntoElement;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Window;
 use gpui::div;
-use gpui::prelude::FluentBuilder;
-use gpui::prelude::InteractiveElement;
-use gpui::prelude::ParentElement;
+use gpui::prelude::FluentBuilder as _;
+use gpui::prelude::InteractiveElement as _;
+use gpui::prelude::ParentElement as _;
 use gpui::prelude::RenderOnce;
-use gpui::prelude::StatefulInteractiveElement;
+use gpui::prelude::StatefulInteractiveElement as _;
 
 use crate::Color;
 use crate::ElevationIndex;
@@ -21,16 +21,16 @@ use crate::Icon;
 use crate::IconName;
 use crate::KeyBinding;
 use crate::ToggleState;
-use crate::prelude::ActiveTheme;
+use crate::prelude::ActiveTheme as _;
 use crate::prelude::App;
-use crate::prelude::ButtonCommon;
+use crate::prelude::ButtonCommon as _;
 use crate::prelude::ButtonStyle;
-use crate::prelude::Clickable;
+use crate::prelude::Clickable as _;
 use crate::prelude::DynamicSpacing;
 use crate::prelude::IconButton;
 use crate::prelude::IconSize;
 use crate::prelude::Label;
-use crate::prelude::LabelCommon;
+use crate::prelude::LabelCommon as _;
 use crate::prelude::LabelSize;
 use crate::prelude::Pixels;
 use crate::prelude::SharedString;
@@ -55,13 +55,13 @@ pub fn switch(id: impl Into<ElementId>, toggle_state: ToggleState) -> Switch {
 /// The visual style of a toggle.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub enum ToggleStyle {
-    /// Toggle has a transparent background
+    /// Toggle has a transparent background.
     #[default]
     Ghost,
     /// Toggle has a filled background based on the
-    /// elevation index of the parent container
+    /// elevation index of the parent container.
     ElevationBased(ElevationIndex),
-    /// A custom style using a color to tint the toggle
+    /// A custom style using a color to tint the toggle.
     Custom(Hsla),
 }
 
@@ -179,9 +179,7 @@ impl Checkbox {
         self.label_color = color;
         self
     }
-}
 
-impl Checkbox {
     fn bg_color(&self, cx: &App) -> Hsla {
         let style = self.style.clone();
         match (style, self.filled) {
@@ -582,7 +580,7 @@ impl RenderOnce for SwitchField {
                     .shape(crate::IconButtonShape::Square)
                     .style(ButtonStyle::Transparent)
                     .tooltip({
-                        let tooltip = tooltip_fn.clone();
+                        let tooltip = Rc::clone(&tooltip_fn);
                         move |window, cx| tooltip(window, cx)
                     })
                     .on_click(|_, _, _| {}), // Intentional empty on click handler so that clicking on the info tooltip icon doesn't trigger the switch toggle
@@ -624,7 +622,7 @@ impl RenderOnce for SwitchField {
                     .disabled(self.disabled)
                     .when_some(self.tab_index.filter(|_| !self.disabled), |this, tab_index| this.tab_index(tab_index))
                     .on_click({
-                        let on_click = self.on_click.clone();
+                        let on_click = Arc::clone(&self.on_click);
                         move |state, window, cx| {
                             (on_click)(state, window, cx);
                         }
@@ -632,7 +630,7 @@ impl RenderOnce for SwitchField {
             )
             .when(!self.disabled, |this| {
                 this.on_click({
-                    let on_click = self.on_click.clone();
+                    let on_click = Arc::clone(&self.on_click);
                     let toggle_state = self.toggle_state;
                     move |_click, window, cx| {
                         (on_click)(&toggle_state.inverse(), window, cx);

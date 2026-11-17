@@ -20,6 +20,6 @@ impl AssetSource for Assets {
     }
 
     fn list(&self, path: &str) -> Result<Vec<SharedString>> {
-        Ok(Self::iter().filter_map(|p| if p.starts_with(path) { Some(p.into()) } else { None }).collect())
+        Ok(Self::iter().filter_map(|p| p.starts_with(path).then(|| p.into())).collect())
     }
 }

@@ -3,7 +3,7 @@ use gpui::Styled;
 use gpui::hsla;
 
 use crate::ElevationIndex;
-use crate::prelude::ActiveTheme;
+use crate::prelude::ActiveTheme as _;
 
 fn elevated<E: Styled>(this: E, cx: &App, index: ElevationIndex) -> E {
     this.bg(cx.theme().colors().elevated_surface_background)
@@ -21,23 +21,23 @@ fn elevated_borderless<E: Styled>(this: E, cx: &App, index: ElevationIndex) -> E
 pub trait StyledExt: Styled + Sized {
     /// Horizontally stacks elements.
     ///
-    /// Sets `flex()`, `flex_row()`, `items_center()`
+    /// Sets `flex()`, `flex_row()`, `items_center()`.
     fn h_flex(self) -> Self {
         self.flex().flex_row().items_center()
     }
 
     /// Vertically stacks elements.
     ///
-    /// Sets `flex()`, `flex_col()`
+    /// Sets `flex()`, `flex_col()`.
     fn v_flex(self) -> Self {
         self.flex().flex_col()
     }
 
-    /// The [`Surface`](ElevationIndex::Surface) elevation level, located above the app background, is the standard level for all elements
+    /// The [`Surface`](ElevationIndex::Surface) elevation level, located above the app background, is the standard level for all elements.
     ///
-    /// Sets `bg()`, `rounded_lg()`, `border()`, `border_color()`, `shadow()`
+    /// Sets `bg()`, `rounded_lg()`, `border()`, `border_color()`, `shadow()`.
     ///
-    /// Example Elements: Title Bar, Panel, Tab Bar, Editor
+    /// Example Elements: Title Bar, Panel, Tab Bar, Editor.
     fn elevation_1(self, cx: &App) -> Self {
         elevated(self, cx, ElevationIndex::Surface)
     }
@@ -51,9 +51,9 @@ pub trait StyledExt: Styled + Sized {
 
     /// Non-Modal Elevated Surfaces appear above the [`Surface`](ElevationIndex::Surface) layer and is used for things that should appear above most UI elements like an editor or panel, but not elements like popovers, context menus, modals, etc.
     ///
-    /// Sets `bg()`, `rounded_lg()`, `border()`, `border_color()`, `shadow()`
+    /// Sets `bg()`, `rounded_lg()`, `border()`, `border_color()`, `shadow()`.
     ///
-    /// Examples: Notifications, Palettes, Detached/Floating Windows, Detached/Floating Panels
+    /// Examples: Notifications, Palettes, Detached/Floating Windows, Detached/Floating Panels.
     fn elevation_2(self, cx: &App) -> Self {
         elevated(self, cx, ElevationIndex::ElevatedSurface)
     }
@@ -71,9 +71,9 @@ pub trait StyledExt: Styled + Sized {
     ///
     /// If the element does not have this behavior, it should be rendered at the [`Elevated Surface`](ElevationIndex::ElevatedSurface) layer.
     ///
-    /// Sets `bg()`, `rounded_lg()`, `border()`, `border_color()`, `shadow()`
+    /// Sets `bg()`, `rounded_lg()`, `border()`, `border_color()`, `shadow()`.
     ///
-    /// Examples: Settings Modal, Channel Management, Wizards/Setup UI, Dialogs
+    /// Examples: Settings Modal, Channel Management, Wizards/Setup UI, Dialogs.
     fn elevation_3(self, cx: &App) -> Self {
         elevated(self, cx, ElevationIndex::ModalSurface)
     }

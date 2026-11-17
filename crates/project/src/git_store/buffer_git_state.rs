@@ -12,9 +12,9 @@ use buffer_diff::DiffHunk;
 use buffer_diff::DiffOperations;
 use buffer_diff::PendingHunk;
 use buffer_diff::PendingSense;
-use futures::channel::oneshot::{self};
+use futures::channel::oneshot;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::Context;
 use gpui::Entity;
 use gpui::Task;
@@ -27,7 +27,7 @@ use language::LanguageRegistry;
 use language::WorktreeId;
 use rustc_hash::FxHashMap;
 use text::Rope;
-use util::ResultExt;
+use util::ResultExt as _;
 use util::rel_path::RelPath;
 
 use super::DiffKind;
@@ -184,9 +184,9 @@ pub(super) struct IndexTextFile {
 impl IndexTextFile {
     pub(super) fn new(file: &dyn language::File, cx: &App) -> Self {
         Self {
-            path: file.path().clone(),
+            path: Arc::clone(file.path()),
             full_path: file.full_path(cx),
-            file_name: file.file_name(cx).to_string(),
+            file_name: file.file_name(cx).to_owned(),
             worktree_id: file.worktree_id(cx),
         }
     }
@@ -345,7 +345,8 @@ impl BufferGitState {
     }
 
     fn staged_diff(&self) -> Option<Entity<BufferDiff>> {
-        self.staged_diff.as_ref().and_then(|(set, _)| set.upgrade())
+        let (set, _) = self.staged_diff.as_ref()?;
+        set.upgrade()
     }
 
     pub(super) fn staged_diff_and_index_text_buffer(&self) -> Option<(Entity<BufferDiff>, Entity<Buffer>)> {
@@ -453,12 +454,10 @@ impl BufferGitState {
     }
 
     pub fn wait_for_recalculation(&mut self) -> Option<impl Future<Output = ()> + use<>> {
-        if *watch::Receiver::borrow(&mut self.recalculating.1) {
+        (*watch::Receiver::borrow(&mut self.recalculating.1)).then(|| {
             let mut rx = self.recalculating.0.receiver();
-            Some(async move { while rx.changed().await.is_ok() && *watch::Receiver::borrow(&mut rx) {} })
-        } else {
-            None
-        }
+            async move { while rx.changed().await.is_ok() && *watch::Receiver::borrow(&mut rx) {} }
+        })
     }
 
     pub(super) fn diff_bases_changed(
@@ -538,7 +537,7 @@ impl BufferGitState {
                 let diff = weak.upgrade()?;
                 let base_text_buffer = diff.read(cx).base_text_buffer().clone();
                 let base_text = match oid {
-                    Some(oid) => Some(self.oid_texts.get(oid)?.clone()),
+                    Some(oid) => Some(Arc::clone(self.oid_texts.get(oid)?)),
                     None => None,
                 };
                 Some((*oid, diff, base_text_buffer, base_text))
@@ -611,7 +610,7 @@ impl BufferGitState {
                 let index_text_snapshot = if index_changed || language_changed {
                     let new_index_text = index.clone().unwrap_or_default();
                     let index_text_diff = index_text_buffer
-                        .update(cx, |index_text_buffer, cx| index_text_buffer.diff(new_index_text.clone(), cx))
+                        .update(cx, |index_text_buffer, cx| index_text_buffer.diff(Arc::clone(&new_index_text), cx))
                         .await;
                     let edited = index_text_buffer
                         .update(cx, |index_text_buffer, cx| {
@@ -656,7 +655,7 @@ impl BufferGitState {
                 let head_text_snapshot = if head_changed || language_changed || enable_head_text_language {
                     let new_head_text = head.clone().unwrap_or_default();
                     let head_text_diff = head_text_buffer
-                        .update(cx, |head_text_buffer, cx| head_text_buffer.diff(new_head_text.clone(), cx))
+                        .update(cx, |head_text_buffer, cx| head_text_buffer.diff(Arc::clone(&new_head_text), cx))
                         .await;
                     let edited = head_text_buffer
                         .update(cx, |base_text_buffer, cx| {
@@ -835,7 +834,7 @@ mod head_text_language_tests {
     use super::head_text_shows_deletions;
 
     #[test]
-    fn test_head_text_shows_deletions() {
+    fn head_text_shows_deletions_works() {
         let rope = Rope::from("fn main() {}\n");
         assert!(!head_text_shows_deletions(&rope, Some("fn main() {}\n"), true, false));
         assert!(!head_text_shows_deletions(&rope, Some("fn main() {}\n"), true, true));
@@ -850,7 +849,7 @@ mod head_text_language_tests {
     }
 
     #[test]
-    fn test_head_text_shows_deletions_across_chunks() {
+    fn head_text_shows_deletions_across_chunks() {
         let text = "let x = 1;\n".repeat(1000);
         let rope = Rope::from(text.as_str());
         assert!(!head_text_shows_deletions(&rope, Some(&text), true, false));

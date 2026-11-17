@@ -31,7 +31,7 @@ use gpui::Task;
 use gpui::Window;
 use language::Buffer;
 use language::Capability;
-use language::OffsetRangeExt;
+use language::OffsetRangeExt as _;
 use multi_buffer::PathKey;
 use project::Project;
 use project::ProjectPath;
@@ -107,13 +107,23 @@ fn register_entry(
                 .and_then(|n| n.to_str())
                 .and_then(|s| RelPath::new(Path::new(s)).ok())
                 .map_or_else(
-                    || RelPath::new(Path::new(MultiBuffer::DEFAULT_TITLE)).unwrap().into_owned().into(),
+                    || {
+                        RelPath::new(Path::new(MultiBuffer::DEFAULT_TITLE))
+                            .expect("default title is a valid relative path")
+                            .into_owned()
+                            .into()
+                    },
                     |r| r.into_owned().into(),
                 )
         },
         |rel| {
             RelPath::new(rel).map_or_else(
-                |_| RelPath::new(Path::new(MultiBuffer::DEFAULT_TITLE)).unwrap().into_owned().into(),
+                |_| {
+                    RelPath::new(Path::new(MultiBuffer::DEFAULT_TITLE))
+                        .expect("default title is a valid relative path")
+                        .into_owned()
+                        .into()
+                },
                 |r| r.into_owned().into(),
             )
         },
@@ -246,7 +256,7 @@ impl MultiDiffView {
     }
 
     fn title(&self) -> SharedString {
-        let suffix = if self.file_count == 1 { "1 file".to_string() } else { format!("{} files", self.file_count) };
+        let suffix = if self.file_count == 1 { "1 file".to_owned() } else { format!("{} files", self.file_count) };
         format!("Diff ({suffix})").into()
     }
 }

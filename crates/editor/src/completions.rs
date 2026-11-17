@@ -8,9 +8,9 @@ use snippet::Snippet;
 use text::ToOffset as _;
 
 use super::Anchor;
-use super::AnchorRangeExt;
+use super::AnchorRangeExt as _;
 use super::App;
-use super::AppContext;
+use super::AppContext as _;
 use super::Arc;
 use super::BTreeMap;
 use super::Bias;
@@ -47,7 +47,7 @@ use super::ExcerptRange;
 use super::FxHashMap;
 use super::InsertTextFormat;
 use super::InsertTextMode;
-use super::Itertools;
+use super::Itertools as _;
 use super::LanguageServerId;
 use super::LanguageSettings;
 use super::LinkedEdits;
@@ -57,11 +57,11 @@ use super::MultiBufferSnapshot;
 use super::Point;
 use super::Project;
 use super::Range;
-use super::RangeToAnchorExt;
+use super::RangeToAnchorExt as _;
 use super::Rc;
 use super::RefCell;
 use super::Result;
-use super::ResultExt;
+use super::ResultExt as _;
 use super::Reverse;
 use super::Selection;
 use super::SelectionEffects;
@@ -83,7 +83,7 @@ use crate::hover_popover;
 impl Editor {
     pub fn text_layout_details(&self, window: &mut Window, cx: &mut App) -> TextLayoutDetails {
         TextLayoutDetails {
-            text_system: window.text_system().clone(),
+            text_system: Rc::clone(window.text_system()),
             editor_style: self.style.clone().unwrap_or_else(|| self.create_style(cx)),
             rem_size: window.rem_size(),
             scroll_anchor: self.scroll_manager.shared_scroll_anchor(cx),
@@ -634,7 +634,7 @@ impl Editor {
                         .workspace
                         .as_ref()
                         .and_then(|workspace| workspace.upgrade())
-                        .map(|workspace| workspace.read(cx).app_state().languages.clone());
+                        .map(|workspace| Arc::clone(&workspace.read(cx).app_state().languages));
                     let menu = CompletionsMenu::new(
                         id,
                         requested_source.unwrap_or(if load_provider_completions {
@@ -739,11 +739,8 @@ impl Editor {
     fn completion_query(buffer: &MultiBufferSnapshot, position: impl ToOffset) -> Option<String> {
         let offset = position.to_offset(buffer);
         let (word_range, kind) = buffer.surrounding_word(offset, Some(CharScopeContext::Completion));
-        if offset > word_range.start && kind == Some(CharKind::Word) {
-            Some(buffer.text_for_range(word_range.start..offset).collect::<String>())
-        } else {
-            None
-        }
+        (offset > word_range.start && kind == Some(CharKind::Word))
+            .then(|| buffer.text_for_range(word_range.start..offset).collect::<String>())
     }
 
     fn do_completion(
@@ -833,7 +830,7 @@ impl Editor {
             {
                 all_commit_ranges.push(anchor_range.clone());
                 if !self.linked_edit_ranges.is_empty() {
-                    linked_edits.push(self, anchor_range, text.clone(), cx);
+                    linked_edits.push(self, anchor_range, Arc::clone(&text), cx);
                 }
             }
         }
@@ -885,22 +882,18 @@ impl Editor {
                 lsp_store.read(cx).lsp_server_capabilities.get(server_id).and_then(|server_capabilities| {
                     server_capabilities.execute_command_provider.as_ref().map(|options| options.commands.as_slice())
                 })?;
-            if available_commands.contains(&lsp_command.command) {
-                Some(CodeAction {
-                    server_id: *server_id,
-                    range: language::Anchor::min_min_range_for_buffer(buffer.buffer_id()),
-                    lsp_action: LspAction::Command(lsp_command.clone()),
-                    resolved: false,
-                })
-            } else {
-                None
-            }
+            available_commands.contains(&lsp_command.command).then(|| CodeAction {
+                server_id: *server_id,
+                range: language::Anchor::min_min_range_for_buffer(buffer.buffer_id()),
+                lsp_action: LspAction::Command(lsp_command.clone()),
+                resolved: false,
+            })
         });
 
         drop(completion);
         let apply_edits = provider.apply_additional_edits_for_completion(
             buffer_handle.clone(),
-            completions_menu.completions.clone(),
+            Rc::clone(&completions_menu.completions),
             candidate_id,
             true,
             all_commit_ranges,
@@ -1293,13 +1286,11 @@ pub(crate) fn split_words(text: &str) -> impl Iterator<Item = &str> + '_ {
         let is_boundary = index == text.len()
             || !prev_codepoint.is_uppercase() && codepoint.is_uppercase()
             || !prev_codepoint.is_alphanumeric() && codepoint.is_alphanumeric();
-        if is_boundary {
+        is_boundary.then(|| {
             let chunk = &text[prev_index..index];
             prev_index = index;
-            Some(chunk)
-        } else {
-            None
-        }
+            chunk
+        })
     })
 }
 

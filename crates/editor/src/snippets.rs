@@ -77,7 +77,7 @@ impl Editor {
 
         let tabstops = self.buffer.update(cx, |buffer, cx| {
             let snippet_text: Arc<str> = snippet.text.clone().into();
-            let edits = insertion_ranges.iter().cloned().map(|range| (range, snippet_text.clone()));
+            let edits = insertion_ranges.iter().cloned().map(|range| (range, Arc::clone(&snippet_text)));
             buffer.edit(edits, autoindent_mode, cx);
 
             let snapshot = &*buffer.read(cx);

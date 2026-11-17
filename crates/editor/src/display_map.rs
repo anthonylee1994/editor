@@ -89,11 +89,11 @@ use std::collections::hash_map::Entry;
 use std::fmt::Debug;
 use std::iter;
 use std::num::NonZeroU32;
+use std::ops;
 use std::ops::Add;
 use std::ops::Range;
 use std::ops::RangeInclusive;
 use std::ops::Sub;
-use std::ops::{self};
 use std::slice;
 use std::sync::Arc;
 
@@ -150,7 +150,7 @@ use language::Subscription as BufferSubscription;
 use language::language_settings::AllLanguageSettings;
 use language::language_settings::LanguageSettings;
 use multi_buffer::Anchor;
-use multi_buffer::AnchorRangeExt;
+use multi_buffer::AnchorRangeExt as _;
 use multi_buffer::MultiBuffer;
 use multi_buffer::MultiBufferOffset;
 use multi_buffer::MultiBufferOffsetUtf16;
@@ -159,7 +159,7 @@ use multi_buffer::MultiBufferRow;
 use multi_buffer::MultiBufferSnapshot;
 use multi_buffer::RowInfo;
 use multi_buffer::ToOffset;
-use multi_buffer::ToPoint;
+use multi_buffer::ToPoint as _;
 use project::InlayId;
 use project::lsp_store::LspFoldingRange;
 use project::lsp_store::TokenType;
@@ -180,7 +180,7 @@ use text::Patch;
 use theme::StatusColors;
 use ui::SharedString;
 use ui::px;
-use unicode_segmentation::UnicodeSegmentation;
+use unicode_segmentation::UnicodeSegmentation as _;
 use wrap_map::WrapMap;
 use wrap_map::WrapPatch;
 pub use wrap_map::WrapPoint;
@@ -189,7 +189,7 @@ pub use wrap_map::WrapRow;
 pub use wrap_map::WrapSnapshot;
 
 use crate::EditorStyle;
-use crate::RowExt;
+use crate::RowExt as _;
 pub use crate::display_map::fold_map::FoldMap;
 pub use crate::display_map::inlay_map::InlayMap;
 pub use crate::display_map::tab_map::TabMap;
@@ -208,7 +208,7 @@ impl NavigationOverlayKey {
 
 /// Keys for tagging text highlights.
 ///
-/// Note the order is important as it determines the priority of the highlights, lower means higher priority
+/// Note the order is important as it determines the priority of the highlights, lower means higher priority.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum HighlightKey {
     SemanticToken(u32),
@@ -627,7 +627,7 @@ impl DisplayMap {
             self.block_map.read(self_wrap_snapshot.clone(), self_wrap_edits.clone(), companion_view).snapshot;
 
         if let Some((companion_dm, _)) = &self.companion {
-            let _ = companion_dm.update(cx, |dm, _cx| {
+            let _: Result<_, _> = companion_dm.update(cx, |dm, _cx| {
                 if let Some((companion_snapshot, companion_edits)) = companion_wrap_data {
                     let their_companion_ref = dm.companion.as_ref().map(|(_, c)| c.read(_cx));
                     dm.block_map.read(
@@ -651,9 +651,9 @@ impl DisplayMap {
             block_snapshot,
             diagnostics_max_severity: self.diagnostics_max_severity,
             crease_snapshot: self.crease_map.snapshot(),
-            text_highlights: self.text_highlights.clone(),
+            text_highlights: Arc::clone(&self.text_highlights),
             inlay_highlights: self.inlay_highlights.clone(),
-            semantic_token_highlights: self.semantic_token_highlights.clone(),
+            semantic_token_highlights: Arc::clone(&self.semantic_token_highlights),
             clip_at_line_ends: self.clip_at_line_ends,
             masked: self.masked,
             use_lsp_folding_ranges: !self.lsp_folding_crease_ids.is_empty(),
@@ -672,9 +672,9 @@ impl DisplayMap {
             block_snapshot,
             diagnostics_max_severity: self.diagnostics_max_severity,
             crease_snapshot: self.crease_map.snapshot(),
-            text_highlights: self.text_highlights.clone(),
+            text_highlights: Arc::clone(&self.text_highlights),
             inlay_highlights: self.inlay_highlights.clone(),
-            semantic_token_highlights: self.semantic_token_highlights.clone(),
+            semantic_token_highlights: Arc::clone(&self.semantic_token_highlights),
             clip_at_line_ends: self.clip_at_line_ends,
             masked: self.masked,
             use_lsp_folding_ranges: !self.lsp_folding_crease_ids.is_empty(),
@@ -953,7 +953,7 @@ impl DisplayMap {
         let block_row = block_map.row_for_block(block_id)?;
 
         if let Some((companion_dm, _)) = &self.companion {
-            let _ = companion_dm.update(cx, |dm, cx| {
+            let _: Result<_, _> = companion_dm.update(cx, |dm, cx| {
                 if let Some((companion_snapshot, companion_edits)) = companion_wrap_data {
                     let their_companion_ref = dm.companion.as_ref().map(|(_, c)| c.read(cx));
                     dm.block_map.read(
@@ -1145,7 +1145,7 @@ impl DisplayMap {
         }
 
         if let Some((companion_dm, _)) = &self.companion {
-            let _ = companion_dm.update(cx, |dm, cx| {
+            let _: Result<_, _> = companion_dm.update(cx, |dm, cx| {
                 if let Some((companion_snapshot, companion_edits)) = companion_wrap_data {
                     let their_companion_ref = dm.companion.as_ref().map(|(_, c)| c.read(cx));
                     dm.block_map.read(
@@ -1496,7 +1496,7 @@ impl DisplaySnapshot {
         }
 
         let buffer = self.buffer_snapshot();
-        let first_character_end = buffer.clip_offset((range.start + 1usize).min(range.end), Bias::Right);
+        let first_character_end = buffer.clip_offset((range.start + 1_usize).min(range.end), Bias::Right);
         let last_character_start = buffer.clip_offset(range.end.saturating_sub_usize(1).max(range.start), Bias::Left);
 
         let mut converter = self.display_point_converter();
@@ -1564,7 +1564,7 @@ impl DisplaySnapshot {
         DisplayPoint(self.block_snapshot.max_point())
     }
 
-    /// Returns text chunks starting at the given display row until the end of the file
+    /// Returns text chunks starting at the given display row until the end of the file.
     pub fn text_chunks(&self, display_row: DisplayRow) -> impl Iterator<Item = &str> {
         self.block_snapshot
             .chunks(
@@ -1690,7 +1690,7 @@ impl DisplaySnapshot {
         );
 
         let mut highlights = Vec::new();
-        let mut offset = 0usize;
+        let mut offset = 0_usize;
         for chunk in chunks {
             let chunk_len = chunk.text.len();
             if chunk_len == 0 {
@@ -1970,7 +1970,7 @@ impl DisplaySnapshot {
                         range: range.to_point(self.buffer_snapshot()),
                         block_height: *block_height,
                         block_style: *block_style,
-                        render_block: render_block.clone(),
+                        render_block: Arc::clone(render_block),
                         block_priority: *block_priority,
                         render_toggle: render_toggle.clone(),
                     })

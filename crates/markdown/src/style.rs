@@ -74,9 +74,9 @@ pub struct MarkdownStyle {
     pub heading_border_color: Option<Hsla>,
     pub paragraph_spacing: Pixels,
     pub paragraph_line_height: DefiniteLength,
-    /// Bottom margin of top-level lists only
+    /// Bottom margin of top-level lists only.
     pub list_spacing: Pixels,
-    /// Horizontal (`x`) and vertical (`y`) padding of table cells
+    /// Horizontal (`x`) and vertical (`y`) padding of table cells.
     pub table_cell_padding: Point<Pixels>,
     pub height_is_multiple_of_line_height: bool,
     pub prevent_mouse_interaction: bool,

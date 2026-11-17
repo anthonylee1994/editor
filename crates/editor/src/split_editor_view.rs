@@ -16,10 +16,10 @@ use gpui::Hsla;
 use gpui::IntoElement;
 use gpui::LayoutId;
 use gpui::Length;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Pixels;
-use gpui::StatefulInteractiveElement;
-use gpui::Styled;
+use gpui::StatefulInteractiveElement as _;
+use gpui::Styled as _;
 use gpui::TextStyleRefinement;
 use gpui::Window;
 use gpui::div;
@@ -34,10 +34,10 @@ use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use smallvec::smallvec;
 use text::BufferId;
-use theme::ActiveTheme;
+use theme::ActiveTheme as _;
 use ui::h_flex;
 use ui::prelude::DefiniteLength;
-use ui::prelude::InteractiveElement;
+use ui::prelude::InteractiveElement as _;
 use ui::prelude::RenderOnce;
 use ui::v_flex;
 
@@ -47,7 +47,7 @@ use crate::EditorSnapshot;
 use crate::EditorStyle;
 use crate::FILE_HEADER_HEIGHT;
 use crate::MULTI_BUFFER_EXCERPT_HEADER_HEIGHT;
-use crate::RowExt;
+use crate::RowExt as _;
 use crate::StickyHeaderExcerpt;
 use crate::display_map::Block;
 use crate::element::EditorElement;
@@ -176,7 +176,7 @@ impl RenderOnce for SplitEditorView {
             "`SplitEditorView` requires `SplittableEditor` to be in split mode"
         );
 
-        let lhs_editor = splittable_editor.lhs_editor().unwrap().clone();
+        let lhs_editor = splittable_editor.lhs_editor().expect("asserted split mode").clone();
         let rhs_editor = splittable_editor.rhs_editor().clone();
 
         let mut lhs = EditorElement::new(&lhs_editor, self.style.clone());
@@ -263,110 +263,7 @@ impl SplitBufferHeadersElement {
     const fn new(lhs_editor: Entity<Editor>, rhs_editor: Entity<Editor>, style: EditorStyle) -> Self {
         Self { lhs_editor, rhs_editor, style }
     }
-}
 
-struct BufferHeaderLayout {
-    element: AnyElement,
-}
-
-struct SplitBufferHeadersPrepaintState {
-    content_bounds: Bounds<Pixels>,
-    sticky_header: Option<AnyElement>,
-    non_sticky_headers: Vec<BufferHeaderLayout>,
-}
-
-impl IntoElement for SplitBufferHeadersElement {
-    type Element = Self;
-
-    fn into_element(self) -> Self::Element {
-        self
-    }
-}
-
-impl Element for SplitBufferHeadersElement {
-    type RequestLayoutState = ();
-    type PrepaintState = SplitBufferHeadersPrepaintState;
-
-    fn id(&self) -> Option<gpui::ElementId> {
-        Some("split-buffer-headers".into())
-    }
-
-    fn request_layout(
-        &mut self,
-        _id: Option<&GlobalElementId>,
-        window: &mut Window,
-        _cx: &mut App,
-    ) -> (LayoutId, Self::RequestLayoutState) {
-        let mut style = gpui::Style { position: gpui::Position::Absolute, ..Default::default() };
-        style.inset.top = DefiniteLength::Fraction(0.0).into();
-        style.inset.left = DefiniteLength::Fraction(0.0).into();
-        style.size.width = Length::Definite(DefiniteLength::Fraction(1.0));
-        style.size.height = Length::Definite(DefiniteLength::Fraction(1.0));
-        let layout_id = window.request_layout(style, [], _cx);
-        (layout_id, ())
-    }
-
-    fn prepaint(
-        &mut self,
-        _id: Option<&GlobalElementId>,
-        bounds: Bounds<Pixels>,
-        _request_layout: &mut Self::RequestLayoutState,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> Self::PrepaintState {
-        if bounds.size.width <= px(0.) || bounds.size.height <= px(0.) {
-            return SplitBufferHeadersPrepaintState {
-                content_bounds: bounds,
-                sticky_header: None,
-                non_sticky_headers: Vec::new(),
-            };
-        }
-
-        let rem_size = self.rem_size();
-        let text_style = TextStyleRefinement {
-            font_size: Some(self.style.text.font_size),
-            line_height: Some(self.style.text.line_height),
-            ..Default::default()
-        };
-
-        window.with_rem_size(Some(rem_size), |window| {
-            window.with_text_style(Some(text_style), |window| Self::prepaint_inner(self, bounds, window, cx))
-        })
-    }
-
-    fn paint(
-        &mut self,
-        _id: Option<&GlobalElementId>,
-        _bounds: Bounds<Pixels>,
-        _request_layout: &mut Self::RequestLayoutState,
-        prepaint: &mut Self::PrepaintState,
-        window: &mut Window,
-        cx: &mut App,
-    ) {
-        let rem_size = self.rem_size();
-        let text_style = TextStyleRefinement {
-            font_size: Some(self.style.text.font_size),
-            line_height: Some(self.style.text.line_height),
-            ..Default::default()
-        };
-
-        window.with_rem_size(Some(rem_size), |window| {
-            window.with_text_style(Some(text_style), |window| {
-                window.with_content_mask(Some(ContentMask { bounds: prepaint.content_bounds }), |window| {
-                    for header_layout in &mut prepaint.non_sticky_headers {
-                        header_layout.element.paint(window, cx);
-                    }
-
-                    if let Some(mut sticky_header) = prepaint.sticky_header.take() {
-                        sticky_header.paint(window, cx);
-                    }
-                });
-            });
-        });
-    }
-}
-
-impl SplitBufferHeadersElement {
     fn rem_size(&self) -> Pixels {
         match self.style.text.font_size {
             AbsoluteLength::Pixels(pixels) => {
@@ -637,6 +534,107 @@ impl SplitBufferHeadersElement {
     ) {
         window.with_content_mask(Some(ContentMask { bounds }), |window| {
             header.prepaint_as_root(origin, available_size, window, cx);
+        });
+    }
+}
+
+struct BufferHeaderLayout {
+    element: AnyElement,
+}
+
+struct SplitBufferHeadersPrepaintState {
+    content_bounds: Bounds<Pixels>,
+    sticky_header: Option<AnyElement>,
+    non_sticky_headers: Vec<BufferHeaderLayout>,
+}
+
+impl IntoElement for SplitBufferHeadersElement {
+    type Element = Self;
+
+    fn into_element(self) -> Self::Element {
+        self
+    }
+}
+
+impl Element for SplitBufferHeadersElement {
+    type RequestLayoutState = ();
+    type PrepaintState = SplitBufferHeadersPrepaintState;
+
+    fn id(&self) -> Option<gpui::ElementId> {
+        Some("split-buffer-headers".into())
+    }
+
+    fn request_layout(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        window: &mut Window,
+        _cx: &mut App,
+    ) -> (LayoutId, Self::RequestLayoutState) {
+        let mut style = gpui::Style { position: gpui::Position::Absolute, ..Default::default() };
+        style.inset.top = DefiniteLength::Fraction(0.0).into();
+        style.inset.left = DefiniteLength::Fraction(0.0).into();
+        style.size.width = Length::Definite(DefiniteLength::Fraction(1.0));
+        style.size.height = Length::Definite(DefiniteLength::Fraction(1.0));
+        let layout_id = window.request_layout(style, [], _cx);
+        (layout_id, ())
+    }
+
+    fn prepaint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> Self::PrepaintState {
+        if bounds.size.width <= px(0.) || bounds.size.height <= px(0.) {
+            return SplitBufferHeadersPrepaintState {
+                content_bounds: bounds,
+                sticky_header: None,
+                non_sticky_headers: Vec::new(),
+            };
+        }
+
+        let rem_size = self.rem_size();
+        let text_style = TextStyleRefinement {
+            font_size: Some(self.style.text.font_size),
+            line_height: Some(self.style.text.line_height),
+            ..Default::default()
+        };
+
+        window.with_rem_size(Some(rem_size), |window| {
+            window.with_text_style(Some(text_style), |window| Self::prepaint_inner(self, bounds, window, cx))
+        })
+    }
+
+    fn paint(
+        &mut self,
+        _id: Option<&GlobalElementId>,
+        _bounds: Bounds<Pixels>,
+        _request_layout: &mut Self::RequestLayoutState,
+        prepaint: &mut Self::PrepaintState,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        let rem_size = self.rem_size();
+        let text_style = TextStyleRefinement {
+            font_size: Some(self.style.text.font_size),
+            line_height: Some(self.style.text.line_height),
+            ..Default::default()
+        };
+
+        window.with_rem_size(Some(rem_size), |window| {
+            window.with_text_style(Some(text_style), |window| {
+                window.with_content_mask(Some(ContentMask { bounds: prepaint.content_bounds }), |window| {
+                    for header_layout in &mut prepaint.non_sticky_headers {
+                        header_layout.element.paint(window, cx);
+                    }
+
+                    if let Some(mut sticky_header) = prepaint.sticky_header.take() {
+                        sticky_header.paint(window, cx);
+                    }
+                });
+            });
         });
     }
 }

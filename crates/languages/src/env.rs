@@ -11,7 +11,7 @@ use crate::LanguageDef;
 /// Settings for Env.
 pub(crate) fn settings() -> LanguageSettings {
     LanguageSettings {
-        tab_size: NonZeroU32::new(4).unwrap(),
+        tab_size: NonZeroU32::new(4).expect("non-zero"),
         hard_tabs: false,
         soft_wrap: false,
         preferred_line_length: 120,

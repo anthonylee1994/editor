@@ -325,7 +325,7 @@ fn trim_of(r#type: Head) -> f64 {
 }
 
 /// Draws a sequence diagram.
-#[expect(clippy::many_single_char_names, reason = "mirrors the names of Pele's draw")]
+#[expect(clippy::too_many_lines, clippy::many_single_char_names, reason = "mirrors Pele's draw and its names")]
 pub(crate) fn render(db: &SeqDb, config: &Value, options: &Options) -> Rendered {
     let conf = get(Some(config), "sequence");
     let size = options.font_size;
@@ -859,7 +859,10 @@ pub(crate) fn render(db: &SeqDb, config: &Value, options: &Options) -> Rendered 
     for (i, m) in messages.iter().enumerate() {
         let r#type = m.r#type;
         let frame = frame_at.get(i).copied().flatten();
-        let col_at = |id: Option<&str>| id.and_then(|id| col_of.get(id).copied());
+        let col_at = |id: Option<&str>| {
+            let id = id?;
+            col_of.get(id).copied()
+        };
 
         if r#type == Some(line::ACTIVE_START) {
             if let Some(col) = col_at(m.from.as_deref()).and_then(|c| cols.get_mut(c)) {

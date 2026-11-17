@@ -31,9 +31,7 @@ impl ProcessIdGetter {
     pub fn fallback_pid(self) -> Pid {
         Pid::from_u32(self.fallback_pid)
     }
-}
 
-impl ProcessIdGetter {
     fn pid(self) -> Option<Pid> {
         // Negative pid means error.
         // Zero pid means no foreground process group is set on the PTY yet.
@@ -58,7 +56,7 @@ pub(crate) struct ProcessInfo {
     pub(crate) argv: Vec<String>,
 }
 
-/// Fetches ed-relevant Pseudo-Terminal (PTY) process information
+/// Fetches ed-relevant Pseudo-Terminal (PTY) process information.
 pub(crate) struct PtyProcessInfo {
     system: RwLock<System>,
     refresh_kind: ProcessRefreshKind,
@@ -155,12 +153,12 @@ impl PtyProcessInfo {
         Some(info)
     }
 
-    /// Updates the cached process info, emitting a [`Event::TitleChanged`] event if the ed-relevant info has changed
+    /// Updates the cached process info, emitting a [`Event::TitleChanged`] event if the ed-relevant info has changed.
     pub(crate) fn emit_title_changed_if_changed(self: &Arc<Self>, cx: &Context<'_, Terminal>) {
         if self.task.lock().is_some() {
             return;
         }
-        let this = self.clone();
+        let this = Arc::clone(self);
         let change_task = cx.background_executor().spawn(async move {
             let previous = this.current.read().clone();
             let current = this.load();

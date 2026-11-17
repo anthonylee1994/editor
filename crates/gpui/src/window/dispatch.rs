@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use std::mem;
 use std::time::Duration;
 
-use gpui_util::ResultExt;
+use gpui_util::ResultExt as _;
 use scheduler::Instant;
 use smallvec::SmallVec;
 
@@ -191,7 +191,7 @@ impl Window {
     /// binding for the action (last binding added to the keymap).
     pub fn keystroke_text_for(&self, action: &dyn Action) -> String {
         self.highest_precedence_binding_for_action(action).map_or_else(
-            || action.name().to_string(),
+            || action.name().to_owned(),
             |binding| binding.keystrokes().iter().map(ToString::to_string).collect::<Vec<_>>().join(" "),
         )
     }
@@ -280,7 +280,7 @@ impl Window {
         // Capture phase, events bubble from back to front. Handlers for this phase are used for
         // special purposes, such as detecting events outside of a given Bounds.
         for listener in &mut mouse_listeners {
-            let listener = listener.as_mut().unwrap();
+            let listener = listener.as_mut().expect("mouse listener is present during dispatch");
             listener(event, DispatchPhase::Capture, self, cx);
             if !cx.propagate_event {
                 break;
@@ -290,7 +290,7 @@ impl Window {
         // Bubble phase, where most normal handlers do their work.
         if cx.propagate_event {
             for listener in mouse_listeners.iter_mut().rev() {
-                let listener = listener.as_mut().unwrap();
+                let listener = listener.as_mut().expect("mouse listener is present during dispatch");
                 listener(event, DispatchPhase::Bubble, self, cx);
                 if !cx.propagate_event {
                     break;
@@ -359,7 +359,7 @@ impl Window {
                 };
                 if let Some(key) = key {
                     keystroke =
-                        Some(Keystroke { key: key.to_string(), key_char: None, modifiers: Modifiers::default() });
+                        Some(Keystroke { key: key.to_owned(), key_char: None, modifiers: Modifiers::default() });
                 }
             }
 

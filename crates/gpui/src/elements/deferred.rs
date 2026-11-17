@@ -28,6 +28,13 @@ impl Deferred {
         self.priority = priority;
         self
     }
+
+    /// Sets a priority for the element. A higher priority conceptually means painting the element
+    /// on top of deferred draws with a lower priority (i.e. closer to the viewer).
+    pub const fn priority(mut self, priority: usize) -> Self {
+        self.priority = priority;
+        self
+    }
 }
 
 impl Element for Deferred {
@@ -39,7 +46,7 @@ impl Element for Deferred {
     }
 
     fn request_layout(&mut self, _id: Option<&GlobalElementId>, window: &mut Window, cx: &mut App) -> (LayoutId, ()) {
-        let layout_id = self.child.as_mut().unwrap().request_layout(window, cx);
+        let layout_id = self.child.as_mut().expect("child is present until prepaint").request_layout(window, cx);
         (layout_id, ())
     }
 
@@ -51,7 +58,7 @@ impl Element for Deferred {
         window: &mut Window,
         _cx: &mut App,
     ) {
-        let child = self.child.take().unwrap();
+        let child = self.child.take().expect("child is present until prepaint");
         let element_offset = window.element_offset();
         window.defer_draw(child, element_offset, self.priority, None);
     }
@@ -72,15 +79,6 @@ impl IntoElement for Deferred {
     type Element = Self;
 
     fn into_element(self) -> Self::Element {
-        self
-    }
-}
-
-impl Deferred {
-    /// Sets a priority for the element. A higher priority conceptually means painting the element
-    /// on top of deferred draws with a lower priority (i.e. closer to the viewer).
-    pub const fn priority(mut self, priority: usize) -> Self {
-        self.priority = priority;
         self
     }
 }

@@ -24,8 +24,8 @@ pub mod size;
 pub mod string;
 pub mod time;
 
+use std::cmp;
 use std::cmp::Ordering;
-use std::cmp::{self};
 use std::ops::Range;
 use std::ops::RangeInclusive;
 use std::sync::LazyLock;
@@ -69,7 +69,7 @@ pub fn parse_os_release(content: &str) -> Option<String> {
     let id = id?;
     Some(match version_id {
         Some(version) => format!("{id} {version}"),
-        None => id.to_string(),
+        None => id.to_owned(),
     })
 }
 
@@ -79,12 +79,12 @@ pub fn truncate_and_trailoff(s: &str, max_chars: usize) -> String {
     // If the string's byte length is <= max_chars, walking the string can be skipped since the
     // number of chars is <= the number of bytes.
     if s.len() <= max_chars {
-        return s.to_string();
+        return s.to_owned();
     }
     let truncation_ix = s.char_indices().map(|(i, _)| i).nth(max_chars);
     match truncation_ix {
         Some(index) => s[..index].to_string() + "…",
-        _ => s.to_string(),
+        _ => s.to_owned(),
     }
 }
 
@@ -94,13 +94,13 @@ pub fn truncate_and_remove_front(s: &str, max_chars: usize) -> String {
     // If the string's byte length is <= max_chars, walking the string can be skipped since the
     // number of chars is <= the number of bytes.
     if s.len() <= max_chars {
-        return s.to_string();
+        return s.to_owned();
     }
     let suffix_char_length = max_chars.saturating_sub(1);
     let truncation_ix = s.char_indices().map(|(i, _)| i).nth_back(suffix_char_length);
     match truncation_ix {
-        Some(index) if index > 0 => "…".to_string() + &s[index..],
-        _ => s.to_string(),
+        Some(index) if index > 0 => "…".to_owned() + &s[index..],
+        _ => s.to_owned(),
     }
 }
 
@@ -132,6 +132,7 @@ where
 /// This function checks if the current process is running with root privileges
 /// and terminates the program with an error message unless explicitly allowed via the
 /// `ED_ALLOW_ROOT` environment variable.
+#[expect(clippy::print_stderr, reason = "fatal message before logging is set up")]
 pub fn prevent_root_execution() {
     let is_root = unsafe { libc::geteuid() } == 0;
     let allow_root = env::var("ED_ALLOW_ROOT").is_ok_and(|val| val == "true");
@@ -215,22 +216,24 @@ fn load_shell_from_passwd() -> Result<()> {
         uid,
     );
 
-    let shell = unsafe { CStr::from_ptr(entry.pw_shell).to_str().unwrap() };
+    let shell = unsafe { CStr::from_ptr(entry.pw_shell).to_str().expect("shell path is utf-8") };
     let should_set_shell =
         env::var("SHELL").map_or(true, |shell_env| shell_env != shell && !Path::new(&shell_env).exists());
 
     if should_set_shell {
         log::info!("updating SHELL environment variable to value from passwd entry: {shell:?}");
-        unsafe { env::set_var("SHELL", shell) };
+        unsafe {
+            env::set_var("SHELL", shell);
+        }
     }
 
     Ok(())
 }
 
-/// Returns a shell escaped path for the current ed executable
+/// Returns a shell escaped path for the current ed executable.
 pub fn get_shell_safe_ed_path(shell_kind: shell::ShellKind) -> anyhow::Result<String> {
     use anyhow::Context as _;
-    use paths::PathExt;
+    use paths::PathExt as _;
     let ed_path = env::current_exe().context("Failed to determine current ed executable path.")?;
     ed_path.try_shell_safe(shell_kind).context("Failed to shell-escape ed executable path.")
 }
@@ -256,7 +259,9 @@ pub async fn load_login_shell_environment() -> Result<()> {
         if name == "SHLVL" {
             continue;
         }
-        unsafe { env::set_var(&name, &value) };
+        unsafe {
+            env::set_var(&name, &value);
+        }
     }
 
     log::info!(
@@ -271,13 +276,13 @@ pub async fn load_login_shell_environment() -> Result<()> {
 /// Configures the process to start a new session, to prevent interactive shells from taking control
 /// of the terminal.
 ///
-/// For more details: <https://registerspill.thorstenball.com/p/how-to-lose-control-of-your-shell>
+/// For more details: <https://registerspill.thorstenball.com/p/how-to-lose-control-of-your-shell>.
 pub fn set_pre_exec_to_start_new_session(command: &mut std::process::Command) -> &mut std::process::Command {
     // safety: code in pre_exec should be signal safe.
     // https://man7.org/linux/man-pages/man7/signal-safety.7.html
 
     unsafe {
-        use std::os::unix::process::CommandExt;
+        use std::os::unix::process::CommandExt as _;
         command.pre_exec(|| {
             libc::setsid();
             Ok(())
@@ -443,7 +448,7 @@ impl<T: Ord + Clone> RangeExt<T> for RangeInclusive<T> {
 /// case-insensitive.
 ///
 /// This is useful for turning regular alphanumerically sorted sequences as `1-abc, 10, 11-def, .., 2, 21-abc`
-/// into `1-abc, 2, 10, 11-def, .., 21-abc`
+/// into `1-abc, 2, 10, 11-def, .., 21-abc`.
 #[derive(Debug, PartialEq, Eq)]
 pub struct NumericPrefixWithSuffix<'a>(Option<u64>, &'a str);
 
@@ -471,7 +476,7 @@ impl PartialOrd for NumericPrefixWithSuffix<'_> {
 }
 
 fn emoji_regex() -> &'static Regex {
-    static EMOJI_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new("(\\p{Emoji}|\u{200D})").unwrap());
+    static EMOJI_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new("(\\p{Emoji}|\u{200D})").expect("valid regex"));
     &EMOJI_REGEX
 }
 

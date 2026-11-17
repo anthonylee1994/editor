@@ -8,15 +8,15 @@ use encoding_rs::Encoding;
 use fuzzy::StringMatch;
 use fuzzy::StringMatchCandidate;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::Context;
 use gpui::DismissEvent;
 use gpui::Entity;
 use gpui::EventEmitter;
 use gpui::FocusHandle;
 use gpui::Focusable;
-use gpui::InteractiveElement;
-use gpui::ParentElement;
+use gpui::InteractiveElement as _;
+use gpui::ParentElement as _;
 use gpui::Render;
 use gpui::Task;
 use gpui::WeakEntity;
@@ -28,9 +28,9 @@ use picker::PickerDelegate;
 use ui::HighlightedLabel;
 use ui::ListItem;
 use ui::ListItemSpacing;
-use ui::Toggleable;
+use ui::Toggleable as _;
 use ui::v_flex;
-use util::ResultExt;
+use util::ResultExt as _;
 use workspace::ModalView;
 use workspace::Toast;
 use workspace::Workspace;
@@ -102,7 +102,7 @@ pub struct EncodingSelectorDelegate {
     encoding_selector: WeakEntity<EncodingSelector>,
     buffer: Entity<Buffer>,
     encodings: Vec<&'static Encoding>,
-    match_candidates: Arc<Vec<StringMatchCandidate>>,
+    match_candidates: Arc<[StringMatchCandidate]>,
     matches: Vec<StringMatch>,
     selected_index: usize,
 }
@@ -116,7 +116,7 @@ impl EncodingSelectorDelegate {
             encoding_selector,
             buffer,
             encodings,
-            match_candidates: Arc::new(match_candidates),
+            match_candidates: match_candidates.into(),
             matches: vec![],
             selected_index: 0,
         }
@@ -129,7 +129,7 @@ impl EncodingSelectorDelegate {
         if candidate_encoding.name() == current_encoding.name() {
             format!("{} (current)", candidate_encoding.name())
         } else {
-            candidate_encoding.name().to_string()
+            candidate_encoding.name().to_owned()
         }
     }
 }
@@ -216,7 +216,7 @@ impl PickerDelegate for EncodingSelectorDelegate {
 
     fn update_matches(&mut self, query: String, window: &mut Window, cx: &mut Context<Picker<Self>>) -> Task<()> {
         let background = cx.background_executor().clone();
-        let candidates = self.match_candidates.clone();
+        let candidates = Arc::clone(&self.match_candidates);
 
         cx.spawn_in(window, async move |this, cx| {
             let matches = if query.is_empty() {

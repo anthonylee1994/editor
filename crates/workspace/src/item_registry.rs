@@ -8,7 +8,7 @@ use anyhow::anyhow;
 use gpui::AnyEntity;
 use gpui::AnyView;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::Context;
 use gpui::Entity;
 use gpui::Global;
@@ -46,7 +46,7 @@ pub(super) struct ProjectItemRegistry {
 impl ProjectItemRegistry {
     fn register<T: ProjectItem>(&mut self) {
         self.build_project_item_fns_by_type.insert(TypeId::of::<T::Item>(), |item, project, pane, window, cx| {
-            let item = item.downcast().unwrap();
+            let item = item.downcast().expect("project item is the registered type");
             Box::new(cx.new(|cx| T::for_project_item(project, pane, item, window, cx))) as Box<dyn ItemHandle>
         });
         self.build_project_item_for_path_fns.push(|project, project_path, window, cx| {
@@ -182,7 +182,9 @@ pub fn register_serializable_item<I: SerializableItem>(cx: &mut App) {
             let task = I::deserialize(project, workspace, state, window, cx);
             cx.foreground_executor().spawn(async { Ok(Box::new(task.await?) as Box<_>) })
         },
-        view_to_serializable_item: |view| Box::new(view.downcast::<I>().unwrap()),
+        view_to_serializable_item: |view| {
+            Box::new(view.downcast::<I>().expect("view is the registered serializable item type"))
+        },
     };
     registry.descriptors_by_kind.insert(Arc::from(serialized_item_kind), descriptor);
     registry.descriptors_by_type.insert(TypeId::of::<I>(), descriptor);

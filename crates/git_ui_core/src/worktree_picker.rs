@@ -9,7 +9,7 @@ use ed_actions::OpenWorktreeInNewWindow;
 use ed_actions::SwitchWorktree;
 use fuzzy::StringMatchCandidate;
 use git::repository::Worktree as GitWorktree;
-use gpui::Action;
+use gpui::Action as _;
 use gpui::AnyElement;
 use gpui::App;
 use gpui::AppContext as _;
@@ -19,18 +19,18 @@ use gpui::Entity;
 use gpui::EventEmitter;
 use gpui::FocusHandle;
 use gpui::Focusable;
-use gpui::InteractiveElement;
+use gpui::InteractiveElement as _;
 use gpui::IntoElement;
 use gpui::Modifiers;
 use gpui::ModifiersChangedEvent;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::PromptLevel;
 use gpui::Render;
 use gpui::SharedString;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Subscription;
 use gpui::Task;
-use gpui::TaskExt;
+use gpui::TaskExt as _;
 use gpui::WeakEntity;
 use gpui::Window;
 use gpui::actions;
@@ -51,29 +51,29 @@ use ui::ListItem;
 use ui::ListItemSpacing;
 use ui::ListSubHeader;
 use ui::Tooltip;
-use ui::prelude::ActiveTheme;
-use ui::prelude::ButtonCommon;
-use ui::prelude::Clickable;
+use ui::prelude::ActiveTheme as _;
+use ui::prelude::ButtonCommon as _;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
-use ui::prelude::Disableable;
+use ui::prelude::Disableable as _;
 use ui::prelude::DynamicSpacing;
-use ui::prelude::Element;
-use ui::prelude::FluentBuilder;
+use ui::prelude::Element as _;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Icon;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
-use ui::prelude::StatefulInteractiveElement;
-use ui::prelude::StyledExt;
-use ui::prelude::Toggleable;
+use ui::prelude::StatefulInteractiveElement as _;
+use ui::prelude::StyledExt as _;
+use ui::prelude::Toggleable as _;
 use ui::prelude::div;
 use ui::prelude::h_flex;
 use ui::prelude::rems_from_px;
 use ui::prelude::v_flex;
 use util::ResultExt as _;
-use util::paths::PathExt;
+use util::paths::PathExt as _;
 use workspace::ModalView;
 use workspace::Workspace;
 use workspace::dock::DockPosition;
@@ -143,7 +143,7 @@ impl WorktreePicker {
         });
 
         let current_branch_name =
-            repository.as_ref().and_then(|repo| repo.read(cx).branch.as_ref().map(|branch| branch.name().to_string()));
+            repository.as_ref().and_then(|repo| repo.read(cx).branch.as_ref().map(|branch| branch.name().to_owned()));
 
         let all_worktrees_request =
             repository.clone().map(|repository| repository.update(cx, |repository, _| repository.worktrees()));
@@ -433,7 +433,7 @@ impl WorktreePickerDelegate {
 
     fn creation_blocked_reason(&self, cx: &App) -> Option<SharedString> {
         let project = self.project.read(cx);
-        if project.repositories(cx).is_empty() { Some("Requires a Git repository in the project".into()) } else { None }
+        project.repositories(cx).is_empty().then(|| "Requires a Git repository in the project".into())
     }
 
     fn can_delete_worktree(&self, worktree: &GitWorktree) -> bool {
@@ -940,22 +940,17 @@ impl PickerDelegate for WorktreePickerDelegate {
                                                 .w_full()
                                                 .min_w_0()
                                                 .gap_1p5()
-                                                .when_some(
-                                                    worktree.branch_name().map(ToString::to_string),
-                                                    |this, branch| {
-                                                        this.child(
-                                                            Label::new(branch)
-                                                                .size(LabelSize::Small)
-                                                                .color(Color::Muted),
-                                                        )
-                                                        .child(
-                                                            Label::new("\u{2022}")
-                                                                .alpha(0.5)
-                                                                .color(Color::Muted)
-                                                                .size(LabelSize::Small),
-                                                        )
-                                                    },
-                                                )
+                                                .when_some(worktree.branch_name().map(str::to_owned), |this, branch| {
+                                                    this.child(
+                                                        Label::new(branch).size(LabelSize::Small).color(Color::Muted),
+                                                    )
+                                                    .child(
+                                                        Label::new("\u{2022}")
+                                                            .alpha(0.5)
+                                                            .color(Color::Muted)
+                                                            .size(LabelSize::Small),
+                                                    )
+                                                })
                                                 .when(!sha.is_empty(), |this| {
                                                     this.child(
                                                         Label::new(sha).size(LabelSize::Small).color(Color::Muted),
@@ -1057,13 +1052,13 @@ impl PickerDelegate for WorktreePickerDelegate {
             }
             WorktreeEntry::CreateNamed { name, from_branch, disabled_reason } => {
                 let branch_label = from_branch.as_ref().map_or_else(
-                    || self.current_branch_name.clone().unwrap_or_else(|| "HEAD".to_string()),
+                    || self.current_branch_name.clone().unwrap_or_else(|| "HEAD".to_owned()),
                     RemoteBranchName::display_name,
                 );
                 let label = format!("Create \"{name}\" based on {branch_label}");
                 let element_id = match from_branch {
                     Some(branch) => format!("create-named-from-{}", branch.display_name()),
-                    None => "create-named-from-current".to_string(),
+                    None => "create-named-from-current".to_owned(),
                 };
 
                 let item = create_new_list_item(

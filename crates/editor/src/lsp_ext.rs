@@ -68,9 +68,8 @@ async fn lsp_task_context(
     let worktree_abs_path = cx.update(|cx| {
         let worktree_id = buffer.read(cx).file().map(|f| f.worktree_id(cx));
 
-        worktree_id
-            .and_then(|worktree_id| worktree_store.read(cx).worktree_for_id(worktree_id, cx))
-            .and_then(|worktree| worktree.read(cx).root_dir())
+        let worktree = worktree_id.and_then(|worktree_id| worktree_store.read(cx).worktree_for_id(worktree_id, cx))?;
+        worktree.read(cx).root_dir()
     });
 
     let project_env =

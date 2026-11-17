@@ -37,11 +37,11 @@ use editor::Editor;
 use editor::MultiBufferSnapshot;
 use editor::PathKey;
 use file_icons::FileIcons;
-use futures::StreamExt;
+use futures::StreamExt as _;
 use futures::channel::oneshot;
 use gpui::AnyElement;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::AsyncApp;
 use gpui::ClickEvent;
 use gpui::DismissEvent;
@@ -55,9 +55,9 @@ use gpui::Task;
 use gpui::TextStyle;
 use gpui::WeakEntity;
 use gpui::prelude::Context;
-use gpui::prelude::IntoElement;
-use gpui::prelude::ParentElement;
-use gpui::prelude::Styled;
+use gpui::prelude::IntoElement as _;
+use gpui::prelude::ParentElement as _;
+use gpui::prelude::Styled as _;
 use language::Buffer;
 use language::LanguageAwareStyling;
 use picker::Picker;
@@ -74,22 +74,22 @@ use rustc_hash::FxHashSet;
 use text::Anchor;
 use ui::Disclosure;
 use ui::Divider;
-use ui::FluentBuilder;
+use ui::FluentBuilder as _;
 use ui::ListItem;
 use ui::ListItemSpacing;
-use ui::Toggleable;
+use ui::Toggleable as _;
 use ui::Tooltip;
 use ui::font;
-use ui::prelude::ActiveTheme;
-use ui::prelude::ButtonCommon;
-use ui::prelude::Clickable;
+use ui::prelude::ActiveTheme as _;
+use ui::prelude::ButtonCommon as _;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
 use ui::prelude::DynamicSpacing;
 use ui::prelude::Icon;
 use ui::prelude::IconButton;
 use ui::prelude::IconSize;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
 use ui::prelude::SharedString;
 use ui::prelude::Window;
@@ -98,7 +98,7 @@ use ui::prelude::h_flex;
 use ui::prelude::relative;
 use ui::prelude::rems;
 use ui::text_for_keystroke;
-use util::ResultExt;
+use util::ResultExt as _;
 use workspace::SplitDirection;
 use workspace::Workspace;
 use workspace::pane::Pane;
@@ -131,10 +131,10 @@ pub struct Delegate {
     pub(crate) last_selection_change_time: Option<Instant>,
     pub(crate) last_click: Option<(usize, Instant)>,
     pub(crate) search_options: SearchOptions,
-    /// Kept around for switching to project search
+    /// Kept around for switching to project search.
     pub(crate) active_query: Option<SearchQuery>,
     pub(crate) imported_from_project_search: bool,
-    /// When `is_ready` there is not a search in progress
+    /// When `is_ready` there is not a search in progress.
     pub(crate) in_progress_search: InProgressSearch,
     pub(crate) unique_files: FxHashSet<ProjectPath>,
     /// Largest line number across [`Self::matches`], used to size the line-number
@@ -146,7 +146,7 @@ pub struct Delegate {
     pub(crate) query_editor: Option<Entity<Editor>>,
 }
 
-/// Wrapper with Eq is path + range equality
+/// Wrapper with Eq is path + range equality.
 #[derive(Clone)]
 pub(crate) struct SelectedMatch(pub SearchMatch);
 
@@ -270,7 +270,7 @@ pub(crate) enum InProgressSearch {
 }
 
 impl InProgressSearch {
-    /// If this is in disconnected state set it to None and return the search results
+    /// If this is in disconnected state set it to None and return the search results.
     fn take_disconnected(&mut self) -> Option<SearchResults<SearchResult>> {
         if matches!(self, InProgressSearch::Disconnected(_)) {
             let mut placeholder = InProgressSearch::None;
@@ -306,7 +306,7 @@ impl Delegate {
         let ongoing = self.in_progress_search.take_disconnected();
 
         self.in_progress_search = InProgressSearch::Connected(cx.spawn(async move |cx| {
-            stream_plunder_to_picker(project_search_view, cancel_flag.clone(), picker.clone(), cx).await;
+            stream_plunder_to_picker(project_search_view, Arc::clone(&cancel_flag), picker.clone(), cx).await;
 
             if let Some(results_stream) = ongoing {
                 return stream_results_to_picker(
@@ -577,6 +577,174 @@ impl Delegate {
             highlight_query_as_regex(query_editor, self.search_options.contains(SearchOptions::REGEX), cx);
         }
     }
+
+    pub(crate) fn build_search_query(&self, query: &str, cx: &Context<Picker<Self>>) -> Option<SearchQuery> {
+        if query.is_empty() {
+            return None;
+        }
+
+        // Reuse the include/exclude filters configured on the shared project
+        // search view so the text finder respects them too.
+        let (files_to_include, files_to_exclude) = self.project_search_view.read(cx).file_path_filters(cx);
+
+        // If the project contains multiple visible worktrees, we match the
+        // include/exclude patterns against full paths to allow them to be
+        // disambiguated. For single worktree projects we use worktree relative
+        // paths for convenience.
+        let match_full_paths = self.project(cx).read(cx).visible_worktrees(cx).count() > 1;
+        let open_buffers = None;
+
+        self.search_options
+            .build_query(query, files_to_include, files_to_exclude, match_full_paths, open_buffers)
+            .log_err()
+    }
+
+    /// Create things from MB.
+    pub(crate) fn process_search_result(
+        buffer: &Entity<Buffer>,
+        ranges: &[Range<Anchor>],
+        cx: &AsyncApp,
+    ) -> Vec<SearchMatch> {
+        if ranges.is_empty() {
+            return Vec::new();
+        }
+
+        buffer.read_with(cx, |buf, cx| {
+            let file = buf.file();
+            let path = file.map(|f| ProjectPath { worktree_id: f.worktree_id(cx), path: Arc::clone(f.path()) });
+            let mut matches = Vec::new();
+            for anchor_range in ranges {
+                let start_offset: usize = buf.summary_for_anchor(&anchor_range.start);
+                let end_offset: usize = buf.summary_for_anchor(&anchor_range.end);
+                let point = buf.offset_to_point(start_offset);
+
+                if let Some(path) = &path {
+                    matches.push(SearchMatch {
+                        path: path.clone(),
+                        buffer: buffer.clone(),
+                        anchor_range: anchor_range.clone(),
+                        range: start_offset..end_offset,
+                        match_start_byte_column: point.column,
+                        line_number: point.row + 1,
+                    });
+                }
+            }
+            matches
+        })
+    }
+
+    fn render_match_impl(
+        &self,
+        ix: usize,
+        selected: bool,
+        checkbox: Option<AnyElement>,
+        _: &mut Window,
+        cx: &Context<Picker<Self>>,
+    ) -> Option<AnyElement> {
+        match self.entries.get(ix)? {
+            Entry::Separator => {
+                Some(div().py(DynamicSpacing::Base04.rems()).child(Divider::horizontal()).into_any_element())
+            }
+            Entry::Header(path) => {
+                let file_name = path.path.file_name().map_or_default(str::to_owned);
+                let directory = path.path.parent().map(|x| x.display()).map_or_default(SharedString::new);
+                let file_icon = FileIcons::get_icon(path.path.as_std_path(), cx)
+                    .map(|icon| Icon::from_path(icon).color(Color::Muted).size(IconSize::Small));
+                let is_collapsed = self.collapsed_paths.contains(path);
+                let toggle_path = path.clone();
+                let tooltip_focus_handle = self.focus_handle.clone();
+
+                Some(
+                    div()
+                        .px_1()
+                        .child(
+                            h_flex()
+                                .w_full()
+                                .min_w_0()
+                                .p_1()
+                                .gap_1p5()
+                                .rounded_sm()
+                                .when(selected, |this| this.bg(cx.theme().colors().ghost_element_selected))
+                                .child(
+                                    h_flex()
+                                        .gap_1()
+                                        .child(
+                                            Disclosure::new(("text-finder-fold", ix), !is_collapsed)
+                                                .tooltip(move |_window, cx| {
+                                                    let (label, action): (_, &dyn gpui::Action) = if is_collapsed {
+                                                        ("Unfold", &Unfold)
+                                                    } else {
+                                                        ("Fold", &Fold)
+                                                    };
+                                                    Tooltip::with_meta_in(
+                                                        label,
+                                                        Some(action),
+                                                        format!(
+                                                            "{} to toggle all",
+                                                            text_for_keystroke(&Modifiers::alt(), "click", cx)
+                                                        ),
+                                                        &tooltip_focus_handle,
+                                                        cx,
+                                                    )
+                                                })
+                                                .on_click(cx.listener(move |this, event: &ClickEvent, _window, cx| {
+                                                    if event.modifiers().alt {
+                                                        this.delegate.toggle_all_collapsed(cx);
+                                                    } else {
+                                                        this.delegate.toggle_group_collapsed(&toggle_path);
+                                                        cx.notify();
+                                                    }
+                                                })),
+                                        )
+                                        .children(file_icon),
+                                )
+                                .child(h_flex().gap_1().child(Label::new(file_name).size(LabelSize::Small)).when(
+                                    !directory.is_empty(),
+                                    |this| {
+                                        this.child(
+                                            Label::new(directory)
+                                                .size(LabelSize::Small)
+                                                .color(Color::Muted)
+                                                .truncate_start(),
+                                        )
+                                    },
+                                )),
+                        )
+                        .into_any_element(),
+                )
+            }
+            Entry::Match(match_index) => {
+                let search_match = self.matches.get(*match_index)?;
+                Some(
+                    ListItem::new(ix)
+                        .spacing(ListItemSpacing::Sparse)
+                        .inset(true)
+                        .toggle_state(selected)
+                        .when_some(checkbox, ui::ListItem::start_slot)
+                        .child(
+                            h_flex()
+                                .w_full()
+                                .min_w_0()
+                                .gap_2p5()
+                                .text_sm()
+                                .child(
+                                    h_flex()
+                                        .w(rems((self.max_line_number.max(1).ilog10() + 1) as f32 * 0.5))
+                                        .justify_end()
+                                        .child(
+                                            Label::new(search_match.line_number.to_string())
+                                                .color(Color::Custom(cx.theme().colors().text_muted.opacity(0.5))),
+                                        ),
+                                )
+                                .child(
+                                    div().flex_1().min_w_0().truncate().child(render_matched_line(search_match, cx)),
+                                ),
+                        )
+                        .into_any_element(),
+                )
+            }
+        }
+    }
 }
 
 pub(crate) fn toggle_search_option(
@@ -808,13 +976,13 @@ impl PickerDelegate for Delegate {
             // `PickerDelegate::update_matches` to detect when we are done
             // updating. So we have a placeholder task that completes when
             // this signal is send.
-            let _ = signal_done.send(());
+            signal_done.send(()).ok();
             res
         }));
 
         cx.notify();
         cx.spawn(async move |_, _| {
-            let _ = match_updating_done.await;
+            match_updating_done.await.ok();
         })
     }
 
@@ -913,121 +1081,6 @@ impl PickerDelegate for Delegate {
         cx: &mut Context<Picker<Self>>,
     ) -> Option<Self::ListItem> {
         self.render_match_impl(ix, selected, Some(checkbox), window, cx)
-    }
-}
-
-impl Delegate {
-    fn render_match_impl(
-        &self,
-        ix: usize,
-        selected: bool,
-        checkbox: Option<AnyElement>,
-        _: &mut Window,
-        cx: &Context<Picker<Self>>,
-    ) -> Option<AnyElement> {
-        match self.entries.get(ix)? {
-            Entry::Separator => {
-                Some(div().py(DynamicSpacing::Base04.rems()).child(Divider::horizontal()).into_any_element())
-            }
-            Entry::Header(path) => {
-                let file_name = path.path.file_name().map_or_default(ToString::to_string);
-                let directory = path.path.parent().map(|x| x.display()).map_or_default(SharedString::new);
-                let file_icon = FileIcons::get_icon(path.path.as_std_path(), cx)
-                    .map(|icon| Icon::from_path(icon).color(Color::Muted).size(IconSize::Small));
-                let is_collapsed = self.collapsed_paths.contains(path);
-                let toggle_path = path.clone();
-                let tooltip_focus_handle = self.focus_handle.clone();
-
-                Some(
-                    div()
-                        .px_1()
-                        .child(
-                            h_flex()
-                                .w_full()
-                                .min_w_0()
-                                .p_1()
-                                .gap_1p5()
-                                .rounded_sm()
-                                .when(selected, |this| this.bg(cx.theme().colors().ghost_element_selected))
-                                .child(
-                                    h_flex()
-                                        .gap_1()
-                                        .child(
-                                            Disclosure::new(("text-finder-fold", ix), !is_collapsed)
-                                                .tooltip(move |_window, cx| {
-                                                    let (label, action): (_, &dyn gpui::Action) = if is_collapsed {
-                                                        ("Unfold", &Unfold)
-                                                    } else {
-                                                        ("Fold", &Fold)
-                                                    };
-                                                    Tooltip::with_meta_in(
-                                                        label,
-                                                        Some(action),
-                                                        format!(
-                                                            "{} to toggle all",
-                                                            text_for_keystroke(&Modifiers::alt(), "click", cx)
-                                                        ),
-                                                        &tooltip_focus_handle,
-                                                        cx,
-                                                    )
-                                                })
-                                                .on_click(cx.listener(move |this, event: &ClickEvent, _window, cx| {
-                                                    if event.modifiers().alt {
-                                                        this.delegate.toggle_all_collapsed(cx);
-                                                    } else {
-                                                        this.delegate.toggle_group_collapsed(&toggle_path);
-                                                        cx.notify();
-                                                    }
-                                                })),
-                                        )
-                                        .children(file_icon),
-                                )
-                                .child(h_flex().gap_1().child(Label::new(file_name).size(LabelSize::Small)).when(
-                                    !directory.is_empty(),
-                                    |this| {
-                                        this.child(
-                                            Label::new(directory)
-                                                .size(LabelSize::Small)
-                                                .color(Color::Muted)
-                                                .truncate_start(),
-                                        )
-                                    },
-                                )),
-                        )
-                        .into_any_element(),
-                )
-            }
-            Entry::Match(match_index) => {
-                let search_match = self.matches.get(*match_index)?;
-                Some(
-                    ListItem::new(ix)
-                        .spacing(ListItemSpacing::Sparse)
-                        .inset(true)
-                        .toggle_state(selected)
-                        .when_some(checkbox, ui::ListItem::start_slot)
-                        .child(
-                            h_flex()
-                                .w_full()
-                                .min_w_0()
-                                .gap_2p5()
-                                .text_sm()
-                                .child(
-                                    h_flex()
-                                        .w(rems((self.max_line_number.max(1).ilog10() + 1) as f32 * 0.5))
-                                        .justify_end()
-                                        .child(
-                                            Label::new(search_match.line_number.to_string())
-                                                .color(Color::Custom(cx.theme().colors().text_muted.opacity(0.5))),
-                                        ),
-                                )
-                                .child(
-                                    div().flex_1().min_w_0().truncate().child(render_matched_line(search_match, cx)),
-                                ),
-                        )
-                        .into_any_element(),
-                )
-            }
-        }
     }
 }
 
@@ -1190,62 +1243,5 @@ fn render_matched_line(search_match: &SearchMatch, cx: &App) -> StyledText {
 
     let highlights = gpui::combine_highlights(syntax_highlights, [match_highlight]);
 
-    StyledText::new(line_text.to_string()).with_default_highlights(&text_style, highlights)
-}
-
-impl Delegate {
-    pub(crate) fn build_search_query(&self, query: &str, cx: &Context<Picker<Self>>) -> Option<SearchQuery> {
-        if query.is_empty() {
-            return None;
-        }
-
-        // Reuse the include/exclude filters configured on the shared project
-        // search view so the text finder respects them too.
-        let (files_to_include, files_to_exclude) = self.project_search_view.read(cx).file_path_filters(cx);
-
-        // If the project contains multiple visible worktrees, we match the
-        // include/exclude patterns against full paths to allow them to be
-        // disambiguated. For single worktree projects we use worktree relative
-        // paths for convenience.
-        let match_full_paths = self.project(cx).read(cx).visible_worktrees(cx).count() > 1;
-        let open_buffers = None;
-
-        self.search_options
-            .build_query(query, files_to_include, files_to_exclude, match_full_paths, open_buffers)
-            .log_err()
-    }
-
-    /// Create things from MB
-    pub(crate) fn process_search_result(
-        buffer: &Entity<Buffer>,
-        ranges: &[Range<Anchor>],
-        cx: &AsyncApp,
-    ) -> Vec<SearchMatch> {
-        if ranges.is_empty() {
-            return Vec::new();
-        }
-
-        buffer.read_with(cx, |buf, cx| {
-            let file = buf.file();
-            let path = file.map(|f| ProjectPath { worktree_id: f.worktree_id(cx), path: f.path().clone() });
-            let mut matches = Vec::new();
-            for anchor_range in ranges {
-                let start_offset: usize = buf.summary_for_anchor(&anchor_range.start);
-                let end_offset: usize = buf.summary_for_anchor(&anchor_range.end);
-                let point = buf.offset_to_point(start_offset);
-
-                if let Some(path) = &path {
-                    matches.push(SearchMatch {
-                        path: path.clone(),
-                        buffer: buffer.clone(),
-                        anchor_range: anchor_range.clone(),
-                        range: start_offset..end_offset,
-                        match_start_byte_column: point.column,
-                        line_number: point.row + 1,
-                    });
-                }
-            }
-            matches
-        })
-    }
+    StyledText::new(line_text.to_owned()).with_default_highlights(&text_style, highlights)
 }

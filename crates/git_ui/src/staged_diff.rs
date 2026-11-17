@@ -39,22 +39,22 @@ use ui::Divider;
 use ui::Icon;
 use ui::Tooltip;
 use ui::Window;
-use ui::prelude::ActiveTheme;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::Button;
-use ui::prelude::ButtonCommon;
-use ui::prelude::Clickable;
+use ui::prelude::ButtonCommon as _;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
-use ui::prelude::Disableable;
-use ui::prelude::FixedWidth;
-use ui::prelude::FluentBuilder;
+use ui::prelude::Disableable as _;
+use ui::prelude::FixedWidth as _;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::IconButton;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
-use ui::prelude::InteractiveElement;
+use ui::prelude::InteractiveElement as _;
 use ui::prelude::IntoElement;
-use ui::prelude::ParentElement;
+use ui::prelude::ParentElement as _;
 use ui::prelude::Pixels;
-use ui::prelude::Styled;
+use ui::prelude::Styled as _;
 use ui::prelude::div;
 use ui::prelude::h_flex;
 use ui::prelude::h_group_sm;
@@ -131,8 +131,7 @@ pub struct StagedDiff {
 }
 
 impl StagedDiff {
-    pub(crate) fn register(workspace: &Workspace, cx: &mut Context<Workspace>) {
-        let _ = workspace;
+    pub(crate) fn register(_workspace: &Workspace, cx: &mut Context<Workspace>) {
         workspace::register_serializable_item::<Self>(cx);
     }
 

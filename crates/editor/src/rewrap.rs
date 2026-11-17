@@ -1,4 +1,5 @@
 use std::mem;
+use std::sync::Arc;
 
 use anyhow::Context as _;
 
@@ -11,10 +12,10 @@ use super::IndentSize;
 use super::MultiBufferRow;
 use super::NonZeroU32;
 use super::Point;
-use super::RangeExt;
+use super::RangeExt as _;
 use super::RangeInclusive;
 use super::Result;
-use super::ResultExt;
+use super::ResultExt as _;
 use super::RewrapBehavior;
 use super::RewrapOptions;
 use super::ToOffset;
@@ -30,13 +31,13 @@ impl Editor {
 
         #[derive(Clone, Debug, PartialEq)]
         enum CommentFormat {
-            /// single line comment, with prefix for line
+            /// single line comment, with prefix for line.
             Line(String),
-            /// single line within a block comment, with prefix for line
+            /// single line within a block comment, with prefix for line.
             BlockLine(String),
-            /// a single line of a block comment that includes the initial delimiter
+            /// a single line of a block comment that includes the initial delimiter.
             BlockCommentWithStart(BlockCommentConfig),
-            /// a single line of a block comment that includes the ending delimiter
+            /// a single line of a block comment that includes the ending delimiter.
             BlockCommentWithEnd(BlockCommentConfig),
         }
 
@@ -96,7 +97,7 @@ impl Editor {
                         .find_map(|prefix_regex| {
                             prefix_regex
                                 .find(&line_text_after_indent)
-                                .map(|mat| if mat.start() == 0 { Some(mat.as_str().to_string()) } else { None })
+                                .map(|mat| (mat.start() == 0).then(|| mat.as_str().to_owned()))
                         })
                         .flatten();
                     (comment_delimiters, rewrap_prefix)
@@ -185,7 +186,7 @@ impl Editor {
 
                 if has_paragraph_break || has_boundary_change {
                     ranges.push((
-                        language_settings.clone(),
+                        Arc::clone(&language_settings),
                         Point::new(current_range_start, 0)
                             ..Point::new(prev_row, buffer.line_len(MultiBufferRow(prev_row))),
                         current_range_indent,
@@ -381,7 +382,7 @@ fn is_char_ideographic(ch: char) -> bool {
     use unicode_script::Script::Han;
     use unicode_script::Script::Tangut;
     use unicode_script::Script::Yi;
-    use unicode_script::UnicodeScript;
+    use unicode_script::UnicodeScript as _;
     matches!(ch.script(), Han | Tangut | Yi)
 }
 
@@ -414,7 +415,7 @@ impl<'a> Iterator for WordBreakingTokenizer<'a> {
     type Item = WordBreakToken<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        use unicode_segmentation::UnicodeSegmentation;
+        use unicode_segmentation::UnicodeSegmentation as _;
         if self.input.is_empty() {
             return None;
         }

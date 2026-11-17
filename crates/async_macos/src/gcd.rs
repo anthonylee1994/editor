@@ -4,10 +4,10 @@
 use std::ffi::c_void;
 use std::future::Future;
 use std::io;
-use std::os::fd::AsRawFd;
+use std::os::fd::AsRawFd as _;
 use std::os::fd::OwnedFd;
 use std::os::fd::RawFd;
-use std::os::unix::process::ExitStatusExt;
+use std::os::unix::process::ExitStatusExt as _;
 use std::pin::Pin;
 use std::process::ExitStatus;
 use std::sync::Arc;
@@ -18,7 +18,7 @@ use std::sync::atomic::Ordering;
 use std::task::Context;
 use std::task::Poll;
 
-use dispatch2::DispatchObject;
+use dispatch2::DispatchObject as _;
 use dispatch2::DispatchQueue;
 use dispatch2::DispatchQueueGlobalPriority;
 use dispatch2::DispatchRetained;
@@ -65,9 +65,12 @@ impl Readiness {
     fn new(fd: &Arc<OwnedFd>, source_type: dispatch_source_type_t) -> Arc<Self> {
         // SAFETY: the descriptor outlives the source, see `_fd`.
         let source = unsafe { DispatchSource::new(source_type, fd.as_raw_fd() as usize, 0, Some(&queue())) };
-        let this = Arc::new(Self { source, state: AtomicU8::new(IDLE), waker: AtomicWaker::new(), _fd: fd.clone() });
+        let this =
+            Arc::new(Self { source, state: AtomicU8::new(IDLE), waker: AtomicWaker::new(), _fd: Arc::clone(fd) });
         // SAFETY: the context is a strong reference released by `on_cancel`.
-        unsafe { this.source.set_context(Arc::into_raw(this.clone()) as *mut c_void) };
+        unsafe {
+            this.source.set_context(Arc::into_raw(Arc::clone(&this)) as *mut c_void);
+        }
         this.source.set_event_handler_f(Self::on_event);
         this.source.set_cancel_handler_f(Self::on_cancel);
         this
@@ -185,7 +188,7 @@ impl AsyncFd {
 
     /// Accepts a connection on a listening socket.
     pub fn poll_accept(&self, cx: &mut Context<'_>) -> Poll<io::Result<OwnedFd>> {
-        use std::os::fd::FromRawFd;
+        use std::os::fd::FromRawFd as _;
         self.poll_io(
             Direction::Read,
             cx,
@@ -254,7 +257,9 @@ impl ProcessExit {
         };
         let this = Arc::new(Self { pid, status: Mutex::new(None), waker: AtomicWaker::new(), source });
         // SAFETY: the context is a strong reference released by `on_cancel`.
-        unsafe { this.source.set_context(Arc::into_raw(this.clone()) as *mut c_void) };
+        unsafe {
+            this.source.set_context(Arc::into_raw(Arc::clone(&this)) as *mut c_void);
+        }
         this.source.set_event_handler_f(Self::on_exit);
         this.source.set_cancel_handler_f(Self::on_cancel);
         this.source.resume();
@@ -334,7 +339,7 @@ mod tests {
         let mut reader = AsyncFd::new(reader.into()).unwrap();
         let mut writer = AsyncFd::new(writer.into()).unwrap();
         // Larger than the pipe buffer, so the writer must wait for the reader.
-        let payload = (0..1_000_000u32).map(|i| i as u8).collect::<Vec<_>>();
+        let payload = (0..1_000_000_u32).map(|i| i as u8).collect::<Vec<_>>();
         let mut received = Vec::new();
         block_on(async {
             let write = async {

@@ -7,22 +7,22 @@ use gpui::Context;
 use gpui::Div;
 use gpui::DragMoveEvent;
 use gpui::Entity;
-use gpui::Focusable;
+use gpui::Focusable as _;
 use gpui::Pixels;
 use gpui::WeakEntity;
 use project::Project;
 use ui::Window;
-use ui::prelude::ActiveTheme;
-use ui::prelude::FluentBuilder;
-use ui::prelude::InteractiveElement;
-use ui::prelude::IntoElement;
-use ui::prelude::ParentElement;
-use ui::prelude::StatefulInteractiveElement;
-use ui::prelude::Styled;
+use ui::prelude::ActiveTheme as _;
+use ui::prelude::FluentBuilder as _;
+use ui::prelude::InteractiveElement as _;
+use ui::prelude::IntoElement as _;
+use ui::prelude::ParentElement as _;
+use ui::prelude::StatefulInteractiveElement as _;
+use ui::prelude::Styled as _;
 use ui::prelude::div;
 use ui::prelude::h_flex;
 use ui::prelude::px;
-use util::ResultExt;
+use util::ResultExt as _;
 
 use crate::CARD_GAP;
 use crate::Event;
@@ -120,7 +120,8 @@ impl Workspace {
         if self.has_zoomed(WorkspaceMode::GitHistory, cx) {
             return None;
         }
-        self.active_git_history_pane.read(cx).active_item().and_then(|item| item.side_card(cx))
+        let item = self.active_git_history_pane.read(cx).active_item()?;
+        item.side_card(cx)
     }
 
     /// The active history pane, where the graph and commit views open.
@@ -157,7 +158,7 @@ impl Workspace {
         Self::new_git_history_pane(
             self.weak_handle(),
             self.project.clone(),
-            self.pane_history_timestamp.clone(),
+            Arc::clone(&self.pane_history_timestamp),
             self.nav_history.clone(),
             window,
             cx,
@@ -288,7 +289,7 @@ mod tests {
     use crate::dock::SIDEBAR_MIN_WIDTH;
 
     #[test]
-    fn test_clamp_git_history_sidebar_width() {
+    fn clamp_git_history_sidebar_width_works() {
         assert_eq!(clamp_git_history_sidebar_width(px(400.), px(1000.)), px(400.));
         assert_eq!(clamp_git_history_sidebar_width(px(900.), px(1000.)), px(600.));
         assert_eq!(clamp_git_history_sidebar_width(px(100.), px(1000.)), SIDEBAR_MIN_WIDTH);

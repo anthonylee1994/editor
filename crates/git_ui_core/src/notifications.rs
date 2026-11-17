@@ -49,7 +49,7 @@ fn is_non_fast_forward_error(error_message: &str) -> bool {
 
 fn git_error_toast_title(action: &str, message: &str) -> String {
     if action == "push" && is_non_fast_forward_error(message) {
-        "Push rejected: fetch and integrate remote changes before pushing again".to_string()
+        "Push rejected: fetch and integrate remote changes before pushing again".to_owned()
     } else {
         format!("git {action} failed")
     }
@@ -57,7 +57,7 @@ fn git_error_toast_title(action: &str, message: &str) -> String {
 
 pub fn show_error_toast(workspace: Entity<Workspace>, action: impl Into<SharedString>, e: anyhow::Error, cx: &mut App) {
     let action = action.into();
-    let message = e.to_string().trim().to_string();
+    let message = e.to_string().trim().to_owned();
     cx.defer(move |cx| {
         workspace.update(cx, |workspace, cx| {
             let workspace_weak = cx.weak_entity();

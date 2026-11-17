@@ -34,12 +34,12 @@ impl MacKeyboardLayout {
             let id: *mut AnyObject =
                 TISGetInputSourceProperty(current_keyboard, kTISPropertyInputSourceID.cast::<c_void>());
             let id: *const raw::c_char = msg_send![id, UTF8String];
-            let id = CStr::from_ptr(id).to_str().unwrap().to_string();
+            let id = CStr::from_ptr(id).to_str().expect("input source id is utf-8").to_owned();
 
             let name: *mut AnyObject =
                 TISGetInputSourceProperty(current_keyboard, kTISPropertyLocalizedName.cast::<c_void>());
             let name: *const raw::c_char = msg_send![name, UTF8String];
-            let name = CStr::from_ptr(name).to_str().unwrap().to_string();
+            let name = CStr::from_ptr(name).to_str().expect("input source name is utf-8").to_owned();
 
             let _: () = msg_send![current_keyboard, release];
 

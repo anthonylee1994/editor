@@ -7,16 +7,16 @@ use anyhow::Context as _;
 use anyhow::Result;
 use futures::channel::oneshot;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::AsyncApp;
 use gpui::Context;
 use gpui::Entity;
 use gpui::PathPromptOptions;
 use gpui::Task;
-use gpui::TaskExt;
+use gpui::TaskExt as _;
 use gpui::WeakEntity;
 use gpui::WindowHandle;
-use gpui_util::ResultExt;
+use gpui_util::ResultExt as _;
 use project::DirectoryLister;
 use project::Project;
 use project::ProjectEntryId;
@@ -69,7 +69,8 @@ impl Workspace {
                     Err(err) => {
                         let rx = workspace.update_in(cx, |workspace, window, cx| {
                             workspace.show_error(workspace_error::PortalError::new(err.to_string()), cx);
-                            let prompt = workspace.on_prompt_for_open_path.take().unwrap();
+                            let prompt =
+                                workspace.on_prompt_for_open_path.take().expect("open path prompt handler is set");
                             let rx = prompt(workspace, lister, window, cx);
                             workspace.on_prompt_for_open_path = Some(prompt);
                             rx
@@ -114,7 +115,7 @@ impl Workspace {
                     let rx = workspace.update_in(cx, |workspace, window, cx| {
                         workspace.show_error(workspace_error::PortalError::new(err.to_string()), cx);
 
-                        let prompt = workspace.on_prompt_for_new_path.take().unwrap();
+                        let prompt = workspace.on_prompt_for_new_path.take().expect("new path prompt handler is set");
                         let rx = prompt(workspace, lister, suggested_name, window, cx);
                         workspace.on_prompt_for_new_path = Some(prompt);
                         rx
@@ -151,7 +152,7 @@ impl Workspace {
             open_mode = OpenMode::Activate;
         }
 
-        let app_state = self.app_state.clone();
+        let app_state = Arc::clone(&self.app_state);
 
         cx.spawn(async move |_, cx| {
             let OpenResult { workspace, .. } = cx
@@ -186,7 +187,7 @@ impl Workspace {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Task<Vec<Option<anyhow::Result<Box<dyn ItemHandle>>>>> {
-        let fs = self.app_state.fs.clone();
+        let fs = Arc::clone(&self.app_state.fs);
 
         let caller_ordered_abs_paths = abs_paths.clone();
 
@@ -225,7 +226,7 @@ impl Workspace {
 
                 let this = this.clone();
                 let abs_path: Arc<Path> = SanitizedPath::new(&abs_path).as_path().into();
-                let fs = fs.clone();
+                let fs = Arc::clone(&fs);
                 let pane = pane.clone();
                 let task = cx.spawn(async move |cx| {
                     let (worktree, project_path) = project_path?;
@@ -777,7 +778,8 @@ impl Workspace {
             item = pane.read(cx).item_for_path(project_path, cx);
         }
 
-        item.and_then(|item| item.downcast::<T>())
+        let item = item?;
+        item.downcast::<T>()
     }
 
     /// A file lives in one pane: if `project_item` is open anywhere, that tab is
@@ -1064,7 +1066,7 @@ pub fn open_paths(
                 .update(move |cx| {
                     Workspace::new_local(
                         abs_paths,
-                        app_state.clone(),
+                        Arc::clone(&app_state),
                         open_options.requesting_window,
                         None,
                         open_options.open_mode,

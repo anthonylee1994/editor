@@ -1,24 +1,24 @@
 use gpui::AnyView;
 use gpui::Hsla;
 use gpui::IntoElement;
-use gpui::ParentElement;
-use gpui::Styled;
+use gpui::ParentElement as _;
+use gpui::Styled as _;
 
-use crate::prelude::ActiveTheme;
+use crate::prelude::ActiveTheme as _;
 use crate::prelude::App;
 use crate::prelude::Color;
-use crate::prelude::FluentBuilder;
+use crate::prelude::FluentBuilder as _;
 use crate::prelude::Icon;
 use crate::prelude::IconName;
 use crate::prelude::IconSize;
-use crate::prelude::InteractiveElement;
+use crate::prelude::InteractiveElement as _;
 use crate::prelude::Label;
-use crate::prelude::LabelCommon;
+use crate::prelude::LabelCommon as _;
 use crate::prelude::LabelSize;
 use crate::prelude::Pixels;
 use crate::prelude::RenderOnce;
 use crate::prelude::SharedString;
-use crate::prelude::StatefulInteractiveElement;
+use crate::prelude::StatefulInteractiveElement as _;
 use crate::prelude::Window;
 use crate::prelude::h_flex;
 

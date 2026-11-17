@@ -9,15 +9,15 @@ use std::time::Duration;
 use anyhow::Context as _;
 use anyhow::Result;
 use anyhow::anyhow;
-use futures::FutureExt;
-use futures::StreamExt;
+use futures::FutureExt as _;
+use futures::StreamExt as _;
 use futures::channel::mpsc;
 use futures::channel::oneshot;
 use futures::future::Shared;
 use futures::future::join_all;
 use futures::select_biased;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::Context;
 use gpui::Entity;
 use gpui::SharedString;
@@ -29,12 +29,12 @@ use language::DiagnosticEntry;
 use language::DiagnosticMessage;
 use language::DiagnosticSet;
 use language::DiagnosticSourceKind;
-use language::LocalFile;
+use language::LocalFile as _;
 use language::Patch;
 use language::PointUtf16;
 use language::RelatedInformation;
 use language::RelatedLocation;
-use language::ToPointUtf16;
+use language::ToPointUtf16 as _;
 use language::Unclipped;
 use language::range_from_lsp;
 use lsp::DiagnosticServerCapabilities;
@@ -549,7 +549,7 @@ impl LspStore {
 
         let servers = buffer.update(cx, |buffer, cx| {
             self.running_language_servers_for_local_buffer(buffer, cx)
-                .map(|(adapter, server)| (adapter.clone(), server.clone()))
+                .map(|(adapter, server)| (Arc::clone(adapter), Arc::clone(server)))
                 .collect::<Vec<_>>()
         });
 
@@ -768,7 +768,7 @@ impl LspStore {
                     })
                     .flat_map(move |(path, summaries)| {
                         summaries.iter().map(move |(server_id, summary)| {
-                            (ProjectPath { worktree_id, path: path.clone() }, *server_id, *summary)
+                            (ProjectPath { worktree_id, path: Arc::clone(path) }, *server_id, *summary)
                         })
                     })
             })
@@ -801,7 +801,7 @@ impl LspStore {
                 for server_id in summaries_by_server_id.keys() {
                     cleared_server_ids.insert(*server_id);
                 }
-                cleared_paths.push(ProjectPath { worktree_id, path: path.clone() });
+                cleared_paths.push(ProjectPath { worktree_id, path: Arc::clone(path) });
             }
         }
 
@@ -921,7 +921,7 @@ impl LspStore {
                 self.update_worktree_diagnostics(
                     worktree.id(),
                     server_id,
-                    project_path.path.clone(),
+                    Arc::clone(&project_path.path),
                     update.diagnostics.diagnostics,
                     cx,
                 )
@@ -949,7 +949,7 @@ impl LspStore {
 
         let summaries_for_tree = self.diagnostic_summaries.entry(worktree_id).or_default();
         let diagnostics_for_tree = local.diagnostics.entry(worktree_id).or_default();
-        let summaries_by_server_id = summaries_for_tree.entry(path_in_worktree.clone()).or_default();
+        let summaries_by_server_id = summaries_for_tree.entry(Arc::clone(&path_in_worktree)).or_default();
 
         let old_summary = summaries_by_server_id.remove(&server_id).unwrap_or_default();
 
@@ -965,7 +965,7 @@ impl LspStore {
             }
         } else {
             summaries_by_server_id.insert(server_id, new_summary);
-            let diagnostics_by_server_id = diagnostics_for_tree.entry(path_in_worktree.clone()).or_default();
+            let diagnostics_by_server_id = diagnostics_for_tree.entry(Arc::clone(&path_in_worktree)).or_default();
             match diagnostics_by_server_id.binary_search_by_key(&server_id, |e| e.0) {
                 Ok(ix) => {
                     diagnostics_by_server_id[ix] = (server_id, diagnostics);
@@ -1185,7 +1185,7 @@ impl LspStore {
 
         for entry in &mut diagnostics {
             if !entry.diagnostic.is_primary {
-                let source = *sources_by_group_id.get(&entry.diagnostic.group_id).unwrap();
+                let source = sources_by_group_id[&entry.diagnostic.group_id];
                 if let Some((severity, is_unnecessary, related_information)) =
                     supporting_diagnostics.get(&(source, entry.diagnostic.code.clone(), entry.range.clone()))
                 {
@@ -1204,7 +1204,7 @@ impl LspStore {
     pub fn language_servers_running_disk_based_diagnostics(&self) -> impl Iterator<Item = LanguageServerId> + '_ {
         self.language_server_statuses
             .iter()
-            .filter_map(|(id, status)| if status.has_pending_diagnostic_updates { Some(*id) } else { None })
+            .filter_map(|(id, status)| status.has_pending_diagnostic_updates.then_some(*id))
     }
 
     pub fn result_id_for_buffer_pull(

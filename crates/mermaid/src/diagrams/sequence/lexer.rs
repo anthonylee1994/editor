@@ -43,7 +43,7 @@ const MENU: u8 = 32;
 
 /// Character classes of Mermaid's lexer rules, for ASCII. Other characters are tested by `\s`.
 const CLASS: [u8; 128] = {
-    let mut table = [0u8; 128];
+    let mut table = [0_u8; 128];
     let mut c = 0;
     while c < 128 {
         let ws = c == 32 || (c >= 9 && c <= 13);

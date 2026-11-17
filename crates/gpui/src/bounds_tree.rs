@@ -143,7 +143,7 @@ where
         self.search_stack.clear();
         self.search_stack.push(NonNull::from(&self.nodes[root_idx]));
 
-        let mut max_found = 0u32;
+        let mut max_found = 0_u32;
 
         while let Some(node) = self.search_stack.pop() {
             // SAFETY: `node` is guaranteed to be valid as the `nodes` stack is unmodified in this function
@@ -355,7 +355,7 @@ mod tests {
     fn insert_leaf_preserves_ordering_when_full_nodes_split() {
         let mut tree = BoundsTree::<f32>::default();
         let mut inserted = Vec::<(Bounds<f32>, u32)>::new();
-        for i in 0..96 {
+        for i in 0..96_u32 {
             let bounds = Bounds::new(point((i % 16) as f32 * 3.0, (i % 7) as f32 * 2.0), size(5.0, 5.0));
             let expected = inserted
                 .iter()

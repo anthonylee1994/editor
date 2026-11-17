@@ -3,10 +3,10 @@ use gpui::IntoElement;
 use gpui::Refineable as _;
 use gpui::StyleRefinement;
 
-use crate::prelude::ActiveTheme;
+use crate::prelude::ActiveTheme as _;
 use crate::prelude::App;
 use crate::prelude::Div;
-use crate::prelude::FluentBuilder;
+use crate::prelude::FluentBuilder as _;
 use crate::prelude::RenderOnce;
 use crate::prelude::Styled;
 use crate::prelude::Window;

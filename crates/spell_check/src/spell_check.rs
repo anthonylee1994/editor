@@ -44,9 +44,9 @@ static SKIP_PATTERNS: LazyLock<Regex> = LazyLock::new(|| {
             // Unix paths (and shebangs), anchored so "and/or" is still checked
             r#"(?m)(?:^|[\s"'(\[=<,!])\.{0,2}/[^\s]*"#,
             // UUIDs
-            r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+            "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
             // Base64 with padding
-            r"[A-Za-z0-9+/]{20,}={1,2}",
+            "[A-Za-z0-9+/]{20,}={1,2}",
             // Markdown link targets
             r"\]\([^\s)]+\)",
             // Inline code

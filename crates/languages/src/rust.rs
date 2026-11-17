@@ -18,7 +18,7 @@ use async_macos::command::new_command;
 use async_macos::fs;
 use async_trait::async_trait;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::AsyncApp;
 use gpui::Entity;
 use gpui::SharedString;
@@ -40,7 +40,7 @@ use task::TaskTemplate;
 use task::TaskTemplates;
 use task::TaskVariables;
 use task::VariableName;
-use util::ResultExt;
+use util::ResultExt as _;
 use util::merge_json_value_into;
 use util::rel_path::RelPath;
 
@@ -112,7 +112,7 @@ impl ManifestProvider for CargoManifestProvider {
     fn search(&self, ManifestQuery { path, depth, delegate }: ManifestQuery) -> Option<Arc<RelPath>> {
         let mut outermost_cargo_toml = None;
         for path in path.ancestors().take(depth) {
-            let p = path.join(RelPath::from_unix_str("Cargo.toml").unwrap());
+            let p = path.join(RelPath::from_unix_str("Cargo.toml").expect("valid relative path"));
             if delegate.exists(&p, Some(false)) {
                 outermost_cargo_toml = Some(Arc::from(path));
             }
@@ -142,12 +142,12 @@ fn cargo_library_root_at(dir: &Path) -> Option<LibraryRoot> {
         dir.ancestors().take(6).map(|path| path.file_name()?.to_str()).map_while(|name| name).collect();
     let name = |index: usize| names.get(index).copied();
     let library_name = match (name(0)?, name(1), name(2), name(3), name(4), name(5)) {
-        (krate, Some(_index), Some("src"), Some("registry"), _, _) => krate.to_string(),
+        (krate, Some(_index), Some("src"), Some("registry"), _, _) => krate.to_owned(),
         (rev, Some(repo), Some("checkouts"), Some("git"), _, _) => {
             let repo = repo.rsplit_once('-').map_or(repo, |(repo, _hash)| repo);
             format!("{repo}@{rev}")
         }
-        (krate, Some("library"), Some("rust"), Some("src"), Some("rustlib"), Some("lib")) => krate.to_string(),
+        (krate, Some("library"), Some("rust"), Some("src"), Some("rustlib"), Some("lib")) => krate.to_owned(),
         _ => return None,
     };
     Some(LibraryRoot { path: dir.to_path_buf(), name: library_name })
@@ -164,7 +164,7 @@ impl LspAdapter for RustLspAdapter {
         delegate: &Arc<dyn LspAdapterDelegate>,
         cx: &AsyncApp,
     ) -> Option<LanguageServerBinary> {
-        let delegate = delegate.clone();
+        let delegate = Arc::clone(delegate);
         cx.background_spawn(async move {
             let env = delegate.shell_env().await;
             if let Some(path) = Self::rustup_rust_analyzer_for_worktree(delegate.as_ref()).await {
@@ -511,17 +511,17 @@ pub(crate) struct RustContextProvider;
 
 const RUST_PACKAGE_TASK_VARIABLE: VariableName = VariableName::Custom(Cow::Borrowed("RUST_PACKAGE"));
 
-/// The bin name corresponding to the current file in Cargo.toml
+/// The bin name corresponding to the current file in Cargo.toml.
 const RUST_BIN_NAME_TASK_VARIABLE: VariableName = VariableName::Custom(Cow::Borrowed("RUST_BIN_NAME"));
 
-/// The bin kind (bin/example) corresponding to the current file in Cargo.toml
+/// The bin kind (bin/example) corresponding to the current file in Cargo.toml.
 const RUST_BIN_KIND_TASK_VARIABLE: VariableName = VariableName::Custom(Cow::Borrowed("RUST_BIN_KIND"));
 
-/// The flag to list required features for executing a bin, if any
+/// The flag to list required features for executing a bin, if any.
 const RUST_BIN_REQUIRED_FEATURES_FLAG_TASK_VARIABLE: VariableName =
     VariableName::Custom(Cow::Borrowed("RUST_BIN_REQUIRED_FEATURES_FLAG"));
 
-/// The list of required features for executing a bin, if any
+/// The list of required features for executing a bin, if any.
 const RUST_BIN_REQUIRED_FEATURES_TASK_VARIABLE: VariableName =
     VariableName::Custom(Cow::Borrowed("RUST_BIN_REQUIRED_FEATURES"));
 
@@ -575,7 +575,7 @@ impl ContextProvider for RustContextProvider {
                         variables.insert(RUST_BIN_REQUIRED_FEATURES_TASK_VARIABLE, String::new());
                     } else {
                         variables
-                            .insert(RUST_BIN_REQUIRED_FEATURES_FLAG_TASK_VARIABLE.clone(), "--features".to_string());
+                            .insert(RUST_BIN_REQUIRED_FEATURES_FLAG_TASK_VARIABLE.clone(), "--features".to_owned());
                         variables.insert(
                             RUST_BIN_REQUIRED_FEATURES_TASK_VARIABLE.clone(),
                             target.required_features.join(","),
@@ -718,7 +718,7 @@ impl ContextProvider for RustContextProvider {
     }
 }
 
-/// Part of the data structure of Cargo metadata
+/// Part of the data structure of Cargo metadata.
 #[derive(Debug, serde::Deserialize)]
 struct CargoMetadata {
     packages: Vec<CargoPackage>,
@@ -971,7 +971,7 @@ fn test_mod_filter(path: &Path, stem: &str, mod_name: &str) -> String {
 /// Settings for Rust.
 pub(crate) fn settings() -> LanguageSettings {
     LanguageSettings {
-        tab_size: NonZeroU32::new(4).unwrap(),
+        tab_size: NonZeroU32::new(4).expect("non-zero"),
         hard_tabs: false,
         soft_wrap: false,
         preferred_line_length: 120,
@@ -1028,7 +1028,7 @@ mod tests {
             .filter(|rule| rule.underline.is_some())
             .map(|rule| (rule.token_type.as_deref().unwrap(), rule.token_modifiers.as_slice()))
             .collect();
-        let mutable = ["mutable".to_string()];
+        let mutable = ["mutable".to_owned()];
         assert_eq!(
             underlined,
             ["variable", "parameter", "selfKeyword", "static"].map(|token_type| (token_type, mutable.as_slice()))
@@ -1039,7 +1039,7 @@ mod tests {
         let unsafe_rule = &rules[underlined.len()];
         assert_eq!(
             (unsafe_rule.token_type.as_deref(), unsafe_rule.token_modifiers.as_slice()),
-            (None, ["unsafe".to_string()].as_slice())
+            (None, ["unsafe".to_owned()].as_slice())
         );
         assert!(unsafe_rule.foreground_color.is_some());
 
@@ -1057,9 +1057,9 @@ mod tests {
 
     use super::CargoLibraryProvider;
     use super::LanguageServerId;
-    use super::LibraryProvider;
+    use super::LibraryProvider as _;
     use super::LibraryRoot;
-    use super::LspAdapter;
+    use super::LspAdapter as _;
     use super::Path;
     use super::PathBuf;
     use super::RustLspAdapter;
@@ -1156,7 +1156,7 @@ mod tests {
     #[test]
     fn existing_clippy_configs_ignores_directories() {
         let dir = test_dir("clippy_ignores_dirs");
-        fs::create_dir(dir.join("clippy.toml")).unwrap();
+        fs::create_dir_all(dir.join("clippy.toml")).unwrap();
         assert_eq!(futures::executor::block_on(existing_clippy_configs(&dir)), Vec::<PathBuf>::new());
         fs::remove_dir_all(dir).unwrap();
     }
@@ -1164,7 +1164,7 @@ mod tests {
     /// Fresh scratch dir, unique per test name; tests remove it on success.
     fn test_dir(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("languages-test-{name}-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&dir);
+        fs::remove_dir_all(&dir).ok();
         fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -1174,7 +1174,7 @@ mod tests {
     }
 
     #[test]
-    fn test_mod_filter_scopes_to_file_module() {
+    fn mod_filter_scopes_to_file_module() {
         assert_eq!(test_mod_filter(Path::new("/p/src/lib.rs"), "lib", "tests"), "tests::");
         assert_eq!(test_mod_filter(Path::new("/p/src/main.rs"), "main", "tests"), "tests::");
         assert_eq!(test_mod_filter(Path::new("/p/src/foo/mod.rs"), "mod", "tests"), "foo::tests::");

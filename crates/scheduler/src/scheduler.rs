@@ -140,7 +140,7 @@ where
     let thread_body = move || {
         let (runnable_sender, runnable_receiver) = flume::unbounded::<Runnable<RunnableMeta>>();
         let dispatch = move |runnable: Runnable<RunnableMeta>| {
-            let _ = runnable_sender.send(runnable);
+            runnable_sender.send(runnable).ok();
         };
         let executor = LocalExecutor::new(session_id, scheduler, dispatch);
         let root_task = executor.spawn(f(executor.clone()));

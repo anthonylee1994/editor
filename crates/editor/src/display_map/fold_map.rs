@@ -1,6 +1,6 @@
 use std::any::TypeId;
+use std::cmp;
 use std::cmp::Ordering;
-use std::cmp::{self};
 use std::fmt;
 use std::iter;
 use std::mem;
@@ -39,7 +39,7 @@ use sum_tree::Cursor;
 use sum_tree::Dimensions;
 use sum_tree::FilterCursor;
 use sum_tree::SumTree;
-use sum_tree::Summary;
+use sum_tree::Summary as _;
 use sum_tree::TreeMap;
 use ui::IntoElement as _;
 use ui::font;
@@ -426,7 +426,7 @@ impl FoldMap {
                             break;
                         }
 
-                        let next_edit = inlay_edits_iter.next().unwrap();
+                        let next_edit = inlay_edits_iter.next().expect("peeked edit");
                         delta += next_edit.new_len().cast_signed() - next_edit.old_len().cast_signed();
 
                         if next_edit.old.end >= edit.old.end {
@@ -465,7 +465,7 @@ impl FoldMap {
                 .peekable();
 
                 while folds.peek().is_some_and(|(_, fold_range)| fold_range.start < edit.new.end) {
-                    let (fold, mut fold_range) = folds.next().unwrap();
+                    let (fold, mut fold_range) = folds.next().expect("peeked fold");
                     let sum = new_transforms.summary();
 
                     assert!(fold_range.start.0 >= sum.input.len);
@@ -476,7 +476,7 @@ impl FoldMap {
                                 && fold.placeholder.merge_adjacent
                                 && next_fold.placeholder.merge_adjacent)
                     }) {
-                        let (_, next_fold_range) = folds.next().unwrap();
+                        let (_, next_fold_range) = folds.next().expect("peeked fold");
                         if next_fold_range.end > fold_range.end {
                             fold_range.end = next_fold_range.end;
                         }
@@ -495,7 +495,7 @@ impl FoldMap {
                             fold.placeholder.collapsed_text.clone().unwrap_or_else(|| ELLIPSIS.into());
                         let chars_bitmap = placeholder_text
                             .char_indices()
-                            .fold(0u128, |bitmap, (idx, _)| bitmap | 1u128.unbounded_shl(idx as u32));
+                            .fold(0_u128, |bitmap, (idx, _)| bitmap | 1_u128.unbounded_shl(idx as u32));
 
                         let fold_id = fold.id;
                         new_transforms.push(
@@ -1253,11 +1253,11 @@ pub struct Chunk<'a> {
     pub is_inlay: bool,
     /// An optional recipe for how the chunk should be presented.
     pub renderer: Option<ChunkRenderer>,
-    /// Bitmap of tab character locations in chunk
+    /// Bitmap of tab character locations in chunk.
     pub tabs: u128,
-    /// Bitmap of character locations in chunk
+    /// Bitmap of character locations in chunk.
     pub chars: u128,
-    /// Bitmap of newline locations in chunk
+    /// Bitmap of newline locations in chunk.
     pub newlines: u128,
 }
 
@@ -1407,7 +1407,7 @@ impl<'a> Iterator for FoldChunks<'a> {
             chunk.text = &chunk.text[bit_start..bit_end];
 
             let bit_end = chunk_end - buffer_chunk_start;
-            let mask = 1u128.unbounded_shl(bit_end as u32).wrapping_sub(1);
+            let mask = 1_u128.unbounded_shl(bit_end as u32).wrapping_sub(1);
 
             chunk.tabs = (chunk.tabs >> bit_start) & mask;
             chunk.chars = (chunk.chars >> bit_start) & mask;

@@ -11,7 +11,7 @@ use language::Point;
 use multi_buffer::MultiBufferPoint;
 use multi_buffer::MultiBufferRow;
 use multi_buffer::ToOffset;
-use util::ResultExt;
+use util::ResultExt as _;
 
 use super::Editor;
 use super::EditorSnapshot;
@@ -210,7 +210,7 @@ impl EditorSnapshot {
             };
 
             let git_blame_entries_width = self.git_blame_gutter_max_author_length.map(|max_author_length| {
-                let renderer = cx.global::<GlobalBlameRenderer>().0.clone();
+                let renderer = Arc::clone(&cx.global::<GlobalBlameRenderer>().0);
                 const MAX_RELATIVE_TIMESTAMP: &str = "2 years, 11 months ago";
 
                 let max_char_count = max_author_length.min(renderer.max_author_length())

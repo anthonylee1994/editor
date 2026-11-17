@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
+use std::fmt;
 use std::fmt::Debug;
-use std::fmt::{self};
 use std::ops::Add;
 use std::ops::AddAssign;
 use std::ops::Range;

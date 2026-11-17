@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use anyhow::Context as _;
 use anyhow::Result;
-use futures::AsyncBufReadExt;
+use futures::AsyncBufReadExt as _;
 use futures::AsyncRead;
 use futures::AsyncReadExt as _;
 use futures::SinkExt as _;

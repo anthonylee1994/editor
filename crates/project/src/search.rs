@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::collections::BTreeSet;
+use std::io;
 use std::io::Read;
-use std::io::{self};
 use std::ops::Range;
 use std::result;
 use std::str as std_str;
@@ -100,7 +100,7 @@ static WORD_MATCH_TEST: LazyLock<Regex> =
     LazyLock::new(|| RegexBuilder::new(r"\B").build().expect("Failed to create WORD_MATCH_TEST"));
 
 impl SearchQuery {
-    /// Create a text query
+    /// Create a text query.
     ///
     /// If `match_full_paths` is true, include/exclude patterns will always be matched against fully qualified project paths beginning with a project root.
     /// If `match_full_paths` is false, patterns will be matched against worktree-relative paths.
@@ -136,7 +136,7 @@ impl SearchQuery {
         Ok(Self::Text { search, replacement: None, whole_word, case_sensitive, include_ignored, inner })
     }
 
-    /// Create a regex query
+    /// Create a regex query.
     ///
     /// If `match_full_paths` is true, include/exclude patterns will be matched against fully qualified project paths
     /// beginning with a project root name. If false, they will be matched against project-relative paths (which don't start
@@ -321,10 +321,10 @@ impl SearchQuery {
 
             SearchQuery::Regex { regex, replacement: Some(replacement), escaped: false, .. } => {
                 static TEXT_REPLACEMENT_SPECIAL_CHARACTERS_REGEX: LazyLock<Regex> =
-                    LazyLock::new(|| Regex::new(r"\\\\|\\n|\\t").unwrap());
+                    LazyLock::new(|| Regex::new(r"\\\\|\\n|\\t").expect("static regex is valid"));
                 let replacement =
                     TEXT_REPLACEMENT_SPECIAL_CHARACTERS_REGEX.replace_all(replacement, |c: &Captures<str>| {
-                        match c.get(0).unwrap().as_str() {
+                        match c.get(0).expect("capture group 0 always exists").as_str() {
                             r"\\" => "\\",
                             r"\n" => "\n",
                             r"\t" => "\t",
@@ -369,13 +369,15 @@ impl SearchQuery {
                         yield_now().await;
                     }
 
-                    let mat = mat.unwrap();
+                    let mat = mat.expect("reading a rope can't fail");
                     if *whole_word {
                         let classifier = buffer.char_classifier_at(range_offset + mat.start());
 
                         let prev_kind = rope.reversed_chars_at(mat.start()).next().map(|c| classifier.kind(c));
-                        let start_kind = classifier.kind(rope.chars_at(mat.start()).next().unwrap());
-                        let end_kind = classifier.kind(rope.reversed_chars_at(mat.end()).next().unwrap());
+                        let start_kind =
+                            classifier.kind(rope.chars_at(mat.start()).next().expect("matches are non-empty"));
+                        let end_kind =
+                            classifier.kind(rope.reversed_chars_at(mat.end()).next().expect("matches are non-empty"));
                         let next_kind = rope.chars_at(mat.end()).next().map(|c| classifier.kind(c));
                         if (Some(start_kind) == prev_kind && start_kind == CharKind::Word)
                             || (Some(end_kind) == next_kind && end_kind == CharKind::Word)
@@ -628,7 +630,7 @@ async fn read_to_string(reader: &mut (dyn Read + Send)) -> Result<String> {
     loop {
         let bytes_read = (&mut *reader).take(BLOCK_BYTES as u64).read_to_end(&mut bytes)?;
         if bytes_read < BLOCK_BYTES {
-            return String::from_utf8(bytes).map_err(|_| invalid_data());
+            return String::from_utf8(bytes).map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err).into());
         }
         yield_now().await;
     }

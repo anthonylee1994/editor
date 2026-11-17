@@ -36,7 +36,7 @@ pub struct PlatformScheduler {
 impl PlatformScheduler {
     pub fn new(dispatcher: Arc<dyn PlatformDispatcher>) -> Self {
         Self {
-            dispatcher: dispatcher.clone(),
+            dispatcher: Arc::clone(&dispatcher),
             clock: Arc::new(PlatformClock { dispatcher }),
             next_session_id: AtomicU16::new(0),
         }
@@ -45,7 +45,7 @@ impl PlatformScheduler {
     pub fn foreground_executor(self: &Arc<Self>) -> LocalExecutor {
         let session_id = self.next_session_id();
         let scheduler = Arc::downgrade(self);
-        LocalExecutor::new(session_id, self.clone(), move |runnable| {
+        LocalExecutor::new(session_id, Arc::<Self>::clone(self), move |runnable| {
             if let Some(scheduler) = scheduler.upgrade() {
                 scheduler.schedule_local(session_id, runnable);
             }
@@ -108,13 +108,13 @@ impl Scheduler for PlatformScheduler {
     #[track_caller]
     fn timer(&self, duration: Duration) -> Timer {
         let (tx, rx) = oneshot::channel();
-        let dispatcher = self.dispatcher.clone();
+        let dispatcher = Arc::clone(&self.dispatcher);
 
         // Create a runnable that will send the completion signal
         let location = std::panic::Location::caller();
         let (runnable, _task) = async_task::Builder::new().metadata(RunnableMeta { location }).spawn(
             move |_| async move {
-                let _ = tx.send(());
+                tx.send(()).ok();
             },
             move |runnable| {
                 dispatcher.dispatch_after(duration, runnable);
@@ -126,7 +126,7 @@ impl Scheduler for PlatformScheduler {
     }
 
     fn clock(&self) -> Arc<dyn Clock> {
-        self.clock.clone()
+        Arc::<PlatformClock>::clone(&self.clock)
     }
 
     fn spawn_dedicated(

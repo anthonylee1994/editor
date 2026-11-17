@@ -6,6 +6,8 @@
 //! (including the statically declared capability, if any) are kept to be restored when
 //! the active registration is unregistered.
 
+use std::sync::Arc;
+
 use anyhow::Context as _;
 use anyhow::Result;
 use gpui::Context;
@@ -604,7 +606,7 @@ impl LspStore {
                                 && let Some(task) = lsp_workspace_diagnostics_refresh(
                                     Some(registration_id.clone()),
                                     caps,
-                                    server.clone(),
+                                    Arc::clone(&server),
                                     cx,
                                 )
                             {
@@ -979,9 +981,11 @@ fn active_text_document_capability<T>(
     initial_capabilities: Option<&lsp::ServerCapabilities>,
     capability_of: impl Fn(&mut lsp::ServerCapabilities) -> &mut Option<T>,
 ) -> Option<T> {
-    match registrations.last() {
-        Some((_, registration)) => capability_of(&mut registration.server_capabilities.clone()).take(),
-        None => initial_capabilities.cloned().and_then(|mut capabilities| capability_of(&mut capabilities).take()),
+    if let Some((_, registration)) = registrations.last() {
+        capability_of(&mut registration.server_capabilities.clone()).take()
+    } else {
+        let mut capabilities = initial_capabilities.cloned()?;
+        capability_of(&mut capabilities).take()
     }
 }
 

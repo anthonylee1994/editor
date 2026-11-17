@@ -2,7 +2,7 @@ use ed_actions::git_panel::ToggleFocus;
 use git::repository::RepoPath;
 use gpui::Entity;
 use gpui::ScrollStrategy;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use menu;
 use project::ProjectPath;
 use project::git_store::Repository;
@@ -685,7 +685,7 @@ impl GitPanel {
         }
     }
 
-    /// Show diff view at selected entry, only if the diff view is open
+    /// Show diff view at selected entry, only if the diff view is open.
     fn move_diff_to_entry(&self, window: &mut Window, cx: &mut Context<Self>) {
         (|| {
             let workspace = self.workspace.upgrade()?;
@@ -760,7 +760,8 @@ impl GitPanel {
     }
 
     pub(super) fn get_selected_entry(&self) -> Option<&GitListEntry> {
-        self.selected_entry.and_then(|i| self.entries.get(i))
+        let i = self.selected_entry?;
+        self.entries.get(i)
     }
 
     pub(super) fn change_entries_by_path(&self) -> impl Iterator<Item = &GitStatusEntry> {

@@ -37,7 +37,7 @@ impl<T> State<T> {
             receivers.push(Arc::downgrade(&waker));
             receivers
         });
-        Receiver { state: self.clone(), waker, version }
+        Receiver { state: Arc::clone(self), waker, version }
     }
 
     fn wake_receivers(&self) -> Result<(), NoReceiverError> {
@@ -58,7 +58,7 @@ impl<T> State<T> {
 /// change, even when the value is equal; slow receivers skip intermediate values.
 pub fn channel<T>(value: T) -> (Sender<T>, Receiver<T>) {
     let receiver = Receiver::constant(value);
-    let sender = Sender { state: receiver.state.clone() };
+    let sender = Sender { state: Arc::clone(&receiver.state) };
     (sender, receiver)
 }
 
@@ -174,7 +174,7 @@ pub struct Snapshot<T>(Arc<Versioned<T>>);
 
 impl<T> Clone for Snapshot<T> {
     fn clone(&self) -> Self {
-        Self(self.0.clone())
+        Self(Arc::clone(&self.0))
     }
 }
 

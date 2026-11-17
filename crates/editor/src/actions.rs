@@ -387,14 +387,14 @@ impl Default for AddSelectionBelow {
 #[action(namespace = editor)]
 #[serde(deny_unknown_fields)]
 pub struct InsertSnippet {
-    /// Language name if using a named snippet, or `None` for a global snippet
+    /// Language name if using a named snippet, or `None` for a global snippet.
     ///
     /// This is typically lowercase and matches the filename containing the snippet, without the `.json` extension.
     pub language: Option<String>,
-    /// Name if using a named snippet
+    /// Name if using a named snippet.
     pub name: Option<String>,
 
-    /// Snippet body, if not using a named snippet
+    /// Snippet body, if not using a named snippet.
     // todo(andrew): use `ListOrDirect` or similar for multiline snippet body
     pub snippet: Option<String>,
 }

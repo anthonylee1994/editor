@@ -43,16 +43,16 @@ pub(crate) use package_json::PackageJson;
 pub(crate) use package_json::PackageJsonData;
 
 pub fn init(languages: Arc<LanguageRegistry>, fs: Arc<dyn Fs>, cx: &mut App) {
-    let biome: Arc<dyn LspAdapter> = Arc::new(biome::BiomeLspAdapter::new(fs.clone()));
+    let biome: Arc<dyn LspAdapter> = Arc::new(biome::BiomeLspAdapter::new(Arc::clone(&fs)));
     let definitions = [
         bash::languages(),
-        css::languages(biome.clone()),
+        css::languages(Arc::clone(&biome)),
         diff::languages(),
         env::languages(),
         git_commit::languages(),
         go::languages(),
         html::languages(),
-        json::languages(languages.clone(), biome.clone()),
+        json::languages(Arc::clone(&languages), Arc::clone(&biome)),
         markdown::languages(),
         python::languages(),
         rust::languages(),
@@ -115,7 +115,7 @@ fn register(languages: &LanguageRegistry, definition: LanguageDef, cx: &mut App)
     }
     languages.register_language(
         config.name.clone(),
-        config.matcher.clone(),
+        Arc::clone(&config.matcher),
         config.hidden,
         manifest_name.clone(),
         Arc::new(move || {
@@ -139,7 +139,7 @@ struct LanguageDir;
 
 fn load_config(dir: &str) -> LanguageConfig {
     let file = LanguageDir::get(&format!("{dir}/config.toml")).unwrap_or_else(|| panic!("missing {dir}/config.toml"));
-    LanguageConfig::from_toml(str::from_utf8(&file.data).unwrap())
+    LanguageConfig::from_toml(str::from_utf8(&file.data).expect("bundled config is utf-8"))
         .unwrap_or_else(|error| panic!("invalid {dir}/config.toml: {error:#}"))
 }
 
@@ -172,7 +172,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_every_language_dir_has_a_loadable_config() {
+    fn every_language_dir_has_a_loadable_config() {
         let dirs: FxHashSet<_> =
             LanguageDir::iter().filter_map(|path| Some(path.split_once('/')?.0.to_owned())).collect();
         assert!(dirs.len() > 20);
@@ -187,7 +187,7 @@ mod tests {
     }
 
     #[test]
-    fn test_queries_compile_against_each_language_grammar() {
+    fn queries_compile_against_each_language_grammar() {
         let definitions = [
             bash::languages(),
             env::languages(),
@@ -213,7 +213,7 @@ mod tests {
     }
 
     #[test]
-    fn test_language_settings_differ_where_languages_need_it() {
+    fn language_settings_differ_where_languages_need_it() {
         let fallback = LanguageSettings::fallback();
         assert_eq!(rust::settings(), fallback);
 

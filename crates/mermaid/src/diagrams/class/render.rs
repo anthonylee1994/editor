@@ -4,10 +4,10 @@ use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
 use super::db::ClassDb;
+use super::graph;
 use super::graph::GraphEdge;
 use super::graph::GraphNode;
 use super::graph::NodeShape;
-use super::graph::{self};
 use super::markers::class_marker;
 use super::markers::class_marker_trim;
 use super::members::ClassMember;
@@ -253,7 +253,7 @@ pub(crate) fn render(db: &ClassDb, config: &Value, options: &Options) -> Rendere
     let mut styler = Styler { db, effect: BTreeMap::new(), from_defs: BTreeMap::new(), kept: Vec::new() };
 
     let parent_of = |node: &GraphNode<'_>| usize::try_from(node.parent).ok();
-    let mut children = vec![0usize; n];
+    let mut children = vec![0_usize; n];
     for node in &graph.nodes {
         if let Some(count) = parent_of(node).and_then(|p| children.get_mut(p)) {
             *count += 1;
@@ -343,7 +343,7 @@ pub(crate) fn render(db: &ClassDb, config: &Value, options: &Options) -> Rendere
     let mut end_room: Vec<f64> = Vec::new();
     // Edges leave one side of a class and arrive at the other, so a class with many of them is
     // widened until they, and the text at their ends, fit side by side.
-    let mut crowd = vec![0.0f64; n * 4];
+    let mut crowd = vec![0.0_f64; n * 4];
     let mut meet = |item: usize, slot: usize, room: f64| {
         if let Some(count) = crowd.get_mut(item * 4 + slot) {
             *count += 1.0;
@@ -653,8 +653,8 @@ pub(crate) fn render(db: &ClassDb, config: &Value, options: &Options) -> Rendere
         min_y = min_y.min(cy - tiny_height / 2.0);
         max_y = max_y.max(cy + tiny_height / 2.0);
     };
-    let mut loop_seen = vec![0usize; n];
-    let mut loop_at = vec![0usize; cedges.len()];
+    let mut loop_seen = vec![0_usize; n];
+    let mut loop_at = vec![0_usize; cedges.len()];
     for (i, ce) in cedges.iter_mut().enumerate() {
         let Some(edge) = drawn.get(i) else { continue };
         let s_room = start_room.get(i).copied().unwrap_or(0.0);

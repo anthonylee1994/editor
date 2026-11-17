@@ -11,10 +11,10 @@ use anyhow::Context as _;
 use git::status::GitSummary;
 use gpui::AppContext as _;
 use gpui::Context;
-use gpui::Focusable;
+use gpui::Focusable as _;
 use gpui::Pixels;
 use gpui::Window;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use project::Entry;
 use project::EntryKind;
 use project::GitEntry;
@@ -24,7 +24,7 @@ use project::ProjectEntryId;
 use project::WorktreeId;
 use ui::font;
 use ui::prelude::Icon;
-use util::ResultExt;
+use util::ResultExt as _;
 use util::rel_path::RelPath;
 use workspace::SelectedEntry;
 use workspace::Workspace;
@@ -53,7 +53,10 @@ impl ProjectPanel {
             entry: Entry {
                 id: NEW_ENTRY_ID,
                 kind: new_entry_kind,
-                path: parent_entry.path.join(RelPath::from_unix_str("\0").unwrap()).into(),
+                path: parent_entry
+                    .path
+                    .join(RelPath::from_unix_str("\0").expect("placeholder is a valid relative path"))
+                    .into(),
                 inode: 0,
                 mtime: parent_entry.mtime,
                 size: parent_entry.size,
@@ -237,19 +240,19 @@ impl ProjectPanel {
                                         let outermost_ancestor = ancestors.ancestors.last()?;
                                         let root_folded_entry =
                                             worktree_snapshot.entry_for_id(*outermost_ancestor)?.path.as_ref();
-                                        entry.path.strip_prefix(root_folded_entry).ok().and_then(|suffix| {
-                                            Some(
-                                                RelPath::from_unix_str(root_folded_entry.file_name()?)
-                                                    .unwrap()
-                                                    .join(suffix),
-                                            )
-                                        })
+                                        let suffix = entry.path.strip_prefix(root_folded_entry).ok()?;
+                                        Some(
+                                            RelPath::from_unix_str(root_folded_entry.file_name()?)
+                                                .expect("file name is a valid relative path")
+                                                .join(suffix),
+                                        )
                                     })
                                     .or_else(|| {
-                                        entry
-                                            .path
-                                            .file_name()
-                                            .map(|file_name| RelPath::from_unix_str(file_name).unwrap().to_owned())
+                                        entry.path.file_name().map(|file_name| {
+                                            RelPath::from_unix_str(file_name)
+                                                .expect("file name is a valid relative path")
+                                                .to_owned()
+                                        })
                                     })
                                     .unwrap_or_else(|| entry.path.to_rel_path_buf());
                                 let depth = path.components().count();
@@ -456,7 +459,7 @@ impl ProjectPanel {
 
             let end_ix = range.end.min(ix + visible.entries.len());
             let entry_range = range.start.saturating_sub(ix)..end_ix - ix;
-            let entries = visible.index.get_or_init(|| visible.entries.iter().map(|e| e.path.clone()).collect());
+            let entries = visible.index.get_or_init(|| visible.entries.iter().map(|e| Arc::clone(&e.path)).collect());
             let base_index = ix + entry_range.start;
             for (i, entry) in visible.entries[entry_range].iter().enumerate() {
                 let global_index = base_index + i;
@@ -496,7 +499,8 @@ impl ProjectPanel {
                 let root_name = snapshot.root_name();
 
                 let entry_range = range.start.saturating_sub(ix)..end_ix - ix;
-                let entries = visible.index.get_or_init(|| visible.entries.iter().map(|e| e.path.clone()).collect());
+                let entries =
+                    visible.index.get_or_init(|| visible.entries.iter().map(|e| Arc::clone(&e.path)).collect());
                 for entry in &visible.entries[entry_range] {
                     let status = entry.git_summary;
 
@@ -585,7 +589,7 @@ impl ProjectPanel {
                 .state
                 .visible_entries
                 .iter()
-                .find_map(|visible| if worktree_id == visible.worktree_id { Some(&visible.entries) } else { None })?
+                .find_map(|visible| (worktree_id == visible.worktree_id).then_some(&visible.entries))?
                 .clone();
 
             return utils::ReversibleIterable::new(entries.iter(), reverse_search)
@@ -597,7 +601,7 @@ impl ProjectPanel {
         let worktree = self.project.read(cx).worktree_for_id(worktree_id, cx)?;
         worktree.read_with(cx, |tree, _| {
             utils::ReversibleIterable::new(
-                GitTraversal::new(&repo_snapshots, tree.entries(true, 0usize)),
+                GitTraversal::new(&repo_snapshots, tree.entries(true, 0_usize)),
                 reverse_search,
             )
             .find_single_ended(|ele| predicate(*ele, worktree_id))
@@ -636,12 +640,12 @@ impl ProjectPanel {
 
                 let first = first_iter
                     .enumerate()
-                    .take_while_inclusive(|(count, entry)| entry.entry != root_entry || *count == 0usize)
+                    .take_while_inclusive(|(count, entry)| entry.entry != root_entry || *count == 0_usize)
                     .map(|(_, entry)| entry)
                     .find(|ele| predicate(*ele, tree_id))
                     .map(project::GitEntryRef::to_owned);
 
-                let second_iter = GitTraversal::new(&repo_snapshots, worktree.entries(true, 0usize));
+                let second_iter = GitTraversal::new(&repo_snapshots, worktree.entries(true, 0_usize));
 
                 let second = if reverse_search {
                     second_iter
@@ -674,7 +678,7 @@ impl ProjectPanel {
                     worktree_ids.iter().enumerate().find(|(_, ele)| **ele == start.worktree_id).map(|(idx, _)| idx);
 
                 if let Some(idx) = idx {
-                    worktree_ids.rotate_left(idx + 1usize);
+                    worktree_ids.rotate_left(idx + 1_usize);
                     worktree_ids.pop();
                 }
             }
@@ -712,7 +716,7 @@ impl ProjectPanel {
                 entries.iter().enumerate().find(|(_, ele)| ele.id == start.entry_id).map(|(idx, _)| idx)?;
 
             if reverse_search {
-                start_idx = start_idx.saturating_add(1usize);
+                start_idx = start_idx.saturating_add(1_usize);
             }
 
             let (left, right) = entries.split_at_checked(start_idx)?;
@@ -742,7 +746,7 @@ impl ProjectPanel {
             let idx = worktree_ids.iter().enumerate().find(|(_, ele)| **ele == start.worktree_id).map(|(idx, _)| idx);
 
             if let Some(idx) = idx {
-                worktree_ids.rotate_left(idx + 1usize);
+                worktree_ids.rotate_left(idx + 1_usize);
                 worktree_ids.pop();
             }
         }

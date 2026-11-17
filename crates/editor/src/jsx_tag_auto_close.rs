@@ -27,13 +27,13 @@ pub struct JsxTagCompletionState {
 /// Index of the named child within an open or close tag
 /// that corresponds to the tag name
 /// Note that this is not configurable, i.e. we assume the first
-/// named child of a tag node is the tag name
+/// named child of a tag node is the tag name.
 const TS_NODE_TAG_NAME_CHILD_INDEX: u32 = 0;
 
 /// Maximum number of parent elements to walk back when checking if an open tag
 /// is already closed.
 ///
-/// See the comment in `generate_auto_close_edits` for more details
+/// See the comment in `generate_auto_close_edits` for more details.
 const ALREADY_CLOSED_PARENT_ELEMENT_WALK_BACK_LIMIT: usize = 2;
 
 pub(crate) fn should_auto_close(

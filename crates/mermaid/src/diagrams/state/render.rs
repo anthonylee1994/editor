@@ -146,7 +146,8 @@ fn view(node: Option<&StateNode>, kind: K) -> View<'_> {
 }
 
 fn node_of<'g>(views: &[View<'g>], i: usize) -> Option<&'g StateNode> {
-    views.get(i).and_then(|v| v.node)
+    let v = views.get(i)?;
+    v.node
 }
 
 /// As in Mermaid, a composite that sets no direction runs top to bottom whatever surrounds it.
@@ -639,7 +640,7 @@ pub(crate) fn render(db: &StateDb, config: &Value, options: &Options) -> Rendere
                 None => top.push(i),
             }
         }
-        let mut seq = 0usize;
+        let mut seq = 0_usize;
         top.sort_by(|&a, &b| by_flow(&views, &appear, a, b));
         top.reverse();
         let mut pending = top;

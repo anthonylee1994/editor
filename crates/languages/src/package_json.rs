@@ -28,7 +28,7 @@ impl PackageJsonData {
     pub fn new(path: Arc<Path>, package_json: FxHashMap<String, Value>) -> Self {
         let mut scripts = BTreeSet::new();
         if let Some(Value::Object(package_json_scripts)) = package_json.get("scripts") {
-            scripts.extend(package_json_scripts.keys().cloned().map(|name| (path.clone(), name)));
+            scripts.extend(package_json_scripts.keys().cloned().map(|name| (Arc::clone(&path), name)));
         }
 
         let mut jest_package_path = None;
@@ -39,42 +39,42 @@ impl PackageJsonData {
         let mut node_package_path = None;
         if let Some(Value::Object(dependencies)) = package_json.get("devDependencies") {
             if dependencies.contains_key("jest") {
-                jest_package_path.get_or_insert_with(|| path.clone());
+                jest_package_path.get_or_insert_with(|| Arc::clone(&path));
             }
             if dependencies.contains_key("mocha") {
-                mocha_package_path.get_or_insert_with(|| path.clone());
+                mocha_package_path.get_or_insert_with(|| Arc::clone(&path));
             }
             if dependencies.contains_key("vitest") {
-                vitest_package_path.get_or_insert_with(|| path.clone());
+                vitest_package_path.get_or_insert_with(|| Arc::clone(&path));
             }
             if dependencies.contains_key("jasmine") {
-                jasmine_package_path.get_or_insert_with(|| path.clone());
+                jasmine_package_path.get_or_insert_with(|| Arc::clone(&path));
             }
             if dependencies.contains_key("@types/bun") {
-                bun_package_path.get_or_insert_with(|| path.clone());
+                bun_package_path.get_or_insert_with(|| Arc::clone(&path));
             }
             if dependencies.contains_key("@types/node") {
-                node_package_path.get_or_insert_with(|| path.clone());
+                node_package_path.get_or_insert_with(|| Arc::clone(&path));
             }
         }
         if let Some(Value::Object(dev_dependencies)) = package_json.get("dependencies") {
             if dev_dependencies.contains_key("jest") {
-                jest_package_path.get_or_insert_with(|| path.clone());
+                jest_package_path.get_or_insert_with(|| Arc::clone(&path));
             }
             if dev_dependencies.contains_key("mocha") {
-                mocha_package_path.get_or_insert_with(|| path.clone());
+                mocha_package_path.get_or_insert_with(|| Arc::clone(&path));
             }
             if dev_dependencies.contains_key("vitest") {
-                vitest_package_path.get_or_insert_with(|| path.clone());
+                vitest_package_path.get_or_insert_with(|| Arc::clone(&path));
             }
             if dev_dependencies.contains_key("jasmine") {
-                jasmine_package_path.get_or_insert_with(|| path.clone());
+                jasmine_package_path.get_or_insert_with(|| Arc::clone(&path));
             }
             if dev_dependencies.contains_key("@types/bun") {
-                bun_package_path.get_or_insert_with(|| path.clone());
+                bun_package_path.get_or_insert_with(|| Arc::clone(&path));
             }
             if dev_dependencies.contains_key("@types/node") {
-                node_package_path.get_or_insert_with(|| path.clone());
+                node_package_path.get_or_insert_with(|| Arc::clone(&path));
             }
         }
 

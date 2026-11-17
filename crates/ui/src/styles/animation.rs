@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use gpui::AnimationElement;
-use gpui::AnimationExt;
+use gpui::AnimationExt as _;
 use gpui::Styled;
 use gpui::ease_out_quint;
 

@@ -2,7 +2,7 @@ use std::borrow::Cow;
 use std::io;
 use std::mem::MaybeUninit;
 use std::ops::RangeInclusive;
-use std::os::fd::AsRawFd;
+use std::os::fd::AsRawFd as _;
 use std::path::PathBuf;
 use std::ptr;
 use std::sync::Arc;
@@ -11,7 +11,7 @@ mod hyperlinks;
 
 use alacritty_terminal::event::Event as AlacTermEvent;
 use alacritty_terminal::event::EventListener;
-use alacritty_terminal::event::Notify;
+use alacritty_terminal::event::Notify as _;
 use alacritty_terminal::event::WindowSize;
 use alacritty_terminal::event_loop::EventLoop;
 use alacritty_terminal::event_loop::Msg;
@@ -52,7 +52,7 @@ use anyhow::Result;
 use futures::channel::mpsc::UnboundedSender;
 pub(super) use hyperlinks::HyperlinkMatch;
 pub(super) use hyperlinks::RegexSearches;
-use vte::ansi::Handler;
+use vte::ansi::Handler as _;
 
 use crate::Cell;
 use crate::Color;
@@ -859,7 +859,7 @@ fn row_to_string(row: &Row<AlacCell>) -> String {
 }
 
 fn process_line(line: String) -> Option<String> {
-    let trimmed = line.trim_end().to_string();
+    let trimmed = line.trim_end().to_owned();
     if trimmed.is_empty() { None } else { Some(trimmed) }
 }
 

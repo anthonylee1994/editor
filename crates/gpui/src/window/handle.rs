@@ -71,12 +71,13 @@ impl<V: 'static + Render> WindowHandle<V> {
 
     /// Updates the root view of this window.
     ///
-    /// This will fail if the window has been closed or if the root view's type does not match
+    /// This will fail if the window has been closed or if the root view's type does not match.
     pub fn update<C, R>(&self, cx: &mut C, update: impl FnOnce(&mut V, &mut Window, &mut Context<V>) -> R) -> Result<R>
     where
         C: AppContext,
     {
         cx.update_window(self.any_handle, |root_view, window, cx| {
+            #[expect(clippy::map_err_ignore, reason = "the error is the unmatched view itself")]
             let view =
                 root_view.downcast::<V>().map_err(|_| anyhow!("the type of the window's root view has changed"))?;
 
@@ -88,6 +89,7 @@ impl<V: 'static + Render> WindowHandle<V> {
     ///
     /// This will fail if the window is closed or if the root view's type does not match `V`.
     pub fn read<'a>(&self, cx: &'a App) -> Result<&'a V> {
+        #[expect(clippy::map_err_ignore, reason = "the error is the unmatched view itself")]
         let x = cx
             .windows
             .get(self.id)
@@ -100,7 +102,7 @@ impl<V: 'static + Render> WindowHandle<V> {
         Ok(x.read(cx))
     }
 
-    /// Read the root view out of this window, with a callback
+    /// Read the root view out of this window, with a callback.
     ///
     /// This will fail if the window is closed or if the root view's type does not match `V`.
     pub fn read_with<C, R>(&self, cx: &C, read_with: impl FnOnce(&V, &App) -> R) -> Result<R>
@@ -174,11 +176,7 @@ impl AnyWindowHandle {
     /// Attempt to convert this handle to a window handle with a specific root view type.
     /// If the types do not match, this will return `None`.
     pub fn downcast<T: 'static>(&self) -> Option<WindowHandle<T>> {
-        if TypeId::of::<T>() == self.state_type {
-            Some(WindowHandle { any_handle: *self, state_type: PhantomData })
-        } else {
-            None
-        }
+        (TypeId::of::<T>() == self.state_type).then_some(WindowHandle { any_handle: *self, state_type: PhantomData })
     }
 
     /// Updates the state of the root view of this window.

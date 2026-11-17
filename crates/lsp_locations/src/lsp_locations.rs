@@ -15,7 +15,7 @@ use file_icons::FileIcons;
 use fuzzy::StringMatchCandidate;
 use gpui::AnyElement;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::AsyncWindowContext;
 use gpui::Context;
 use gpui::DismissEvent;
@@ -31,9 +31,9 @@ use gpui::TaskExt as _;
 use gpui::TextStyle;
 use gpui::WeakEntity;
 use gpui::prelude::IntoElement;
-use gpui::prelude::ParentElement;
+use gpui::prelude::ParentElement as _;
 use gpui::prelude::Render;
-use gpui::prelude::Styled;
+use gpui::prelude::Styled as _;
 use language::Buffer;
 use language::HighlightId;
 use language::LanguageAwareStyling;
@@ -46,20 +46,20 @@ use rustc_hash::FxHashMap;
 use text::Anchor;
 use text::Point;
 use ui::Divider;
-use ui::FluentBuilder;
+use ui::FluentBuilder as _;
 use ui::ListItem;
 use ui::ListItemSpacing;
 use ui::font;
-use ui::prelude::ActiveTheme;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::Color;
 use ui::prelude::DynamicSpacing;
 use ui::prelude::Icon;
 use ui::prelude::IconSize;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
 use ui::prelude::SharedString;
-use ui::prelude::Toggleable;
+use ui::prelude::Toggleable as _;
 use ui::prelude::Window;
 use ui::prelude::div;
 use ui::prelude::h_flex;
@@ -474,7 +474,7 @@ fn build_location_matches(locations: &[Location], cx: &App) -> Vec<LocationMatch
         let Some(file) = snapshot.file() else {
             continue;
         };
-        let path = ProjectPath { worktree_id: file.worktree_id(cx), path: file.path().clone() };
+        let path = ProjectPath { worktree_id: file.worktree_id(cx), path: Arc::clone(file.path()) };
 
         let start_offset: usize = snapshot.summary_for_anchor(&location.range.start);
         let end_offset: usize = snapshot.summary_for_anchor(&location.range.end);
@@ -485,7 +485,7 @@ fn build_location_matches(locations: &[Location], cx: &App) -> Vec<LocationMatch
 
         // The row shows the line with leading indentation trimmed. Offsets below
         // are relative to that displayed text.
-        let display_text = full_line.trim_start().to_string();
+        let display_text = full_line.trim_start().to_owned();
         let visible_start = line_end.saturating_sub(display_text.len());
         let visible_end = line_end;
 
@@ -559,7 +559,7 @@ impl PickerDelegate for LspLocationsDelegate {
 
     fn update_matches(&mut self, query: String, _window: &mut Window, cx: &mut Context<Picker<Self>>) -> Task<()> {
         let query = query.trim().to_owned();
-        let candidates = self.candidates.clone();
+        let candidates = Arc::clone(&self.candidates);
         cx.spawn(async move |picker, cx| {
             let matches = if query.is_empty() {
                 (0..candidates.len()).collect()
@@ -610,7 +610,7 @@ impl PickerDelegate for LspLocationsDelegate {
                 Some(div().py(DynamicSpacing::Base04.rems()).child(Divider::horizontal()).into_any_element())
             }
             Entry::Header(path) => {
-                let file_name = path.path.file_name().map_or_default(ToString::to_string);
+                let file_name = path.path.file_name().map_or_default(str::to_owned);
                 let directory = path.path.parent().map(|x| x.display()).map_or_default(SharedString::new);
                 let file_icon = FileIcons::get_icon(path.path.as_std_path(), cx)
                     .map(|icon| Icon::from_path(icon).color(Color::Muted).size(IconSize::Small));

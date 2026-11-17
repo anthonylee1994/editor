@@ -355,7 +355,7 @@ impl V8<'_> {
                 let Some(ch) = self.text.get(self.at..).and_then(|rest| rest.chars().next()) else {
                     return Err(self.positioned("Unterminated string", self.at));
                 };
-                let mut buffer = [0u16; 2];
+                let mut buffer = [0_u16; 2];
                 units.extend_from_slice(ch.encode_utf16(&mut buffer));
                 self.at += ch.len_utf8();
                 continue;
@@ -458,7 +458,7 @@ impl V8<'_> {
 
 /// The line and column of UTF-16 `offset` in `text`, which starts at `line` and `column`.
 fn location_at(text: &str, offset: usize, mut line: u32, mut column: u32) -> (u32, u32) {
-    let mut previous = 0u16;
+    let mut previous = 0_u16;
     for (i, unit) in text.encode_utf16().take(offset).enumerate() {
         if unit == 13 {
             line = line.saturating_add(1);
@@ -498,7 +498,8 @@ fn find_position(b: &[u8]) -> Option<u32> {
         if !word_start(b, i) || b.get(i..i + 9) != Some(b"position ") {
             return None;
         }
-        digits(b, i + 9).and_then(|(value, end)| (!is_word(at(b, end))).then_some(value))
+        let (value, end) = digits(b, i + 9)?;
+        (!is_word(at(b, end))).then_some(value)
     })
 }
 

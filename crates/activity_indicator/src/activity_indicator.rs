@@ -1,22 +1,22 @@
 use std::cmp::Reverse;
 use std::collections::HashSet;
-use std::fmt::Write;
+use std::fmt::Write as _;
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 
 use editor::Editor;
-use futures::StreamExt;
+use futures::StreamExt as _;
 use gpui::App;
 use gpui::AppContext as _;
 use gpui::Context;
 use gpui::Entity;
 use gpui::EventEmitter;
-use gpui::InteractiveElement;
-use gpui::ParentElement;
+use gpui::InteractiveElement as _;
+use gpui::ParentElement as _;
 use gpui::Render;
 use gpui::SharedString;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Task;
 use gpui::Window;
 use gpui::actions;
@@ -38,10 +38,10 @@ use ui::PopoverMenu;
 use ui::PopoverMenuHandle;
 use ui::Tooltip;
 use ui::prelude::Button;
-use ui::prelude::ButtonCommon;
-use ui::prelude::Clickable;
+use ui::prelude::ButtonCommon as _;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
-use ui::prelude::FluentBuilder;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Icon;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
@@ -122,7 +122,7 @@ impl ActivityIndicator {
     ) -> Entity<ActivityIndicator> {
         let project = workspace.project().clone();
         let this = cx.new(|cx| {
-            let fs = project.read(cx).fs().clone();
+            let fs = Arc::clone(project.read(cx).fs());
             let mut job_events = fs.subscribe_to_jobs();
             cx.spawn(async move |this, cx| {
                 while let Some(job_event) = job_events.next().await {
@@ -336,7 +336,7 @@ impl ActivityIndicator {
                 let mut message = progress.title.clone().unwrap_or_else(|| progress_token.to_string());
 
                 if let Some(percentage) = progress.percentage {
-                    write!(&mut message, " ({percentage}%)").unwrap();
+                    write!(&mut message, " ({percentage}%)").expect("writing to a String can't fail");
                 }
 
                 if let Some(progress_message) = progress.message.as_ref() {
@@ -346,7 +346,7 @@ impl ActivityIndicator {
 
                 let additional_work_count = pending_work.count();
                 if additional_work_count > 0 {
-                    write!(&mut message, " + {additional_work_count} more").unwrap();
+                    write!(&mut message, " + {additional_work_count} more").expect("writing to a String can't fail");
                 }
 
                 return Some(Content {
@@ -470,7 +470,7 @@ impl ActivityIndicator {
             altered_message |= truncated_message != single_line_message;
             let final_message = format!("{health_str}{truncated_message}");
 
-            let tooltip_message = if altered_message { Some(format!("{health_str}{message}")) } else { None };
+            let tooltip_message = altered_message.then(|| format!("{health_str}{message}"));
 
             return Some(Content {
                 icon: ActivityIcon::Icon(IconName::Warning),
@@ -508,8 +508,8 @@ impl ActivityIndicator {
         }
         Some(Content {
             icon: ActivityIcon::Icon(IconName::Info),
-            message: "Partial file index".to_string(),
-            tooltip_message: Some("Directories outside of git repositories and deeper than the `file_scan_depth` setting will be indexed on demand.".to_string()),
+            message: "Partial file index".to_owned(),
+            tooltip_message: Some("Directories outside of git repositories and deeper than the `file_scan_depth` setting will be indexed on demand.".to_owned()),
             on_click: Some(Arc::new(|this, _, cx| {
                 this.deferred_scan_message = DeferredScanMessage::Dismissed;
                 cx.notify();
@@ -548,7 +548,7 @@ impl Render for ActivityIndicator {
                         }
                     })
                     .label_size(LabelSize::Small)
-                    .tab_index(0isize)
+                    .tab_index(0_isize)
                     .map(|this| match content.icon {
                         ActivityIcon::LoadingSpinner => this.loading(true),
                         ActivityIcon::Icon(icon_name) => {

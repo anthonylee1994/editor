@@ -7,13 +7,13 @@ use gpui::Window;
 use theme::Appearance;
 
 use crate::KeyBinding;
-use crate::prelude::ActiveTheme;
-use crate::prelude::ParentElement;
+use crate::prelude::ActiveTheme as _;
+use crate::prelude::ParentElement as _;
 use crate::prelude::Pixels;
 use crate::prelude::RenderOnce;
 use crate::prelude::SharedString;
-use crate::prelude::Styled;
-use crate::prelude::StyledTypography;
+use crate::prelude::Styled as _;
+use crate::prelude::StyledTypography as _;
 use crate::prelude::TextSize;
 use crate::prelude::h_flex;
 use crate::prelude::px;

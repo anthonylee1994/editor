@@ -30,7 +30,7 @@ mod tests {
     use super::WorktreeId;
 
     #[test]
-    fn test_worktree_id_round_trips_and_displays() {
+    fn worktree_id_round_trips_and_displays() {
         let id = WorktreeId::from_usize(7);
         assert_eq!(id.to_usize(), 7);
         assert_eq!(usize::from(id), 7);

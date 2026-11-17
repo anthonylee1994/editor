@@ -57,6 +57,7 @@ impl Keymap<'_> {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "the whole default keymap as one flat table")]
 fn build(build_action: BuildAction<'_>) -> Vec<KeyBinding> {
     let mut k = Keymap { build_action, bindings: Vec::with_capacity(512), context: None };
     k.group(None);
@@ -753,12 +754,12 @@ mod tests {
     }
 
     #[test]
-    fn test_all_bindings_build() {
+    fn all_bindings_build() {
         assert!(test_keymap().len() > 500);
     }
 
     #[test]
-    fn test_terminal_split_down_binding() {
+    fn terminal_split_down_binding() {
         let keymap = test_keymap();
         let split_down = keymap
             .iter()
@@ -768,7 +769,7 @@ mod tests {
     }
 
     #[test]
-    fn test_nav_history_has_one_binding_per_direction() {
+    fn nav_history_has_one_binding_per_direction() {
         let keymap = test_keymap();
         for (action, expected) in [("workspace::GoBack", "cmd-["), ("workspace::GoForward", "cmd-]")] {
             let bound: Vec<_> =
@@ -778,7 +779,7 @@ mod tests {
     }
 
     #[test]
-    fn test_commit_editor_enter_yields_to_menus() {
+    fn commit_editor_enter_yields_to_menus() {
         let keymap = test_keymap();
         let newlines: Vec<_> = keymap
             .iter()
@@ -793,7 +794,7 @@ mod tests {
     }
 
     #[test]
-    fn test_personal_bindings_live_in_their_context_groups() {
+    fn personal_bindings_live_in_their_context_groups() {
         let keymap = test_keymap();
         for (context_name, keys, action) in [
             (Some("Editor"), "cmd-shift-u", "editor::ToggleCase"),

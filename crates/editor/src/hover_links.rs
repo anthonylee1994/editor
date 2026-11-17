@@ -6,7 +6,7 @@ use gpui::App;
 use gpui::AsyncWindowContext;
 use gpui::Context;
 use gpui::Entity;
-use gpui::Focusable;
+use gpui::Focusable as _;
 use gpui::HighlightStyle;
 use gpui::Modifiers;
 use gpui::Pixels;
@@ -15,7 +15,7 @@ use gpui::UnderlineStyle;
 use gpui::Window;
 use gpui::px;
 use language::Bias;
-use language::ToOffset;
+use language::ToOffset as _;
 use linkify::LinkFinder;
 use linkify::LinkKind;
 use lsp::LanguageServerId;
@@ -25,9 +25,9 @@ use project::Project;
 use project::ProjectPath;
 use project::ResolvedPath;
 use regex::Regex;
-use text::OffsetRangeExt;
+use text::OffsetRangeExt as _;
 use theme::ActiveTheme as _;
-use util::ResultExt;
+use util::ResultExt as _;
 use util::TryFutureExt as _;
 use util::markdown::source_position_from_fragment;
 use util::paths::PathWithPosition;
@@ -117,7 +117,7 @@ pub fn document_link_target_to_hover_link(target: &str, server_id: LanguageServe
             .map_or_default(|(line, character)| lsp::Position { line, character });
         return HoverLink::LspLocation(lsp::Location { uri, range: lsp::Range::new(position, position) }, server_id);
     }
-    HoverLink::Url(target.to_string())
+    HoverLink::Url(target.to_owned())
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -450,11 +450,9 @@ pub fn show_link_definition(
                             if symbol_range.is_none() {
                                 let snapshot = this.read_with(cx, |editor, cx| editor.buffer.read(cx).snapshot(cx))?;
                                 symbol_range = definition_result.iter().find_map(|link| {
-                                    link.origin.as_ref().and_then(|origin| {
-                                        let range =
-                                            snapshot.buffer_anchor_range_to_anchor_range(origin.range.clone())?;
-                                        Some(RangeInEditor::Text(range))
-                                    })
+                                    let origin = link.origin.as_ref()?;
+                                    let range = snapshot.buffer_anchor_range_to_anchor_range(origin.range.clone())?;
+                                    Some(RangeInEditor::Text(range))
                                 });
                             }
                             links.extend(definition_result.into_iter().map(HoverLink::Text));
@@ -605,7 +603,7 @@ pub(crate) fn find_url(
         if link.start() <= relative_offset && link.end() >= relative_offset {
             let range =
                 snapshot.anchor_before(token_start + link.start())..snapshot.anchor_after(token_start + link.end());
-            return Some((range, link.as_str().to_string()));
+            return Some((range, link.as_str().to_owned()));
         }
     }
     None
@@ -661,7 +659,7 @@ pub(crate) fn find_url_from_range(
         && link.start() == 0
         && link.end() == text.len()
     {
-        return Some(link.as_str().to_string());
+        return Some(link.as_str().to_owned());
     }
 
     None
@@ -844,7 +842,7 @@ fn link_pattern_file_candidates(candidate: &str) -> Vec<(String, Range<usize>)> 
     if let Some(captures) = MD_LINK_REGEX.captures(candidate)
         && let Some(link) = captures.get(1)
     {
-        let link_str = link.as_str().to_string();
+        let link_str = link.as_str().to_owned();
         let link_range = link.range();
         // Avoid duplicate if punctuation trimming already found this
         if !candidates.iter().any(|(s, _)| s == &link_str) {
@@ -853,7 +851,7 @@ fn link_pattern_file_candidates(candidate: &str) -> Vec<(String, Range<usize>)> 
     }
 
     // Always include the raw candidate as fallback (lowest priority)
-    candidates.push((candidate.to_string(), 0..candidate_len));
+    candidates.push((candidate.to_owned(), 0..candidate_len));
 
     candidates
 }
@@ -912,7 +910,7 @@ fn surrounding_filename(
         // Skip escaped whitespace
         if ch == '\\' && forwards.peek().is_some_and(|ch| ch.is_whitespace()) {
             token_end += ch.len_utf8();
-            let whitespace = forwards.next().unwrap();
+            let whitespace = forwards.next().expect("peeked whitespace");
             token_end += whitespace.len_utf8();
             filename.push(whitespace);
             continue;

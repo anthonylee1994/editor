@@ -39,11 +39,11 @@ use derive_more::DerefMut;
 #[allow(clippy::wildcard_imports)]
 pub use entity_map::*;
 use futures::Future;
-use futures::FutureExt;
+use futures::FutureExt as _;
 use futures::channel::oneshot;
 use futures::future;
 use futures::future::LocalBoxFuture;
-use gpui_util::ResultExt;
+use gpui_util::ResultExt as _;
 use gpui_util::TypeIdHashBuilder;
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
@@ -133,6 +133,13 @@ pub const SHUTDOWN_TIMEOUT: Duration = Duration::from_millis(200);
 
 /// Temporary(?) wrapper around [`RefCell<App>`] to help us debug any double borrows.
 /// Strongly consider removing after stabilization.
+#[expect(clippy::print_stderr, clippy::use_debug, reason = "opt-in borrow tracing")]
+fn track_thread_borrow(event: &str) {
+    if option_env!("TRACK_THREAD_BORROWS").is_some() {
+        eprintln!("{event} {:?}", thread::current().id());
+    }
+}
+
 #[doc(hidden)]
 pub struct AppCell {
     app: RefCell<App>,
@@ -142,30 +149,21 @@ impl AppCell {
     #[doc(hidden)]
     #[track_caller]
     pub fn borrow(&self) -> AppRef<'_> {
-        if option_env!("TRACK_THREAD_BORROWS").is_some() {
-            let thread_id = thread::current().id();
-            eprintln!("borrowed {thread_id:?}");
-        }
+        track_thread_borrow("borrowed");
         AppRef(self.app.borrow())
     }
 
     #[doc(hidden)]
     #[track_caller]
     pub fn borrow_mut(&self) -> AppRefMut<'_> {
-        if option_env!("TRACK_THREAD_BORROWS").is_some() {
-            let thread_id = thread::current().id();
-            eprintln!("borrowed {thread_id:?}");
-        }
+        track_thread_borrow("borrowed");
         AppRefMut(self.app.borrow_mut())
     }
 
     #[doc(hidden)]
     #[track_caller]
     pub fn try_borrow_mut(&self) -> Result<AppRefMut<'_>, BorrowMutError> {
-        if option_env!("TRACK_THREAD_BORROWS").is_some() {
-            let thread_id = thread::current().id();
-            eprintln!("borrowed {thread_id:?}");
-        }
+        track_thread_borrow("borrowed");
         Ok(AppRefMut(self.app.try_borrow_mut()?))
     }
 }
@@ -176,10 +174,7 @@ pub struct AppRef<'a>(Ref<'a, App>);
 
 impl Drop for AppRef<'_> {
     fn drop(&mut self) {
-        if option_env!("TRACK_THREAD_BORROWS").is_some() {
-            let thread_id = thread::current().id();
-            eprintln!("dropped borrow from {thread_id:?}");
-        }
+        track_thread_borrow("dropped borrow from");
     }
 }
 
@@ -189,10 +184,7 @@ pub struct AppRefMut<'a>(RefMut<'a, App>);
 
 impl Drop for AppRefMut<'_> {
     fn drop(&mut self) {
-        if option_env!("TRACK_THREAD_BORROWS").is_some() {
-            let thread_id = thread::current().id();
-            eprintln!("dropped {thread_id:?}");
-        }
+        track_thread_borrow("dropped");
     }
 }
 
@@ -236,8 +228,8 @@ impl Application {
     /// Assigns the source of assets for the application.
     pub fn with_assets(self, asset_source: impl AssetSource) -> Self {
         let mut context_lock = self.0.borrow_mut();
-        let asset_source = Arc::new(asset_source);
-        context_lock.asset_source = asset_source.clone();
+        let asset_source: Arc<dyn AssetSource> = Arc::new(asset_source);
+        context_lock.asset_source = Arc::clone(&asset_source);
         context_lock.svg_renderer = SvgRenderer::new(asset_source);
         drop(context_lock);
         self
@@ -257,8 +249,8 @@ impl Application {
     where
         F: 'static + FnOnce(&mut App),
     {
-        let this = self.0.clone();
-        let platform = self.0.borrow().platform.clone();
+        let this = Rc::clone(&self.0);
+        let platform = Rc::clone(&self.0.borrow().platform);
         platform.run(Box::new(move || {
             let cx = &mut *this.borrow_mut();
             // Some platforms only connect to their display server in `run`.
@@ -304,7 +296,7 @@ impl Application {
 
     /// Returns a reference to the [`TextSystem`] associated with this app.
     pub fn text_system(&self) -> Arc<TextSystem> {
-        self.0.borrow().text_system.clone()
+        Arc::clone(&self.0.borrow().text_system)
     }
 }
 
@@ -376,7 +368,7 @@ impl MissingGlyphCallbackSlot {
         let registration = Rc::new(());
         self.entry
             .borrow_mut()
-            .replace(MissingGlyphCallbackEntry { registration: registration.clone(), callback: Some(callback) });
+            .replace(MissingGlyphCallbackEntry { registration: Rc::clone(&registration), callback: Some(callback) });
         registration
     }
 
@@ -385,7 +377,7 @@ impl MissingGlyphCallbackSlot {
             .entry
             .borrow_mut()
             .as_mut()
-            .and_then(|entry| entry.callback.take().map(|callback| (entry.registration.clone(), callback)))
+            .and_then(|entry| entry.callback.take().map(|callback| (Rc::clone(&entry.registration), callback)))
         else {
             return;
         };
@@ -549,8 +541,8 @@ impl App {
 
         let app = Rc::new_cyclic(|this| AppCell {
             app: RefCell::new(App {
-                this: this.clone(),
-                platform: platform.clone(),
+                this: Weak::clone(this),
+                platform: Rc::clone(&platform),
                 text_system,
                 text_rendering_mode: Rc::new(Cell::new(TextRenderingMode::default())),
                 mode: GpuiMode::Production,
@@ -559,7 +551,7 @@ impl App {
                 active_drag: None,
                 background_executor,
                 foreground_executor,
-                svg_renderer: SvgRenderer::new(asset_source.clone()),
+                svg_renderer: SvgRenderer::new(Arc::clone(&asset_source)),
                 loading_assets: FxHashMap::default(),
                 asset_source,
                 globals_by_type: HashMap::default(),
@@ -698,7 +690,7 @@ impl App {
         for (observer, location) in self.quit_observers.remove() {
             let future = observer(self);
             let done = Rc::new(Cell::new(false));
-            pending.push((location, done.clone()));
+            pending.push((location, Rc::clone(&done)));
             futures.push(
                 async move {
                     future.await;
@@ -727,7 +719,7 @@ impl App {
         self.quitting = false;
     }
 
-    /// Get the id of the current keyboard layout
+    /// Get the id of the current keyboard layout.
     pub fn keyboard_layout(&self) -> &dyn PlatformKeyboardLayout {
         self.keyboard_layout.as_ref()
     }
@@ -737,7 +729,7 @@ impl App {
         &self.keyboard_mapper
     }
 
-    /// Invokes a handler when the current keyboard layout changes
+    /// Invokes a handler when the current keyboard layout changes.
     pub fn on_keyboard_layout_change<F>(&self, mut callback: F) -> Subscription
     where
         F: 'static + FnMut(&mut App),
@@ -917,7 +909,7 @@ impl App {
 
     /// Returns handles to all open windows in the application.
     /// Each handle could be downcast to a handle typed for the root view of that window.
-    /// To find all windows of a given type, you could filter on
+    /// To find all windows of a given type, you could filter on.
     pub fn windows(&self) -> Vec<AnyWindowHandle> {
         self.windows.keys().filter_map(|window_id| self.window_handles.get(&window_id).copied()).collect()
     }
@@ -963,7 +955,7 @@ impl App {
                     clear.clear(cx);
 
                     cx.window_handles.insert(id, window.handle);
-                    cx.windows.get_mut(id).unwrap().replace(Box::new(window));
+                    cx.windows.get_mut(id).expect("window slot was reserved above").replace(Box::new(window));
                     Ok(handle)
                 }
                 Err(e) => {
@@ -1025,7 +1017,7 @@ impl App {
         self.platform.prevent_idle_sleep(reason)
     }
 
-    /// Invokes a handler when the thermal state changes
+    /// Invokes a handler when the thermal state changes.
     pub fn on_thermal_state_change<F>(&self, mut callback: F) -> Subscription
     where
         F: 'static + FnMut(&mut App),
@@ -1159,7 +1151,7 @@ impl App {
     ///
     /// Used to share the current search string between apps.
     ///
-    /// <https://developer.apple.com/documentation/appkit/nspasteboard/name-swift.struct/find>
+    /// <https://developer.apple.com/documentation/appkit/nspasteboard/name-swift.struct/find>.
     pub fn read_from_find_pasteboard(&self) -> Option<ClipboardItem> {
         self.platform.read_from_find_pasteboard()
     }
@@ -1168,7 +1160,7 @@ impl App {
     ///
     /// Used to share the current search string between apps.
     ///
-    /// <https://developer.apple.com/documentation/appkit/nspasteboard/name-swift.struct/find>
+    /// <https://developer.apple.com/documentation/appkit/nspasteboard/name-swift.struct/find>.
     pub fn write_to_find_pasteboard(&self, item: ClipboardItem) {
         self.platform.write_to_find_pasteboard(item);
     }
@@ -1329,7 +1321,7 @@ impl App {
 
     /// Repeatedly called during `flush_effects` to handle a focused handle being dropped.
     fn release_dropped_focus_handles(&mut self) {
-        let focus_handles = self.focus_handles.clone();
+        let focus_handles = Arc::clone(&self.focus_handles);
         let mut focus_handles = focus_handles.write();
         let FocusMap { handles, dropped_handles } = &mut *focus_handles;
         if dropped_handles.is_empty() {
@@ -1430,7 +1422,7 @@ impl App {
         let mut result = None;
         self.update_window_erased(id, &mut |arguments| {
             if let Some((root_view, window, cx)) = arguments {
-                result = Some(update.take().unwrap()(root_view, window, cx));
+                result = Some(update.take().expect("update is called once")(root_view, window, cx));
             } else {
                 drop(update.take());
                 drop(result.take());
@@ -1443,7 +1435,7 @@ impl App {
     /// so it can be held across `await` points.
     pub fn to_async(&self) -> AsyncApp {
         AsyncApp {
-            app: self.this.clone(),
+            app: Weak::clone(&self.this),
             background_executor: self.background_executor.clone(),
             foreground_executor: self.foreground_executor.clone(),
         }
@@ -1521,7 +1513,7 @@ impl App {
         let registration = self.missing_glyph_callback.replace(Box::new(callback));
 
         if let Some(mut receiver) = self.text_system.take_missing_glyph_receiver() {
-            let callback = self.missing_glyph_callback.clone();
+            let callback = Rc::clone(&self.missing_glyph_callback);
             self.spawn(async move |cx| {
                 while let Ok(missing_glyphs) = receiver.recv().await {
                     cx.update(|cx| callback.invoke(&missing_glyphs, cx));
@@ -1531,8 +1523,8 @@ impl App {
         }
         self.text_system.enable_missing_glyph_reporting();
 
-        let callback = self.missing_glyph_callback.clone();
-        let text_system = self.text_system.clone();
+        let callback = Rc::clone(&self.missing_glyph_callback);
+        let text_system = Arc::clone(&self.text_system);
         Subscription::new(move || {
             if callback.remove(&registration) {
                 text_system.disable_missing_glyph_reporting();
@@ -1550,13 +1542,15 @@ impl App {
     pub fn global<G: Global>(&self) -> &G {
         self.globals_by_type.get(&TypeId::of::<G>()).map_or_else(
             || panic!("no state of type {} exists", type_name::<G>()),
-            |any_state| any_state.downcast_ref::<G>().unwrap(),
+            |any_state| any_state.downcast_ref::<G>().expect("globals are keyed by their type id"),
         )
     }
 
     /// Access the global of the given type if a value has been assigned.
     pub fn try_global<G: Global>(&self) -> Option<&G> {
-        self.globals_by_type.get(&TypeId::of::<G>()).map(|any_state| any_state.downcast_ref::<G>().unwrap())
+        self.globals_by_type
+            .get(&TypeId::of::<G>())
+            .map(|any_state| any_state.downcast_ref::<G>().expect("globals are keyed by their type id"))
     }
 
     /// Access the global of the given type mutably. Panics if a global for that type has not been assigned.
@@ -1575,7 +1569,11 @@ impl App {
     pub fn default_global<G: Global + Default>(&mut self) -> &mut G {
         let global_type = TypeId::of::<G>();
         self.push_effect(Effect::NotifyGlobalObservers { global_type });
-        self.globals_by_type.entry(global_type).or_insert_with(|| Box::<G>::default()).downcast_mut::<G>().unwrap()
+        self.globals_by_type
+            .entry(global_type)
+            .or_insert_with(|| Box::<G>::default())
+            .downcast_mut::<G>()
+            .expect("globals are keyed by their type id")
     }
 
     /// Sets the value of the global of the given type.
@@ -1594,7 +1592,7 @@ impl App {
             .remove(&global_type)
             .unwrap_or_else(|| panic!("no global added for {}", type_name::<G>()))
             .downcast()
-            .unwrap()
+            .expect("globals are keyed by their type id")
     }
 
     /// Register a callback to be invoked when a global of the given type is updated.
@@ -1616,8 +1614,7 @@ impl App {
         GlobalLease::new(
             self.globals_by_type
                 .remove(&TypeId::of::<G>())
-                .with_context(|| format!("no global registered of type {}", type_name::<G>()))
-                .unwrap(),
+                .unwrap_or_else(|| panic!("no global registered of type {}", type_name::<G>())),
         )
     }
 
@@ -1644,7 +1641,7 @@ impl App {
             Box::new(move |any_entity: AnyEntity, window: &mut Option<&mut Window>, cx: &mut App| {
                 any_entity
                     .downcast::<T>()
-                    .unwrap()
+                    .expect("observer is registered for this entity type")
                     .update(cx, |entity_state, cx| on_new(entity_state, window.as_deref_mut(), cx));
             }),
         )
@@ -1682,7 +1679,7 @@ impl App {
     {
         let window_handle = window.handle;
         self.observe_release(handle, move |entity, cx| {
-            let _ = window_handle.update(cx, |_, window, cx| on_release(entity, window, cx));
+            window_handle.update(cx, |_, window, cx| on_release(entity, window, cx)).ok();
         })
     }
 
@@ -1713,7 +1710,7 @@ impl App {
     /// Register a callback to be invoked when a keystroke is received by the application
     /// in any window. Note that this fires _before_ all other action and event mechanisms have resolved
     /// unlike [`App::observe_keystrokes`] which fires after. This means that `cx.stop_propagation` calls
-    /// within interceptors will prevent action dispatch
+    /// within interceptors will prevent action dispatch.
     pub fn intercept_keystrokes(
         &mut self,
         mut f: impl FnMut(&KeystrokeEvent, &mut Window, &mut App) + 'static,
@@ -1748,7 +1745,7 @@ impl App {
 
     /// Get all key bindings in the app.
     pub fn key_bindings(&self) -> Rc<RefCell<Keymap>> {
-        self.keymap.clone()
+        Rc::clone(&self.keymap)
     }
 
     /// Register a global handler for actions invoked via the keyboard. These handlers are run at
@@ -1757,7 +1754,7 @@ impl App {
     pub fn on_action<A: Action>(&mut self, listener: impl Fn(&A, &mut Self) + 'static) -> &mut Self {
         self.global_action_listeners.entry(TypeId::of::<A>()).or_default().push(Rc::new(move |action, phase, cx| {
             if phase == DispatchPhase::Bubble {
-                let action = action.downcast_ref().unwrap();
+                let action = action.downcast_ref().expect("actions are keyed by their type id");
                 listener(action, cx);
             }
         }));
@@ -1861,7 +1858,7 @@ impl App {
         self.platform.get_menus()
     }
 
-    /// Sets the right click menu for the app icon in the dock
+    /// Sets the right click menu for the app icon in the dock.
     pub fn set_dock_menu(&self, menus: Vec<MenuItem>) {
         self.platform.set_dock_menu(menus, &self.keymap.borrow());
     }
@@ -1885,7 +1882,7 @@ impl App {
     }
 
     /// Dispatch an action to the currently active window or global action handler
-    /// See [`crate::Action`] for more information on how actions work
+    /// See [`crate::Action`] for more information on how actions work.
     pub fn dispatch_action(&mut self, action: &dyn Action) {
         if let Some(active_window) = self.active_window() {
             active_window.update(self, |_, window, cx| window.dispatch_action(action.boxed_clone(), cx)).log_err();
@@ -1935,7 +1932,8 @@ impl App {
 
     /// Gets the cursor style of the currently active drag operation.
     pub fn active_drag_cursor_style(&self) -> Option<CursorStyle> {
-        self.active_drag.as_ref().and_then(|drag| drag.cursor_style)
+        let drag = self.active_drag.as_ref()?;
+        drag.cursor_style
     }
 
     /// Stops active drag and clears any related effects.
@@ -1983,7 +1981,7 @@ impl App {
         self.prompt_builder = Some(PromptBuilder::Default);
     }
 
-    /// Remove an asset from GPUI's cache
+    /// Remove an asset from GPUI's cache.
     pub fn remove_asset<A: Asset>(&mut self, source: &A::Source) {
         let asset_id = (TypeId::of::<A>(), hash(source));
         self.loading_assets.remove(&asset_id);
@@ -2056,7 +2054,7 @@ impl App {
     pub fn drop_image(&mut self, image: Arc<RenderImage>, current_window: Option<&mut Window>) {
         // remove the texture from all other windows
         for window in self.windows.values_mut().flatten() {
-            _ = window.drop_image(image.clone());
+            _ = window.drop_image(Arc::clone(&image));
         }
 
         // remove the texture from the current window
@@ -2084,7 +2082,7 @@ impl App {
                 return;
             };
 
-            let root_view = window.root.clone().unwrap();
+            let root_view = window.root.clone().expect("window has a root view");
 
             cx.window_update_stack.push(window.handle.id);
             update(Some((root_view, &mut window, cx)));
@@ -2133,7 +2131,7 @@ impl App {
     ) {
         self.update(|cx| {
             let mut lease = cx.entities.lease_erased(handle, entity_type);
-            update(lease.entity.as_deref_mut().unwrap(), cx);
+            update(lease.entity.as_deref_mut().expect("entity is leased"), cx);
             cx.entities.end_lease_erased(handle.entity_id, lease);
         });
     }
@@ -2196,13 +2194,13 @@ impl AppContext for App {
         let mut update = Some(update);
         let mut result = None;
         self.update_entity_erased(handle, type_name::<T>(), &mut |entity, cx| {
-            let value = update.take().unwrap()(
-                entity.downcast_mut::<T>().unwrap(),
+            let value = update.take().expect("update is called once")(
+                entity.downcast_mut::<T>().expect("entity type matches its handle"),
                 &mut Context::new_context(cx, handle.downgrade()),
             );
             result = Some(value);
         });
-        result.unwrap()
+        result.expect("update was called")
     }
 
     fn as_mut<'a, T>(&'a mut self, handle: &Entity<T>) -> GpuiBorrow<'a, T>
@@ -2243,7 +2241,8 @@ impl AppContext for App {
             .as_deref()
             .expect("attempted to read a window that is already on the stack");
 
-        let root_view = window.root.clone().unwrap();
+        let root_view = window.root.clone().expect("window has a root view");
+        #[expect(clippy::map_err_ignore, reason = "the error is the unmatched view itself")]
         let view = root_view.downcast::<T>().map_err(|_| anyhow!("root view's type has changed"))?;
 
         Ok(read(view, self))
@@ -2306,30 +2305,30 @@ impl<G: Global> Deref for GlobalLease<G> {
     type Target = G;
 
     fn deref(&self) -> &Self::Target {
-        self.global.downcast_ref().unwrap()
+        self.global.downcast_ref().expect("globals are keyed by their type id")
     }
 }
 
 impl<G: Global> DerefMut for GlobalLease<G> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.global.downcast_mut().unwrap()
+        self.global.downcast_mut().expect("globals are keyed by their type id")
     }
 }
 
 /// Contains state associated with an active drag operation, started by dragging an element
 /// within the window.
 pub struct AnyDrag {
-    /// The view used to render this drag
+    /// The view used to render this drag.
     pub view: AnyView,
 
-    /// The value of the dragged item, to be dropped
+    /// The value of the dragged item, to be dropped.
     pub value: Arc<dyn Any>,
 
     /// This is used to render the dragged item in the same place
-    /// on the original element that the drag was initiated
+    /// on the original element that the drag was initiated.
     pub cursor_offset: Point<Pixels>,
 
-    /// The cursor style to use while dragging
+    /// The cursor style to use while dragging.
     pub cursor_style: Option<CursorStyle>,
 }
 
@@ -2337,7 +2336,7 @@ pub struct AnyDrag {
 /// tooltip behavior on a custom element. Otherwise, use [Div::tooltip](crate::Interactivity::tooltip).
 #[derive(Clone)]
 pub struct AnyTooltip {
-    /// The view used to display the tooltip
+    /// The view used to display the tooltip.
     pub view: AnyView,
 
     /// The absolute position of the mouse when the tooltip was deployed.
@@ -2358,10 +2357,10 @@ pub enum InputPreference {
     KeyBindings,
 }
 
-/// A keystroke event, and potentially the associated action
+/// A keystroke event, and potentially the associated action.
 #[derive(Debug)]
 pub struct KeystrokeEvent {
-    /// The keystroke that occurred
+    /// The keystroke that occurred.
     pub keystroke: Keystroke,
 
     /// Whether this keystroke should prefer character input or key bindings.
@@ -2373,14 +2372,14 @@ pub struct KeystrokeEvent {
     /// even when this is [`InputPreference::CharacterInput`].
     pub input_preference: InputPreference,
 
-    /// The action that was resolved for the keystroke, if any
+    /// The action that was resolved for the keystroke, if any.
     pub action: Option<Box<dyn Action>>,
 
-    /// The context stack at the time
+    /// The context stack at the time.
     pub context_stack: Vec<KeyContext>,
 }
 
-/// A mutable reference to an entity owned by GPUI
+/// A mutable reference to an entity owned by GPUI.
 pub struct GpuiBorrow<'a, T> {
     inner: Option<Lease<T>>,
     app: &'a mut App,
@@ -2396,13 +2395,13 @@ impl<'a, T: 'static> GpuiBorrow<'a, T> {
 
 impl<T: 'static> borrow::Borrow<T> for GpuiBorrow<'_, T> {
     fn borrow(&self) -> &T {
-        self.inner.as_ref().unwrap().borrow()
+        self.inner.as_ref().expect("borrow is live until drop").borrow()
     }
 }
 
 impl<T: 'static> borrow::BorrowMut<T> for GpuiBorrow<'_, T> {
     fn borrow_mut(&mut self) -> &mut T {
-        self.inner.as_mut().unwrap().borrow_mut()
+        self.inner.as_mut().expect("borrow is live until drop").borrow_mut()
     }
 }
 
@@ -2410,19 +2409,19 @@ impl<T: 'static> ops::Deref for GpuiBorrow<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        self.inner.as_ref().unwrap()
+        self.inner.as_ref().expect("borrow is live until drop")
     }
 }
 
 impl<T: 'static> ops::DerefMut for GpuiBorrow<'_, T> {
     fn deref_mut(&mut self) -> &mut T {
-        self.inner.as_mut().unwrap()
+        self.inner.as_mut().expect("borrow is live until drop")
     }
 }
 
 impl<T> Drop for GpuiBorrow<'_, T> {
     fn drop(&mut self) {
-        let lease = self.inner.take().unwrap();
+        let lease = self.inner.take().expect("borrow is live until drop");
         self.app.notify(lease.id);
         self.app.entities.end_lease(lease);
         self.app.finish_update();

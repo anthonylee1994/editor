@@ -268,7 +268,7 @@ impl Notification for DidChangeWatchedFiles {
 }
 
 /// The workspace/didChangeWorkspaceFolders notification is sent from the client to the server to inform the server
-/// about workspace folder configuration changes
+/// about workspace folder configuration changes.
 #[derive(Debug)]
 pub struct DidChangeWorkspaceFolders(!);
 

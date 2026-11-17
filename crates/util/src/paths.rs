@@ -19,7 +19,7 @@ use globset::Glob;
 use globset::GlobBuilder;
 use globset::GlobSet;
 use globset::GlobSetBuilder;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use path::rel_path::RelPath;
 use path::rel_path::RelPathBuf;
 use regex::Regex;
@@ -45,7 +45,7 @@ pub trait PathExt {
     ///   returned unchanged.
     fn compact(&self) -> PathBuf;
 
-    /// Returns a file's extension or, if the file is hidden, its name without the leading dot
+    /// Returns a file's extension or, if the file is hidden, its name without the leading dot.
     fn extension_or_hidden_file_name(&self) -> Option<&str>;
 
     fn try_from_bytes<'a>(bytes: &'a [u8]) -> anyhow::Result<Self>
@@ -56,9 +56,9 @@ pub trait PathExt {
     }
 
     /// Returns a file's "full" joined collection of extensions, in the case where a file does not
-    /// just have a singular extension but instead has multiple (e.g File.tar.gz, Component.stories.tsx)
+    /// just have a singular extension but instead has multiple (e.g File.tar.gz, Component.stories.tsx).
     ///
-    /// Will provide back the extensions joined together such as tar.gz or stories.tsx
+    /// Will provide back the extensions joined together such as tar.gz or stories.tsx.
     fn multiple_extensions(&self) -> Option<String>;
 
     /// Try to make a shell-safe representation of the path.
@@ -69,12 +69,7 @@ impl<T: AsRef<Path>> PathExt for T {
     fn compact(&self) -> PathBuf {
         if false || true {
             match self.as_ref().strip_prefix(home_dir().as_path()) {
-                Ok(relative_path) => {
-                    let mut shortened_path = PathBuf::new();
-                    shortened_path.push("~");
-                    shortened_path.push(relative_path);
-                    shortened_path
-                }
+                Ok(relative_path) => Path::new("~").join(relative_path),
                 Err(_) => self.as_ref().to_path_buf(),
             }
         } else {
@@ -110,7 +105,7 @@ impl<T: AsRef<Path>> PathExt for T {
     }
 
     fn try_shell_safe(&self, shell_kind: ShellKind) -> anyhow::Result<String> {
-        use anyhow::Context;
+        use anyhow::Context as _;
         let path_str = self.as_ref().to_str().with_context(|| "Path contains invalid UTF-8")?;
         shell_kind.try_quote(path_str).as_deref().map(ToOwned::to_owned).context("Failed to quote path")
     }
@@ -347,7 +342,7 @@ impl PathWithPosition {
         // Let's avoid repeated init cost on this. It is subject to thread contention, but
         // so far this code isn't called from multiple hot paths. Getting contention here
         // in the future seems unlikely.
-        static SUFFIX_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(ROW_COL_CAPTURE_REGEX).unwrap());
+        static SUFFIX_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(ROW_COL_CAPTURE_REGEX).expect("valid regex"));
         if let Some((file_name_end, maybe_row, maybe_column)) =
             SUFFIX_RE.captures(maybe_file_name_with_row_col).and_then(|captures| {
                 let file_name_end = captures.iter().skip(1).flatten().next()?.end();
@@ -473,7 +468,7 @@ impl PathMatcher {
             .filter_map(|glob| {
                 let glob = glob.glob();
                 Some((
-                    glob.to_string(),
+                    glob.to_owned(),
                     RelPath::new(glob.as_ref()).ok().map(std::borrow::Cow::into_owned)?,
                     glob.ends_with('/'),
                 ))

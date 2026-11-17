@@ -1,5 +1,5 @@
 use objc2::AnyThread as _;
-use objc2::DefinedClass;
+use objc2::DefinedClass as _;
 use objc2::MainThreadMarker;
 use objc2::MainThreadOnly;
 use objc2::Message as _;
@@ -75,7 +75,9 @@ impl MetalFrameSource {
         // Common modes keep frames coming during live resize and other tracking loops.
         // SAFETY: the retained marker confines the source to the main thread,
         // and the main run loop outlives the source.
-        unsafe { link.addToRunLoop_forMode(&NSRunLoop::mainRunLoop(), NSRunLoopCommonModes) };
+        unsafe {
+            link.addToRunLoop_forMode(&NSRunLoop::mainRunLoop(), NSRunLoopCommonModes);
+        }
         Self { link, _delegate: delegate, _main_thread: main_thread }
     }
 

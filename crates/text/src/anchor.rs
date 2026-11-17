@@ -13,8 +13,8 @@ use crate::Point;
 use crate::PointUtf16;
 use crate::TextDimension;
 use crate::ToOffset;
-use crate::ToPoint;
-use crate::ToPointUtf16;
+use crate::ToPoint as _;
+use crate::ToPointUtf16 as _;
 use crate::locator::Locator;
 
 /// A timestamped position in a buffer.
@@ -148,7 +148,7 @@ impl Anchor {
     }
 
     pub fn opaque_id(&self) -> [u8; 20] {
-        let mut bytes = [0u8; 20];
+        let mut bytes = [0_u8; 20];
         let buffer_id: u64 = self.buffer_id.into();
         bytes[0..8].copy_from_slice(&buffer_id.to_le_bytes());
         bytes[8..12].copy_from_slice(&self.offset.to_le_bytes());

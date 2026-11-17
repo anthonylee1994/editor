@@ -4,11 +4,11 @@ use smallvec::SmallVec;
 
 use crate::prelude::App;
 use crate::prelude::Div;
-use crate::prelude::FluentBuilder;
+use crate::prelude::FluentBuilder as _;
 use crate::prelude::IntoElement;
 use crate::prelude::ParentElement;
 use crate::prelude::RenderOnce;
-use crate::prelude::Styled;
+use crate::prelude::Styled as _;
 use crate::prelude::Window;
 use crate::prelude::div;
 
@@ -34,16 +34,8 @@ impl Facepile {
     pub fn new(faces: SmallVec<[AnyElement; 2]>) -> Self {
         Self { base: div(), faces }
     }
-}
 
-impl ParentElement for Facepile {
-    fn extend(&mut self, elements: impl IntoIterator<Item = AnyElement>) {
-        self.faces.extend(elements);
-    }
-}
-
-// Style methods.
-impl Facepile {
+    // Style methods.
     fn style(&mut self) -> &mut StyleRefinement {
         self.base.style()
     }
@@ -51,6 +43,12 @@ impl Facepile {
     gpui::padding_style_methods!({
         visibility: pub
     });
+}
+
+impl ParentElement for Facepile {
+    fn extend(&mut self, elements: impl IntoIterator<Item = AnyElement>) {
+        self.faces.extend(elements);
+    }
 }
 
 impl RenderOnce for Facepile {

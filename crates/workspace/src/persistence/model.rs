@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use anyhow::Context;
+use anyhow::Context as _;
 use anyhow::Result;
 use futures::future;
 use gpui::AsyncWindowContext;
@@ -10,7 +10,7 @@ use gpui::WeakEntity;
 use project::Project;
 use serde::Deserialize;
 use serde::Serialize;
-use util::ResultExt;
+use util::ResultExt as _;
 
 use crate::Member;
 use crate::Pane;
@@ -321,7 +321,7 @@ mod tests {
     use crate::persistence::parse_workspace_state;
 
     #[test]
-    fn test_serialized_workspace_round_trip() {
+    fn serialized_workspace_round_trip() {
         let workspace = SerializedWorkspace {
             center_group: SerializedPaneGroup::Group {
                 axis: Axis::Horizontal,
@@ -365,7 +365,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_workspace_state_tolerates_missing_fields() {
+    fn parse_workspace_state_tolerates_missing_fields() {
         assert_eq!(parse_workspace_state("{}"), Some(SerializedWorkspace::default()));
         assert_eq!(parse_workspace_state("garbage"), None);
         let workspace =
@@ -385,7 +385,7 @@ mod tests {
     }
 
     #[test]
-    fn test_zoomed_is_written_only_when_set() {
+    fn zoomed_is_written_only_when_set() {
         let pane = SerializedPane::new(Vec::new(), true, 0, false);
         assert!(!serde_json::to_string(&pane).unwrap().contains("zoomed"));
         let pane = SerializedPane::new(Vec::new(), true, 0, true);
@@ -409,7 +409,7 @@ mod tests {
     }
 
     #[test]
-    fn test_prune_terminal_group() {
+    fn prune_terminal_group() {
         assert_eq!(terminal_pane(&[], true).prune(), None);
         assert_eq!(terminal_pane(&[None], true).prune(), Some(terminal_pane(&[None], true)));
 
@@ -457,7 +457,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_terminal_layout() {
+    fn parse_terminal_layout() {
         let workspace = parse_workspace_state(
             r#"{"terminal": {"type": "pane", "active": true, "tabs": [{"working_directory": "/p"}, {}]}}"#,
         )

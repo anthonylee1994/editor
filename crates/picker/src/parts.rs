@@ -1,18 +1,18 @@
-//! Components used in multiple pickers
+//! Components used in multiple pickers.
 
 use gpui::Entity;
 use project::Project;
-use ui::CommonAnimationExt;
+use ui::CommonAnimationExt as _;
 use ui::Tooltip;
 use ui::prelude::App;
 use ui::prelude::Color;
 use ui::prelude::Icon;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
-use ui::prelude::InteractiveElement;
+use ui::prelude::InteractiveElement as _;
 use ui::prelude::IntoElement;
-use ui::prelude::ParentElement;
-use ui::prelude::StatefulInteractiveElement;
+use ui::prelude::ParentElement as _;
+use ui::prelude::StatefulInteractiveElement as _;
 use ui::prelude::h_flex;
 
 pub fn project_scan_indicator(has_query: bool, project: &Entity<Project>, cx: &App) -> Option<impl IntoElement> {

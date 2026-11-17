@@ -138,7 +138,7 @@ impl LocalBufferStore {
         snapshot: &worktree::Snapshot,
         cx: &mut Context<BufferStore>,
     ) -> Option<()> {
-        let project_path = ProjectPath { worktree_id: snapshot.id(), path: path.clone() };
+        let project_path = ProjectPath { worktree_id: snapshot.id(), path: Arc::clone(path) };
 
         let buffer_id = this
             .local
@@ -165,9 +165,9 @@ impl LocalBufferStore {
             && snapshot.entry_for_path(path.as_ref()).is_none()
             && Self::unloaded_ancestor_hides_path(snapshot, path)
         {
-            let refresh = worktree.read(cx).refresh_entries_for_paths(vec![path.clone()]);
+            let refresh = worktree.read(cx).refresh_entries_for_paths(vec![Arc::clone(path)]);
             cx.spawn({
-                let path = path.clone();
+                let path = Arc::clone(path);
                 let worktree = worktree.clone();
                 async move |this, cx| {
                     refresh.await.ok();
@@ -187,7 +187,7 @@ impl LocalBufferStore {
         }
 
         let events = buffer.update(cx, |buffer, cx| {
-            let file = buffer.file()?.clone();
+            let file = Arc::clone(buffer.file()?);
             let old_file = File::from_dyn(Some(&file))?;
             if old_file.worktree != *worktree {
                 return None;
@@ -209,14 +209,14 @@ impl LocalBufferStore {
                         None => old_file.disk_state,
                     },
                     entry_id: Some(entry.id),
-                    path: entry.path.clone(),
+                    path: Arc::clone(&entry.path),
                     worktree: worktree.clone(),
                 }
             } else {
                 File {
                     disk_state: DiskState::Deleted,
                     entry_id: old_file.entry_id,
-                    path: old_file.path.clone(),
+                    path: Arc::clone(&old_file.path),
                     worktree: worktree.clone(),
                 }
             };
@@ -228,9 +228,9 @@ impl LocalBufferStore {
             let mut events = Vec::new();
             if new_file.path != old_file.path {
                 this.path_to_buffer_id
-                    .remove(&ProjectPath { path: old_file.path.clone(), worktree_id: old_file.worktree_id(cx) });
+                    .remove(&ProjectPath { path: Arc::clone(&old_file.path), worktree_id: old_file.worktree_id(cx) });
                 this.path_to_buffer_id.insert(
-                    ProjectPath { worktree_id: new_file.worktree_id(cx), path: new_file.path.clone() },
+                    ProjectPath { worktree_id: new_file.worktree_id(cx), path: Arc::clone(&new_file.path) },
                     buffer_id,
                 );
                 events.push(BufferStoreEvent::BufferChangedFilePath {
@@ -271,7 +271,7 @@ impl LocalBufferStore {
             return Task::ready(Err(anyhow!("buffer doesn't have a file")));
         };
         let worktree = file.worktree.clone();
-        self.save_local_buffer(buffer, worktree, file.path.clone(), false, cx)
+        self.save_local_buffer(buffer, worktree, Arc::clone(&file.path), false, cx)
     }
 
     fn save_buffer_as(
@@ -294,7 +294,7 @@ impl LocalBufferStore {
     ) -> Task<Result<Entity<Buffer>>> {
         let load_file = worktree.update(cx, |worktree, cx| worktree.load_file(path.as_ref(), cx));
         cx.spawn(async move |this, cx| {
-            let path = path.clone();
+            let path = Arc::clone(&path);
             let buffer = match load_file.await {
                 Ok(loaded) => {
                     let reservation = cx.reserve_entity::<Buffer>();
@@ -333,7 +333,7 @@ impl LocalBufferStore {
                 this.add_buffer(buffer.clone(), cx)?;
                 let buffer_id = buffer.read(cx).buffer_id();
                 if let Some(file) = File::from_dyn(buffer.read(cx).file()) {
-                    let project_path = ProjectPath { worktree_id: file.worktree_id(cx), path: file.path.clone() };
+                    let project_path = ProjectPath { worktree_id: file.worktree_id(cx), path: Arc::clone(&file.path) };
                     let entry_id = file.entry_id;
                     this.path_to_buffer_id.insert(project_path, buffer_id);
                     let this = &mut this.local;
@@ -426,7 +426,7 @@ impl BufferStore {
         let task = match self.loading_buffers.entry(project_path.clone()) {
             hash_map::Entry::Occupied(e) => e.get().clone(),
             hash_map::Entry::Vacant(entry) => {
-                let path = project_path.path.clone();
+                let path = Arc::clone(&project_path.path);
                 let Some(worktree) = self.worktree_store.read(cx).worktree_for_id(project_path.worktree_id, cx) else {
                     return Task::ready(Err(anyhow!("no such worktree")));
                 };
@@ -483,7 +483,7 @@ impl BufferStore {
             this.update(cx, |this, cx| {
                 old_file.clone().and_then(|file| {
                     this.path_to_buffer_id
-                        .remove(&ProjectPath { worktree_id: file.worktree_id(cx), path: file.path().clone() })
+                        .remove(&ProjectPath { worktree_id: file.worktree_id(cx), path: Arc::clone(file.path()) })
                 });
 
                 cx.emit(BufferStoreEvent::BufferChangedFilePath { buffer, old_file });
@@ -495,7 +495,7 @@ impl BufferStore {
         let buffer = buffer_entity.read(cx);
         let buffer_id = buffer.buffer_id();
         let path = File::from_dyn(buffer.file())
-            .map(|file| ProjectPath { path: file.path.clone(), worktree_id: file.worktree_id(cx) });
+            .map(|file| ProjectPath { path: Arc::clone(&file.path), worktree_id: file.worktree_id(cx) });
 
         if self.opened_buffers.get(&buffer_id).is_some_and(|buffer| buffer.upgrade().is_some()) {
             anyhow::bail!("buffer {buffer_id} was already registered");
@@ -532,7 +532,8 @@ impl BufferStore {
     }
 
     pub fn get_by_path(&self, path: &ProjectPath) -> Option<Entity<Buffer>> {
-        self.path_to_buffer_id.get(path).and_then(|buffer_id| self.get(*buffer_id))
+        let buffer_id = self.path_to_buffer_id.get(path)?;
+        self.get(*buffer_id)
     }
 
     pub fn get(&self, buffer_id: BufferId) -> Option<Entity<Buffer>> {
@@ -560,7 +561,7 @@ impl BufferStore {
                 }
             }
             self.path_to_buffer_id
-                .insert(ProjectPath { worktree_id: file.worktree_id(cx), path: file.path.clone() }, buffer_id);
+                .insert(ProjectPath { worktree_id: file.worktree_id(cx), path: Arc::clone(&file.path) }, buffer_id);
         }
 
         Some(())
@@ -606,7 +607,7 @@ impl BufferStore {
 
         if let Some(file) = File::from_dyn(buffer.read(cx).file()) {
             self.path_to_buffer_id
-                .insert(ProjectPath { worktree_id: file.worktree_id(cx), path: file.path.clone() }, buffer_id);
+                .insert(ProjectPath { worktree_id: file.worktree_id(cx), path: Arc::clone(&file.path) }, buffer_id);
             let this = &mut self.local;
             if let Some(entry_id) = file.entry_id {
                 this.local_buffer_ids_by_entry_id.insert(entry_id, buffer_id);
@@ -647,7 +648,7 @@ mod file_capability_tests {
     use super::file_capability;
 
     #[test]
-    fn test_file_capability() {
+    fn file_capability_works() {
         assert_eq!(file_capability(true, false), Capability::ReadWrite);
         assert_eq!(file_capability(false, false), Capability::ReadOnly);
         assert_eq!(file_capability(true, true), Capability::ReadOnly);

@@ -45,7 +45,7 @@ impl LspAdapter for TerraformLspAdapter {
 /// Settings for Terraform and Terraform Vars.
 pub(crate) fn settings() -> LanguageSettings {
     LanguageSettings {
-        tab_size: NonZeroU32::new(2).unwrap(),
+        tab_size: NonZeroU32::new(2).expect("non-zero"),
         hard_tabs: false,
         soft_wrap: false,
         preferred_line_length: 120,
@@ -65,7 +65,7 @@ pub(crate) fn settings() -> LanguageSettings {
 pub(crate) fn languages() -> Vec<LanguageDef> {
     let adapter: Arc<dyn LspAdapter> = Arc::new(TerraformLspAdapter);
     vec![
-        LanguageDef { adapters: vec![adapter.clone()], ..LanguageDef::new("terraform", settings()) },
+        LanguageDef { adapters: vec![Arc::clone(&adapter)], ..LanguageDef::new("terraform", settings()) },
         LanguageDef { adapters: vec![adapter], ..LanguageDef::new("terraform-vars", settings()) },
     ]
 }

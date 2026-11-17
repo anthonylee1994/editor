@@ -1,4 +1,6 @@
 use std::ops::Range;
+use std::rc::Rc;
+use std::sync::Arc;
 use std::time::Duration;
 
 use gpui::AnyElement;
@@ -7,14 +9,14 @@ use gpui::AvailableSpace;
 use gpui::ClickEvent;
 use gpui::Context;
 use gpui::DispatchPhase;
-use gpui::Element;
+use gpui::Element as _;
 use gpui::MouseButton;
 use gpui::MouseClickEvent;
 use gpui::MouseDownEvent;
 use gpui::MouseMoveEvent;
 use gpui::MousePressureEvent;
 use gpui::MouseUpEvent;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Pixels;
 use gpui::PressureStage;
 use gpui::ScrollDelta;
@@ -27,7 +29,7 @@ use gpui::px;
 use multi_buffer::MultiBufferRow;
 use rustc_hash::FxHashMap;
 use sum_tree::Bias;
-use util::RangeExt;
+use util::RangeExt as _;
 
 use super::EditorElement;
 use super::EditorLayout;
@@ -43,7 +45,7 @@ use crate::EditorSnapshot;
 use crate::GutterHoverButton;
 use crate::JumpData;
 use crate::SelectPhase;
-use crate::display_map::ToDisplayPoint;
+use crate::display_map::ToDisplayPoint as _;
 use crate::hover_popover::hover_at;
 use crate::inlays::inlay_hints::HintTarget;
 use crate::mouse_context_menu;
@@ -85,7 +87,7 @@ impl EditorElement {
             let current_row = valid_point.row();
             position_map.display_hunks.iter().find_map(|(hunk, _)| {
                 if let DisplayDiffHunk::Unfolded { display_row_range, .. } = hunk {
-                    if display_row_range.contains(&current_row) { Some(display_row_range.start) } else { None }
+                    display_row_range.contains(&current_row).then_some(display_row_range.start)
                 } else {
                     None
                 }
@@ -246,16 +248,16 @@ impl EditorElement {
         self.paint_scroll_wheel_listener(layout, window);
 
         window.on_mouse_event({
-            let position_map = layout.position_map.clone();
+            let position_map = Rc::clone(&layout.position_map);
             let editor = self.editor.clone();
-            let line_numbers = layout.line_numbers.clone();
+            let line_numbers = Arc::clone(&layout.line_numbers);
 
             move |event: &MouseDownEvent, phase, window, cx| {
                 if phase == DispatchPhase::Bubble {
                     match event.button {
                         MouseButton::Left => editor.update(cx, |editor, cx| {
                             let pending_mouse_down =
-                                editor.pending_mouse_down.get_or_insert_with(Default::default).clone();
+                                Rc::clone(editor.pending_mouse_down.get_or_insert_with(Default::default));
 
                             *pending_mouse_down.borrow_mut() = Some(event.clone());
 
@@ -285,7 +287,7 @@ impl EditorElement {
 
         window.on_mouse_event({
             let editor = self.editor.clone();
-            let position_map = layout.position_map.clone();
+            let position_map = Rc::clone(&layout.position_map);
             let mut captured_mouse_down = None;
 
             move |event: &MouseUpEvent, phase, window, cx| match phase {
@@ -293,7 +295,7 @@ impl EditorElement {
                 // so that it happens even if another event handler stops
                 // propagation.
                 DispatchPhase::Capture => editor.update(cx, |editor, _cx| {
-                    let pending_mouse_down = editor.pending_mouse_down.get_or_insert_with(Default::default).clone();
+                    let pending_mouse_down = Rc::clone(editor.pending_mouse_down.get_or_insert_with(Default::default));
 
                     let mut pending_mouse_down = pending_mouse_down.borrow_mut();
                     if pending_mouse_down.is_some() && position_map.text_hitbox.is_hovered(window) {
@@ -312,7 +314,7 @@ impl EditorElement {
         });
 
         window.on_mouse_event({
-            let position_map = layout.position_map.clone();
+            let position_map = Rc::clone(&layout.position_map);
             let editor = self.editor.clone();
 
             move |event: &MousePressureEvent, phase, window, cx| {
@@ -325,7 +327,7 @@ impl EditorElement {
         });
 
         window.on_mouse_event({
-            let position_map = layout.position_map.clone();
+            let position_map = Rc::clone(&layout.position_map);
             let editor = self.editor.clone();
             let split_side = self.split_side;
 
@@ -350,7 +352,7 @@ impl EditorElement {
 
     fn paint_scroll_wheel_listener(&self, layout: &EditorLayout, window: &mut Window) {
         window.on_mouse_event({
-            let position_map = layout.position_map.clone();
+            let position_map = Rc::clone(&layout.position_map);
             let editor = self.editor.clone();
             let hitbox = layout.hitbox.clone();
             let mut delta = ScrollDelta::default();

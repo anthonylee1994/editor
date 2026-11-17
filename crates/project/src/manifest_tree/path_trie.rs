@@ -52,8 +52,9 @@ impl<Label: Ord + Clone> RootPathTrie<Label> {
 
         let mut path_so_far = RelPathBuf::new();
         for key in path.0.iter() {
-            path_so_far = path_so_far.join(RelPath::from_unix_str(key.as_ref()).unwrap());
-            current = match current.children.entry(key.clone()) {
+            path_so_far =
+                path_so_far.join(RelPath::from_unix_str(key.as_ref()).expect("trie key is a valid path component"));
+            current = match current.children.entry(Arc::clone(key)) {
                 Entry::Vacant(vacant_entry) => {
                     vacant_entry.insert(RootPathTrie::new_with_key(Arc::from(path_so_far.as_rel_path())))
                 }
@@ -85,7 +86,7 @@ impl<Label: Ord + Clone> RootPathTrie<Label> {
             };
         }
         if !current.labels.is_empty() {
-            let _ = (callback)(&current.worktree_relative_path, &current.labels);
+            let _: ControlFlow<()> = (callback)(&current.worktree_relative_path, &current.labels);
         }
     }
 

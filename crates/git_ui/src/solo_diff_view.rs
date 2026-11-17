@@ -55,19 +55,19 @@ use ui::DiffStat;
 use ui::Divider;
 use ui::Tooltip;
 use ui::prelude::Button;
-use ui::prelude::ButtonCommon;
-use ui::prelude::Clickable;
+use ui::prelude::ButtonCommon as _;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
-use ui::prelude::Disableable;
-use ui::prelude::FixedWidth;
-use ui::prelude::FluentBuilder;
+use ui::prelude::Disableable as _;
+use ui::prelude::FixedWidth as _;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Icon;
 use ui::prelude::IconButton;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
-use ui::prelude::ParentElement;
+use ui::prelude::ParentElement as _;
 use ui::prelude::SharedString;
-use ui::prelude::Styled;
+use ui::prelude::Styled as _;
 use ui::prelude::h_flex;
 use ui::prelude::h_group_sm;
 use ui::prelude::rems_from_px;
@@ -81,7 +81,7 @@ use workspace::ToolbarItemView;
 use workspace::Workspace;
 use workspace::item::ItemEvent;
 use workspace::item::SaveOptions;
-use workspace::notifications::NotifyTaskExt;
+use workspace::notifications::NotifyTaskExt as _;
 use workspace::searchable::SearchableItemHandle;
 
 use crate::git_panel::GitStatusEntry;
@@ -384,7 +384,7 @@ impl Item for SoloDiffView {
             .read(cx)
             .file()
             .and_then(|file| Some(file.full_path(cx).file_name()?.to_string_lossy().to_string()))
-            .unwrap_or_else(|| self.repo_path.as_ref().display().to_string())
+            .unwrap_or_else(|| self.repo_path.as_ref().display().to_owned())
             .into()
     }
 
@@ -394,7 +394,7 @@ impl Item for SoloDiffView {
                 .read(cx)
                 .file()
                 .map_or_else(
-                    || self.repo_path.as_ref().display().to_string(),
+                    || self.repo_path.as_ref().display().to_owned(),
                     |file| file.full_path(cx).compact().to_string_lossy().into_owned(),
                 )
                 .into(),

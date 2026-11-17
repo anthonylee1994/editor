@@ -13,9 +13,9 @@ use crate::DisplayRow;
 use crate::Editor;
 use crate::EditorMode;
 use crate::LineWithInvisibles;
-use crate::RowExt;
+use crate::RowExt as _;
 use crate::SelectionEffects;
-use crate::display_map::ToDisplayPoint;
+use crate::display_map::ToDisplayPoint as _;
 use crate::scroll::ScrollOffset;
 use crate::scroll::WasScrolled;
 
@@ -26,23 +26,23 @@ pub enum Autoscroll {
 }
 
 impl Autoscroll {
-    /// scrolls the minimal amount to (try) and fit all cursors onscreen
+    /// scrolls the minimal amount to (try) and fit all cursors onscreen.
     pub const fn fit() -> Self {
         Self::Strategy(AutoscrollStrategy::Fit, None)
     }
 
-    /// scrolls the minimal amount to fit the newest cursor
+    /// scrolls the minimal amount to fit the newest cursor.
     pub const fn newest() -> Self {
         Self::Strategy(AutoscrollStrategy::Newest, None)
     }
 
-    /// scrolls so the newest cursor is vertically centered
+    /// scrolls so the newest cursor is vertically centered.
     pub const fn center() -> Self {
         Self::Strategy(AutoscrollStrategy::Center, None)
     }
 
     /// scrolls so the newest cursor is near the top
-    /// (offset by vertical_scroll_margin)
+    /// (offset by vertical_scroll_margin).
     pub const fn focused() -> Self {
         Self::Strategy(AutoscrollStrategy::Focused, None)
     }
@@ -368,7 +368,7 @@ impl Editor {
             WasScrolled(false)
         };
 
-        if was_scrolled.0 { Some(scroll_position) } else { None }
+        was_scrolled.0.then_some(scroll_position)
     }
 
     pub fn request_autoscroll(&mut self, autoscroll: Autoscroll, cx: &mut Context<Self>) {

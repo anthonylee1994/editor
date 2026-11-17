@@ -68,9 +68,9 @@ impl KeyEvent for KeyUpEvent {}
 /// The modifiers changed event equivalent for the platform.
 #[derive(Clone, Debug, Default)]
 pub struct ModifiersChangedEvent {
-    /// The new state of the modifier keys
+    /// The new state of the modifier keys.
     pub modifiers: Modifiers,
-    /// The new state of the capslock key
+    /// The new state of the capslock key.
     pub capslock: Capslock,
 }
 
@@ -105,7 +105,7 @@ pub enum TouchPhase {
     Cancelled,
 }
 
-/// A mouse down event from the platform
+/// A mouse down event from the platform.
 #[derive(Clone, Debug, Default)]
 pub struct MouseDownEvent {
     /// Which mouse button was pressed.
@@ -133,7 +133,7 @@ impl InputEvent for MouseDownEvent {
 
 impl MouseEvent for MouseDownEvent {}
 
-/// A mouse up event from the platform
+/// A mouse up event from the platform.
 #[derive(Clone, Debug, Default)]
 pub struct MouseUpEvent {
     /// Which mouse button was released.
@@ -184,7 +184,7 @@ pub enum PressureStage {
 /// Currently only implemented for macOS trackpads.
 #[derive(Debug, Clone, Default)]
 pub struct MousePressureEvent {
-    /// Pressure of the current stage as a float between 0 and 1
+    /// Pressure of the current stage as a float between 0 and 1.
     pub pressure: f32,
     /// The pressure stage of the event.
     pub stage: PressureStage,
@@ -229,7 +229,7 @@ impl Default for ClickEvent {
 }
 
 impl ClickEvent {
-    /// Returns the modifiers that were held during the click event
+    /// Returns the modifiers that were held during the click event.
     ///
     /// `Keyboard`: The keyboard click events never have modifiers.
     /// `Mouse`: Modifiers that were held during the mouse key up event.
@@ -244,7 +244,7 @@ impl ClickEvent {
         }
     }
 
-    /// Returns the position of the click event
+    /// Returns the position of the click event.
     ///
     /// `Keyboard`: The bottom left corner of the clicked hitbox
     /// `Mouse`: The position of the mouse when the button was released.
@@ -255,7 +255,7 @@ impl ClickEvent {
         }
     }
 
-    /// Returns the mouse position of the click event
+    /// Returns the mouse position of the click event.
     ///
     /// `Keyboard`: None
     /// `Mouse`: The position of the mouse when the button was released.
@@ -266,10 +266,10 @@ impl ClickEvent {
         }
     }
 
-    /// Returns if this was a right click
+    /// Returns if this was a right click.
     ///
     /// `Keyboard`: false
-    /// `Mouse`: Whether the right button was pressed and released
+    /// `Mouse`: Whether the right button was pressed and released.
     pub fn is_right_click(&self) -> bool {
         match self {
             ClickEvent::Keyboard(_) => false,
@@ -279,10 +279,10 @@ impl ClickEvent {
         }
     }
 
-    /// Returns if this was a middle click
+    /// Returns if this was a middle click.
     ///
     /// `Keyboard`: false
-    /// `Mouse`: Whether the middle button was pressed and released
+    /// `Mouse`: Whether the middle button was pressed and released.
     pub fn is_middle_click(&self) -> bool {
         match self {
             ClickEvent::Keyboard(_) => false,
@@ -292,10 +292,10 @@ impl ClickEvent {
         }
     }
 
-    /// Returns whether the click was a standard click
+    /// Returns whether the click was a standard click.
     ///
     /// `Keyboard`: Always true
-    /// `Mouse`: Left button pressed and released
+    /// `Mouse`: Left button pressed and released.
     pub fn standard_click(&self) -> bool {
         match self {
             ClickEvent::Keyboard(_) => true,
@@ -303,10 +303,10 @@ impl ClickEvent {
         }
     }
 
-    /// Returns whether the click focused the element
+    /// Returns whether the click focused the element.
     ///
     /// `Keyboard`: false, keyboard clicks only work if an element is already focused
-    /// `Mouse`: Whether this was the first focusing click
+    /// `Mouse`: Whether this was the first focusing click.
     pub const fn first_focus(&self) -> bool {
         match self {
             ClickEvent::Keyboard(_) => false,
@@ -314,10 +314,10 @@ impl ClickEvent {
         }
     }
 
-    /// Returns the click count of the click event
+    /// Returns the click count of the click event.
     ///
     /// `Keyboard`: Always 1
-    /// `Mouse`: Count of clicks from MouseUpEvent
+    /// `Mouse`: Count of clicks from MouseUpEvent.
     pub const fn click_count(&self) -> usize {
         match self {
             ClickEvent::Keyboard(_) => 1,
@@ -329,10 +329,10 @@ impl ClickEvent {
 /// An enum representing the keyboard button that was pressed for a click event.
 #[derive(Hash, PartialEq, Eq, Copy, Clone, Debug, Default)]
 pub enum KeyboardButton {
-    /// Enter key was clicked
+    /// Enter key was clicked.
     #[default]
     Enter,
-    /// Space key was clicked
+    /// Space key was clicked.
     Space,
 }
 

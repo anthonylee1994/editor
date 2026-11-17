@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use futures::FutureExt;
+use futures::FutureExt as _;
 use gpui::App;
 use gpui::Context;
 use gpui::HighlightStyle;
@@ -83,11 +83,8 @@ impl Editor {
             .filter(|buffer| self.is_lsp_relevant(buffer.read(cx).file(), cx))
             .filter_map(|buffer| {
                 let id = buffer.read(cx).buffer_id();
-                if for_buffer.is_none_or(|target| target == id) && lsp_symbols_enabled(buffer.read(cx), cx) {
-                    Some(buffer)
-                } else {
-                    None
-                }
+                (for_buffer.is_none_or(|target| target == id) && lsp_symbols_enabled(buffer.read(cx), cx))
+                    .then_some(buffer)
             })
             .unique_by(|buffer| buffer.read(cx).buffer_id())
             .collect::<Vec<_>>();

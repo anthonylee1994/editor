@@ -23,9 +23,9 @@ use crate::svg::theme::series_color;
 use crate::text::entities::decode;
 use crate::text::label::layout_label;
 use crate::text::label::trim;
+use crate::text::measure;
 use crate::text::measure::BOLD;
 use crate::text::measure::ITALIC;
-use crate::text::measure::{self};
 use crate::yaml::Value;
 use crate::yaml::push_number;
 
@@ -289,7 +289,7 @@ mod tests {
     use crate::Options;
     use crate::Theme;
     use crate::diagrams::treemap::parse;
-    use crate::text::measure::{self};
+    use crate::text::measure;
 
     const BUDGET: &str = "treemap-beta\n\"Budget\"\n    \"Operations\"\n        \"Salaries\": 700000\n        \"Equipment\": 200000\n        \"Supplies\": 100000\n    \"Marketing\"\n        \"Advertising\": 400000\n        \"Events\": 100000";
 
@@ -345,13 +345,12 @@ mod tests {
 
     fn deep_tree() -> String {
         let mut src = String::from("treemap\n");
-        for i in 0..6 {
+        for i in 0_u64..6 {
             writeln!(src, "\"top {i}\"").unwrap();
             for j in 0..8 {
                 writeln!(src, "  \"mid {i}.{j}\"\n    \"inner {i}.{j}\"").unwrap();
                 for k in 0..8 {
-                    writeln!(src, "      \"leaf {i}.{j}.{k}\": {}", 1 + ((i * 64 + j * 8 + k) % 37_i64).pow(3))
-                        .unwrap();
+                    writeln!(src, "      \"leaf {i}.{j}.{k}\": {}", 1 + ((i * 64 + j * 8 + k) % 37).pow(3)).unwrap();
                 }
             }
         }
@@ -397,7 +396,7 @@ mod tests {
         let mid = boxes.iter().filter(|r| r.id.starts_with("mid 0.")).map(|r| r.x).fold(f64::INFINITY, f64::min);
         assert_eq!(mid - top.x, 3.0);
         let mut gaps = vec![smallest_gap(boxes.iter().filter(|r| r.id.starts_with("top ")))];
-        for i in 0..6 {
+        for i in 0_u64..6 {
             gaps.push(smallest_gap(boxes.iter().filter(|r| r.id.starts_with(&format!("mid {i}.")))));
             for j in 0..8 {
                 gaps.push(smallest_gap(boxes.iter().filter(|r| r.id.starts_with(&format!("leaf {i}.{j}.")))));

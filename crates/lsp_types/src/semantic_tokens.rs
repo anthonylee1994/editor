@@ -14,7 +14,7 @@ use crate::WorkDoneProgressParams;
 /// and clients can specify additional token types via the
 /// corresponding client capabilities.
 ///
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Debug, Eq, PartialEq, Hash, PartialOrd, Clone, Deserialize, Serialize)]
 pub struct SemanticTokenType(Cow<'static, str>);
 
@@ -42,7 +42,7 @@ impl SemanticTokenType {
     pub const REGEXP: SemanticTokenType = SemanticTokenType::new("regexp");
     pub const OPERATOR: SemanticTokenType = SemanticTokenType::new("operator");
 
-    /// @since 3.17.0
+    /// @since 3.17.0.
     pub const DECORATOR: SemanticTokenType = SemanticTokenType::new("decorator");
 
     pub const fn new(tag: &'static str) -> Self {
@@ -70,7 +70,7 @@ impl From<&'static str> for SemanticTokenType {
 /// and clients can specify additional token types via the
 /// corresponding client capabilities.
 ///
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Debug, Eq, PartialEq, Hash, PartialOrd, Clone, Deserialize, Serialize)]
 pub struct SemanticTokenModifier(Cow<'static, str>);
 
@@ -134,7 +134,7 @@ impl From<&'static str> for TokenFormat {
     }
 }
 
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SemanticTokensLegend {
@@ -145,7 +145,7 @@ pub struct SemanticTokensLegend {
     pub token_modifiers: Vec<SemanticTokenModifier>,
 }
 
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SemanticTokens {
@@ -158,11 +158,11 @@ pub struct SemanticTokens {
 
     /// The actual tokens. For a detailed description about how the data is
     /// structured please see
-    /// <https://github.com/microsoft/vscode-extension-samples/blob/5ae1f7787122812dcc84e37427ca90af5ee09f14/semantic-tokens-sample/vscode.proposed.d.ts#L71>
+    /// <https://github.com/microsoft/vscode-extension-samples/blob/5ae1f7787122812dcc84e37427ca90af5ee09f14/semantic-tokens-sample/vscode.proposed.d.ts#L71>.
     pub data: Vec<u32>,
 }
 
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SemanticTokensPartialResult {
@@ -189,7 +189,7 @@ impl From<SemanticTokensPartialResult> for SemanticTokensResult {
     }
 }
 
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SemanticTokensEdit {
@@ -221,20 +221,20 @@ impl From<SemanticTokensDelta> for SemanticTokensFullDeltaResult {
     }
 }
 
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SemanticTokensDelta {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub result_id: Option<String>,
     /// For a detailed description how these edits are structured please see
-    /// <https://github.com/microsoft/vscode-extension-samples/blob/5ae1f7787122812dcc84e37427ca90af5ee09f14/semantic-tokens-sample/vscode.proposed.d.ts#L131>
+    /// <https://github.com/microsoft/vscode-extension-samples/blob/5ae1f7787122812dcc84e37427ca90af5ee09f14/semantic-tokens-sample/vscode.proposed.d.ts#L131>.
     pub edits: Vec<SemanticTokensEdit>,
 }
 
 /// Capabilities specific to the `textDocument/semanticTokens/*` requests.
 ///
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SemanticTokensClientCapabilities {
@@ -276,7 +276,7 @@ pub struct SemanticTokensClientCapabilities {
     /// ErrorCodes.ServerCancelled. If a server does the client
     /// needs to retrigger the request.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub server_cancel_support: Option<bool>,
 
@@ -289,7 +289,7 @@ pub struct SemanticTokensClientCapabilities {
     /// If the value is `undefined` then the client behavior is not
     /// specified.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub augments_syntax_tokens: Option<bool>,
 }
@@ -319,14 +319,14 @@ pub enum SemanticTokensFullOptions {
     },
 }
 
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SemanticTokensOptions {
     #[serde(flatten)]
     pub work_done_progress_options: WorkDoneProgressOptions,
 
-    /// The legend used by the server
+    /// The legend used by the server.
     pub legend: SemanticTokensLegend,
 
     /// Server supports providing semantic tokens for a specific range
@@ -461,7 +461,7 @@ mod tests {
     use crate::tests::test_serialization;
 
     #[test]
-    fn test_semantic_tokens_support_serialization() {
+    fn semantic_tokens_support_serialization() {
         test_serialization(&SemanticTokens { result_id: None, data: vec![] }, r#"{"data":[]}"#);
 
         test_serialization(&SemanticTokens { result_id: None, data: vec![2, 5, 3, 0, 3] }, r#"{"data":[2,5,3,0,3]}"#);
@@ -473,7 +473,7 @@ mod tests {
     }
 
     #[test]
-    fn test_semantic_tokens_support_deserialization() {
+    fn semantic_tokens_support_deserialization() {
         test_deserialization(r#"{"data":[]}"#, &SemanticTokens { result_id: None, data: vec![] });
 
         test_deserialization(r#"{"data":[2,5,3,0,3]}"#, &SemanticTokens { result_id: None, data: vec![2, 5, 3, 0, 3] });
@@ -486,12 +486,12 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "assertion `left == right` failed")]
-    fn test_semantic_tokens_support_deserialization_err() {
+    fn semantic_tokens_support_deserialization_err() {
         test_deserialization(r#"{"data":[1]}"#, &SemanticTokens { result_id: None, data: vec![] });
     }
 
     #[test]
-    fn test_semantic_tokens_edit_support_deserialization() {
+    fn semantic_tokens_edit_support_deserialization() {
         test_deserialization(
             r#"{"start":0,"deleteCount":1,"data":[2]}"#,
             &SemanticTokensEdit { start: 0, delete_count: 1, data: Some(vec![2]) },
@@ -509,7 +509,7 @@ mod tests {
     }
 
     #[test]
-    fn test_semantic_tokens_edit_support_serialization() {
+    fn semantic_tokens_edit_support_serialization() {
         test_serialization(
             &SemanticTokensEdit { start: 0, delete_count: 1, data: Some(vec![2]) },
             r#"{"start":0,"deleteCount":1,"data":[2]}"#,

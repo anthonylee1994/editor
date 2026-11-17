@@ -8,7 +8,7 @@ use anyhow::Context as _;
 use anyhow::Result;
 use async_macos::command::Command;
 use rustc_hash::FxHashMap;
-use serde::Deserialize;
+use serde::Deserialize as _;
 
 use crate::shell::ShellKind;
 
@@ -23,6 +23,7 @@ fn parse_env_map_from_noisy_output(output: &str) -> Result<rustc_hash::FxHashMap
     anyhow::bail!("Failed to find JSON in shell output: {output}")
 }
 
+#[expect(clippy::print_stdout, clippy::print_stderr, reason = "CLI output")]
 pub fn print_env() {
     let env_vars: FxHashMap<String, String> = env::vars().collect();
     let json = serde_json::to_string_pretty(&env_vars).unwrap_or_else(|err| {
@@ -134,7 +135,7 @@ async fn capture_unix(
 }
 
 async fn spawn_and_read_fd(command: process::Command, child_fd: RawFd) -> anyhow::Result<(Vec<u8>, process::Output)> {
-    use std::io::Read;
+    use std::io::Read as _;
     use std::process::Stdio;
 
     let (mut reader, writer) = io::pipe()?;

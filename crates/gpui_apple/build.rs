@@ -24,7 +24,7 @@ mod apple_build {
     }
 
     fn generate_shader_bindings() -> PathBuf {
-        let output_path = PathBuf::from(env::var("OUT_DIR").unwrap()).join("scene.h");
+        let output_path = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR is set by cargo")).join("scene.h");
 
         let gpui_dir = find_gpui_crate_dir();
 
@@ -66,7 +66,7 @@ mod apple_build {
 
         let mut builder = cbindgen::Builder::new();
 
-        let crate_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+        let crate_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is set by cargo"));
 
         // Source files from gpui that define types used in shaders
         let gpui_src_paths = [
@@ -94,7 +94,7 @@ mod apple_build {
     /// build-script runtime against this crate's manifest dir, so no checkout
     /// path is baked into a compiled artifact (which corgi rejects).
     fn find_gpui_crate_dir() -> PathBuf {
-        PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap()).join("../gpui")
+        PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR is set by cargo")).join("../gpui")
     }
 
     /// To enable runtime compilation, we need to "stitch" the shaders file with the generated header
@@ -105,13 +105,14 @@ mod apple_build {
             let header_contents = fs::read_to_string(header)?;
             let shader_contents = fs::read_to_string(shader_path)?;
             let stitched_contents = format!("{header_contents}\n{shader_contents}");
-            let out_path = PathBuf::from(env::var("OUT_DIR").unwrap()).join("stitched_shaders.metal");
+            let out_path =
+                PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR is set by cargo")).join("stitched_shaders.metal");
             fs::write(&out_path, stitched_contents)?;
             Ok(out_path)
         }
         let shader_source_path = "./src/shaders.metal";
         let shader_path = PathBuf::from(shader_source_path);
-        stitch_header(header_path, &shader_path).unwrap();
+        stitch_header(header_path, &shader_path).expect("failed to stitch shader header");
         println!("cargo:rerun-if-changed={shader_source_path}");
     }
 

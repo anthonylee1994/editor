@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use gpui::App;
-use language::OffsetRangeExt;
+use language::OffsetRangeExt as _;
 use language::ToOffset as _;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
@@ -122,7 +122,7 @@ impl MultiBuffer {
                     last_snapshot.path_key.clone(),
                     last_snapshot.path_key_index,
                     buffer_state.buffer.clone(),
-                    if buffer_edited { Some(last_snapshot.buffer_snapshot.version().clone()) } else { None },
+                    buffer_edited.then(|| last_snapshot.buffer_snapshot.version().clone()),
                 ));
             }
 

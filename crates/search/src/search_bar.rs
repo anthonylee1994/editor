@@ -2,7 +2,7 @@ use editor::Editor;
 use editor::EditorElement;
 use editor::EditorStyle;
 use editor::MultiBufferOffset;
-use editor::ToOffset;
+use editor::ToOffset as _;
 use gpui::Action;
 use gpui::App;
 use gpui::ClickEvent;
@@ -17,19 +17,19 @@ use ui::IconButton;
 use ui::IconButtonShape;
 use ui::Tooltip;
 use ui::font;
-use ui::prelude::ActiveTheme;
-use ui::prelude::ButtonCommon;
-use ui::prelude::Clickable;
+use ui::prelude::ActiveTheme as _;
+use ui::prelude::ButtonCommon as _;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
-use ui::prelude::Disableable;
+use ui::prelude::Disableable as _;
 use ui::prelude::Div;
-use ui::prelude::FluentBuilder;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
-use ui::prelude::ParentElement;
+use ui::prelude::LabelCommon as _;
+use ui::prelude::ParentElement as _;
 use ui::prelude::SharedString;
-use ui::prelude::Styled;
-use ui::prelude::Toggleable;
+use ui::prelude::Styled as _;
+use ui::prelude::Toggleable as _;
 use ui::prelude::div;
 use ui::prelude::h_flex;
 use ui::prelude::relative;
@@ -148,7 +148,7 @@ pub(crate) fn render_text_input(editor: &Entity<Editor>, color_override: Option<
     EditorElement::new(editor, editor_style)
 }
 
-/// This element makes all search inputs align as if they were in the same column
+/// This element makes all search inputs align as if they were in the same column.
 pub(crate) fn alignment_element() -> Div {
     div().size_5().flex_none().ml_0p5()
 }

@@ -37,6 +37,7 @@ const TRAFFIC_LIGHT_MARGIN_PX: f32 = 4.;
 pub const TRAFFIC_LIGHT_PADDING: f32 = TRAFFIC_LIGHT_POSITION.0 + TRAFFIC_LIGHT_SIZE_PX + TRAFFIC_LIGHT_MARGIN_PX;
 
 #[cfg(test)]
+#[expect(clippy::float_cmp_const, reason = "asserts exact layout constants")]
 mod tests {
     use super::CARD_GAP_PX;
     use super::DEFAULT_TAB_ROW_PX;
@@ -45,14 +46,14 @@ mod tests {
     use super::TRAFFIC_LIGHT_SIZE_PX;
 
     #[test]
-    fn test_traffic_lights_on_tab_row_centre_line() {
+    fn traffic_lights_on_tab_row_centre_line() {
         assert_eq!(DEFAULT_TAB_ROW_PX, 36.);
         assert_eq!(TRAFFIC_LIGHT_POSITION, (16., 19.));
         assert_eq!(TRAFFIC_LIGHT_POSITION.1 + TRAFFIC_LIGHT_SIZE_PX / 2., CARD_GAP_PX + DEFAULT_TAB_ROW_PX / 2.);
     }
 
     #[test]
-    fn test_traffic_light_padding_fits_close_button_only() {
+    fn traffic_light_padding_fits_close_button_only() {
         assert_eq!(TRAFFIC_LIGHT_PADDING, 34.);
     }
 }

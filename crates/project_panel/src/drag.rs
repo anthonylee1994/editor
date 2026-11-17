@@ -19,14 +19,14 @@ use project::ProjectEntryId;
 use project::ProjectPath;
 use project::Worktree;
 use rustc_hash::FxHashMap;
-use util::ResultExt;
-use util::TryFutureExt;
+use util::ResultExt as _;
+use util::TryFutureExt as _;
 use util::markdown::MarkdownInlineCode;
 use util::rel_path::RelPath;
 use util::rel_path::RelPathBuf;
 use workspace::DraggedSelection;
 use workspace::SelectedEntry;
-use workspace::notifications::NotifyResultExt;
+use workspace::notifications::NotifyResultExt as _;
 use worktree::CreatedEntry;
 
 use super::FoldedDirectoryDragTarget;
@@ -118,7 +118,7 @@ impl ProjectPanel {
             let project = self.project.read(cx);
             let worktree = project.worktree_for_entry(entry_id, cx)?;
             let entry = worktree.read(cx).entry_for_id(entry_id)?;
-            let path = entry.path.clone();
+            let path = Arc::clone(&entry.path);
             let target_directory = if entry.is_dir() { path } else { path.parent()?.into() };
             Some((target_directory, worktree))
         })() else {
@@ -130,9 +130,10 @@ impl ProjectPanel {
             if let Some(name) = path.file_name()
                 && let Some(name) = name.to_str()
             {
-                let target_path = target_directory.join(RelPath::from_unix_str(name).unwrap());
+                let target_path =
+                    target_directory.join(RelPath::from_unix_str(name).expect("file name is a valid relative path"));
                 if worktree.read(cx).entry_for_path(&target_path).is_some() {
-                    paths_to_replace.push((name.to_string(), path.clone()));
+                    paths_to_replace.push((name.to_owned(), Arc::clone(path)));
                 }
             }
         }
@@ -186,10 +187,9 @@ impl ProjectPanel {
                     let changes: Vec<Change> = opened_entries
                         .iter()
                         .filter_map(|entry_id| {
-                            worktree
-                                .read(cx)
-                                .entry_for_id(*entry_id)
-                                .map(|entry| Change::Created(ProjectPath { worktree_id, path: entry.path.clone() }))
+                            worktree.read(cx).entry_for_id(*entry_id).map(|entry| {
+                                Change::Created(ProjectPath { worktree_id, path: Arc::clone(&entry.path) })
+                            })
                         })
                         .collect();
 
@@ -261,7 +261,7 @@ impl ProjectPanel {
         }
 
         if Self::is_copy_modifier_set(window.modifiers()) {
-            let _ = (|| {
+            let _: Option<_> = (|| {
                 let project = self.project.read(cx);
                 let target_worktree = project.worktree_for_entry(target_entry_id, cx)?;
                 let worktree_id = target_worktree.read(cx).id();
@@ -421,7 +421,7 @@ impl ProjectPanel {
                             {
                                 operations.push(Change::Renamed(
                                     old_path.clone(),
-                                    (worktree_id, new_entry.path.clone()).into(),
+                                    (worktree_id, Arc::clone(&new_entry.path)).into(),
                                 ));
                             }
                             move_results.push((entry_id, new_entry));

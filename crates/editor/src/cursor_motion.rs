@@ -598,6 +598,7 @@ mod tests {
     }
 
     #[test]
+    #[expect(clippy::float_cmp_const, reason = "asserts both names refer to the same constant")]
     fn long_move_is_95_percent_there_at_the_navigation_settle_time() {
         let mut spring = DampedSpringAnimation { state: SpringState { position: 100.0, velocity: 0.0 } };
         let frame = ANIMATION_LENGTH_SECONDS / 10.0;

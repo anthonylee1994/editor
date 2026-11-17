@@ -22,7 +22,7 @@ pub struct KeyBinding {
     pub(crate) keystrokes: SmallVec<[KeybindingKeystroke; 2]>,
     pub(crate) context_predicate: Option<Rc<KeyBindingContextPredicate>>,
     pub(crate) meta: Option<KeyBindingMetaIndex>,
-    /// The json input string used when building the keybinding, if any
+    /// The json input string used when building the keybinding, if any.
     pub(crate) action_input: Option<SharedString>,
 }
 
@@ -41,8 +41,10 @@ impl Clone for KeyBinding {
 impl KeyBinding {
     /// Construct a new keybinding from the given data. Panics on parse error.
     pub fn new<A: Action>(keystrokes: &str, action: A, context: Option<&str>) -> Self {
-        let context_predicate = context.map(|context| KeyBindingContextPredicate::parse(context).unwrap().into());
-        Self::load(keystrokes, Box::new(action), context_predicate, false, None, &DummyKeyboardMapper).unwrap()
+        let context_predicate = context
+            .map(|context| KeyBindingContextPredicate::parse(context).expect("invalid keybinding context").into());
+        Self::load(keystrokes, Box::new(action), context_predicate, false, None, &DummyKeyboardMapper)
+            .expect("invalid keybinding keystrokes")
     }
 
     /// Load a keybinding from the given raw data.
@@ -86,22 +88,22 @@ impl KeyBinding {
         Some(self.keystrokes.len() > typed.len())
     }
 
-    /// Get the keystrokes associated with this binding
+    /// Get the keystrokes associated with this binding.
     pub fn keystrokes(&self) -> &[KeybindingKeystroke] {
         self.keystrokes.as_slice()
     }
 
-    /// Get the action associated with this binding
+    /// Get the action associated with this binding.
     pub fn action(&self) -> &dyn Action {
         self.action.as_ref()
     }
 
-    /// Get the predicate used to match this binding
+    /// Get the predicate used to match this binding.
     pub fn predicate(&self) -> Option<Rc<KeyBindingContextPredicate>> {
         self.context_predicate.as_ref().map(Clone::clone)
     }
 
-    /// Get the metadata for this binding
+    /// Get the metadata for this binding.
     pub const fn meta(&self) -> Option<KeyBindingMetaIndex> {
         self.meta
     }

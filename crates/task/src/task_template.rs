@@ -5,9 +5,9 @@ use anyhow::bail;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use serde::Serialize;
-use sha2::Digest;
+use sha2::Digest as _;
 use sha2::Sha256;
-use util::ResultExt;
+use util::ResultExt as _;
 use util::truncate_and_remove_front;
 
 use crate::ED_VARIABLE_NAME_PREFIX;

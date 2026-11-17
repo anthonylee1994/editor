@@ -762,7 +762,7 @@ pub(crate) fn resolve_usecase(src: &str, drafts: Drafts, title: Option<&str>) ->
     // An end of a relationship that nothing declares becomes a use case.
     let mut relationships: Vec<Relationship> = Vec::new();
     let mut edges: BTreeMap<String, usize> = BTreeMap::new();
-    let mut anonymous = 0usize;
+    let mut anonymous = 0_usize;
     for draft in &drafts.relationships {
         let mut endpoint = |end: &DraftEndpoint| -> Result<SymbolKind, Error> {
             if end.classed && !end.declares {

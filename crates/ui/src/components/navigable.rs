@@ -4,15 +4,15 @@ use gpui::ScrollAnchor;
 use gpui::ScrollHandle;
 
 use crate::prelude::App;
-use crate::prelude::InteractiveElement;
+use crate::prelude::InteractiveElement as _;
 use crate::prelude::IntoElement;
-use crate::prelude::ParentElement;
+use crate::prelude::ParentElement as _;
 use crate::prelude::RenderOnce;
-use crate::prelude::Styled;
+use crate::prelude::Styled as _;
 use crate::prelude::Window;
 use crate::prelude::div;
 
-/// An element that can be navigated through via keyboard. Intended for use with scrollable views that want to use
+/// An element that can be navigated through via keyboard. Intended for use with scrollable views that want to use.
 #[derive(IntoElement)]
 pub struct Navigable {
     child: AnyElement,
@@ -47,7 +47,7 @@ impl Navigable {
     /// Add a new entry that can be navigated to via keyboard.
     ///
     /// The order of calls to [Navigable::entry] determines the order of traversal of
-    /// elements via successive uses of `menu:::SelectNext/SelectPrevious`
+    /// elements via successive uses of `menu:::SelectNext/SelectPrevious`.
     pub fn entry(mut self, child: NavigableEntry) -> Self {
         self.selectable_children.push(child);
         self

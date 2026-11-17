@@ -10,9 +10,9 @@ use ui::Icon;
 use ui::IconName;
 use ui::IconSize;
 use ui::SharedString;
-use util::ResultExt;
+use util::ResultExt as _;
+use workspace;
 use workspace::Workspace;
-use workspace::{self};
 
 #[allow(clippy::type_complexity)]
 pub fn clone_and_open(
@@ -42,7 +42,7 @@ pub fn clone_and_open(
 
             let clone_task = workspace
                 .update(cx, |workspace, cx| {
-                    let fs = workspace.app_state().fs.clone();
+                    let fs = Arc::clone(&workspace.app_state().fs);
                     let destination_dir = destination_dir.clone();
                     let repo_url = repo_url.clone();
                     cx.spawn(async move |_workspace, _cx| fs.git_clone(destination_dir.as_path(), &repo_url).await)
@@ -95,7 +95,7 @@ pub fn clone_and_open(
                                 .update(cx, |project, cx| project.create_worktree(destination_dir.as_path(), true, cx));
 
                             let workspace_weak = cx.weak_entity();
-                            let on_success = on_success.clone();
+                            let on_success = Arc::clone(&on_success);
                             cx.spawn_in(window, async move |_window, cx| {
                                 if create_task.await.log_err().is_some() {
                                     workspace_weak
@@ -112,9 +112,9 @@ pub fn clone_and_open(
                 1 => {
                     workspace
                         .update(cx, move |workspace, cx| {
-                            let app_state = workspace.app_state().clone();
+                            let app_state = Arc::clone(workspace.app_state());
                             let destination_path = destination_dir.clone();
-                            let on_success = on_success.clone();
+                            let on_success = Arc::clone(&on_success);
 
                             workspace::open_new(
                                 workspace::OpenOptions::default(),

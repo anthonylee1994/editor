@@ -1,14 +1,14 @@
 use std::collections::hash_map::DefaultHasher;
 use std::f32::consts::TAU;
 use std::fs;
-use std::hash::Hash;
-use std::hash::Hasher;
+use std::hash::Hash as _;
+use std::hash::Hasher as _;
 use std::io;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use gpui_util::ResultExt;
+use gpui_util::ResultExt as _;
 
 use crate::App;
 use crate::Asset;

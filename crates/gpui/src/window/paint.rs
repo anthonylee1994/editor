@@ -19,7 +19,7 @@ use crate::Edges;
 use crate::FontId;
 use crate::GlyphId;
 use crate::Hsla;
-use crate::IsZero;
+use crate::IsZero as _;
 use crate::MonochromeSprite;
 use crate::Path;
 use crate::Pixels;
@@ -672,7 +672,7 @@ impl Window {
     }
 
     /// Paint an image into the scene for the next frame at the current z-index.
-    /// This method will panic if the frame_index is not valid
+    /// This method will panic if the frame_index is not valid.
     ///
     /// This method should only be called as part of the paint phase of element drawing.
     /// Paint an image into `bounds`, positioning and scaling it according to `image_bounds`.
@@ -847,7 +847,7 @@ pub fn fill(bounds: impl Into<Bounds<Pixels>>, background: impl Into<Background>
     }
 }
 
-/// Creates a rectangle outline with the given bounds, border color, and a 1px border width
+/// Creates a rectangle outline with the given bounds, border color, and a 1px border width.
 pub fn outline(
     bounds: impl Into<Bounds<Pixels>>,
     border_color: impl Into<Hsla>,

@@ -5,7 +5,7 @@ use std::time::Duration;
 use scheduler::Instant;
 
 use crate::Axis;
-use crate::IsZero;
+use crate::IsZero as _;
 use crate::Pixels;
 use crate::Point;
 use crate::TouchPhase;

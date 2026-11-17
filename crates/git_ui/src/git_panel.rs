@@ -46,12 +46,12 @@ use gpui::Pixels;
 use gpui::PromptLevel;
 use gpui::Subscription;
 use gpui::Task;
-use gpui::TaskExt;
+use gpui::TaskExt as _;
 use gpui::TextStyle;
 use gpui::UniformListScrollHandle;
 use gpui::WeakEntity;
 use gpui::actions;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use language::Buffer;
 use menu;
 use multi_buffer::ExcerptBoundaryInfo;
@@ -70,27 +70,27 @@ use theme::built_in::BUFFER_LINE_HEIGHT;
 use ui::ContextMenu;
 use ui::PopoverMenuHandle;
 use ui::font;
-use ui::prelude::ActiveTheme;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::App;
-use ui::prelude::BorrowAppContext;
+use ui::prelude::BorrowAppContext as _;
 use ui::prelude::Context;
 use ui::prelude::Div;
 use ui::prelude::Rems;
 use ui::prelude::SharedString;
-use ui::prelude::Styled;
+use ui::prelude::Styled as _;
 use ui::prelude::ToggleState;
 use ui::prelude::Window;
 use ui::prelude::px;
 use ui::prelude::rems;
 use ui::prelude::v_flex;
-use util::ResultExt;
-use workspace::Item;
+use util::ResultExt as _;
+use workspace::Item as _;
 use workspace::Workspace;
 use workspace::dock::DockPosition;
 use workspace::dock::Panel;
 use workspace::dock::PanelEvent;
 use workspace::dock::SIDEBAR_MIN_WIDTH;
-use workspace::notifications::NotifyTaskExt;
+use workspace::notifications::NotifyTaskExt as _;
 
 use crate::git_graph;
 use crate::git_panel_view_options::GitPanelGroupBy;
@@ -173,7 +173,7 @@ where
     T: IntoEnumIterator + VariantNames + 'static,
 {
     let rx = window.prompt(PromptLevel::Info, msg, detail, T::VARIANTS, cx);
-    cx.spawn(async move |_| Ok(T::iter().nth(rx.await?).unwrap()))
+    cx.spawn(async move |_| Ok(T::iter().nth(rx.await?).expect("prompt answer is a variant index")))
 }
 
 // We only allow a single remote operation at a time to avoid concurrent
@@ -544,11 +544,11 @@ pub struct GitStatusEntry {
 
 impl GitStatusEntry {
     fn display_name(&self) -> String {
-        self.repo_path.file_name().map_or_else(|| self.repo_path.display().to_string(), |name| name.to_owned())
+        self.repo_path.file_name().map_or_else(|| self.repo_path.display().to_owned(), |name| name.to_owned())
     }
 
     fn parent_dir(&self) -> Option<String> {
-        self.repo_path.parent().map(|parent| parent.display().to_string())
+        self.repo_path.parent().map(|parent| parent.display().to_owned())
     }
 }
 
@@ -955,7 +955,7 @@ impl GitPanel {
             return;
         }
         cx.write_to_clipboard(ClipboardItem::new_string(
-            paths.into_iter().map(|path| path.display().to_string()).join("\n"),
+            paths.into_iter().map(|path| path.display().to_owned()).join("\n"),
         ));
     }
 
@@ -1153,7 +1153,7 @@ impl GitPanel {
         let mut single_staged_entry = None;
         let mut staged_count = 0;
         let mut seen_directories = FxHashSet::default();
-        let mut max_width_estimate = 0usize;
+        let mut max_width_estimate = 0_usize;
         let mut max_width_item_index = None;
 
         let Some(repo) = self.active_repository.as_ref() else {

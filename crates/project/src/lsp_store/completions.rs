@@ -9,10 +9,10 @@ use std::vec;
 
 use anyhow::Context as _;
 use anyhow::Result;
-use futures::FutureExt;
+use futures::FutureExt as _;
 use futures::future::join_all;
 use futures::select_biased;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::Context;
 use gpui::Entity;
 use gpui::SharedString;
@@ -21,11 +21,11 @@ use language::Buffer;
 use language::BufferSnapshot;
 use language::CachedLspAdapter;
 use language::CodeLabel;
-use language::CodeLabelExt;
+use language::CodeLabelExt as _;
 use language::Language;
 use language::LanguageAwareStyling;
 use language::PointUtf16;
-use language::ToOffset;
+use language::ToOffset as _;
 use language::Transaction;
 use language::language_settings::COMPLETIONS;
 use lsp::CompletionContext;
@@ -151,7 +151,7 @@ impl From<lsp::Documentation> for CompletionDocumentation {
         match docs {
             lsp::Documentation::String(text) => {
                 if text.lines().count() <= 1 {
-                    CompletionDocumentation::SingleLine(text.trim().to_string().into())
+                    CompletionDocumentation::SingleLine(text.trim().to_owned().into())
                 } else {
                     CompletionDocumentation::MultiLinePlainText(text.into())
                 }
@@ -296,7 +296,7 @@ impl LspStore {
 
             let buffer = buffer.clone();
             let lsp_timeout = COMPLETIONS.lsp_fetch_timeout_ms;
-            let lsp_timeout = if lsp_timeout > 0 { Some(Duration::from_millis(lsp_timeout)) } else { None };
+            let lsp_timeout = (lsp_timeout > 0).then(|| Duration::from_millis(lsp_timeout));
             cx.spawn(async move |this,  cx| {
                 let mut tasks = Vec::with_capacity(server_ids.len());
                 this.update(cx, |lsp_store, cx| {
@@ -411,7 +411,7 @@ impl LspStore {
 
                     let resolved = Self::resolve_completion_local(
                         server,
-                        completions.clone(),
+                        Rc::clone(&completions),
                         completion_index,
                         request_timeout,
                         true,
@@ -423,7 +423,7 @@ impl LspStore {
                         Self::regenerate_completion_labels(
                             adapter,
                             &buffer_snapshot,
-                            completions.clone(),
+                            Rc::clone(&completions),
                             completion_index,
                         )
                         .await
@@ -591,15 +591,15 @@ impl LspStore {
             cx,
         );
         let Some(server) = buffer_handle.update(cx, |buffer, cx| {
-            self.language_server_for_local_buffer(buffer, server_id, cx).map(|(_, server)| server.clone())
+            self.language_server_for_local_buffer(buffer, server_id, cx).map(|(_, server)| Arc::clone(server))
         }) else {
             return Task::ready(Ok(None));
         };
 
         cx.spawn(async move |this, cx| {
             Self::resolve_completion_local(
-                server.clone(),
-                completions.clone(),
+                Arc::clone(&server),
+                Rc::clone(&completions),
                 completion_index,
                 request_timeout,
                 can_resolve,
@@ -654,15 +654,14 @@ impl LspStore {
                         }
                     }
 
-                    let transaction = if buffer.end_transaction(cx).is_some() {
-                        let transaction = buffer.finalize_last_transaction().unwrap().clone();
+                    let transaction = buffer.end_transaction(cx).is_some().then(|| {
+                        let transaction =
+                            buffer.finalize_last_transaction().expect("transaction was just ended").clone();
                         if !push_to_history {
                             buffer.forget_transaction(transaction.id);
                         }
-                        Some(transaction)
-                    } else {
-                        None
-                    };
+                        transaction
+                    });
                     Ok(transaction)
                 })
             } else {

@@ -98,23 +98,21 @@ fn local_task_context_for_location(
 }
 
 fn worktree_root(worktree_store: &Entity<WorktreeStore>, location: &Location, cx: &App) -> Option<PathBuf> {
-    location
+    let worktree = location
         .buffer
         .read(cx)
         .file()
         .map(|f| f.worktree_id(cx))
-        .and_then(|worktree_id| worktree_store.read(cx).worktree_for_id(worktree_id, cx))
-        .and_then(|worktree| {
-            let worktree = worktree.read(cx);
-            if !worktree.is_visible() {
-                return None;
-            }
-            let root_entry = worktree.root_entry()?;
-            if !root_entry.is_dir() {
-                return None;
-            }
-            Some(worktree.absolutize(&root_entry.path))
-        })
+        .and_then(|worktree_id| worktree_store.read(cx).worktree_for_id(worktree_id, cx))?;
+    let worktree = worktree.read(cx);
+    if !worktree.is_visible() {
+        return None;
+    }
+    let root_entry = worktree.root_entry()?;
+    if !root_entry.is_dir() {
+        return None;
+    }
+    Some(worktree.absolutize(&root_entry.path))
 }
 
 fn combine_task_variables(
@@ -134,7 +132,7 @@ fn combine_task_variables(
                 let worktree_root = worktree_root(&worktree_store, &location, cx);
                 baseline.build_context(
                     &captured_variables,
-                    ContextLocation { fs: fs.clone(), worktree_root, file_location: &location },
+                    ContextLocation { fs: Arc::clone(&fs), worktree_root, file_location: &location },
                     project_env.clone(),
                     cx,
                 )

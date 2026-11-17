@@ -5,14 +5,14 @@ pub mod lsp_log_view;
 mod syntax_tree_view;
 
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::Entity;
 pub use highlights_tree_view::HighlightsTreeToolbarItemView;
 pub use syntax_tree_view::SyntaxTreeToolbarItemView;
 use ui::Context;
 use ui::Window;
 use workspace::Item;
-use workspace::ItemHandle;
+use workspace::ItemHandle as _;
 use workspace::SplitDirection;
 use workspace::Workspace;
 

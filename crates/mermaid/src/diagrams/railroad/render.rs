@@ -17,10 +17,10 @@ use crate::svg::theme::FONT_MONO;
 use crate::svg::theme::RADIUS;
 use crate::text::entities::decode;
 use crate::text::label::layout_label;
+use crate::text::measure;
 use crate::text::measure::BOLD;
 use crate::text::measure::ITALIC;
 use crate::text::measure::MONO;
-use crate::text::measure::{self};
 use crate::yaml::Value;
 use crate::yaml::push_number;
 

@@ -25,7 +25,7 @@ use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde::Serialize;
 use time::OffsetDateTime;
-use util::ResultExt;
+use util::ResultExt as _;
 use util::rel_path::RelPath;
 
 use self::model::SerializedWorkspace;
@@ -171,11 +171,11 @@ impl ProjectsStore {
     }
 
     pub fn global(cx: &App) -> Arc<ProjectsStore> {
-        cx.global::<GlobalProjectsStore>().0.clone()
+        Arc::clone(&cx.global::<GlobalProjectsStore>().0)
     }
 
     pub fn try_global(cx: &App) -> Option<Arc<ProjectsStore>> {
-        cx.try_global::<GlobalProjectsStore>().map(|store| store.0.clone())
+        cx.try_global::<GlobalProjectsStore>().map(|store| Arc::clone(&store.0))
     }
 
     pub fn recent(&self) -> Vec<RecentProject> {
@@ -202,10 +202,10 @@ impl ProjectsStore {
     }
 
     fn save(&self, cx: &App) -> Task<()> {
-        let fs = self.fs.clone();
+        let fs = Arc::clone(&self.fs);
         let path = self.path.clone();
-        let state = self.state.clone();
-        let write_lock = self.write_lock.clone();
+        let state = Arc::clone(&self.state);
+        let write_lock = Arc::clone(&self.write_lock);
         cx.background_spawn(async move {
             // Writes run one at a time, each taking the latest state, so the
             // file always ends up with the newest contents.
@@ -282,7 +282,7 @@ pub fn last_session_workspaces(cx: &App) -> Vec<SessionWorkspace> {
 /// `.ed` folder. Tabs on such files aren't persisted: `.ed` is config, and
 /// recording a tab on `workspace.json` would rewrite the file it shows.
 pub fn is_in_workspace_state_dir(path: &RelPath) -> bool {
-    path.starts_with(RelPath::from_unix_str(WORKSPACE_STATE_DIR).unwrap())
+    path.starts_with(RelPath::from_unix_str(WORKSPACE_STATE_DIR).expect("workspace state dir is a valid relative path"))
 }
 
 /// Path of the state file for a project whose first root folder is `root`.
@@ -307,7 +307,7 @@ pub(crate) fn write_workspace_state(
     json: String,
     cx: &App,
 ) -> Task<Result<()>> {
-    let fs = project.read(cx).fs().clone();
+    let fs = Arc::clone(project.read(cx).fs());
     let path = workspace_state_path(root);
     cx.background_spawn(async move {
         if let Some(parent) = path.parent() {
@@ -426,14 +426,14 @@ mod tests {
     }
 
     #[test]
-    fn test_projects_file_parse_ignores_invalid_contents() {
+    fn projects_file_parse_ignores_invalid_contents() {
         assert_eq!(ProjectsFile::parse("not json"), ProjectsFile::default());
         assert_eq!(ProjectsFile::parse(r#"{"recent": 3}"#), ProjectsFile::default());
         assert_eq!(ProjectsFile::parse("{}"), ProjectsFile::default());
     }
 
     #[test]
-    fn test_projects_file_round_trip() {
+    fn projects_file_round_trip() {
         let file = ProjectsFile {
             recent: vec![
                 RecentProject { location: local(&["/b", "/a"]), opened_at: 7, open: true },
@@ -445,7 +445,7 @@ mod tests {
     }
 
     #[test]
-    fn test_record_recent_moves_project_to_front() {
+    fn record_recent_moves_project_to_front() {
         let mut file = ProjectsFile::default();
         assert!(file.record_recent(local(&["/a"]), 1));
         assert!(file.record_recent(local(&["/b"]), 2));
@@ -463,7 +463,7 @@ mod tests {
     }
 
     #[test]
-    fn test_projects_file_parse_drops_remote_projects() {
+    fn projects_file_parse_drops_remote_projects() {
         let json = r#"{"recent": [
             {"paths": ["/srv"], "remote": {"host": "box"}, "opened_at": 2},
             {"paths": ["/a"], "opened_at": 1}
@@ -475,7 +475,7 @@ mod tests {
     }
 
     #[test]
-    fn test_record_recent_caps_the_list() {
+    fn record_recent_caps_the_list() {
         let mut file = ProjectsFile::default();
         for index in 0..super::MAX_RECENT_PROJECTS + 5 {
             file.record_recent(local(&[&format!("/{index}")]), i64::try_from(index).unwrap());
@@ -485,7 +485,7 @@ mod tests {
     }
 
     #[test]
-    fn test_remove_recent() {
+    fn remove_recent() {
         let mut file = ProjectsFile::default();
         file.record_recent(local(&["/a"]), 1);
         file.record_recent(local(&["/b"]), 2);
@@ -495,7 +495,7 @@ mod tests {
     }
 
     #[test]
-    fn test_record_recent_keeps_open_flag() {
+    fn record_recent_keeps_open_flag() {
         let mut file = ProjectsFile::default();
         file.record_recent(local(&["/a"]), 1);
         file.record_recent(local(&["/b"]), 2);
@@ -505,7 +505,7 @@ mod tests {
     }
 
     #[test]
-    fn test_set_open_reports_changes() {
+    fn set_open_reports_changes() {
         let mut file = ProjectsFile::default();
         file.record_recent(local(&["/a"]), 1);
         file.record_recent(local(&["/b"]), 2);
@@ -517,7 +517,7 @@ mod tests {
     }
 
     #[test]
-    fn test_open_projects_most_recent_first() {
+    fn open_projects_most_recent_first() {
         let mut file = ProjectsFile::default();
         file.record_recent(local(&["/a"]), 1);
         file.record_recent(local(&["/b"]), 2);
@@ -527,7 +527,7 @@ mod tests {
     }
 
     #[test]
-    fn test_is_in_workspace_state_dir() {
+    fn is_in_workspace_state_dir_works() {
         fn rel(path: &str) -> &RelPath {
             RelPath::from_unix_str(path).unwrap()
         }
@@ -541,7 +541,7 @@ mod tests {
     }
 
     #[test]
-    fn test_open_flag_serialized_only_when_set() {
+    fn open_flag_serialized_only_when_set() {
         let mut file = ProjectsFile::default();
         file.record_recent(local(&["/a"]), 1);
         assert!(!serde_json::to_string(&file).unwrap().contains(r#""open":"#));
@@ -550,7 +550,7 @@ mod tests {
     }
 
     #[test]
-    fn test_project_location_keeps_path_order() {
+    fn project_location_keeps_path_order() {
         let paths = PathList::new(&["/b", "/a"]);
         let location = ProjectLocation::new(&paths);
         assert_eq!(location.paths, [PathBuf::from("/b"), PathBuf::from("/a")]);
@@ -558,12 +558,12 @@ mod tests {
     }
 
     #[test]
-    fn test_workspace_state_paths() {
+    fn workspace_state_paths() {
         assert_eq!(workspace_state_path("/p".as_ref()), PathBuf::from("/p/.ed/workspace.json"));
     }
 
     #[test]
-    fn test_dedupe_recent_workspaces_keeps_first_of_group() {
+    fn dedupe_recent_workspaces_keeps_first_of_group() {
         let workspace = |paths: &[&str], identity: &[&str]| RecentWorkspace {
             paths: PathList::new(paths),
             identity_paths: PathList::new(identity),

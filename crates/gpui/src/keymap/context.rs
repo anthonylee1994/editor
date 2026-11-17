@@ -14,11 +14,11 @@ use crate::SharedString;
 pub struct KeyContext(Vec<ContextEntry>);
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
-/// An entry in a KeyContext
+/// An entry in a KeyContext.
 pub struct ContextEntry {
-    /// The key (or name if no value)
+    /// The key (or name if no value).
     pub key: SharedString,
-    /// The value
+    /// The value.
     pub value: Option<SharedString>,
 }
 
@@ -39,7 +39,7 @@ impl KeyContext {
         context
     }
 
-    /// Returns the primary context entry (usually the name of the component)
+    /// Returns the primary context entry (usually the name of the component).
     pub fn primary(&self) -> Option<&ContextEntry> {
         self.0.iter().find(|p| p.value.is_none())
     }
@@ -157,7 +157,7 @@ pub enum KeyBindingContextPredicate {
     /// A predicate that will match a given key-value pair not being present.
     NotEqual(SharedString, SharedString),
     /// A predicate that will match a given predicate appearing below another predicate.
-    /// in the element tree
+    /// in the element tree.
     Descendant(Box<KeyBindingContextPredicate>, Box<KeyBindingContextPredicate>),
     /// Predicate that will invert another predicate.
     Not(Box<KeyBindingContextPredicate>),
@@ -190,18 +190,18 @@ impl KeyBindingContextPredicate {
     /// A basic equivalence check against a set of identifiers can performed by
     /// simply writing a string:
     ///
-    /// `StatusBar` -> A predicate that will match a context with the identifier `StatusBar`
+    /// `StatusBar` -> A predicate that will match a context with the identifier `StatusBar`.
     ///
     /// You can also specify a key-value pair:
     ///
     /// `mode == visible` -> A predicate that will match a context with the key `mode`
-    ///                      with the value `visible`
+    ///                      with the value `visible`.
     ///
     /// And a logical operations combining these two checks:
     ///
     /// `StatusBar && mode == visible` -> A predicate that will match a context with the
     ///                                   identifier `StatusBar` and the key `mode`
-    ///                                   with the value `visible`
+    ///                                   with the value `visible`.
     ///
     ///
     /// There is also a special child `>` operator that will match a predicate that is
@@ -209,7 +209,7 @@ impl KeyBindingContextPredicate {
     ///
     /// `StatusBar > mode == visible` -> A predicate that will match a context identifier `StatusBar`
     ///                                  and a child context that has the key `mode` with the
-    ///                                  value `visible`
+    ///                                  value `visible`.
     ///
     /// This syntax supports `!=`, `||` and `&&` as logical operators.
     /// You can also preface an operation or check with a `!` to negate it.
@@ -353,12 +353,12 @@ impl KeyBindingContextPredicate {
                     source.find(|c: char| !is_identifier_char(c) && !is_vim_operator_char(c)).unwrap_or(source.len());
                 let (identifier, rest) = source.split_at(len);
                 source = skip_whitespace(rest);
-                Ok((KeyBindingContextPredicate::Identifier(identifier.to_string().into()), source))
+                Ok((KeyBindingContextPredicate::Identifier(identifier.to_owned().into()), source))
             }
             _ if is_vim_operator_char(next) => {
                 let (operator, rest) = source.split_at(1);
                 source = skip_whitespace(rest);
-                Ok((KeyBindingContextPredicate::Identifier(operator.to_string().into()), source))
+                Ok((KeyBindingContextPredicate::Identifier(operator.to_owned().into()), source))
             }
             _ => anyhow::bail!("unexpected character '{next:?}'"),
         }

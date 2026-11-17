@@ -22,8 +22,8 @@ use crate::text::label::trim;
 use crate::text::label::trim_start;
 use crate::util::chars::is_space;
 use crate::util::chars::is_word;
+use crate::yaml;
 use crate::yaml::Value;
-use crate::yaml::{self};
 
 /// A semantic error of a sequence diagram.
 #[cold]
@@ -229,11 +229,13 @@ impl SeqDb {
 
     /// The participant with `id`.
     pub(crate) fn actor(&self, id: &str) -> Option<&SeqActor> {
-        self.actor_at.get(id).and_then(|&at| self.actors.get(at))
+        let &at = self.actor_at.get(id)?;
+        self.actors.get(at)
     }
 
     fn actor_mut(&mut self, id: &str) -> Option<&mut SeqActor> {
-        self.actor_at.get(id).copied().and_then(|at| self.actors.get_mut(at))
+        let at = self.actor_at.get(id).copied()?;
+        self.actors.get_mut(at)
     }
 
     /// Sets the accessible title, without leading whitespace.
@@ -325,7 +327,10 @@ impl SeqDb {
                 }
             }
         }
-        let member = |key: &str| doc.as_ref().and_then(|doc| doc.iter().find(|(own, _)| own == key).map(|(_, v)| v));
+        let member = |key: &str| {
+            let doc = doc.as_ref()?;
+            doc.iter().find(|(own, _)| own == key).map(|(_, v)| v)
+        };
         if let Some(doc_type) = member("type").filter(|v| !matches!(v, Value::Null)) {
             let mut text = String::new();
             doc_type.push_js_string(&mut text);

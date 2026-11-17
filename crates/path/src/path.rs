@@ -10,7 +10,7 @@
 //! Adapted from Zed's `util::rel_path` module.
 
 use std::ffi::OsStr;
-use std::os::unix::prelude::OsStrExt;
+use std::os::unix::prelude::OsStrExt as _;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -140,7 +140,7 @@ mod tests {
     use super::split;
 
     #[test]
-    fn test_join() {
+    fn join_works() {
         assert_eq!(join("a", "b").as_deref(), Some("a/b"));
         assert_eq!(join("a/", "b").as_deref(), Some("a/b"));
         assert_eq!(join("", "b").as_deref(), Some("b"));
@@ -149,7 +149,7 @@ mod tests {
     }
 
     #[test]
-    fn test_join_path() {
+    fn join_path_works() {
         assert_eq!(join_path("/a/b", "../c").unwrap(), PathBuf::from("/a/c"));
         assert_eq!(join_path("a", "./b/").unwrap(), PathBuf::from("a/b"));
         join_path("a", "/b").unwrap_err();
@@ -158,7 +158,7 @@ mod tests {
     }
 
     #[test]
-    fn test_normalize() {
+    fn normalize_works() {
         assert_eq!(normalize("/"), "/");
         assert_eq!(normalize("//a//./b/"), "/a/b");
         assert_eq!(normalize("/../a/../../b"), "/b");
@@ -168,7 +168,7 @@ mod tests {
     }
 
     #[test]
-    fn test_split() {
+    fn split_works() {
         assert_eq!(split("a/b/c"), (Some("a/b/"), "c"));
         assert_eq!(split("/c"), (Some("/"), "c"));
         assert_eq!(split("c"), (None, "c"));
@@ -176,7 +176,7 @@ mod tests {
     }
 
     #[test]
-    fn test_normalize_path() {
+    fn normalize_path_works() {
         assert_eq!(normalize_path(Path::new("/a/./b/../c")), PathBuf::from("/a/c"));
         assert_eq!(normalize_path(Path::new("a/../../b")), PathBuf::from("b"));
     }

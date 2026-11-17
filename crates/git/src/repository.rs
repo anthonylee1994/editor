@@ -13,7 +13,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::ExitStatus;
 use std::process::Output;
-use std::str::FromStr;
+use std::str::FromStr as _;
 use std::sync::Arc;
 use std::time::SystemTime;
 
@@ -27,13 +27,13 @@ use async_macos::command::Stdio;
 use async_macos::command::new_command;
 use file_content::ByteContent;
 use file_content::decode_byte_header;
-use futures::AsyncWriteExt;
+use futures::AsyncWriteExt as _;
 use futures::FutureExt as _;
 use futures::channel::oneshot;
 use futures::future::BoxFuture;
 use futures::io::AsyncBufRead;
-use futures::io::AsyncBufReadExt;
-use futures::io::AsyncReadExt;
+use futures::io::AsyncBufReadExt as _;
+use futures::io::AsyncReadExt as _;
 use futures::io::BufReader;
 use futures::io::BufWriter;
 use gpui::AppContext as _;
@@ -47,7 +47,7 @@ use serde::Deserialize;
 use smallvec::SmallVec;
 use text::LineEnding;
 use thiserror::Error;
-use util::ResultExt;
+use util::ResultExt as _;
 use util::paths;
 use util::rel_path::RelPath;
 use util::shell::ShellKind;
@@ -74,11 +74,11 @@ use crate::status::TreeDiffStatus;
 /// %H - Full commit hash
 /// %P - Parent hashes
 /// %D - Ref names
-/// %x00 - Null byte separator, used to split up commit data
+/// %x00 - Null byte separator, used to split up commit data.
 static GRAPH_COMMIT_FORMAT: &str = "--format=%H%x00%P%x00%D";
 
 /// Used to get commits that match with a search
-/// %H - Full commit hash
+/// %H - Full commit hash.
 static SEARCH_COMMIT_FORMAT: &str = "--format=%H";
 
 /// Number of commits to load per chunk for the git graph.
@@ -106,7 +106,8 @@ fn linked_worktree_git_dir(worktree_path: &Path) -> Result<PathBuf> {
 }
 
 fn normalize_git_metadata_path(path: PathBuf) -> Result<PathBuf> {
-    paths::normalize_lexically(&path).map_err(|_| anyhow!("git metadata path escapes its filesystem root: {path:?}"))
+    paths::normalize_lexically(&path)
+        .map_err(|err| anyhow!("git metadata path escapes its filesystem root: {path:?}: {err}"))
 }
 
 /// Commit data needed for the git graph visualization.
@@ -162,8 +163,8 @@ impl CommitDataReader {
         self.request_tx
             .send(CommitDataRequest { sha, response_tx })
             .await
-            .map_err(|_| anyhow!("commit data reader task closed"))?;
-        response_rx.await.map_err(|_| anyhow!("commit data reader task dropped response"))?
+            .map_err(|err| anyhow!("commit data reader task closed: {err}"))?;
+        response_rx.await.map_err(|err| anyhow!("commit data reader task dropped response: {err}"))?
     }
 }
 
@@ -171,7 +172,7 @@ fn parse_cat_file_commit(sha: Oid, content: &str) -> CommitData {
     let mut parents = SmallVec::new();
     let mut author_name = SharedString::default();
     let mut author_email = SharedString::default();
-    let mut commit_timestamp = 0i64;
+    let mut commit_timestamp = 0_i64;
     let mut in_headers = true;
     let mut subject = None;
     let mut message_lines = Vec::new();
@@ -195,13 +196,13 @@ fn parse_cat_file_commit(sha: Oid, content: &str) -> CommitData {
                     commit_timestamp = ts;
                 }
                 if let Some((name, email)) = name_email.rsplit_once(" <") {
-                    author_name = SharedString::from(name.to_string());
-                    author_email = SharedString::from(email.trim_end_matches('>').to_string());
+                    author_name = SharedString::from(name.to_owned());
+                    author_email = SharedString::from(email.trim_end_matches('>').to_owned());
                 }
             }
         } else {
             if subject.is_none() {
-                subject = Some(SharedString::from(line.to_string()));
+                subject = Some(SharedString::from(line.to_owned()));
             }
             message_lines.push(line);
         }
@@ -252,7 +253,8 @@ impl Branch {
     }
 
     pub fn remote_name(&self) -> Option<&str> {
-        self.ref_name.strip_prefix("refs/remotes/").and_then(|stripped| stripped.split('/').next())
+        let stripped = self.ref_name.strip_prefix("refs/remotes/")?;
+        stripped.split('/').next()
     }
 }
 
@@ -315,7 +317,7 @@ impl Worktree {
 
     pub fn directory_name(&self, name_anchor_path: Option<&Path>) -> String {
         if self.is_main {
-            return "main worktree".to_string();
+            return "main worktree".to_owned();
         }
 
         let dir_name = self.path.file_name().and_then(|name| name.to_str()).unwrap_or_else(|| self.display_name());
@@ -326,11 +328,11 @@ impl Worktree {
                 && let Some(parent_name) =
                     self.path.parent().and_then(|parent| parent.file_name()).and_then(|name| name.to_str())
             {
-                return parent_name.to_string();
+                return parent_name.to_owned();
             }
         }
 
-        dir_name.to_string()
+        dir_name.to_owned()
     }
 }
 
@@ -351,11 +353,11 @@ pub fn parse_worktrees_from_str<T: AsRef<str>>(raw_worktrees: T, main_worktree_p
                 continue;
             }
             if let Some(rest) = line.strip_prefix("worktree ") {
-                path = Some(rest.to_string());
+                path = Some(rest.to_owned());
             } else if let Some(rest) = line.strip_prefix("HEAD ") {
-                sha = Some(rest.to_string());
+                sha = Some(rest.to_owned());
             } else if let Some(rest) = line.strip_prefix("branch ") {
-                ref_name = Some(rest.to_string());
+                ref_name = Some(rest.to_owned());
             } else if line == "bare" {
                 is_bare = true;
             }
@@ -384,11 +386,13 @@ impl Upstream {
     }
 
     pub fn remote_name(&self) -> Option<&str> {
-        self.ref_name.strip_prefix("refs/remotes/").and_then(|stripped| stripped.split('/').next())
+        let stripped = self.ref_name.strip_prefix("refs/remotes/")?;
+        stripped.split('/').next()
     }
 
     pub fn branch_name(&self) -> Option<&str> {
-        self.ref_name.strip_prefix("refs/remotes/").and_then(|stripped| stripped.split_once('/').map(|(_, name)| name))
+        let stripped = self.ref_name.strip_prefix("refs/remotes/")?;
+        stripped.split_once('/').map(|(_, name)| name)
     }
 }
 
@@ -445,7 +449,7 @@ pub struct UpstreamTrackingStatus {
 pub struct CommitSummary {
     pub sha: SharedString,
     pub subject: SharedString,
-    /// This is a unix timestamp
+    /// This is a unix timestamp.
     pub commit_timestamp: i64,
     pub author_name: SharedString,
     pub has_parent: bool,
@@ -738,7 +742,7 @@ pub trait GitRepository: Send + Sync {
 
     /// Returns the URL of the remote with the given name.
     fn remote_url(&self, name: &str) -> BoxFuture<'_, Option<String>> {
-        let name = name.to_string();
+        let name = name.to_owned();
         let fut = self.remote_urls();
         async move { fut.await.remove(&name) }.boxed()
     }
@@ -911,10 +915,10 @@ pub trait GitRepository: Send + Sync {
 
     fn create_remote(&self, name: String, url: String) -> BoxFuture<'_, Result<()>>;
 
-    /// returns a list of remote branches that contain HEAD
+    /// returns a list of remote branches that contain HEAD.
     fn check_for_pushed_commit(&self) -> BoxFuture<'_, Result<Vec<SharedString>>>;
 
-    /// Run git diff
+    /// Run git diff.
     fn diff(&self, diff: DiffType) -> BoxFuture<'_, Result<String>>;
 
     fn diff_stat(&self, diff: DiffStatType, path_prefixes: &[RepoPath]) -> BoxFuture<'static, Result<GitDiffStat>>;
@@ -1095,7 +1099,7 @@ fn parse_remote_urls(stdout: &str) -> FxHashMap<String, String> {
             && (suffix.is_empty() || suffix.starts_with(" [") && suffix.ends_with(']'))
             && let Some((name, url)) = line.split_once(char::is_whitespace)
         {
-            urls.insert(name.to_string(), url.trim_start().to_string());
+            urls.insert(name.to_owned(), url.trim_start().to_owned());
         }
     }
     urls
@@ -1131,11 +1135,11 @@ impl GitRepository for RealGitRepository {
                 if fields.len() != 6 {
                     bail!("unexpected git-show output for {commit:?}: {output:?}")
                 }
-                let sha = fields[0].to_string().into();
-                let message = fields[1].to_string().into();
+                let sha = fields[0].to_owned().into();
+                let message = fields[1].to_owned().into();
                 let commit_timestamp = fields[2].parse()?;
-                let author_email = fields[3].to_string().into();
-                let author_name = fields[4].to_string().into();
+                let author_email = fields[3].to_owned().into();
+                let author_name = fields[4].to_owned().into();
                 Ok(CommitDetails { sha, message, commit_timestamp, author_email, author_name })
             })
             .boxed()
@@ -1304,7 +1308,7 @@ impl GitRepository for RealGitRepository {
                     .await
                     .context("failed to run git config --get commit.template")?;
 
-                let raw_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                let raw_path = String::from_utf8_lossy(&output.stdout).trim().to_owned();
                 if !output.status.success() || raw_path.is_empty() {
                     return Ok(None);
                 }
@@ -1438,7 +1442,7 @@ impl GitRepository for RealGitRepository {
                 let output = std::str::from_utf8(&output.stdout)?;
                 let shas = output
                     .lines()
-                    .map(|line| if line.ends_with("missing") { None } else { Some(line.to_string()) })
+                    .map(|line| if line.ends_with("missing") { None } else { Some(line.to_owned()) })
                     .collect::<Vec<_>>();
 
                 if shas.len() != revs.len() {
@@ -1474,7 +1478,7 @@ impl GitRepository for RealGitRepository {
 
                 let mut stdin = BufWriter::new(process.stdin.take().context("no stdin")?);
                 let mut stdout = BufReader::new(process.stdout.take().context("no stdout")?);
-                let mut newline = [0u8; 1];
+                let mut newline = [0_u8; 1];
 
                 let mut header_bytes = Vec::new();
                 let mut results = Vec::with_capacity(revisions.len());
@@ -1496,7 +1500,7 @@ impl GitRepository for RealGitRepository {
                             let size: usize =
                                 size_str.parse().with_context(|| format!("invalid object size: {size_str}"))?;
 
-                            let mut content = vec![0u8; size];
+                            let mut content = vec![0_u8; size];
                             stdout.read_exact(&mut content).await?;
                             stdout.read_exact(&mut newline).await?;
 
@@ -1768,7 +1772,7 @@ impl GitRepository for RealGitRepository {
                     // git symbolic-ref returns a non-0 exit code if HEAD points
                     // to something other than a branch
                     if output.status.success() {
-                        let name = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                        let name = String::from_utf8_lossy(&output.stdout).trim().to_owned();
 
                         branches.push(Branch {
                             ref_name: name.into(),
@@ -2172,7 +2176,7 @@ impl GitRepository for RealGitRepository {
         self.executor
             .spawn(async move {
                 let git = git?;
-                let mut args = vec!["stash".to_string(), "pop".to_string()];
+                let mut args = vec!["stash".to_owned(), "pop".to_owned()];
                 if let Some(index) = index {
                     args.push(format!("stash@{{{index}}}"));
                 }
@@ -2193,7 +2197,7 @@ impl GitRepository for RealGitRepository {
         self.executor
             .spawn(async move {
                 let git = git?;
-                let mut args = vec!["stash".to_string(), "apply".to_string()];
+                let mut args = vec!["stash".to_owned(), "apply".to_owned()];
                 if let Some(index) = index {
                     args.push(format!("stash@{{{index}}}"));
                 }
@@ -2214,7 +2218,7 @@ impl GitRepository for RealGitRepository {
         self.executor
             .spawn(async move {
                 let git = git?;
-                let mut args = vec!["stash".to_string(), "drop".to_string()];
+                let mut args = vec!["stash".to_owned(), "drop".to_owned()];
                 if let Some(index) = index {
                     args.push(format!("stash@{{{index}}}"));
                 }
@@ -2400,7 +2404,7 @@ impl GitRepository for RealGitRepository {
                 let remote_name = String::from_utf8_lossy(&output.stdout)
                     .split('/')
                     .next()
-                    .map(|name| Remote { name: name.trim().to_string().into() });
+                    .map(|name| Remote { name: name.trim().to_owned().into() });
 
                 Ok(remote_name)
             })
@@ -2418,7 +2422,7 @@ impl GitRepository for RealGitRepository {
                 }
 
                 let remote_name = String::from_utf8_lossy(&output.stdout);
-                Ok(Some(Remote { name: remote_name.trim().to_string().into() }))
+                Ok(Some(Remote { name: remote_name.trim().to_owned().into() }))
             })
             .boxed()
     }
@@ -2441,7 +2445,7 @@ impl GitRepository for RealGitRepository {
                         let mut split_line = line.split_whitespace();
                         let remote_name = split_line.next()?;
 
-                        Some(Remote { name: remote_name.trim().to_string().into() })
+                        Some(Remote { name: remote_name.trim().to_owned().into() })
                     })
                     .collect();
 
@@ -2583,7 +2587,7 @@ impl GitRepository for RealGitRepository {
                     break;
                 }
 
-                let line = line_buffer.trim_end_matches('\n').to_string();
+                let line = line_buffer.trim_end_matches('\n').to_owned();
                 lines.push(line);
 
                 if lines.len() >= GRAPH_CHUNK_SIZE {
@@ -2709,9 +2713,9 @@ impl GitRepository for RealGitRepository {
             let output = git.build_command(&args).output().await?;
             anyhow::ensure!(output.status.success(), "git log failed:\n{}", String::from_utf8_lossy(&output.stderr));
 
-            let shallow_boundary_oids = read_shallow_file(&shallow_file_path).await?.map_or_default(|contents| {
-                contents.lines().map(|line| line.trim().to_string()).collect::<HashSet<_>>()
-            });
+            let shallow_boundary_oids = read_shallow_file(&shallow_file_path)
+                .await?
+                .map_or_default(|contents| contents.lines().map(|line| line.trim().to_owned()).collect::<HashSet<_>>());
 
             let stdout = String::from_utf8_lossy(&output.stdout);
             Ok(parse_file_history_changed_files_output(&stdout, &paths, &shallow_boundary_oids))
@@ -2797,10 +2801,10 @@ async fn read_single_commit_response<R: AsyncBufRead + Unpin>(stdout: &mut R, sh
 
     let size: usize = parts[2].parse().with_context(|| format!("invalid object size: {}", parts[2]))?;
 
-    let mut content = vec![0u8; size];
+    let mut content = vec![0_u8; size];
     stdout.read_exact(&mut content).await?;
 
-    let mut newline = [0u8; 1];
+    let mut newline = [0_u8; 1];
     stdout.read_exact(&mut newline).await?;
 
     let content_str = String::from_utf8_lossy(&content);
@@ -2863,7 +2867,7 @@ fn parse_initial_graph_output<'a>(lines: impl Iterator<Item = &'a str>) -> Vec<A
                 ref_names_str
                     .split(", ")
                     .filter(|decoration| *decoration != "grafted" && *decoration != "replaced")
-                    .map(|s| SharedString::from(s.to_string()))
+                    .map(|s| SharedString::from(s.to_owned()))
                     .collect()
             };
 
@@ -2979,7 +2983,7 @@ async fn run_git_command(
         .get("GIT_CONFIG_COUNT")
         .cloned()
         .or_else(|| env::var("GIT_CONFIG_COUNT").ok())
-        .unwrap_or_else(|| "0".to_string())
+        .unwrap_or_else(|| "0".to_owned())
         .parse::<usize>()
         .context("Invalid GIT_CONFIG_COUNT")?;
     for (offset, (key, default_program)) in
@@ -2988,9 +2992,9 @@ async fn run_git_command(
         let program = match git.run(&["config", "--get", key]).await {
             Ok(program) => program,
             Err(_) if key == "gpg.openpgp.program" => {
-                git.run(&["config", "--get", "gpg.program"]).await.unwrap_or_else(|_| default_program.to_string())
+                git.run(&["config", "--get", "gpg.program"]).await.unwrap_or_else(|_| default_program.to_owned())
             }
-            Err(_) => default_program.to_string(),
+            Err(_) => default_program.to_owned(),
         };
         let program = ShellKind::Posix.try_quote(&program).context("Failed to quote signing program")?;
         let wrapper = signing_dir.path().join(default_program);
@@ -3065,16 +3069,16 @@ fn parse_branch_input(input: &str) -> Vec<Branch> {
         let Some(head) = fields.next() else {
             continue;
         };
-        let Some(head_sha) = fields.next().map(|f| f.to_string().into()) else {
+        let Some(head_sha) = fields.next().map(|f| f.to_owned().into()) else {
             continue;
         };
-        let Some(parent_sha) = fields.next().map(ToString::to_string) else {
+        let Some(parent_sha) = fields.next().map(str::to_owned) else {
             continue;
         };
-        let Some(ref_name) = fields.next().map(|f| f.to_string().into()) else {
+        let Some(ref_name) = fields.next().map(|f| f.to_owned().into()) else {
             continue;
         };
-        let Some(upstream_name) = fields.next().map(ToString::to_string) else {
+        let Some(upstream_name) = fields.next().map(str::to_owned) else {
             continue;
         };
         let Some(upstream_tracking) = fields.next().and_then(|f| parse_upstream_track(f).ok()) else {
@@ -3083,10 +3087,10 @@ fn parse_branch_input(input: &str) -> Vec<Branch> {
         let Some(commiterdate) = fields.next().and_then(|f| f.parse::<i64>().ok()) else {
             continue;
         };
-        let Some(author_name) = fields.next().map(|f| f.to_string().into()) else {
+        let Some(author_name) = fields.next().map(|f| f.to_owned().into()) else {
             continue;
         };
-        let Some(subject) = fields.next().map(|f| f.to_string().into()) else {
+        let Some(subject) = fields.next().map(|f| f.to_owned().into()) else {
             continue;
         };
 
@@ -3155,7 +3159,7 @@ mod tests {
     }
 
     #[test]
-    fn test_build_command_keeps_user_git_config() {
+    fn build_command_keeps_user_git_config() {
         let args = command_args(&["commit", "-m", "msg"]);
         assert!(!args.iter().any(|arg| arg.starts_with("core.hooksPath") || arg.starts_with("credential.helper")));
         assert_eq!(args[args.len() - 3..], ["commit", "-m", "msg"]);
@@ -3166,7 +3170,7 @@ mod tests {
     }
 
     #[test]
-    fn test_rebase_action() {
+    fn rebase_action() {
         assert_eq!(RebaseAction::Continue.flag(), "--continue");
         assert_eq!(RebaseAction::Abort.flag(), "--abort");
         assert_eq!(RebaseAction::Continue.name(), "rebase continue");
@@ -3174,7 +3178,7 @@ mod tests {
     }
 
     #[test]
-    fn test_pull_rebases_with_autostash() {
+    fn pull_rebases_with_autostash() {
         let args = command_args(PULL_ARGS);
         assert_eq!(args[args.len() - 3..], ["pull", "--rebase", "--autostash"]);
     }

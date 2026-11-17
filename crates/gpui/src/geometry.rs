@@ -3,12 +3,12 @@
 //! between them.
 
 use core::fmt::Debug;
+use std::cmp;
 use std::cmp::PartialOrd;
-use std::cmp::{self};
 use std::f32::consts::GOLDEN_RATIO;
 use std::f32::consts::PI;
+use std::fmt;
 use std::fmt::Display;
-use std::fmt::{self};
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::iter::Sum;
@@ -38,8 +38,8 @@ use serde::Deserializer;
 use serde::Serialize;
 use serde::Serializer;
 use serde::de;
-use taffy::prelude::TaffyGridLine;
-use taffy::prelude::TaffyGridSpan;
+use taffy::prelude::TaffyGridLine as _;
+use taffy::prelude::TaffyGridSpan as _;
 
 use crate::App;
 use crate::DisplayId;
@@ -47,9 +47,9 @@ use crate::DisplayId;
 /// Axis in a 2D cartesian space.
 #[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Debug)]
 pub enum Axis {
-    /// The y axis, or up and down
+    /// The y axis, or up and down.
     Vertical,
-    /// The x axis, or left and right
+    /// The x axis, or left and right.
     Horizontal,
 }
 
@@ -65,7 +65,7 @@ impl Axis {
 
 /// A trait for accessing the given unit along a certain axis.
 pub trait Along {
-    /// The unit associated with this type
+    /// The unit associated with this type.
     type Unit;
 
     /// Returns the unit along the given axis.
@@ -184,7 +184,7 @@ impl<T> Point<T>
 where
     T: Sub<T, Output = T> + Clone + Debug + Default + PartialEq,
 {
-    /// Get the position of this point, relative to the given origin
+    /// Get the position of this point, relative to the given origin.
     pub fn relative_to(&self, origin: &Point<T>) -> Point<T> {
         point(self.x.clone() - origin.x.clone(), self.y.clone() - origin.y.clone())
     }
@@ -290,9 +290,25 @@ pub struct Size<T: Clone + Debug + Default + PartialEq> {
 }
 
 impl<T: Clone + Debug + Default + PartialEq> Size<T> {
-    /// Create a new Size, a synonym for [`size`]
+    /// Create a new Size, a synonym for [`size`].
     pub const fn new(width: T, height: T) -> Self {
         size(width, height)
+    }
+
+    /// Applies a function to the width and height of the size, producing a new `Size<U>`.
+    ///
+    /// This method allows for converting a `Size<T>` to a `Size<U>` by specifying a closure
+    /// that defines how to convert between the two types. The closure is applied to both the `width`
+    /// and `height`, resulting in a new size of the desired type.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - A closure that takes a value of type `T` and returns a value of type `U`.
+    pub fn map<U>(&self, f: impl Fn(T) -> U) -> Size<U>
+    where
+        U: Clone + Debug + Default + PartialEq,
+    {
+        Size { width: f(self.width.clone()), height: f(self.height.clone()) }
     }
 }
 
@@ -311,30 +327,9 @@ where
 
 impl<T> Size<T>
 where
-    T: Clone + Debug + Default + PartialEq,
-{
-    /// Applies a function to the width and height of the size, producing a new `Size<U>`.
-    ///
-    /// This method allows for converting a `Size<T>` to a `Size<U>` by specifying a closure
-    /// that defines how to convert between the two types. The closure is applied to both the `width`
-    /// and `height`, resulting in a new size of the desired type.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - A closure that takes a value of type `T` and returns a value of type `U`.
-    pub fn map<U>(&self, f: impl Fn(T) -> U) -> Size<U>
-    where
-        U: Clone + Debug + Default + PartialEq,
-    {
-        Size { width: f(self.width.clone()), height: f(self.height.clone()) }
-    }
-}
-
-impl<T> Size<T>
-where
     T: Clone + Debug + Default + PartialEq + Half,
 {
-    /// Compute the center point of the size.g
+    /// Compute the center point of the size.g.
     pub fn center(&self) -> Point<T> {
         Point { x: self.width.half(), y: self.height.half() }
     }
@@ -352,6 +347,14 @@ impl Size<Pixels> {
     /// * `factor` - The scaling factor to apply to the width and height.
     pub fn scale(&self, factor: f32) -> Size<ScaledPixels> {
         Size { width: self.width.scale(factor), height: self.height.scale(factor) }
+    }
+
+    /// Converts the size from logical to physical pixels.
+    pub fn to_device_pixels(self, scale_factor: f32) -> Size<DevicePixels> {
+        size(
+            DevicePixels((self.width.0 * scale_factor).round() as i32),
+            DevicePixels((self.height.0 * scale_factor).round() as i32),
+        )
     }
 }
 
@@ -476,9 +479,7 @@ impl Size<Length> {
     pub fn full() -> Self {
         Self { width: relative(1.).into(), height: relative(1.).into() }
     }
-}
 
-impl Size<Length> {
     /// Returns a `Size` with both width and height set to `auto`, which allows the layout engine to determine the size.
     ///
     /// This function creates a `Size` instance where both the width and height are set to `Length::Auto`,
@@ -508,13 +509,13 @@ pub struct Bounds<T: Clone + Debug + Default + PartialEq> {
     pub size: Size<T>,
 }
 
-/// Create a bounds with the given origin and size
+/// Create a bounds with the given origin and size.
 pub const fn bounds<T: Clone + Debug + Default + PartialEq>(origin: Point<T>, size: Size<T>) -> Bounds<T> {
     Bounds { origin, size }
 }
 
 impl Bounds<Pixels> {
-    /// Generate a centered bounds for the given display or primary display if none is provided
+    /// Generate a centered bounds for the given display or primary display if none is provided.
     pub fn centered(display_id: Option<DisplayId>, size: Size<Pixels>, cx: &App) -> Self {
         let display = display_id.and_then(|id| cx.find_display(id)).or_else(|| cx.primary_display());
 
@@ -527,7 +528,7 @@ impl Bounds<Pixels> {
         )
     }
 
-    /// Generate maximized bounds for the given display or primary display if none is provided
+    /// Generate maximized bounds for the given display or primary display if none is provided.
     pub fn maximized(display_id: Option<DisplayId>, cx: &App) -> Self {
         let display = display_id.and_then(|id| cx.find_display(id)).or_else(|| cx.primary_display());
 
@@ -535,6 +536,35 @@ impl Bounds<Pixels> {
             || Bounds { origin: point(px(0.), px(0.)), size: size(px(1024.), px(768.)) },
             |display| display.bounds(),
         )
+    }
+
+    /// Scales the bounds by a given factor, typically used to adjust for display scaling.
+    ///
+    /// This method multiplies the origin and size of the bounds by the provided scaling factor,
+    /// resulting in a new `Bounds<ScaledPixels>` that is proportionally larger or smaller
+    /// depending on the scaling factor. This can be used to ensure that the bounds are properly
+    /// scaled for different display densities.
+    ///
+    /// # Arguments
+    ///
+    /// * `factor` - The scaling factor to apply to the origin and size, typically the display's scaling factor.
+    ///
+    /// # Returns
+    ///
+    /// Returns a new `Bounds<ScaledPixels>` that represents the scaled bounds.
+    pub fn scale(&self, factor: f32) -> Bounds<ScaledPixels> {
+        Bounds { origin: self.origin.scale(factor), size: self.size.scale(factor) }
+    }
+
+    /// Convert the bounds from logical pixels to physical pixels.
+    pub fn to_device_pixels(self, factor: f32) -> Bounds<DevicePixels> {
+        Bounds {
+            origin: point(
+                DevicePixels((self.origin.x.0 * factor).round() as i32),
+                DevicePixels((self.origin.y.0 * factor).round() as i32),
+            ),
+            size: self.size.to_device_pixels(factor),
+        }
     }
 }
 
@@ -602,12 +632,7 @@ where
 
         Bounds { origin, size }
     }
-}
 
-impl<T> Bounds<T>
-where
-    T: Sub<T, Output = T> + Half + Clone + Debug + Default + PartialEq,
-{
     /// Creates a new bounds centered at the given point.
     pub fn centered_at(center: Point<T>, size: Size<T>) -> Self {
         let origin = Point { x: center.x - size.width.half(), y: center.y - size.height.half() };
@@ -638,6 +663,40 @@ where
     pub fn right_center(&self) -> Point<T> {
         Point { x: self.origin.x.clone() + self.size.width.clone(), y: self.origin.y.clone() + self.size.height.half() }
     }
+
+    /// Returns the center point of the bounds.
+    ///
+    /// Calculates the center by taking the origin's x and y coordinates and adding half the width and height
+    /// of the bounds, respectively. The center is represented as a `Point<T>` where `T` is the type of the
+    /// coordinate system.
+    ///
+    /// # Returns
+    ///
+    /// A `Point<T>` representing the center of the bounds.
+    pub fn center(&self) -> Point<T> {
+        Point {
+            x: self.origin.x.clone() + self.size.width.clone().half(),
+            y: self.origin.y.clone() + self.size.height.clone().half(),
+        }
+    }
+
+    /// Returns the requested corner point of the bounds.
+    ///
+    /// # Returns
+    ///
+    /// A `Point<T>` representing the corner of the bounds requested by the parameter.
+    pub fn corner(&self, corner: Anchor) -> Point<T> {
+        match corner {
+            Anchor::TopLeft => self.origin.clone(),
+            Anchor::TopRight => self.top_right(),
+            Anchor::BottomLeft => self.bottom_left(),
+            Anchor::BottomRight => self.bottom_right(),
+            Anchor::TopCenter => self.top_center(),
+            Anchor::BottomCenter => self.bottom_center(),
+            Anchor::LeftCenter => self.left_center(),
+            Anchor::RightCenter => self.right_center(),
+        }
+    }
 }
 
 impl<T> Bounds<T>
@@ -665,26 +724,73 @@ where
             && self.origin.y < their_lower_right.y
             && my_lower_right.y > other.origin.y
     }
-}
 
-impl<T> Bounds<T>
-where
-    T: Add<T, Output = T> + Half + Clone + Debug + Default + PartialEq,
-{
-    /// Returns the center point of the bounds.
+    /// Checks if the given point is within the bounds.
     ///
-    /// Calculates the center by taking the origin's x and y coordinates and adding half the width and height
-    /// of the bounds, respectively. The center is represented as a `Point<T>` where `T` is the type of the
-    /// coordinate system.
+    /// This method determines whether a point lies inside the rectangle defined by the bounds,
+    /// including the edges. The point is considered inside if its x-coordinate is greater than
+    /// or equal to the left edge and less than or equal to the right edge, and its y-coordinate
+    /// is greater than or equal to the top edge and less than or equal to the bottom edge of the bounds.
+    ///
+    /// # Arguments
+    ///
+    /// * `point` - A reference to a `Point<T>` that represents the point to check.
     ///
     /// # Returns
     ///
-    /// A `Point<T>` representing the center of the bounds.
-    pub fn center(&self) -> Point<T> {
-        Point {
-            x: self.origin.x.clone() + self.size.width.clone().half(),
-            y: self.origin.y.clone() + self.size.height.clone().half(),
-        }
+    /// Returns `true` if the point is within the bounds, `false` otherwise.
+    pub fn contains(&self, point: &Point<T>) -> bool {
+        point.x >= self.origin.x
+            && point.x < self.origin.x.clone() + self.size.width.clone()
+            && point.y >= self.origin.y
+            && point.y < self.origin.y.clone() + self.size.height.clone()
+    }
+
+    /// Checks if this bounds is completely contained within another bounds.
+    ///
+    /// This method determines whether the current bounds is entirely enclosed by the given bounds.
+    /// A bounds is considered to be contained within another if its origin (top-left corner) and
+    /// its bottom-right corner are both contained within the other bounds.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - A reference to another `Bounds` that might contain this bounds.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` if this bounds is completely inside the other bounds, `false` otherwise.
+    pub fn is_contained_within(&self, other: &Self) -> bool {
+        other.contains(&self.origin) && other.contains(&self.bottom_right())
+    }
+
+    /// Applies a function to the origin and size of the bounds, producing a new `Bounds<U>`.
+    ///
+    /// This method allows for converting a `Bounds<T>` to a `Bounds<U>` by specifying a closure
+    /// that defines how to convert between the two types. The closure is applied to the `origin` and
+    /// `size` fields, resulting in new bounds of the desired type.
+    ///
+    /// # Arguments
+    ///
+    /// * `f` - A closure that takes a value of type `T` and returns a value of type `U`.
+    ///
+    /// # Returns
+    ///
+    /// Returns a new `Bounds<U>` with the origin and size mapped by the provided function.
+    pub fn map<U>(&self, f: impl Fn(T) -> U) -> Bounds<U>
+    where
+        U: Clone + Debug + Default + PartialEq,
+    {
+        Bounds { origin: self.origin.map(&f), size: self.size.map(f) }
+    }
+
+    /// Applies a function to the origin  of the bounds, producing a new `Bounds` with the new origin.
+    pub fn map_origin(self, f: impl Fn(T) -> T) -> Bounds<T> {
+        Bounds { origin: self.origin.map(f), size: self.size }
+    }
+
+    /// Applies a function to the origin  of the bounds, producing a new `Bounds` with the new origin.
+    pub fn map_size(self, f: impl Fn(T) -> T) -> Bounds<T> {
+        Bounds { origin: self.origin, size: self.size.map(f) }
     }
 }
 
@@ -701,179 +807,7 @@ where
     pub fn half_perimeter(&self) -> T {
         self.size.width.clone() + self.size.height.clone()
     }
-}
 
-impl<T> Bounds<T>
-where
-    T: Add<T, Output = T> + Sub<Output = T> + Clone + Debug + Default + PartialEq,
-{
-    /// Dilates the bounds by a specified amount in all directions.
-    ///
-    /// This method expands the bounds by the given `amount`, increasing the size
-    /// and adjusting the origin so that the bounds grow outwards equally in all directions.
-    /// The resulting bounds will have its width and height increased by twice the `amount`
-    /// (since it grows in both directions), and the origin will be moved by `-amount`
-    /// in both the x and y directions.
-    ///
-    /// # Arguments
-    ///
-    /// * `amount` - The amount by which to dilate the bounds.
-    #[must_use]
-    pub fn dilate(&self, amount: T) -> Bounds<T> {
-        let double_amount = amount.clone() + amount.clone();
-        Bounds {
-            origin: self.origin.clone() - point(amount.clone(), amount),
-            size: self.size.clone() + size(double_amount.clone(), double_amount),
-        }
-    }
-
-    /// Extends the bounds different amounts in each direction.
-    #[must_use]
-    pub fn extend(&self, amount: Edges<T>) -> Bounds<T> {
-        Bounds {
-            origin: self.origin.clone() - point(amount.left.clone(), amount.top.clone()),
-            size: self.size.clone()
-                + size(amount.left.clone() + amount.right.clone(), amount.top.clone() + amount.bottom),
-        }
-    }
-}
-
-impl<T> Bounds<T>
-where
-    T: Add<T, Output = T> + Sub<T, Output = T> + Neg<Output = T> + Clone + Debug + Default + PartialEq,
-{
-    /// Inset the bounds by a specified amount. Equivalent to `dilate` with the amount negated.
-    ///
-    /// Note that this may panic if T does not support negative values.
-    pub fn inset(&self, amount: T) -> Self {
-        self.dilate(-amount)
-    }
-}
-
-impl<T: PartialOrd + Add<T, Output = T> + Sub<Output = T> + Clone + Debug + Default + PartialEq> Bounds<T> {
-    /// Calculates the intersection of two `Bounds` objects.
-    ///
-    /// This method computes the overlapping region of two `Bounds`. If the bounds do not intersect,
-    /// the resulting `Bounds` will have a size with width and height of zero.
-    ///
-    /// # Arguments
-    ///
-    /// * `other` - A reference to another `Bounds` to intersect with.
-    ///
-    /// # Returns
-    ///
-    /// Returns a `Bounds` representing the intersection area. If there is no intersection,
-    /// the returned `Bounds` will have a size with width and height of zero.
-    pub fn intersect(&self, other: &Self) -> Self {
-        let upper_left = self.origin.max(&other.origin);
-        let bottom_right = self.bottom_right().min(&other.bottom_right()).max(&upper_left);
-        Self::from_corners(upper_left, bottom_right)
-    }
-
-    /// Computes the union of two `Bounds`.
-    ///
-    /// This method calculates the smallest `Bounds` that contains both the current `Bounds` and the `other` `Bounds`.
-    /// The resulting `Bounds` will have an origin that is the minimum of the origins of the two `Bounds`,
-    /// and a size that encompasses the furthest extents of both `Bounds`.
-    ///
-    /// # Arguments
-    ///
-    /// * `other` - A reference to another `Bounds` to create a union with.
-    ///
-    /// # Returns
-    ///
-    /// Returns a `Bounds` representing the union of the two `Bounds`.
-    pub fn union(&self, other: &Self) -> Self {
-        let top_left = self.origin.min(&other.origin);
-        let bottom_right = self.bottom_right().max(&other.bottom_right());
-        Bounds::from_corners(top_left, bottom_right)
-    }
-}
-
-impl<T> Bounds<T>
-where
-    T: Add<T, Output = T> + Sub<T, Output = T> + Clone + Debug + Default + PartialEq,
-{
-    /// Computes the space available within outer bounds.
-    pub fn space_within(&self, outer: &Self) -> Edges<T> {
-        Edges {
-            top: self.top() - outer.top(),
-            right: outer.right() - self.right(),
-            bottom: outer.bottom() - self.bottom(),
-            left: self.left() - outer.left(),
-        }
-    }
-}
-
-impl<T, Rhs> Mul<Rhs> for Bounds<T>
-where
-    T: Mul<Rhs, Output = Rhs> + Clone + Debug + Default + PartialEq,
-    Point<T>: Mul<Rhs, Output = Point<Rhs>>,
-    Rhs: Clone + Debug + Default + PartialEq,
-{
-    type Output = Bounds<Rhs>;
-
-    fn mul(self, rhs: Rhs) -> Self::Output {
-        Bounds { origin: self.origin * rhs.clone(), size: self.size * rhs }
-    }
-}
-
-impl<T, S> MulAssign<S> for Bounds<T>
-where
-    T: Mul<S, Output = T> + Clone + Debug + Default + PartialEq,
-    S: Clone,
-{
-    fn mul_assign(&mut self, rhs: S) {
-        self.origin *= rhs.clone();
-        self.size *= rhs;
-    }
-}
-
-impl<T, S> Div<S> for Bounds<T>
-where
-    Size<T>: Div<S, Output = Size<T>>,
-    T: Div<S, Output = T> + Clone + Debug + Default + PartialEq,
-    S: Clone,
-{
-    type Output = Self;
-
-    fn div(self, rhs: S) -> Self {
-        Self { origin: self.origin / rhs.clone(), size: self.size / rhs }
-    }
-}
-
-impl<T> Add<Point<T>> for Bounds<T>
-where
-    T: Add<T, Output = T> + Clone + Debug + Default + PartialEq,
-{
-    type Output = Self;
-
-    fn add(self, rhs: Point<T>) -> Self {
-        Self { origin: self.origin + rhs, size: self.size }
-    }
-}
-
-impl<T> Sub<Point<T>> for Bounds<T>
-where
-    T: Sub<T, Output = T> + Clone + Debug + Default + PartialEq,
-{
-    type Output = Self;
-
-    fn sub(self, rhs: Point<T>) -> Self {
-        Self { origin: self.origin - rhs, size: self.size }
-    }
-}
-
-impl<T: Clone + Debug + Default + PartialEq> From<Size<T>> for Point<T> {
-    fn from(size: Size<T>) -> Self {
-        Self { x: size.width, y: size.height }
-    }
-}
-
-impl<T> Bounds<T>
-where
-    T: Add<T, Output = T> + Clone + Debug + Default + PartialEq,
-{
     /// Returns the top edge of the bounds.
     ///
     /// # Returns
@@ -943,97 +877,163 @@ where
 
 impl<T> Bounds<T>
 where
-    T: Add<T, Output = T> + Half + Clone + Debug + Default + PartialEq,
+    T: Add<T, Output = T> + Sub<Output = T> + Clone + Debug + Default + PartialEq,
 {
-    /// Returns the requested corner point of the bounds.
+    /// Dilates the bounds by a specified amount in all directions.
     ///
-    /// # Returns
+    /// This method expands the bounds by the given `amount`, increasing the size
+    /// and adjusting the origin so that the bounds grow outwards equally in all directions.
+    /// The resulting bounds will have its width and height increased by twice the `amount`
+    /// (since it grows in both directions), and the origin will be moved by `-amount`
+    /// in both the x and y directions.
     ///
-    /// A `Point<T>` representing the corner of the bounds requested by the parameter.
-    pub fn corner(&self, corner: Anchor) -> Point<T> {
-        match corner {
-            Anchor::TopLeft => self.origin.clone(),
-            Anchor::TopRight => self.top_right(),
-            Anchor::BottomLeft => self.bottom_left(),
-            Anchor::BottomRight => self.bottom_right(),
-            Anchor::TopCenter => self.top_center(),
-            Anchor::BottomCenter => self.bottom_center(),
-            Anchor::LeftCenter => self.left_center(),
-            Anchor::RightCenter => self.right_center(),
+    /// # Arguments
+    ///
+    /// * `amount` - The amount by which to dilate the bounds.
+    #[must_use]
+    pub fn dilate(&self, amount: T) -> Bounds<T> {
+        let double_amount = amount.clone() + amount.clone();
+        Bounds {
+            origin: self.origin.clone() - point(amount.clone(), amount),
+            size: self.size.clone() + size(double_amount.clone(), double_amount),
+        }
+    }
+
+    /// Extends the bounds different amounts in each direction.
+    #[must_use]
+    pub fn extend(&self, amount: Edges<T>) -> Bounds<T> {
+        Bounds {
+            origin: self.origin.clone() - point(amount.left.clone(), amount.top.clone()),
+            size: self.size.clone()
+                + size(amount.left.clone() + amount.right.clone(), amount.top.clone() + amount.bottom),
+        }
+    }
+
+    /// Computes the space available within outer bounds.
+    pub fn space_within(&self, outer: &Self) -> Edges<T> {
+        Edges {
+            top: self.top() - outer.top(),
+            right: outer.right() - self.right(),
+            bottom: outer.bottom() - self.bottom(),
+            left: self.left() - outer.left(),
         }
     }
 }
 
 impl<T> Bounds<T>
 where
-    T: Add<T, Output = T> + PartialOrd + Clone + Debug + Default + PartialEq,
+    T: Add<T, Output = T> + Sub<T, Output = T> + Neg<Output = T> + Clone + Debug + Default + PartialEq,
 {
-    /// Checks if the given point is within the bounds.
+    /// Inset the bounds by a specified amount. Equivalent to `dilate` with the amount negated.
     ///
-    /// This method determines whether a point lies inside the rectangle defined by the bounds,
-    /// including the edges. The point is considered inside if its x-coordinate is greater than
-    /// or equal to the left edge and less than or equal to the right edge, and its y-coordinate
-    /// is greater than or equal to the top edge and less than or equal to the bottom edge of the bounds.
+    /// Note that this may panic if T does not support negative values.
+    pub fn inset(&self, amount: T) -> Self {
+        self.dilate(-amount)
+    }
+}
+
+impl<T: PartialOrd + Add<T, Output = T> + Sub<Output = T> + Clone + Debug + Default + PartialEq> Bounds<T> {
+    /// Calculates the intersection of two `Bounds` objects.
+    ///
+    /// This method computes the overlapping region of two `Bounds`. If the bounds do not intersect,
+    /// the resulting `Bounds` will have a size with width and height of zero.
     ///
     /// # Arguments
     ///
-    /// * `point` - A reference to a `Point<T>` that represents the point to check.
+    /// * `other` - A reference to another `Bounds` to intersect with.
     ///
     /// # Returns
     ///
-    /// Returns `true` if the point is within the bounds, `false` otherwise.
-    pub fn contains(&self, point: &Point<T>) -> bool {
-        point.x >= self.origin.x
-            && point.x < self.origin.x.clone() + self.size.width.clone()
-            && point.y >= self.origin.y
-            && point.y < self.origin.y.clone() + self.size.height.clone()
+    /// Returns a `Bounds` representing the intersection area. If there is no intersection,
+    /// the returned `Bounds` will have a size with width and height of zero.
+    pub fn intersect(&self, other: &Self) -> Self {
+        let upper_left = self.origin.max(&other.origin);
+        let bottom_right = self.bottom_right().min(&other.bottom_right()).max(&upper_left);
+        Self::from_corners(upper_left, bottom_right)
     }
 
-    /// Checks if this bounds is completely contained within another bounds.
+    /// Computes the union of two `Bounds`.
     ///
-    /// This method determines whether the current bounds is entirely enclosed by the given bounds.
-    /// A bounds is considered to be contained within another if its origin (top-left corner) and
-    /// its bottom-right corner are both contained within the other bounds.
+    /// This method calculates the smallest `Bounds` that contains both the current `Bounds` and the `other` `Bounds`.
+    /// The resulting `Bounds` will have an origin that is the minimum of the origins of the two `Bounds`,
+    /// and a size that encompasses the furthest extents of both `Bounds`.
     ///
     /// # Arguments
     ///
-    /// * `other` - A reference to another `Bounds` that might contain this bounds.
+    /// * `other` - A reference to another `Bounds` to create a union with.
     ///
     /// # Returns
     ///
-    /// Returns `true` if this bounds is completely inside the other bounds, `false` otherwise.
-    pub fn is_contained_within(&self, other: &Self) -> bool {
-        other.contains(&self.origin) && other.contains(&self.bottom_right())
+    /// Returns a `Bounds` representing the union of the two `Bounds`.
+    pub fn union(&self, other: &Self) -> Self {
+        let top_left = self.origin.min(&other.origin);
+        let bottom_right = self.bottom_right().max(&other.bottom_right());
+        Bounds::from_corners(top_left, bottom_right)
     }
+}
 
-    /// Applies a function to the origin and size of the bounds, producing a new `Bounds<U>`.
-    ///
-    /// This method allows for converting a `Bounds<T>` to a `Bounds<U>` by specifying a closure
-    /// that defines how to convert between the two types. The closure is applied to the `origin` and
-    /// `size` fields, resulting in new bounds of the desired type.
-    ///
-    /// # Arguments
-    ///
-    /// * `f` - A closure that takes a value of type `T` and returns a value of type `U`.
-    ///
-    /// # Returns
-    ///
-    /// Returns a new `Bounds<U>` with the origin and size mapped by the provided function.
-    pub fn map<U>(&self, f: impl Fn(T) -> U) -> Bounds<U>
-    where
-        U: Clone + Debug + Default + PartialEq,
-    {
-        Bounds { origin: self.origin.map(&f), size: self.size.map(f) }
+impl<T, Rhs> Mul<Rhs> for Bounds<T>
+where
+    T: Mul<Rhs, Output = Rhs> + Clone + Debug + Default + PartialEq,
+    Point<T>: Mul<Rhs, Output = Point<Rhs>>,
+    Rhs: Clone + Debug + Default + PartialEq,
+{
+    type Output = Bounds<Rhs>;
+
+    fn mul(self, rhs: Rhs) -> Self::Output {
+        Bounds { origin: self.origin * rhs.clone(), size: self.size * rhs }
     }
+}
 
-    /// Applies a function to the origin  of the bounds, producing a new `Bounds` with the new origin
-    pub fn map_origin(self, f: impl Fn(T) -> T) -> Bounds<T> {
-        Bounds { origin: self.origin.map(f), size: self.size }
+impl<T, S> MulAssign<S> for Bounds<T>
+where
+    T: Mul<S, Output = T> + Clone + Debug + Default + PartialEq,
+    S: Clone,
+{
+    fn mul_assign(&mut self, rhs: S) {
+        self.origin *= rhs.clone();
+        self.size *= rhs;
     }
+}
 
-    /// Applies a function to the origin  of the bounds, producing a new `Bounds` with the new origin
-    pub fn map_size(self, f: impl Fn(T) -> T) -> Bounds<T> {
-        Bounds { origin: self.origin, size: self.size.map(f) }
+impl<T, S> Div<S> for Bounds<T>
+where
+    Size<T>: Div<S, Output = Size<T>>,
+    T: Div<S, Output = T> + Clone + Debug + Default + PartialEq,
+    S: Clone,
+{
+    type Output = Self;
+
+    fn div(self, rhs: S) -> Self {
+        Self { origin: self.origin / rhs.clone(), size: self.size / rhs }
+    }
+}
+
+impl<T> Add<Point<T>> for Bounds<T>
+where
+    T: Add<T, Output = T> + Clone + Debug + Default + PartialEq,
+{
+    type Output = Self;
+
+    fn add(self, rhs: Point<T>) -> Self {
+        Self { origin: self.origin + rhs, size: self.size }
+    }
+}
+
+impl<T> Sub<Point<T>> for Bounds<T>
+where
+    T: Sub<T, Output = T> + Clone + Debug + Default + PartialEq,
+{
+    type Output = Self;
+
+    fn sub(self, rhs: Point<T>) -> Self {
+        Self { origin: self.origin - rhs, size: self.size }
+    }
+}
+
+impl<T: Clone + Debug + Default + PartialEq> From<Size<T>> for Point<T> {
+    fn from(size: Size<T>) -> Self {
+        Self { x: size.width, y: size.height }
     }
 }
 
@@ -1067,49 +1067,8 @@ impl Size<DevicePixels> {
     }
 }
 
-impl Size<Pixels> {
-    /// Converts the size from logical to physical pixels.
-    pub fn to_device_pixels(self, scale_factor: f32) -> Size<DevicePixels> {
-        size(
-            DevicePixels((self.width.0 * scale_factor).round() as i32),
-            DevicePixels((self.height.0 * scale_factor).round() as i32),
-        )
-    }
-}
-
-impl Bounds<Pixels> {
-    /// Scales the bounds by a given factor, typically used to adjust for display scaling.
-    ///
-    /// This method multiplies the origin and size of the bounds by the provided scaling factor,
-    /// resulting in a new `Bounds<ScaledPixels>` that is proportionally larger or smaller
-    /// depending on the scaling factor. This can be used to ensure that the bounds are properly
-    /// scaled for different display densities.
-    ///
-    /// # Arguments
-    ///
-    /// * `factor` - The scaling factor to apply to the origin and size, typically the display's scaling factor.
-    ///
-    /// # Returns
-    ///
-    /// Returns a new `Bounds<ScaledPixels>` that represents the scaled bounds.
-    pub fn scale(&self, factor: f32) -> Bounds<ScaledPixels> {
-        Bounds { origin: self.origin.scale(factor), size: self.size.scale(factor) }
-    }
-
-    /// Convert the bounds from logical pixels to physical pixels
-    pub fn to_device_pixels(self, factor: f32) -> Bounds<DevicePixels> {
-        Bounds {
-            origin: point(
-                DevicePixels((self.origin.x.0 * factor).round() as i32),
-                DevicePixels((self.origin.y.0 * factor).round() as i32),
-            ),
-            size: self.size.to_device_pixels(factor),
-        }
-    }
-}
-
 impl Bounds<DevicePixels> {
-    /// Convert the bounds from physical pixels to logical pixels
+    /// Convert the bounds from physical pixels to logical pixels.
     pub fn to_pixels(self, scale_factor: f32) -> Bounds<Pixels> {
         Bounds {
             origin: point(px(self.origin.x.0 as f32 / scale_factor), px(self.origin.y.0 as f32 / scale_factor)),
@@ -1363,21 +1322,21 @@ impl From<Pixels> for Edges<Pixels> {
 /// Identifies a reference point on a 2D box, used to anchor positioned elements.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Anchor {
-    /// The top left corner
+    /// The top left corner.
     TopLeft,
-    /// The top right corner
+    /// The top right corner.
     TopRight,
-    /// The bottom left corner
+    /// The bottom left corner.
     BottomLeft,
-    /// The bottom right corner
+    /// The bottom right corner.
     BottomRight,
-    /// The top center position
+    /// The top center position.
     TopCenter,
-    /// The bottom center position
+    /// The bottom center position.
     BottomCenter,
-    /// The left center position
+    /// The left center position.
     LeftCenter,
-    /// The right center position
+    /// The right center position.
     RightCenter,
 }
 
@@ -1647,14 +1606,14 @@ impl From<Pixels> for Corners<Pixels> {
     }
 }
 
-/// Represents an angle in Radians
+/// Represents an angle in Radians.
 #[derive(
     Clone, Copy, Default, Add, AddAssign, Sub, SubAssign, Neg, Div, DivAssign, PartialEq, Serialize, Deserialize, Debug,
 )]
 #[repr(transparent)]
 pub struct Radians(pub f32);
 
-/// Create a `Radian` from a raw value
+/// Create a `Radian` from a raw value.
 pub const fn radians(value: f32) -> Radians {
     Radians(value)
 }
@@ -1707,6 +1666,7 @@ impl ops::DivAssign for Pixels {
 }
 
 impl ops::RemAssign for Pixels {
+    #[expect(clippy::modulo_arithmetic, reason = "forwards f32 remainder semantics")]
     fn rem_assign(&mut self, rhs: Self) {
         self.0 %= rhs.0;
     }
@@ -1715,6 +1675,7 @@ impl ops::RemAssign for Pixels {
 impl ops::Rem for Pixels {
     type Output = Self;
 
+    #[expect(clippy::modulo_arithmetic, reason = "forwards f32 remainder semantics")]
     fn rem(self, rhs: Self) -> Self {
         Self(self.0 % rhs.0)
     }
@@ -2175,6 +2136,7 @@ impl ops::DivAssign for ScaledPixels {
 }
 
 impl ops::RemAssign for ScaledPixels {
+    #[expect(clippy::modulo_arithmetic, reason = "forwards f32 remainder semantics")]
     fn rem_assign(&mut self, rhs: Self) {
         self.0 %= rhs.0;
     }
@@ -2183,6 +2145,7 @@ impl ops::RemAssign for ScaledPixels {
 impl ops::Rem for ScaledPixels {
     type Output = Self;
 
+    #[expect(clippy::modulo_arithmetic, reason = "forwards f32 remainder semantics")]
     fn rem(self, rhs: Self) -> Self {
         Self(self.0 % rhs.0)
     }
@@ -2246,7 +2209,7 @@ impl Rems {
     pub fn to_pixels(self, rem_size: Pixels) -> Pixels {
         self * rem_size
     }
-    /// Convert from pixels to Rem
+    /// Convert from pixels to Rem.
     pub fn from_pixels(length: Pixels, window: &gpui::Window) -> Self {
         Self(length / window.rem_size())
     }
@@ -2308,21 +2271,7 @@ impl AbsoluteLength {
             AbsoluteLength::Rems(rems) => rems.0 == 0.0,
         }
     }
-}
 
-impl From<Pixels> for AbsoluteLength {
-    fn from(pixels: Pixels) -> Self {
-        AbsoluteLength::Pixels(pixels)
-    }
-}
-
-impl From<Rems> for AbsoluteLength {
-    fn from(rems: Rems) -> Self {
-        AbsoluteLength::Rems(rems)
-    }
-}
-
-impl AbsoluteLength {
     /// Converts an `AbsoluteLength` to `Pixels` based on a given `rem_size`.
     ///
     /// # Arguments
@@ -2353,6 +2302,18 @@ impl AbsoluteLength {
             AbsoluteLength::Pixels(pixels) => Rems(pixels.0 / rem_size.0),
             AbsoluteLength::Rems(rems) => rems,
         }
+    }
+}
+
+impl From<Pixels> for AbsoluteLength {
+    fn from(pixels: Pixels) -> Self {
+        AbsoluteLength::Pixels(pixels)
+    }
+}
+
+impl From<Rems> for AbsoluteLength {
+    fn from(rems: Rems) -> Self {
+        AbsoluteLength::Rems(rems)
     }
 }
 
@@ -2730,7 +2691,7 @@ pub enum GridPlacement {
     Line(i16),
     /// The number of grid lines to span.
     Span(u16),
-    /// Automatically determine the placement, equivalent to Span(1)
+    /// Automatically determine the placement, equivalent to Span(1).
     #[default]
     Auto,
 }

@@ -52,8 +52,8 @@ impl Pasteboard {
         // outlive the autorelease pool in which it was created.
         Some(Self {
             inner: unsafe { Retained::retain(inner)? },
-            text_hash_type: unsafe { Retained::retain(ns_string("ed-text-hash")).unwrap() },
-            metadata_type: unsafe { Retained::retain(ns_string("ed-metadata")).unwrap() },
+            text_hash_type: unsafe { Retained::retain(ns_string("ed-text-hash")).expect("ns_string is non-null") },
+            metadata_type: unsafe { Retained::retain(ns_string("ed-metadata")).expect("ns_string is non-null") },
         })
     }
 
@@ -263,7 +263,7 @@ unsafe fn ns_data(bytes: *const u8, length: usize) -> id {
 
 #[link(name = "AppKit", kind = "framework")]
 unsafe extern "C" {
-    /// [Apple's documentation](https://developer.apple.com/documentation/appkit/nspasteboardnamefind?language=objc)
+    /// [Apple's documentation](https://developer.apple.com/documentation/appkit/nspasteboardnamefind?language=objc).
     pub static NSPasteboardNameFind: id;
     pub static NSFilenamesPboardType: id;
     pub static NSPasteboardTypePNG: id;
@@ -340,7 +340,7 @@ mod tests {
         let pasteboard = unsafe { Pasteboard::new(msg_send![class!(NSPasteboard), pasteboardWithUniqueName]) }.unwrap();
         let dir = env::temp_dir().canonicalize().unwrap();
         let paths: SmallVec<[PathBuf; 2]> = smallvec::smallvec![dir.join("a.txt"), dir.join("b.txt")];
-        let text = "a\nb".to_string();
+        let text = "a\nb".to_owned();
         pasteboard.write(ClipboardItem {
             entries: vec![
                 ClipboardEntry::ExternalPaths(ExternalPaths(paths.clone())),

@@ -132,7 +132,7 @@ impl MetalAtlasTextures {
     fn push_texture(&mut self, min_size: Size<DevicePixels>, kind: AtlasTextureKind) -> &mut MetalAtlasTexture {
         const DEFAULT_ATLAS_SIZE: Size<DevicePixels> = Size { width: DevicePixels(1024), height: DevicePixels(1024) };
         // Max texture size on all modern Apple GPUs. Anything bigger than that crashes in validateWithDevice.
-        const MAX_ATLAS_SIZE: Size<DevicePixels> = Size { width: DevicePixels(16384), height: DevicePixels(16384) };
+        const MAX_ATLAS_SIZE: Size<DevicePixels> = Size { width: DevicePixels(0x4000), height: DevicePixels(0x4000) };
         let size = min_size.min(&MAX_ATLAS_SIZE).max(&DEFAULT_ATLAS_SIZE);
         let texture_descriptor = MTLTextureDescriptor::new();
         unsafe {
@@ -179,9 +179,8 @@ impl MetalAtlasTextures {
             texture_list.textures.push(Some(atlas_texture));
             texture_list.textures.last_mut()
         }
-        .unwrap()
-        .as_mut()
-        .unwrap()
+        .and_then(Option::as_mut)
+        .expect("texture slot was just filled")
     }
 
     fn texture(&self, id: AtlasTextureId) -> Option<&MetalAtlasTexture> {
@@ -229,7 +228,7 @@ impl MetalAtlasTexture {
             self.metal_texture.replaceRegion_mipmapLevel_withBytes_bytesPerRow(
                 region,
                 0,
-                NonNull::new(bytes.as_ptr().cast_mut()).unwrap().cast(),
+                NonNull::new(bytes.as_ptr().cast_mut()).expect("texture bytes are non-null").cast(),
                 bounds.size.width.to_bytes(self.bytes_per_pixel()) as usize,
             );
         }
@@ -239,7 +238,7 @@ impl MetalAtlasTexture {
         match self.metal_texture.pixelFormat() {
             MTLPixelFormat::A8Unorm | MTLPixelFormat::R8Unorm => 1,
             MTLPixelFormat::RGBA8Unorm | MTLPixelFormat::BGRA8Unorm => 4,
-            _ => unimplemented!(),
+            _ => unreachable!("unsupported atlas pixel format"),
         }
     }
 

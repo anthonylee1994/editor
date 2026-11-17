@@ -36,7 +36,7 @@ use derive_more::Sub;
 pub use font_fallbacks::*;
 #[allow(clippy::wildcard_imports)]
 pub use font_features::*;
-use itertools::Itertools;
+use itertools::Itertools as _;
 #[allow(clippy::wildcard_imports)]
 pub use line::*;
 #[allow(clippy::wildcard_imports)]
@@ -268,7 +268,7 @@ impl TextSystem {
             fallback_font_stack: smallvec![font("Helvetica"), font("Arial"),],
             font_generation: Arc::default(),
             missing_glyph_reporter: Arc::new(MissingGlyphReporter {
-                generation: missing_glyph_generation.clone(),
+                generation: Arc::clone(&missing_glyph_generation),
                 sender,
             }),
             missing_glyph_receiver: Mutex::new(Some(MissingGlyphReceiver {
@@ -306,11 +306,13 @@ impl TextSystem {
     /// Only one receiver is available for each text system. Returns `None` when
     /// the receiver was already taken or another caller is taking it.
     pub(crate) fn take_missing_glyph_receiver(&self) -> Option<MissingGlyphReceiver> {
-        self.missing_glyph_receiver.try_lock().and_then(|mut receiver| receiver.take())
+        let mut receiver = self.missing_glyph_receiver.try_lock()?;
+        receiver.take()
     }
 
     pub(crate) fn enable_missing_glyph_reporting(&self) {
-        self.platform_text_system.set_missing_glyph_sink(Some(self.missing_glyph_reporter.clone()));
+        self.platform_text_system
+            .set_missing_glyph_sink(Some(Arc::<MissingGlyphReporter>::clone(&self.missing_glyph_reporter)));
     }
 
     pub(crate) fn disable_missing_glyph_reporting(&self) {
@@ -451,7 +453,7 @@ impl TextSystem {
 
     /// Get the number of font size units per 'em square',
     /// Per MDN: "an abstract square whose height is the intended distance between
-    /// lines of type in the same type size"
+    /// lines of type in the same type size".
     pub fn units_per_em(&self, font_id: FontId) -> u32 {
         self.read_metrics(font_id, |metrics| metrics.units_per_em)
     }
@@ -466,7 +468,7 @@ impl TextSystem {
         self.read_metrics(font_id, |metrics| metrics.x_height(font_size))
     }
 
-    /// Get the recommended distance from the baseline for the given font
+    /// Get the recommended distance from the baseline for the given font.
     pub fn ascent(&self, font_id: FontId, font_size: Pixels) -> Pixels {
         self.read_metrics(font_id, |metrics| metrics.ascent(font_size))
     }
@@ -502,9 +504,9 @@ impl TextSystem {
         let lock = &mut self.wrapper_pool.lock();
         let font_id = self.resolve_font(&font);
         let char_widths = lock.entry(FontIdWithSize { font_id, font_size }).or_default().pop().unwrap_or_default();
-        let wrapper = LineWrapper::new(font_id, font_size, self.clone(), char_widths);
+        let wrapper = LineWrapper::new(font_id, font_size, Arc::clone(self), char_widths);
 
-        LineWrapperHandle { wrapper: Some(wrapper), text_system: self.clone() }
+        LineWrapperHandle { wrapper: Some(wrapper), text_system: Arc::clone(self) }
     }
 
     /// Get the rasterized size and location of a specific, rendered glyph.
@@ -551,8 +553,8 @@ impl WindowTextSystem {
     pub fn new(text_system: Arc<TextSystem>) -> Self {
         Self {
             line_layout_cache: LineLayoutCache::new(
-                text_system.platform_text_system.clone(),
-                text_system.font_generation.clone(),
+                Arc::clone(&text_system.platform_text_system),
+                Arc::clone(&text_system.font_generation),
             ),
             font_runs_buffer: Cell::default(),
             text_system,
@@ -835,7 +837,7 @@ struct FontIdWithSize {
     font_size: Pixels,
 }
 
-/// A handle into the text system, which can be used to compute the wrapped layout of text
+/// A handle into the text system, which can be used to compute the wrapped layout of text.
 pub struct LineWrapperHandle {
     wrapper: Option<LineWrapper>,
     text_system: Arc<TextSystem>,
@@ -844,10 +846,10 @@ pub struct LineWrapperHandle {
 impl Drop for LineWrapperHandle {
     fn drop(&mut self) {
         let mut state = self.text_system.wrapper_pool.lock();
-        let wrapper = self.wrapper.take().unwrap();
+        let wrapper = self.wrapper.take().expect("wrapper is present until drop");
         state
             .get_mut(&FontIdWithSize { font_id: wrapper.font_id, font_size: wrapper.font_size })
-            .unwrap()
+            .expect("wrapper pool entry exists for leased wrapper")
             .push(wrapper.into_char_widths());
     }
 }
@@ -856,13 +858,13 @@ impl Deref for LineWrapperHandle {
     type Target = LineWrapper;
 
     fn deref(&self) -> &Self::Target {
-        self.wrapper.as_ref().unwrap()
+        self.wrapper.as_ref().expect("wrapper is present until drop")
     }
 }
 
 impl DerefMut for LineWrapperHandle {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.wrapper.as_mut().unwrap()
+        self.wrapper.as_mut().expect("wrapper is present until drop")
     }
 }
 
@@ -954,17 +956,17 @@ impl Display for FontStyle {
 /// A styled run of text, for use in [`crate::TextLayout`].
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct TextRun {
-    /// A number of utf8 bytes
+    /// A number of utf8 bytes.
     pub len: usize,
     /// The font to use for this run.
     pub font: Font,
-    /// The color
+    /// The color.
     pub color: Hsla,
-    /// The background color (if any)
+    /// The background color (if any).
     pub background_color: Option<Hsla>,
-    /// The underline style (if any)
+    /// The underline style (if any).
     pub underline: Option<UnderlineStyle>,
-    /// The strikethrough style (if any)
+    /// The strikethrough style (if any).
     pub strikethrough: Option<StrikethroughStyle>,
 }
 
@@ -1045,13 +1047,13 @@ pub fn font(family: impl Into<SharedString>) -> Font {
 }
 
 impl Font {
-    /// Set this Font to be bold
+    /// Set this Font to be bold.
     pub const fn bold(mut self) -> Self {
         self.weight = FontWeight::BOLD;
         self
     }
 
-    /// Set this Font to be italic
+    /// Set this Font to be italic.
     pub const fn italic(mut self) -> Self {
         self.style = FontStyle::Italic;
         self
@@ -1088,7 +1090,7 @@ pub struct FontMetrics {
     pub x_height: f32,
 
     /// The outer limits of the area that the font covers.
-    /// Corresponds to the xMin / xMax / yMin / yMax values in the OpenType `head` table
+    /// Corresponds to the xMin / xMax / yMin / yMax values in the OpenType `head` table.
     pub bounding_box: Bounds<f32>,
 }
 

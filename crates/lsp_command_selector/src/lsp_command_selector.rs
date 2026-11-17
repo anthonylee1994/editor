@@ -14,7 +14,7 @@ use gpui::Entity;
 use gpui::EventEmitter;
 use gpui::FocusHandle;
 use gpui::Focusable;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Render;
 use gpui::SharedString;
 use gpui::Task;
@@ -32,17 +32,17 @@ use project::Project;
 use ui::HighlightedLabel;
 use ui::ListItem;
 use ui::ListItemSpacing;
-use ui::prelude::ActiveTheme;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::Color;
-use ui::prelude::Disableable;
-use ui::prelude::FluentBuilder;
-use ui::prelude::InteractiveElement;
+use ui::prelude::Disableable as _;
+use ui::prelude::FluentBuilder as _;
+use ui::prelude::InteractiveElement as _;
 use ui::prelude::IntoElement;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
-use ui::prelude::Styled;
-use ui::prelude::Toggleable;
+use ui::prelude::Styled as _;
+use ui::prelude::Toggleable as _;
 use ui::prelude::h_flex;
 use ui::prelude::v_flex;
 use workspace::ModalView;
@@ -275,7 +275,7 @@ impl PickerDelegate for LspCommandSelectorDelegate {
 
     fn update_matches(&mut self, query: String, window: &mut Window, cx: &mut Context<Picker<Self>>) -> Task<()> {
         let background = cx.background_executor().clone();
-        let candidates = self.candidates.clone();
+        let candidates = Arc::clone(&self.candidates);
         cx.spawn_in(window, async move |picker, cx| {
             let matches = if query.is_empty() {
                 candidates

@@ -1,5 +1,5 @@
 use git::Oid;
-use gpui::Action;
+use gpui::Action as _;
 use gpui::ClipboardItem;
 use gpui::Entity;
 use gpui::FocusHandle;
@@ -11,7 +11,7 @@ use project::git_store::Repository;
 use ui::ContextMenu;
 use ui::ContextMenuEntry;
 use ui::prelude::App;
-use ui::prelude::FluentBuilder;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Rems;
 use ui::prelude::rems;
 use util::ResultExt as _;

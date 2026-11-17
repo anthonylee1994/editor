@@ -69,11 +69,7 @@ impl<K: Clone + Ord, V: Clone> TreeMap<K, V> {
 
     pub fn get(&self, key: &K) -> Option<&V> {
         let (.., item) = self.0.find::<MapKeyRef<'_, K>, _>((), &MapKeyRef(Some(key)), Bias::Left);
-        if let Some(item) = item {
-            if Some(key) == item.key().0.as_ref() { Some(&item.value) } else { None }
-        } else {
-            None
-        }
+        if let Some(item) = item { (Some(key) == item.key().0.as_ref()).then_some(&item.value) } else { None }
     }
 
     pub fn insert(&mut self, key: K, value: V) {
@@ -99,7 +95,7 @@ impl<K: Clone + Ord, V: Clone> TreeMap<K, V> {
         let key = MapKeyRef(Some(key));
         let mut new_tree = cursor.slice(&key, Bias::Left);
         if key.cmp(&cursor.end(), ()) == Ordering::Equal {
-            removed = Some(cursor.item().unwrap().value.clone());
+            removed = Some(cursor.item().expect("cursor is at the key").value.clone());
             cursor.next();
         }
         new_tree.append(cursor.suffix(), ());
@@ -134,7 +130,7 @@ impl<K: Clone + Ord, V: Clone> TreeMap<K, V> {
         let mut new_tree = cursor.slice(&key, Bias::Left);
         let mut result = None;
         if key.cmp(&cursor.end(), ()) == Ordering::Equal {
-            let mut updated = cursor.item().unwrap().clone();
+            let mut updated = cursor.item().expect("cursor is at the key").clone();
             result = Some(f(&mut updated.value));
             new_tree.push(updated, ());
             cursor.next();

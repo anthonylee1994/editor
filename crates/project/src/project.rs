@@ -35,7 +35,7 @@ use std::future::Future;
 use std::ops::Range;
 use std::path::Path;
 use std::path::PathBuf;
-use std::str::{self};
+use std::str;
 use std::sync::Arc;
 
 use ::git::blame::Blame;
@@ -49,7 +49,7 @@ pub use buffer_store::ProjectTransaction;
 pub use environment::ProjectEnvironment;
 #[allow(clippy::wildcard_imports)]
 pub use fs::*;
-use futures::StreamExt;
+use futures::StreamExt as _;
 use futures::future::try_join_all;
 pub use git_store::ConflictRegion;
 pub use git_store::ConflictSet;
@@ -62,7 +62,7 @@ pub use git_store::git_traversal::GitTraversal;
 pub use git_store::linked_worktree_short_name;
 pub use git_store::repo_identity_path;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::AsyncApp;
 use gpui::Context;
 use gpui::Entity;
@@ -70,7 +70,7 @@ use gpui::EventEmitter;
 use gpui::Hsla;
 use gpui::SharedString;
 use gpui::Task;
-use gpui::TaskExt;
+use gpui::TaskExt as _;
 use gpui::WeakEntity;
 use gpui::Window;
 pub use image_store::ImageItem;
@@ -303,7 +303,7 @@ pub struct ProjectPath {
 
 impl ProjectPath {
     pub fn from_file(value: &dyn language::File, cx: &App) -> Self {
-        ProjectPath { worktree_id: value.worktree_id(cx), path: value.path().clone() }
+        ProjectPath { worktree_id: value.worktree_id(cx), path: Arc::clone(value.path()) }
     }
 
     pub fn root_path(worktree_id: WorktreeId) -> Self {
@@ -799,7 +799,7 @@ impl DirectoryLister {
             .map(|worktree| worktree.read(cx).abs_path().to_string_lossy().into_owned())
             .or_else(|| env::home_dir().map(|dir| dir.to_string_lossy().into_owned()))
             .map_or_else(
-                || "~/".to_string(),
+                || "~/".to_owned(),
                 |mut s| {
                     s.push('/');
                     s
@@ -808,7 +808,7 @@ impl DirectoryLister {
     }
 
     pub fn list_directory(&self, path: String, cx: &mut App) -> Task<Result<Vec<DirectoryItem>>> {
-        let fs = self.0.read(cx).fs().clone();
+        let fs = Arc::clone(self.0.read(cx).fs());
         cx.background_spawn(async move {
             let mut results = vec![];
             let expanded = shellexpand::tilde(&path);
@@ -836,7 +836,7 @@ pub enum LspPullDiagnostics {
     Response {
         /// The id of the language server that produced diagnostics.
         server_id: LanguageServerId,
-        /// URI of the resource,
+        /// URI of the resource,.
         uri: lsp::Uri,
         /// The ID provided by the dynamic registration that produced diagnostics.
         registration_id: Option<SharedString>,
@@ -861,7 +861,7 @@ pub enum PulledDiagnostics {
 impl Project {
     pub fn local(languages: Arc<LanguageRegistry>, fs: Arc<dyn Fs>, cx: &mut App) -> Entity<Self> {
         cx.new(|cx: &mut Context<Self>| {
-            let worktree_store = cx.new(|cx| WorktreeStore::local(false, fs.clone(), WorktreeIdCounter::get(cx)));
+            let worktree_store = cx.new(|cx| WorktreeStore::local(false, Arc::clone(&fs), WorktreeIdCounter::get(cx)));
             cx.subscribe(&worktree_store, Self::on_worktree_store_event).detach();
 
             let weak_self = cx.weak_entity();
@@ -875,8 +875,9 @@ impl Project {
             let image_store = cx.new(|cx| ImageStore::local(worktree_store.clone(), cx));
             cx.subscribe(&image_store, Self::on_image_store_event).detach();
 
-            let git_store = cx
-                .new(|cx| GitStore::local(&worktree_store, buffer_store.clone(), environment.clone(), fs.clone(), cx));
+            let git_store = cx.new(|cx| {
+                GitStore::local(&worktree_store, buffer_store.clone(), environment.clone(), Arc::clone(&fs), cx)
+            });
             git_store.update(cx, |git_store, _| git_store.set_project(weak_self.clone()));
 
             let task_store = cx.new(|_| TaskStore::new(worktree_store.clone(), environment.clone(), git_store.clone()));
@@ -887,8 +888,8 @@ impl Project {
                     worktree_store.clone(),
                     environment.clone(),
                     manifest_tree,
-                    languages.clone(),
-                    fs.clone(),
+                    Arc::clone(&languages),
+                    Arc::clone(&fs),
                     cx,
                 )
             });
@@ -1008,7 +1009,7 @@ impl Project {
         }
     }
 
-    /// Collect all worktrees, including ones that don't appear in the project panel
+    /// Collect all worktrees, including ones that don't appear in the project panel.
     #[inline]
     pub fn worktrees<'a>(&self, cx: &'a App) -> impl 'a + DoubleEndedIterator<Item = Entity<Worktree>> {
         self.worktree_store.read(cx).worktrees()
@@ -1157,7 +1158,7 @@ impl Project {
         let Some((worktree, old_path, is_dir)) = worktree_store
             .read(cx)
             .worktree_and_entry_for_id(entry_id, cx)
-            .map(|(worktree, entry)| (worktree, entry.path.clone(), entry.is_dir()))
+            .map(|(worktree, entry)| (worktree, Arc::clone(&entry.path), entry.is_dir()))
         else {
             return Task::ready(Err(anyhow!(format!("No worktree for entry {entry_id:?}"))));
         };
@@ -1170,7 +1171,7 @@ impl Project {
             let (old_abs_path, new_abs_path) = {
                 let root_path = worktree.read_with(cx, |this, _| this.abs_path());
                 let new_abs_path = if is_root_entry {
-                    root_path.parent().unwrap().join(new_path.path.as_std_path())
+                    root_path.parent().expect("worktree root has a parent").join(new_path.path.as_std_path())
                 } else {
                     root_path.join(new_path.path.as_std_path())
                 };
@@ -1578,7 +1579,7 @@ impl Project {
             WorktreeStoreEvent::WorktreeReleased(..) => {}
             WorktreeStoreEvent::WorktreeOrderChanged => cx.emit(Event::WorktreeOrderChanged),
             WorktreeStoreEvent::WorktreeUpdatedEntries(worktree_id, changes) => {
-                cx.emit(Event::WorktreeUpdatedEntries(*worktree_id, changes.clone()));
+                cx.emit(Event::WorktreeUpdatedEntries(*worktree_id, Arc::clone(changes)));
                 if self.pending_active_path.as_ref().is_some_and(|path| path.worktree_id == *worktree_id) {
                     let pending_active_path = self.pending_active_path.take();
                     self.set_active_path(pending_active_path, cx);
@@ -1948,7 +1949,7 @@ impl Project {
             )
         } else {
             project_search::Search::local(
-                self.fs.clone(),
+                Arc::clone(&self.fs),
                 self.buffer_store.clone(),
                 self.worktree_store.clone(),
                 project_search::Search::MAX_SEARCH_RESULT_FILES + 1,
@@ -2033,7 +2034,7 @@ impl Project {
 
     pub fn resolve_abs_path(&self, path: &str, cx: &App) -> Task<Option<ResolvedPath>> {
         let expanded = PathBuf::from(shellexpand::tilde(&path).into_owned());
-        let fs = self.fs.clone();
+        let fs = Arc::clone(&self.fs);
         cx.background_spawn(async move {
             let metadata = fs.metadata(&expanded).await.ok().flatten();
 
@@ -2099,7 +2100,7 @@ impl Project {
     fn resolve_path_in_worktree(worktree: &Entity<Worktree>, path: &RelPath, cx: &AsyncApp) -> Option<ResolvedPath> {
         worktree.read_with(cx, |worktree, _| {
             worktree.entry_for_path(path).map(|entry| {
-                let project_path = ProjectPath { worktree_id: worktree.id(), path: entry.path.clone() };
+                let project_path = ProjectPath { worktree_id: worktree.id(), path: Arc::clone(&entry.path) };
                 ResolvedPath::ProjectPath { project_path, is_dir: entry.is_dir() }
             })
         })
@@ -2176,7 +2177,7 @@ impl Project {
         let worktree = self.worktree_for_entry(entry_id, cx)?;
         let worktree = worktree.read(cx);
         let worktree_id = worktree.id();
-        let path = worktree.entry_for_id(entry_id)?.path.clone();
+        let path = Arc::clone(&worktree.entry_for_id(entry_id)?.path);
         Some(ProjectPath { worktree_id, path })
     }
 
@@ -2226,12 +2227,12 @@ impl Project {
                     && let Ok(rel_path) = RelPath::new(relative_path)
                     && let Some(entry) = worktree.entry_for_path(&rel_path)
                 {
-                    return Some(ProjectPath { worktree_id: worktree.id(), path: entry.path.clone() });
+                    return Some(ProjectPath { worktree_id: worktree.id(), path: Arc::clone(&entry.path) });
                 }
                 if let Ok(rel_path) = RelPath::new(path)
                     && let Some(entry) = worktree.entry_for_path(&rel_path)
                 {
-                    return Some(ProjectPath { worktree_id: worktree.id(), path: entry.path.clone() });
+                    return Some(ProjectPath { worktree_id: worktree.id(), path: Arc::clone(&entry.path) });
                 }
             }
 
@@ -2255,11 +2256,11 @@ impl Project {
     /// Otherwise, returns the full path for the project path (obtained by prefixing the worktree-relative path with the name of the worktree).
     pub fn short_full_path_for_project_path(&self, project_path: &ProjectPath, cx: &App) -> Option<String> {
         if self.visible_worktrees(cx).take(2).count() < 2 {
-            return Some(project_path.path.display().to_string());
+            return Some(project_path.path.display().to_owned());
         }
         self.worktree_for_id(project_path.worktree_id, cx).map(|worktree| {
             let worktree_name = worktree.read(cx).root_name();
-            worktree_name.join(&project_path.path).display().to_string()
+            worktree_name.join(&project_path.path).display().to_owned()
         })
     }
 
@@ -2276,7 +2277,7 @@ impl Project {
         self.git_store.update(cx, |git_store, cx| git_store.blame_buffer(buffer, version, cx))
     }
 
-    /// Iterator of all open buffers that have unsaved changes
+    /// Iterator of all open buffers that have unsaved changes.
     pub fn dirty_buffers<'a>(&'a self, cx: &'a App) -> impl Iterator<Item = ProjectPath> + 'a {
         self.buffer_store.read(cx).buffers().filter_map(|buf| {
             let buf = buf.read(cx);
@@ -2568,7 +2569,7 @@ impl ProjectItem for Buffer {
         let file = self.file()?;
 
         (!matches!(file.disk_state(), DiskState::Historic { .. }))
-            .then(|| ProjectPath { worktree_id: file.worktree_id(cx), path: file.path().clone() })
+            .then(|| ProjectPath { worktree_id: file.worktree_id(cx), path: Arc::clone(file.path()) })
     }
 
     fn is_dirty(&self) -> bool {
@@ -2578,10 +2579,11 @@ impl ProjectItem for Buffer {
 
 impl Completion {
     pub fn kind(&self) -> Option<CompletionItemKind> {
-        self.source
+        let lsp_completion = self
+            .source
             // `lsp::CompletionListItemDefaults` has no `kind` field
-            .lsp_completion(false)
-            .and_then(|lsp_completion| lsp_completion.kind)
+            .lsp_completion(false)?;
+        lsp_completion.kind
     }
 
     pub fn label(&self) -> Option<String> {

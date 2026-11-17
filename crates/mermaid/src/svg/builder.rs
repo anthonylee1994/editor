@@ -62,7 +62,7 @@ pub(crate) fn esc_text(text: &str) -> Cow<'_, str> {
 
 /// Appends an unsigned integer in decimal.
 fn push_u64(out: &mut String, mut value: u64) {
-    let mut digits = [0u8; 20];
+    let mut digits = [0_u8; 20];
     let mut at = digits.len();
     loop {
         at -= 1;

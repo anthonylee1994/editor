@@ -9,8 +9,8 @@ pub mod popup;
 
 use std::borrow::Cow;
 use std::collections::hash_map::Entry;
+use std::fmt;
 use std::fmt::Debug;
-use std::fmt::{self};
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::io::Cursor;
@@ -310,14 +310,14 @@ pub trait Platform: 'static {
 
 /// A handle to a platform's display, e.g. a monitor or laptop screen.
 pub trait PlatformDisplay: Debug {
-    /// Get the ID for this display
+    /// Get the ID for this display.
     fn id(&self) -> DisplayId;
 
     /// Returns a stable identifier for this display that can be persisted and used
     /// across system restarts.
     fn uuid(&self) -> Result<Uuid>;
 
-    /// Get the bounds for this display
+    /// Get the bounds for this display.
     fn bounds(&self) -> Bounds<Pixels>;
 
     /// The time between the display's refreshes. Variable refresh rate
@@ -335,7 +335,7 @@ pub trait PlatformDisplay: Debug {
         self.bounds()
     }
 
-    /// Get the default bounds for this display to place a window
+    /// Get the default bounds for this display to place a window.
     fn default_bounds(&self) -> Bounds<Pixels> {
         let bounds = self.bounds();
         let center = bounds.center();
@@ -347,20 +347,20 @@ pub trait PlatformDisplay: Debug {
     }
 }
 
-/// Thermal state of the system
+/// Thermal state of the system.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ThermalState {
-    /// System has no thermal constraints
+    /// System has no thermal constraints.
     Nominal,
-    /// System is slightly constrained, reduce discretionary work
+    /// System is slightly constrained, reduce discretionary work.
     Fair,
-    /// System is moderately constrained, reduce CPU/GPU intensive work
+    /// System is moderately constrained, reduce CPU/GPU intensive work.
     Serious,
-    /// System is critically constrained, minimize all resource usage
+    /// System is critically constrained, minimize all resource usage.
     Critical,
 }
 
-/// An opaque identifier for a hardware display
+/// An opaque identifier for a hardware display.
 #[derive(PartialEq, Eq, Hash, Copy, Clone)]
 pub struct DisplayId(pub(crate) u64);
 
@@ -511,8 +511,7 @@ pub trait PlatformDispatcher: Send + Sync {
     fn dispatch_on_main_thread(&self, runnable: RunnableVariant, priority: Priority);
     fn dispatch_after(&self, duration: Duration, runnable: RunnableVariant);
 
-    fn dispatch_on_main_thread_when_idle(&self, runnable: RunnableVariant, timeout: Option<Duration>) {
-        let _ = timeout;
+    fn dispatch_on_main_thread_when_idle(&self, runnable: RunnableVariant, _timeout: Option<Duration>) {
         self.dispatch_on_main_thread(runnable, Priority::Low);
     }
 
@@ -639,7 +638,11 @@ impl PlatformTextSystem for NoopTextSystem {
     fn layout_line(&self, text: &str, font_size: Pixels, _runs: &[FontRun]) -> LineLayout {
         let mut position = px(0.);
         let metrics = self.font_metrics(FontId(0));
-        let em_width = font_size * self.advance(FontId(0), self.glyph_for_char(FontId(0), 'm').unwrap()).unwrap().width
+        let em_width = font_size
+            * self
+                .advance(FontId(0), self.glyph_for_char(FontId(0), 'm').expect("test font has an 'm' glyph"))
+                .expect("test font has glyph advances")
+                .width
             / metrics.units_per_em as f32;
         let mut glyphs = Vec::new();
         for (ix, c) in text.char_indices() {
@@ -1098,19 +1101,19 @@ pub struct UTF16Selection {
     /// in UTF16 characters.
     pub range: Range<usize>,
     /// Whether the head of this selection is at the start (true), or end (false)
-    /// of the range
+    /// of the range.
     pub reversed: bool,
 }
 
 /// ed's interface for handling text input from the platform's IME system
 /// This is currently a 1:1 exposure of the NSTextInputClient API:
 ///
-/// <https://developer.apple.com/documentation/appkit/nstextinputclient>
+/// <https://developer.apple.com/documentation/appkit/nstextinputclient>.
 pub trait InputHandler: 'static {
     /// Get the range of the user's currently selected text, if any
-    /// Corresponds to [selectedRange()](https://developer.apple.com/documentation/appkit/nstextinputclient/1438242-selectedrange)
+    /// Corresponds to [selectedRange()](https://developer.apple.com/documentation/appkit/nstextinputclient/1438242-selectedrange).
     ///
-    /// Return value is in terms of UTF-16 characters, from 0 to the length of the document
+    /// Return value is in terms of UTF-16 characters, from 0 to the length of the document.
     fn selected_text_range(
         &mut self,
         ignore_disabled_input: bool,
@@ -1119,15 +1122,15 @@ pub trait InputHandler: 'static {
     ) -> Option<UTF16Selection>;
 
     /// Get the range of the currently marked text, if any
-    /// Corresponds to [markedRange()](https://developer.apple.com/documentation/appkit/nstextinputclient/1438250-markedrange)
+    /// Corresponds to [markedRange()](https://developer.apple.com/documentation/appkit/nstextinputclient/1438250-markedrange).
     ///
-    /// Return value is in terms of UTF-16 characters, from 0 to the length of the document
+    /// Return value is in terms of UTF-16 characters, from 0 to the length of the document.
     fn marked_text_range(&mut self, window: &mut Window, cx: &mut App) -> Option<Range<usize>>;
 
     /// Get the text for the given document range in UTF-16 characters
-    /// Corresponds to [attributedSubstring(forProposedRange: actualRange:)](https://developer.apple.com/documentation/appkit/nstextinputclient/1438238-attributedsubstring)
+    /// Corresponds to [attributedSubstring(forProposedRange: actualRange:)](https://developer.apple.com/documentation/appkit/nstextinputclient/1438238-attributedsubstring).
     ///
-    /// range_utf16 is in terms of UTF-16 characters
+    /// range_utf16 is in terms of UTF-16 characters.
     fn text_for_range(
         &mut self,
         range_utf16: Range<usize>,
@@ -1137,9 +1140,9 @@ pub trait InputHandler: 'static {
     ) -> Option<String>;
 
     /// Replace the text in the given document range with the given text
-    /// Corresponds to [insertText(_:replacementRange:)](https://developer.apple.com/documentation/appkit/nstextinputclient/1438258-inserttext)
+    /// Corresponds to [insertText(_:replacementRange:)](https://developer.apple.com/documentation/appkit/nstextinputclient/1438258-inserttext).
     ///
-    /// replacement_range is in terms of UTF-16 characters
+    /// replacement_range is in terms of UTF-16 characters.
     fn replace_text_in_range(
         &mut self,
         replacement_range: Option<Range<usize>>,
@@ -1150,10 +1153,10 @@ pub trait InputHandler: 'static {
 
     /// Replace the text in the given document range with the given text,
     /// and mark the given text as part of an IME 'composing' state
-    /// Corresponds to [setMarkedText(_:selectedRange:replacementRange:)](https://developer.apple.com/documentation/appkit/nstextinputclient/1438246-setmarkedtext)
+    /// Corresponds to [setMarkedText(_:selectedRange:replacementRange:)](https://developer.apple.com/documentation/appkit/nstextinputclient/1438246-setmarkedtext).
     ///
     /// range_utf16 is in terms of UTF-16 characters
-    /// new_selected_range is in terms of UTF-16 characters
+    /// new_selected_range is in terms of UTF-16 characters.
     fn replace_and_mark_text_in_range(
         &mut self,
         range_utf16: Option<Range<usize>>,
@@ -1164,7 +1167,7 @@ pub trait InputHandler: 'static {
     );
 
     /// Remove the IME 'composing' state from the document
-    /// Corresponds to [unmarkText()](https://developer.apple.com/documentation/appkit/nstextinputclient/1438239-unmarktext)
+    /// Corresponds to [unmarkText()](https://developer.apple.com/documentation/appkit/nstextinputclient/1438239-unmarktext).
     fn unmark_text(&mut self, window: &mut Window, cx: &mut App);
 
     /// Insert a platform-initiated paste at the current selection.
@@ -1180,9 +1183,9 @@ pub trait InputHandler: 'static {
     }
 
     /// Get the bounds of the given document range in screen coordinates
-    /// Corresponds to [firstRect(forCharacterRange:actualRange:)](https://developer.apple.com/documentation/appkit/nstextinputclient/1438240-firstrect)
+    /// Corresponds to [firstRect(forCharacterRange:actualRange:)](https://developer.apple.com/documentation/appkit/nstextinputclient/1438240-firstrect).
     ///
-    /// This is used for positioning the IME candidate window
+    /// This is used for positioning the IME candidate window.
     fn bounds_for_range(
         &mut self,
         range_utf16: Range<usize>,
@@ -1190,9 +1193,9 @@ pub trait InputHandler: 'static {
         cx: &mut App,
     ) -> Option<Bounds<Pixels>>;
 
-    /// Get the character offset for the given point in terms of UTF16 characters
+    /// Get the character offset for the given point in terms of UTF16 characters.
     ///
-    /// Corresponds to [characterIndexForPoint:](https://developer.apple.com/documentation/appkit/nstextinputclient/characterindex(for:))
+    /// Corresponds to [characterIndexForPoint:](https://developer.apple.com/documentation/appkit/nstextinputclient/characterindex(for:)).
     fn character_index_for_point(&mut self, point: Point<Pixels>, window: &mut Window, cx: &mut App) -> Option<usize>;
 
     /// Allows a given input context to opt into getting raw key repeats instead of
@@ -1236,7 +1239,7 @@ pub trait InputHandler: 'static {
     }
 }
 
-/// The variables that can be configured when creating a new window
+/// The variables that can be configured when creating a new window.
 #[derive(Debug)]
 pub struct WindowOptions {
     /// Specifies the state and bounds of the window in screen coordinates.
@@ -1244,16 +1247,16 @@ pub struct WindowOptions {
     /// - `Some(WindowBounds)`: Open a window with corresponding state and its restore size.
     pub window_bounds: Option<WindowBounds>,
 
-    /// The titlebar configuration of the window
+    /// The titlebar configuration of the window.
     pub titlebar: Option<TitlebarOptions>,
 
-    /// Whether the window should be focused when created
+    /// Whether the window should be focused when created.
     pub focus: bool,
 
-    /// Whether the window should be shown when created
+    /// Whether the window should be shown when created.
     pub show: bool,
 
-    /// The kind of window to create
+    /// The kind of window to create.
     pub kind: WindowKind,
 
     /// Whether the window can be moved by the user. When `false`, the user cannot drag
@@ -1279,45 +1282,45 @@ pub struct WindowOptions {
     /// Set to `None` to disable inactive-window animation frame throttling.
     pub inactive_frame_interval: Option<Duration>,
 
-    /// Whether the window should be resizable by the user
+    /// Whether the window should be resizable by the user.
     pub is_resizable: bool,
 
-    /// Whether the window should be minimized by the user
+    /// Whether the window should be minimized by the user.
     pub is_minimizable: bool,
 
     /// The display to create the window on, if this is None,
-    /// the window will be created on the main display
+    /// the window will be created on the main display.
     pub display_id: Option<DisplayId>,
 
     /// The appearance of the window background.
     pub window_background: WindowBackgroundAppearance,
 
-    /// Window minimum size
+    /// Window minimum size.
     pub window_min_size: Option<Size<Pixels>>,
 }
 
-/// The variables that can be configured when creating a new window
+/// The variables that can be configured when creating a new window.
 #[derive(Debug)]
 #[allow(missing_docs)]
 pub struct WindowParams {
     pub bounds: Bounds<Pixels>,
 
-    /// The titlebar configuration of the window
+    /// The titlebar configuration of the window.
     pub titlebar: Option<TitlebarOptions>,
 
-    /// The kind of window to create
+    /// The kind of window to create.
     pub kind: WindowKind,
 
-    /// Whether the window should be movable by the user
+    /// Whether the window should be movable by the user.
     pub is_movable: bool,
 
-    /// Whether the application owns dragging of the (custom) titlebar (macOS only)
+    /// Whether the application owns dragging of the (custom) titlebar (macOS only).
     pub app_owns_titlebar_drag: bool,
 
-    /// Whether the window should be resizable by the user
+    /// Whether the window should be resizable by the user.
     pub is_resizable: bool,
 
-    /// Whether the window should be minimized by the user
+    /// Whether the window should be minimized by the user.
     pub is_minimizable: bool,
 
     pub focus: bool,
@@ -1349,7 +1352,7 @@ impl Default for WindowBounds {
 }
 
 impl WindowBounds {
-    /// Retrieve the inner bounds
+    /// Retrieve the inner bounds.
     pub const fn get_bounds(&self) -> Bounds<Pixels> {
         match self {
             WindowBounds::Windowed(bounds) => *bounds,
@@ -1388,23 +1391,23 @@ impl Default for WindowOptions {
     }
 }
 
-/// The options that can be configured for a window's titlebar
+/// The options that can be configured for a window's titlebar.
 #[derive(Debug, Default)]
 pub struct TitlebarOptions {
-    /// The initial title of the window
+    /// The initial title of the window.
     pub title: Option<SharedString>,
 
     /// Should the default system titlebar be hidden to allow for a custom-drawn titlebar?
     pub appears_transparent: bool,
 
-    /// The position of the macOS traffic light buttons
+    /// The position of the macOS traffic light buttons.
     pub traffic_light_position: Option<Point<Pixels>>,
 }
 
-/// The kind of window to create
+/// The kind of window to create.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum WindowKind {
-    /// A normal application window
+    /// A normal application window.
     Normal,
 
     /// A window that appears above all other windows, usually used for alerts or popups
@@ -1419,11 +1422,11 @@ pub enum WindowKind {
     /// implementation reject it with [`popup::PopupNotSupportedError`].
     AnchoredPopup(popup::PopupOptions),
 
-    /// A floating window that appears on top of its parent window
+    /// A floating window that appears on top of its parent window.
     Floating,
 
     /// A window that appears on top of its parent window and blocks interaction with it
-    /// until the modal window is closed
+    /// until the modal window is closed.
     Dialog,
 }
 
@@ -1492,7 +1495,7 @@ pub enum TextRenderingMode {
     Grayscale,
 }
 
-/// The options that can be configured for a file dialog prompt
+/// The options that can be configured for a file dialog prompt.
 #[derive(Clone, Debug)]
 pub struct PathPromptOptions {
     /// Should the prompt allow files to be selected?
@@ -1501,46 +1504,46 @@ pub struct PathPromptOptions {
     pub directories: bool,
     /// Should the prompt allow multiple files to be selected?
     pub multiple: bool,
-    /// The prompt to show to a user when selecting a path
+    /// The prompt to show to a user when selecting a path.
     pub prompt: Option<SharedString>,
 }
 
-/// What kind of prompt styling to show
+/// What kind of prompt styling to show.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum PromptLevel {
-    /// A prompt that is shown when the user should be notified of something
+    /// A prompt that is shown when the user should be notified of something.
     Info,
 
-    /// A prompt that is shown when the user needs to be warned of a potential problem
+    /// A prompt that is shown when the user needs to be warned of a potential problem.
     Warning,
 
-    /// A prompt that is shown when a critical problem has occurred
+    /// A prompt that is shown when a critical problem has occurred.
     Critical,
 }
 
-/// Prompt Button
+/// Prompt Button.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PromptButton {
-    /// Ok button
+    /// Ok button.
     Ok(SharedString),
-    /// Cancel button
+    /// Cancel button.
     Cancel(SharedString),
-    /// Other button
+    /// Other button.
     Other(SharedString),
 }
 
 impl PromptButton {
-    /// Create a button with label
+    /// Create a button with label.
     pub fn new(label: impl Into<SharedString>) -> Self {
         PromptButton::Other(label.into())
     }
 
-    /// Create an Ok button
+    /// Create an Ok button.
     pub fn ok(label: impl Into<SharedString>) -> Self {
         PromptButton::Ok(label.into())
     }
 
-    /// Create a Cancel button
+    /// Create a Cancel button.
     pub fn cancel(label: impl Into<SharedString>) -> Self {
         PromptButton::Cancel(label.into())
     }
@@ -1551,7 +1554,7 @@ impl PromptButton {
         matches!(self, PromptButton::Cancel(_))
     }
 
-    /// Returns the label of the button
+    /// Returns the label of the button.
     pub const fn label(&self) -> &SharedString {
         match self {
             PromptButton::Ok(label) => label,
@@ -1571,95 +1574,95 @@ impl From<&str> for PromptButton {
     }
 }
 
-/// The style of the cursor (pointer)
+/// The style of the cursor (pointer).
 #[derive(Copy, Clone, Default, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CursorStyle {
-    /// The default cursor
+    /// The default cursor.
     #[default]
     Arrow,
 
     /// A text input cursor
-    /// corresponds to the CSS cursor value `text`
+    /// corresponds to the CSS cursor value `text`.
     IBeam,
 
     /// A crosshair cursor
-    /// corresponds to the CSS cursor value `crosshair`
+    /// corresponds to the CSS cursor value `crosshair`.
     Crosshair,
 
     /// A closed hand cursor
-    /// corresponds to the CSS cursor value `grabbing`
+    /// corresponds to the CSS cursor value `grabbing`.
     ClosedHand,
 
     /// An open hand cursor
-    /// corresponds to the CSS cursor value `grab`
+    /// corresponds to the CSS cursor value `grab`.
     OpenHand,
 
     /// A pointing hand cursor
-    /// corresponds to the CSS cursor value `pointer`
+    /// corresponds to the CSS cursor value `pointer`.
     PointingHand,
 
     /// A resize left cursor
-    /// corresponds to the CSS cursor value `w-resize`
+    /// corresponds to the CSS cursor value `w-resize`.
     ResizeLeft,
 
     /// A resize right cursor
-    /// corresponds to the CSS cursor value `e-resize`
+    /// corresponds to the CSS cursor value `e-resize`.
     ResizeRight,
 
     /// A resize cursor to the left and right
-    /// corresponds to the CSS cursor value `ew-resize`
+    /// corresponds to the CSS cursor value `ew-resize`.
     ResizeLeftRight,
 
     /// A resize up cursor
-    /// corresponds to the CSS cursor value `n-resize`
+    /// corresponds to the CSS cursor value `n-resize`.
     ResizeUp,
 
     /// A resize down cursor
-    /// corresponds to the CSS cursor value `s-resize`
+    /// corresponds to the CSS cursor value `s-resize`.
     ResizeDown,
 
     /// A resize cursor directing up and down
-    /// corresponds to the CSS cursor value `ns-resize`
+    /// corresponds to the CSS cursor value `ns-resize`.
     ResizeUpDown,
 
     /// A resize cursor directing up-left and down-right
-    /// corresponds to the CSS cursor value `nesw-resize`
+    /// corresponds to the CSS cursor value `nesw-resize`.
     ResizeUpLeftDownRight,
 
     /// A resize cursor directing up-right and down-left
-    /// corresponds to the CSS cursor value `nwse-resize`
+    /// corresponds to the CSS cursor value `nwse-resize`.
     ResizeUpRightDownLeft,
 
     /// A cursor indicating that the item/column can be resized horizontally.
-    /// corresponds to the CSS cursor value `col-resize`
+    /// corresponds to the CSS cursor value `col-resize`.
     ResizeColumn,
 
     /// A cursor indicating that the item/row can be resized vertically.
-    /// corresponds to the CSS cursor value `row-resize`
+    /// corresponds to the CSS cursor value `row-resize`.
     ResizeRow,
 
     /// A text input cursor for vertical layout
-    /// corresponds to the CSS cursor value `vertical-text`
+    /// corresponds to the CSS cursor value `vertical-text`.
     IBeamCursorForVerticalLayout,
 
     /// A cursor indicating that the operation is not allowed
-    /// corresponds to the CSS cursor value `not-allowed`
+    /// corresponds to the CSS cursor value `not-allowed`.
     OperationNotAllowed,
 
     /// A cursor indicating that the operation will result in a link
-    /// corresponds to the CSS cursor value `alias`
+    /// corresponds to the CSS cursor value `alias`.
     DragLink,
 
     /// A cursor indicating that the operation will result in a copy
-    /// corresponds to the CSS cursor value `copy`
+    /// corresponds to the CSS cursor value `copy`.
     DragCopy,
 
     /// A cursor indicating that the operation will result in a context menu
-    /// corresponds to the CSS cursor value `context-menu`
+    /// corresponds to the CSS cursor value `context-menu`.
     ContextualMenu,
 }
 
-/// A clipboard item that should be copied to the clipboard
+/// A clipboard item that should be copied to the clipboard.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ClipboardItem {
     /// The entries in this clipboard item.
@@ -1698,29 +1701,29 @@ impl fmt::Display for ClipboardReadError {
 
 impl error::Error for ClipboardReadError {}
 
-/// Either a ClipboardString or a ClipboardImage
+/// Either a ClipboardString or a ClipboardImage.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ClipboardEntry {
-    /// A string entry
+    /// A string entry.
     String(ClipboardString),
-    /// An image entry
+    /// An image entry.
     Image(Image),
-    /// A file entry
+    /// A file entry.
     ExternalPaths(crate::ExternalPaths),
 }
 
 impl ClipboardItem {
-    /// Create a new ClipboardItem::String with no associated metadata
+    /// Create a new ClipboardItem::String with no associated metadata.
     pub fn new_string(text: String) -> Self {
         Self { entries: vec![ClipboardEntry::String(ClipboardString::new(text))] }
     }
 
-    /// Create a new ClipboardItem::String with the given text and associated metadata
+    /// Create a new ClipboardItem::String with the given text and associated metadata.
     pub fn new_string_with_metadata(text: String, metadata: String) -> Self {
         Self { entries: vec![ClipboardEntry::String(ClipboardString { text, metadata: Some(metadata) })] }
     }
 
-    /// Create a new ClipboardItem::String with the given text and associated metadata
+    /// Create a new ClipboardItem::String with the given text and associated metadata.
     pub fn new_string_with_json_metadata<T: Serialize>(text: String, metadata: T) -> Self {
         Self { entries: vec![ClipboardEntry::String(ClipboardString::new(text).with_json_metadata(metadata))] }
     }
@@ -1761,7 +1764,7 @@ impl ClipboardItem {
         }
     }
 
-    /// Get the item's entries
+    /// Get the item's entries.
     pub fn entries(&self) -> &[ClipboardEntry] {
         &self.entries
     }
@@ -1803,26 +1806,26 @@ impl From<Image> for ClipboardItem {
     }
 }
 
-/// One of the editor's supported image formats (e.g. PNG, JPEG) - used when dealing with images in the clipboard
+/// One of the editor's supported image formats (e.g. PNG, JPEG) - used when dealing with images in the clipboard.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, EnumIter, Hash)]
 pub enum ImageFormat {
     // Sorted from most to least likely to be pasted into an editor,
     // which matters when we iterate through them trying to see if
     // clipboard content matches them.
-    /// .png
+    /// .png.
     Png,
-    /// .jpeg or .jpg
+    /// .jpeg or .jpg.
     Jpeg,
-    /// .webp
+    /// .webp.
     Webp,
-    /// .gif
+    /// .gif.
     Gif,
-    /// .svg
+    /// .svg.
     Svg,
 }
 
 impl ImageFormat {
-    /// Returns the mime type for the ImageFormat
+    /// Returns the mime type for the ImageFormat.
     pub const fn mime_type(self) -> &'static str {
         match self {
             ImageFormat::Png => "image/png",
@@ -1846,7 +1849,7 @@ impl ImageFormat {
 
     /// Returns the ImageFormat for the given mime type, including known aliases.
     pub fn from_mime_type(mime_type: &str) -> Option<Self> {
-        use strum::IntoEnumIterator;
+        use strum::IntoEnumIterator as _;
         Self::iter().find(|format| format.mime_type() == mime_type).or_else(|| Self::from_mime_type_alias(mime_type))
     }
 
@@ -1861,14 +1864,14 @@ impl ImageFormat {
     }
 }
 
-/// An image, with a format and certain bytes
+/// An image, with a format and certain bytes.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Image {
-    /// The image format the bytes represent (e.g. PNG)
+    /// The image format the bytes represent (e.g. PNG).
     pub format: ImageFormat,
-    /// The raw image bytes
+    /// The raw image bytes.
     pub bytes: Vec<u8>,
-    /// The unique ID for the image
+    /// The unique ID for the image.
     pub id: u64,
 }
 
@@ -1928,7 +1931,7 @@ pub(crate) fn decode_webp_image(bytes: &[u8]) -> Result<SmallVec<[Frame; 1]>> {
     let mut decoder = WebPDecoder::new(Cursor::new(bytes))?;
 
     if decoder.has_animation() {
-        let _ = decoder.set_background_color(Rgba([0, 0, 0, 0]));
+        decoder.set_background_color(Rgba([0, 0, 0, 0])).ok();
         decode_animated_frames(decoder, "WebP")
     } else {
         decode_static_image_from_decoder(decoder)
@@ -1942,27 +1945,27 @@ impl Hash for Image {
 }
 
 impl Image {
-    /// An empty image containing no data
+    /// An empty image containing no data.
     pub fn empty() -> Self {
         Self::from_bytes(ImageFormat::Png, Vec::new())
     }
 
-    /// Create an image from a format and bytes
+    /// Create an image from a format and bytes.
     pub fn from_bytes(format: ImageFormat, bytes: Vec<u8>) -> Self {
         Self { id: hash(&bytes), format, bytes }
     }
 
-    /// Get this image's ID
+    /// Get this image's ID.
     pub const fn id(&self) -> u64 {
         self.id
     }
 
-    /// Use the GPUI `use_asset` API to make this image renderable
+    /// Use the GPUI `use_asset` API to make this image renderable.
     pub fn use_render_image(self: Arc<Self>, window: &mut Window, cx: &mut App) -> Option<Arc<RenderImage>> {
         ImageSource::Image(self).use_data(None, window, cx).and_then(Result::ok)
     }
 
-    /// Use the GPUI `get_asset` API to make this image renderable
+    /// Use the GPUI `get_asset` API to make this image renderable.
     pub fn get_render_image(self: Arc<Self>, window: &mut Window, cx: &mut App) -> Option<Arc<RenderImage>> {
         ImageSource::Image(self).get_data(None, window, cx).and_then(Result::ok)
     }
@@ -1987,18 +1990,18 @@ impl Image {
         Ok(Arc::new(RenderImage::new(frames)))
     }
 
-    /// Get the format of the clipboard image
+    /// Get the format of the clipboard image.
     pub const fn format(&self) -> ImageFormat {
         self.format
     }
 
-    /// Get the raw bytes of the clipboard image
+    /// Get the raw bytes of the clipboard image.
     pub const fn bytes(&self) -> &[u8] {
         self.bytes.as_slice()
     }
 }
 
-/// A clipboard item that should be copied to the clipboard
+/// A clipboard item that should be copied to the clipboard.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ClipboardString {
     /// The text content.
@@ -2008,7 +2011,7 @@ pub struct ClipboardString {
 }
 
 impl ClipboardString {
-    /// Create a new clipboard string with the given text
+    /// Create a new clipboard string with the given text.
     pub const fn new(text: String) -> Self {
         Self { text, metadata: None }
     }
@@ -2016,21 +2019,22 @@ impl ClipboardString {
     /// Return a new clipboard item with the metadata replaced by the given metadata,
     /// after serializing it as JSON.
     pub fn with_json_metadata<T: Serialize>(mut self, metadata: T) -> Self {
-        self.metadata = Some(serde_json::to_string(&metadata).unwrap());
+        self.metadata = Some(serde_json::to_string(&metadata).expect("metadata serializes to json"));
         self
     }
 
-    /// Get the text of the clipboard string
+    /// Get the text of the clipboard string.
     pub const fn text(&self) -> &String {
         &self.text
     }
 
-    /// Get the metadata of the clipboard string, formatted as JSON
+    /// Get the metadata of the clipboard string, formatted as JSON.
     pub fn metadata_json<T>(&self) -> Option<T>
     where
         T: for<'a> Deserialize<'a>,
     {
-        self.metadata.as_ref().and_then(|m| serde_json::from_str(m).ok())
+        let m = self.metadata.as_ref()?;
+        serde_json::from_str(m).ok()
     }
 
     /// Compute a hash of the given text for clipboard change detection.
@@ -2071,7 +2075,7 @@ mod image_tests {
     ];
 
     #[test]
-    fn test_animated_webp_image_to_image_data_decodes_frames() {
+    fn animated_webp_image_to_image_data_decodes_frames() {
         let image = Image::from_bytes(ImageFormat::Webp, ANIMATED_WEBP.to_vec());
         let render_image = image.to_image_data(SvgRenderer::new(Arc::new(()))).unwrap();
 
@@ -2082,7 +2086,7 @@ mod image_tests {
     }
 
     #[test]
-    fn test_decode_webp_image_frames_are_bgra() {
+    fn decode_webp_image_frames_are_bgra() {
         let frames = decode_webp_image(ANIMATED_WEBP).unwrap();
         assert_eq!(frames.len(), 2);
         // Frame 0 is red, so after the RGBA -> BGRA swap the red channel is last of the colour bytes.
@@ -2091,12 +2095,12 @@ mod image_tests {
     }
 
     #[test]
-    fn test_decode_webp_image_rejects_garbage() {
+    fn decode_webp_image_rejects_garbage() {
         assert!(decode_webp_image(b"not a webp").is_err());
     }
 
     #[test]
-    fn test_decode_gif_image_rejects_garbage() {
+    fn decode_gif_image_rejects_garbage() {
         assert!(decode_gif_image(b"not a gif").is_err());
     }
 }

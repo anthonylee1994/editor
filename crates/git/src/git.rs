@@ -8,8 +8,8 @@ pub mod repository;
 pub mod stash;
 pub mod status;
 
+use std::fmt;
 use std::fmt::Write as _;
-use std::fmt::{self};
 use std::str::FromStr;
 
 use anyhow::Result;
@@ -218,7 +218,7 @@ impl Oid {
             }
         };
 
-        let mut oid_bytes = [0u8; SHA256_BYTE_LENGTH];
+        let mut oid_bytes = [0_u8; SHA256_BYTE_LENGTH];
         oid_bytes[..bytes.len()].copy_from_slice(bytes);
         Ok(Self { bytes: oid_bytes, format })
     }
@@ -281,7 +281,7 @@ impl FromStr for Oid {
             }
         };
 
-        let mut bytes = [0u8; SHA256_BYTE_LENGTH];
+        let mut bytes = [0_u8; SHA256_BYTE_LENGTH];
         for (index, byte) in s.bytes().enumerate() {
             let digit = decode_hex_digit(byte)
                 .ok_or_else(|| anyhow::anyhow!("invalid hex digit at byte {index} for git oid"))?;
@@ -338,16 +338,16 @@ impl<'de> Deserialize<'de> for Oid {
 
 impl From<Oid> for u32 {
     fn from(oid: Oid) -> Self {
-        let mut u32_bytes = [0u8; 4];
+        let mut u32_bytes = [0_u8; 4];
         u32_bytes.copy_from_slice(&oid.as_bytes()[..4]);
-        u32::from_ne_bytes(u32_bytes)
+        u32::from_le_bytes(u32_bytes)
     }
 }
 
 impl From<Oid> for usize {
     fn from(oid: Oid) -> Self {
-        let mut u64_bytes = [0u8; 8];
+        let mut u64_bytes = [0_u8; 8];
         u64_bytes.copy_from_slice(&oid.as_bytes()[..8]);
-        u64::from_ne_bytes(u64_bytes) as usize
+        u64::from_le_bytes(u64_bytes) as usize
     }
 }

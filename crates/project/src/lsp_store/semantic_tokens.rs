@@ -10,7 +10,7 @@ use futures::FutureExt as _;
 use futures::future::Shared;
 use futures::future::join_all;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::Context;
 use gpui::Entity;
 use gpui::SharedString;
@@ -395,13 +395,13 @@ impl SemanticTokenStylizer {
             .token_types
             .iter()
             .enumerate()
-            .map(|(i, token_type)| (TokenType(i as u32), SharedString::from(token_type.as_str().to_string())))
+            .map(|(i, token_type)| (TokenType(i as u32), SharedString::from(token_type.as_str().to_owned())))
             .collect();
         let modifier_mask: FxHashMap<SharedString, u32> = legend
             .token_modifiers
             .iter()
             .enumerate()
-            .map(|(i, modifier)| (SharedString::from(modifier.as_str().to_string()), 1 << i))
+            .map(|(i, modifier)| (SharedString::from(modifier.as_str().to_owned()), 1 << i))
             .collect();
 
         let rules_by_token_type = token_types
@@ -548,7 +548,7 @@ pub struct ServerSemanticTokens {
     /// data[5*i+1] - deltaStart: token start character, relative to the start of the previous token (relative to 0 or the previous token’s start if they are on the same line)
     /// data[5*i+2] - length: the length of the token.
     /// data[5*i+3] - tokenType: will be looked up in SemanticTokensLegend.tokenTypes. We currently ask that tokenType < 65536.
-    /// data[5*i+4] - tokenModifiers: each set bit will be looked up in SemanticTokensLegend.tokenModifiers
+    /// data[5*i+4] - tokenModifiers: each set bit will be looked up in SemanticTokensLegend.tokenModifiers.
     ///
     /// See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/ for more.
     data: Vec<u32>,

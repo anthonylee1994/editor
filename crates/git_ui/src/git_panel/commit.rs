@@ -1,4 +1,5 @@
 use std::future::Future;
+use std::sync::Arc;
 
 use anyhow::Context as _;
 use editor::Editor;
@@ -19,16 +20,16 @@ use git::repository::GitCommitTemplate;
 use git::repository::ResetMode;
 use gpui::AppContext as _;
 use gpui::Entity;
-use gpui::Focusable;
+use gpui::Focusable as _;
 use gpui::PromptLevel;
 use gpui::Task;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use language::Buffer;
 use ui::prelude::App;
 use ui::prelude::Context;
 use ui::prelude::SharedString;
 use ui::prelude::Window;
-use util::ResultExt;
+use util::ResultExt as _;
 
 use super::GitPanel;
 use super::MAX_PANEL_EDITOR_LINES;
@@ -37,7 +38,7 @@ use super::prompt;
 
 impl GitPanel {
     pub fn commit_message_buffer(&self, cx: &App) -> Entity<Buffer> {
-        self.commit_editor.read(cx).buffer().read(cx).as_singleton().unwrap()
+        self.commit_editor.read(cx).buffer().read(cx).as_singleton().expect("commit editor has a singleton buffer")
     }
 
     pub(super) fn on_commit(&mut self, _: &Commit, window: &mut Window, cx: &mut Context<Self>) {
@@ -226,14 +227,14 @@ impl GitPanel {
         }
 
         let confirmation = self.check_for_pushed_commits(window, cx);
-        let prior_head = self.load_commit_details("HEAD".to_string(), cx);
+        let prior_head = self.load_commit_details("HEAD".to_owned(), cx);
 
         let task = cx.spawn_in(window, async move |this, cx| {
             let result = async {
                 if matches!(confirmation.await, Ok(true)) {
                     let prior_head = prior_head.await?;
 
-                    repo.update(cx, |repo, cx| repo.reset("HEAD^".to_string(), ResetMode::Soft, cx)).await??;
+                    repo.update(cx, |repo, cx| repo.reset("HEAD^".to_owned(), ResetMode::Soft, cx)).await??;
 
                     Ok(Some(prior_head))
                 } else {
@@ -292,7 +293,7 @@ impl GitPanel {
         }
     }
 
-    /// Suggests a commit message based on the changed files and their statuses
+    /// Suggests a commit message based on the changed files and their statuses.
     pub fn suggest_commit_message(&self, cx: &App) -> Option<String> {
         if let Some(merge_message) =
             self.active_repository.as_ref().and_then(|repo| repo.read(cx).merge.message.as_ref())
@@ -320,7 +321,7 @@ impl GitPanel {
             None
         }?;
 
-        let file_name = git_status_entry.repo_path.file_name().unwrap_or_default().to_string();
+        let file_name = git_status_entry.repo_path.file_name().unwrap_or_default().to_owned();
 
         Some(format!("{action_text} {file_name}"))
     }
@@ -332,7 +333,7 @@ impl GitPanel {
         };
         let load_buffer = active_repo.update(cx, |active_repo, cx| {
             let project = self.project.read(cx);
-            active_repo.open_commit_buffer(Some(project.languages().clone()), project.buffer_store().clone(), cx)
+            active_repo.open_commit_buffer(Some(Arc::clone(project.languages())), project.buffer_store().clone(), cx)
         });
         let load_template = self.load_commit_template(cx);
 

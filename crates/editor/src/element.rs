@@ -12,8 +12,8 @@ mod scrollbar;
 
 use std::any::TypeId;
 use std::cell::Cell;
+use std::cmp;
 use std::cmp::Ordering;
-use std::cmp::{self};
 use std::collections::BTreeMap;
 use std::iter;
 use std::mem;
@@ -45,7 +45,7 @@ use gpui::Hitbox;
 use gpui::HitboxBehavior;
 use gpui::Hsla;
 use gpui::IntoElement;
-use gpui::IsZero;
+use gpui::IsZero as _;
 use gpui::Pixels;
 use gpui::ShapedLine;
 use gpui::SharedString;
@@ -88,12 +88,12 @@ use smallvec::SmallVec;
 use smallvec::smallvec;
 use sum_tree::Bias;
 use text::BufferId;
-use theme::ActiveTheme;
+use theme::ActiveTheme as _;
 use theme::CursorColors;
 use ui::prelude::AbsoluteLength;
 use ui::prelude::ElementId;
 use ui::utils::merge_highlight_backgrounds;
-use workspace::item::Item;
+use workspace::item::Item as _;
 use workspace::item::ItemBufferKind;
 
 use crate::BUFFER_HEADER_PADDING;
@@ -115,18 +115,18 @@ use crate::GutterDimensions;
 use crate::LineHighlight;
 use crate::MAX_LINE_LEN;
 use crate::Point;
-use crate::RowExt;
-use crate::RowRangeExt;
+use crate::RowExt as _;
+use crate::RowRangeExt as _;
 use crate::Selection;
 use crate::SizingBehavior;
 use crate::SoftWrap;
-use crate::ToPoint;
+use crate::ToPoint as _;
 use crate::code_context_menus::CodeActionsMenu;
 use crate::column_pixels;
 use crate::display_map::Block;
 use crate::display_map::DisplaySnapshot;
 use crate::display_map::EditorMargins;
-use crate::display_map::ToDisplayPoint;
+use crate::display_map::ToDisplayPoint as _;
 use crate::scroll::ScrollOffset;
 use crate::scroll::ScrollPixelOffset;
 
@@ -305,7 +305,7 @@ impl EditorElement {
                     let total_width = single_indent_width * indent_guide.depth as f32;
                     let start_x =
                         Pixels::from(ScrollOffset::from(content_origin.x + total_width) - scroll_pixel_position.x);
-                    if start_x >= text_origin.x {
+                    (start_x >= text_origin.x).then(|| {
                         let (offset_y, length, display_row_range) = Self::calculate_indent_guide_bounds(
                             indent_guide.start_row..indent_guide.end_row,
                             line_height,
@@ -315,17 +315,15 @@ impl EditorElement {
                         let start_y =
                             Pixels::from(ScrollOffset::from(content_origin.y) + offset_y - scroll_pixel_position.y);
 
-                        Some(IndentGuideLayout {
+                        IndentGuideLayout {
                             origin: point(start_x, start_y),
                             length,
                             display_row_range,
                             depth: indent_guide.depth,
                             active: active_indent_guide_indices.contains(&i),
                             settings: indent_guide.settings,
-                        })
-                    } else {
-                        None
-                    }
+                        }
+                    })
                 })
                 .collect(),
         )
@@ -791,7 +789,7 @@ impl EditorElement {
                     while active_rows.peek().is_some_and(|(active_row, has_selection)| {
                         active_row.0 == end_row + 1 && has_selection.selection == contains_non_empty_selection.selection
                     }) {
-                        active_rows.next().unwrap();
+                        active_rows.next();
                         end_row += 1;
                     }
 
@@ -1109,14 +1107,7 @@ impl EditorElement {
             diff_hunk_control.paint(window, cx);
         }
     }
-}
 
-/// Height of a minimap text block, as a share of the minimap line height.
-const MINIMAP_BLOCK_HEIGHT: f32 = 0.6;
-/// Solid blocks cover more than the glyphs they stand for; fade them to match.
-const MINIMAP_BLOCK_OPACITY: f32 = 0.6;
-
-impl EditorElement {
     /// Returns the rem size to use when rendering the [`EditorElement`].
     ///
     /// This allows UI elements to scale based on the `buffer_font_size`.
@@ -1161,6 +1152,11 @@ impl EditorElement {
     }
 }
 
+/// Height of a minimap text block, as a share of the minimap line height.
+const MINIMAP_BLOCK_HEIGHT: f32 = 0.6;
+/// Solid blocks cover more than the glyphs they stand for; fade them to match.
+const MINIMAP_BLOCK_OPACITY: f32 = 0.6;
+
 #[derive(Default)]
 pub struct EditorRequestLayoutState {
     // We use prepaint depth to limit the number of times prepaint is
@@ -1180,7 +1176,7 @@ impl EditorRequestLayoutState {
     fn increment_prepaint_depth(&self) -> EditorPrepaintGuard {
         let depth = self.prepaint_depth.get();
         self.prepaint_depth.set(depth + 1);
-        EditorPrepaintGuard { prepaint_depth: self.prepaint_depth.clone() }
+        EditorPrepaintGuard { prepaint_depth: Rc::clone(&self.prepaint_depth) }
     }
 
     fn has_remaining_prepaint_depth(&self) -> bool {
@@ -1274,6 +1270,10 @@ impl Element for EditorElement {
         })
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one linear layout pass; splitting would mostly thread state through helpers"
+    )]
     fn prepaint(
         &mut self,
         _: Option<&GlobalElementId>,
@@ -1312,8 +1312,8 @@ impl Element for EditorElement {
                     let ascent = window.text_system().ascent(font_id, font_size);
                     let descent = window.text_system().descent(font_id, font_size).abs();
                     let point_diagnostic_underline_offset = underline_y_offset(line_height, ascent, descent);
-                    let em_width = window.text_system().em_width(font_id, font_size).unwrap();
-                    let em_advance = window.text_system().em_advance(font_id, font_size).unwrap();
+                    let em_width = window.text_system().em_width(font_id, font_size).expect("font is resolved");
+                    let em_advance = window.text_system().em_advance(font_id, font_size).expect("font is resolved");
                     let em_layout_width = window.text_system().em_layout_width(font_id, font_size);
                     let glyph_grid_cell = size(em_advance, line_height);
 
@@ -2277,7 +2277,7 @@ impl Element for EditorElement {
                     });
 
                     self.editor.update(cx, |editor, _| {
-                        editor.last_position_map = Some(position_map.clone());
+                        editor.last_position_map = Some(Rc::clone(&position_map));
                         editor.last_right_margin = right_margin;
                         editor.last_horizontal_scrollbar_visible = visible_horizontal_scrollbar;
                     });
@@ -2517,11 +2517,8 @@ pub struct PointForPosition {
 
 impl PointForPosition {
     pub fn as_valid(&self) -> Option<DisplayPoint> {
-        if self.previous_valid == self.exact_unclipped && self.next_valid == self.exact_unclipped {
-            Some(self.previous_valid)
-        } else {
-            None
-        }
+        (self.previous_valid == self.exact_unclipped && self.next_valid == self.exact_unclipped)
+            .then_some(self.previous_valid)
     }
 }
 
@@ -2611,7 +2608,7 @@ pub fn layout_line(
         cx,
     )
     .pop()
-    .unwrap()
+    .expect("from_chunks yields at least one line")
 }
 
 #[derive(Debug, Clone)]
@@ -2661,8 +2658,8 @@ impl HighlightedRange {
             return;
         }
 
-        let first_line = lines.first().unwrap();
-        let last_line = lines.last().unwrap();
+        let first_line = lines.first().expect("lines are non-empty");
+        let last_line = lines.last().expect("lines are non-empty");
 
         let first_top_left = point(first_line.start_x, start_y);
         let first_top_right = point(first_line.end_x, start_y);
@@ -2687,7 +2684,7 @@ impl HighlightedRange {
             if let Some((_, next_line)) = iter.peek() {
                 let next_top_right = point(next_line.end_x, bottom_right.y);
 
-                match next_top_right.x.partial_cmp(&bottom_right.x).unwrap() {
+                match next_top_right.x.partial_cmp(&bottom_right.x).expect("pixel coordinates are not NaN") {
                     Ordering::Equal => {
                         builder.line_to(bottom_right);
                     }
@@ -2783,11 +2780,11 @@ fn compute_auto_height_layout(
         return Some(size(width, height));
     }
 
-    let style = editor.style.as_ref().unwrap();
+    let style = editor.style.as_ref().expect("style is set before rendering");
     let font_id = window.text_system().resolve_font(&style.text.font());
     let font_size = style.text.font_size.to_pixels(window.rem_size());
     let line_height = style.text.line_height_in_pixels(window.rem_size());
-    let em_width = window.text_system().em_width(font_id, font_size).unwrap();
+    let em_width = window.text_system().em_width(font_id, font_size).expect("font is resolved");
 
     let mut snapshot = editor.snapshot(window, cx);
     let gutter_dimensions = snapshot.gutter_dimensions(font_id, font_size, style, window, cx);

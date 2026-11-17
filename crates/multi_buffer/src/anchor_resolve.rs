@@ -1,5 +1,5 @@
-use std::cmp::{self};
-use std::iter::{self};
+use std::cmp;
+use std::iter;
 use std::ops::Add;
 use std::ops::AddAssign;
 use std::ops::Range;
@@ -372,7 +372,7 @@ impl MultiBufferSnapshot {
             if let Some(region) = cursor.region() {
                 let overshoot = point - region.range.start.key;
                 let buffer_point = region.buffer_range.start + overshoot;
-                let mut position = region.range.start.value.unwrap();
+                let mut position = region.range.start.value.expect("seeked region has a value");
                 position.add_text_dim(&region.buffer.text_summary_for_range(region.buffer_range.start..buffer_point));
                 if point == region.range.end.key && region.has_trailing_newline {
                     position.add_mb_text_summary(&MBTextSummary::from(TextSummary::newline()));
@@ -471,7 +471,7 @@ impl MultiBufferSnapshot {
         }
     }
 
-    /// Lifts a buffer anchor to a multibuffer anchor without checking against excerpt boundaries. Returns `None` if there are no excerpts for the buffer
+    /// Lifts a buffer anchor to a multibuffer anchor without checking against excerpt boundaries. Returns `None` if there are no excerpts for the buffer.
     pub fn anchor_in_buffer(&self, anchor: text::Anchor) -> Option<Anchor> {
         let path_key_index = self.path_key_index_for_buffer(anchor.buffer_id)?;
         Some(Anchor::in_buffer(path_key_index, anchor))
@@ -591,8 +591,7 @@ impl MultiBufferSnapshot {
             return vec![None; text_anchor_ranges.len()];
         };
         let buffer_snapshot = &buffer_state.buffer_snapshot;
-        let ranges_are_ordered =
-            text_anchor_ranges.windows(2).all(|ranges| ranges[0].start.cmp(&ranges[1].start, buffer_snapshot).is_le());
+        let ranges_are_ordered = text_anchor_ranges.is_sorted_by(|a, b| a.start.cmp(&b.start, buffer_snapshot).is_le());
         if !ranges_are_ordered {
             return text_anchor_ranges
                 .into_iter()

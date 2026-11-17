@@ -20,7 +20,7 @@ use language::Selection;
 use language::SelectionGoal;
 use multi_buffer::MultiBufferDimension;
 use multi_buffer::MultiBufferOffset;
-use multi_buffer::ToPoint;
+use multi_buffer::ToPoint as _;
 
 use crate::Anchor;
 use crate::DisplayPoint;
@@ -30,7 +30,7 @@ use crate::SelectMode;
 use crate::ToOffset;
 use crate::columnar_selection::ColumnarSelectionRows;
 use crate::display_map::DisplaySnapshot;
-use crate::display_map::ToDisplayPoint;
+use crate::display_map::ToDisplayPoint as _;
 use crate::movement::TextLayoutDetails;
 
 #[derive(Debug, Clone)]
@@ -44,9 +44,9 @@ pub struct SelectionsCollection {
     next_selection_id: usize,
     line_mode: bool,
     /// The non-pending, non-overlapping selections.
-    /// The [SelectionsCollection::pending] selection could possibly overlap these
+    /// The [SelectionsCollection::pending] selection could possibly overlap these.
     disjoint: Arc<[Selection<Anchor>]>,
-    /// A pending selection, such as when the mouse is being dragged
+    /// A pending selection, such as when the mouse is being dragged.
     pending: Option<PendingSelection>,
     select_mode: SelectMode,
     is_extending: bool,
@@ -76,7 +76,7 @@ impl SelectionsCollection {
     pub fn clone_state(&mut self, other: &SelectionsCollection) {
         self.next_selection_id = other.next_selection_id;
         self.line_mode = other.line_mode;
-        self.disjoint = other.disjoint.clone();
+        self.disjoint = Arc::clone(&other.disjoint);
         self.pending.clone_from(&other.pending);
     }
 
@@ -92,7 +92,7 @@ impl SelectionsCollection {
     /// overlaps these if the mouse is being dragged, etc. This could also be empty if there is a
     /// pending selection. Returned as selections over Anchors.
     pub fn disjoint_anchors_arc(&self) -> Arc<[Selection<Anchor>]> {
-        self.disjoint.clone()
+        Arc::clone(&self.disjoint)
     }
 
     /// The non-pending, non-overlapping selections. There could be a pending selection that
@@ -164,7 +164,7 @@ impl SelectionsCollection {
             if let Some(pending) = pending_opt.as_mut() {
                 while let Some(next_selection) = disjoint.peek() {
                     if should_merge(pending.start, pending.end, next_selection.start, next_selection.end, false) {
-                        let next_selection = disjoint.next().unwrap();
+                        let next_selection = disjoint.next().expect("peeked selection");
                         if next_selection.start < pending.start {
                             pending.start = next_selection.start;
                         }
@@ -185,7 +185,7 @@ impl SelectionsCollection {
         })
     }
 
-    /// Returns all of the selections, adjusted to take into account the selection line_mode
+    /// Returns all of the selections, adjusted to take into account the selection line_mode.
     pub fn all_adjusted(&self, snapshot: &DisplaySnapshot) -> Vec<Selection<Point>> {
         let mut selections = self.all::<Point>(snapshot);
         if self.line_mode {
@@ -198,7 +198,7 @@ impl SelectionsCollection {
         selections
     }
 
-    /// Returns the newest selection, adjusted to take into account the selection line_mode
+    /// Returns the newest selection, adjusted to take into account the selection line_mode.
     pub fn newest_adjusted(&self, snapshot: &DisplaySnapshot) -> Selection<Point> {
         let mut selection = self.newest::<Point>(snapshot);
         if self.line_mode {
@@ -257,7 +257,7 @@ impl SelectionsCollection {
             if let Some(pending) = pending_opt.as_mut() {
                 while let Some(next_selection) = disjoint.peek() {
                     if should_merge(pending.start, pending.end, next_selection.start, next_selection.end, false) {
-                        let next_selection = disjoint.next().unwrap();
+                        let next_selection = disjoint.next().expect("peeked selection");
                         if next_selection.start < pending.start {
                             pending.start = next_selection.start;
                         }
@@ -280,33 +280,44 @@ impl SelectionsCollection {
     }
 
     pub fn newest_anchor(&self) -> &Selection<Anchor> {
-        self.pending.as_ref().map(|s| &s.selection).or_else(|| self.disjoint.iter().max_by_key(|s| s.id)).unwrap()
+        self.pending
+            .as_ref()
+            .map(|s| &s.selection)
+            .or_else(|| self.disjoint.iter().max_by_key(|s| s.id))
+            .expect("selections are never empty")
     }
 
     pub fn newest<D>(&self, snapshot: &DisplaySnapshot) -> Selection<D>
     where
         D: MultiBufferDimension + Sub + AddAssign<<D as Sub>::Output> + Ord,
     {
-        resolve_selections_wrapping_blocks([self.newest_anchor()], snapshot).next().unwrap()
+        resolve_selections_wrapping_blocks([self.newest_anchor()], snapshot).next().expect("one selection in, one out")
     }
 
     pub fn newest_display(&self, snapshot: &DisplaySnapshot) -> Selection<DisplayPoint> {
-        resolve_selections_display([self.newest_anchor()], snapshot).next().unwrap()
+        resolve_selections_display([self.newest_anchor()], snapshot).next().expect("one selection in, one out")
     }
 
     pub fn oldest_anchor(&self) -> &Selection<Anchor> {
-        self.disjoint.iter().min_by_key(|s| s.id).or_else(|| self.pending.as_ref().map(|p| &p.selection)).unwrap()
+        self.disjoint
+            .iter()
+            .min_by_key(|s| s.id)
+            .or_else(|| self.pending.as_ref().map(|p| &p.selection))
+            .expect("selections are never empty")
     }
 
     pub fn oldest<D>(&self, snapshot: &DisplaySnapshot) -> Selection<D>
     where
         D: MultiBufferDimension + Sub + AddAssign<<D as Sub>::Output> + Ord,
     {
-        resolve_selections_wrapping_blocks([self.oldest_anchor()], snapshot).next().unwrap()
+        resolve_selections_wrapping_blocks([self.oldest_anchor()], snapshot).next().expect("one selection in, one out")
     }
 
     pub fn first_anchor(&self) -> Selection<Anchor> {
-        self.pending.as_ref().map_or_else(|| self.disjoint.first().copied().unwrap(), |pending| pending.selection)
+        self.pending.as_ref().map_or_else(
+            || self.disjoint.first().copied().expect("selections are never empty"),
+            |pending| pending.selection,
+        )
     }
 
     pub fn first<D>(&self, snapshot: &DisplaySnapshot) -> Selection<D>
@@ -318,9 +329,9 @@ impl SelectionsCollection {
         if self.pending.is_none()
             && let Some(first) = self.disjoint.first()
         {
-            return resolve_selections_wrapping_blocks([first], snapshot).next().unwrap();
+            return resolve_selections_wrapping_blocks([first], snapshot).next().expect("one selection in, one out");
         }
-        self.all_iter(snapshot, true).next().unwrap()
+        self.all_iter(snapshot, true).next().expect("selections are never empty")
     }
 
     pub fn last<D>(&self, snapshot: &DisplaySnapshot) -> Selection<D>
@@ -330,9 +341,9 @@ impl SelectionsCollection {
         if self.pending.is_none()
             && let Some(last) = self.disjoint.last()
         {
-            return resolve_selections_wrapping_blocks([last], snapshot).next().unwrap();
+            return resolve_selections_wrapping_blocks([last], snapshot).next().expect("one selection in, one out");
         }
-        self.all_iter(snapshot, true).last().unwrap()
+        self.all_iter(snapshot, true).last().expect("selections are never empty")
     }
 
     /// Attempts to build a selection in the provided `DisplayRow` within the
@@ -973,8 +984,8 @@ fn resolve_selections_point<'a>(
         .summaries_for_anchors::<Point, _>(to_summarize.flat_map(|s| [&s.start, &s.end]))
         .into_iter();
     selections.map(move |s| {
-        let start = summaries.next().unwrap();
-        let end = summaries.next().unwrap();
+        let start = summaries.next().expect("two summaries per selection");
+        let end = summaries.next().expect("two summaries per selection");
         assert!(
             start <= end,
             "anchors: start: {:?}, end: {:?}; resolved to: start: {:?}, end: {:?}",
@@ -988,7 +999,7 @@ fn resolve_selections_point<'a>(
 }
 
 /// Panics if passed selections are not in order
-/// Resolves the anchors to display positions
+/// Resolves the anchors to display positions.
 fn resolve_selections_display<'a>(
     selections: impl 'a + IntoIterator<Item = &'a Selection<Anchor>>,
     map: &'a DisplaySnapshot,
@@ -1007,7 +1018,7 @@ fn resolve_selections_display<'a>(
 ///
 /// # Panics
 ///
-/// Panics if passed selections are not in order
+/// Panics if passed selections are not in order.
 pub(crate) fn resolve_selections_wrapping_blocks<'a, D, I>(
     selections: I,
     map: &'a DisplaySnapshot,
@@ -1049,8 +1060,8 @@ where
     let mut converted_endpoints =
         map.buffer_snapshot().dimensions_from_points::<D>(to_convert.flat_map(|s| [s.start, s.end]));
     selections.map(move |s| {
-        let start = converted_endpoints.next().unwrap();
-        let end = converted_endpoints.next().unwrap();
+        let start = converted_endpoints.next().expect("two endpoints per selection");
+        let end = converted_endpoints.next().expect("two endpoints per selection");
         Selection { id: s.id, start, end, reversed: s.reversed, goal: s.goal }
     })
 }
@@ -1073,8 +1084,8 @@ where
         [start, end]
     }));
     selections.map(move |s| {
-        let start = converted_endpoints.next().unwrap();
-        let end = converted_endpoints.next().unwrap();
+        let start = converted_endpoints.next().expect("two endpoints per selection");
+        let end = converted_endpoints.next().expect("two endpoints per selection");
         assert!(start <= end, "start: {start:?}, end: {end:?}");
         Selection { id: s.id, start, end, reversed: s.reversed, goal: s.goal }
     })
@@ -1119,7 +1130,7 @@ fn coalesce_selections<D: Ord + fmt::Debug + Copy>(
 ///    start or end of another selection should be absorbed into it
 ///
 /// Note: two selections that merely touch (one ends exactly where the other begins)
-/// but don't share any positions remain separate, see: https://github.com/zed-industries/zed/issues/24748
+/// but don't share any positions remain separate, see: https://github.com/zed-industries/zed/issues/24748.
 fn should_merge<T: Ord + Copy>(a_start: T, a_end: T, b_start: T, b_end: T, sorted: bool) -> bool {
     let is_overlapping = if sorted {
         // When sorted, `a` starts before or at `b`, so overlap means `b` starts before `a` ends

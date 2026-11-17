@@ -13,8 +13,8 @@ use git::repository::UpstreamTracking;
 use git_ui_core::notifications::open_output;
 use gpui::PromptLevel;
 use gpui::Task;
-use gpui::TaskExt;
-use itertools::Itertools;
+use gpui::TaskExt as _;
+use itertools::Itertools as _;
 use notifications::status_toast::StatusToast;
 use ui::prelude::App;
 use ui::prelude::Color;
@@ -23,7 +23,7 @@ use ui::prelude::Icon;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
 use ui::prelude::Window;
-use util::ResultExt;
+use util::ResultExt as _;
 use util::paths;
 
 use super::FALLBACK_BRANCH_NAME;
@@ -31,9 +31,9 @@ use super::GitPanel;
 use super::RemoteOperationKind;
 use crate::clone;
 use crate::picker_prompt;
+use crate::remote_output;
 use crate::remote_output::RemoteAction;
 use crate::remote_output::SuccessMessage;
-use crate::remote_output::{self};
 
 impl GitPanel {
     fn get_fetch_options(&self, window: &Window, cx: &Context<Self>) -> Task<Option<FetchOptions>> {
@@ -440,7 +440,7 @@ impl GitPanel {
                         None
                     } else {
                         let current_branch = repo.branch.as_ref().context("No active branch")?;
-                        Some(current_branch.name().to_string())
+                        Some(current_branch.name().to_owned())
                     };
                     anyhow::Ok(repo.get_remotes(current_branch, is_push))
                 })?

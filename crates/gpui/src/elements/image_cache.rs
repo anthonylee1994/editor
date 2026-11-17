@@ -3,14 +3,14 @@ use std::fmt;
 use std::mem;
 use std::sync::Arc;
 
-use refineable::Refineable;
+use refineable::Refineable as _;
 use smallvec::SmallVec;
 
 use crate::AnyElement;
 use crate::AnyEntity;
 use crate::App;
-use crate::AppContext;
-use crate::Asset;
+use crate::AppContext as _;
+use crate::Asset as _;
 use crate::AssetLogger;
 use crate::Bounds;
 use crate::Element;
@@ -33,7 +33,7 @@ use crate::asset_cache::CachedLoad;
 use crate::hash;
 
 /// An image cache element, all its child img elements will use the cache specified by this element.
-/// Note that this could as simple as passing an `Entity<T: ImageCache>`
+/// Note that this could as simple as passing an `Entity<T: ImageCache>`.
 pub fn image_cache(image_cache_provider: impl ImageCacheProvider) -> ImageCacheElement {
     ImageCacheElement {
         image_cache_provider: Box::new(image_cache_provider),
@@ -42,7 +42,7 @@ pub fn image_cache(image_cache_provider: impl ImageCacheProvider) -> ImageCacheE
     }
 }
 
-/// A dynamically typed image cache, which can be used to store any image cache
+/// A dynamically typed image cache, which can be used to store any image cache.
 #[derive(Clone)]
 pub struct AnyImageCache {
     image_cache: AnyEntity,
@@ -62,7 +62,7 @@ impl<I: ImageCache> From<Entity<I>> for AnyImageCache {
 
 impl AnyImageCache {
     /// Load an image given a resource
-    /// returns the result of loading the image if it has finished loading, or None if it is still loading
+    /// returns the result of loading the image if it has finished loading, or None if it is still loading.
     pub fn load(
         &self,
         resource: &Resource,
@@ -89,7 +89,7 @@ mod any_image_cache {
         window: &mut Window,
         cx: &mut App,
     ) -> Option<Result<Arc<RenderImage>, ImageCacheError>> {
-        let image_cache = image_cache.clone().downcast::<I>().unwrap();
+        let image_cache = image_cache.clone().downcast::<I>().expect("image cache type matches");
         image_cache.update(cx, |image_cache, cx| image_cache.load(resource, window, cx))
     }
 }
@@ -211,7 +211,7 @@ impl ImageCacheItem {
 /// Implementations of this trait should ensure that images are removed from all windows when they are no longer needed.
 pub trait ImageCache: 'static {
     /// Load an image given a resource
-    /// returns the result of loading the image if it has finished loading, or None if it is still loading
+    /// returns the result of loading the image if it has finished loading, or None if it is still loading.
     fn load(
         &mut self,
         resource: &Resource,
@@ -233,7 +233,7 @@ impl<T: ImageCache> ImageCacheProvider for Entity<T> {
     }
 }
 
-/// An implementation of ImageCache, that uses an LRU caching strategy to unload images when the cache is full
+/// An implementation of ImageCache, that uses an LRU caching strategy to unload images when the cache is full.
 pub struct RetainAllImageCache(HashMap<u64, ImageCacheItem>);
 
 impl fmt::Debug for RetainAllImageCache {
@@ -313,7 +313,7 @@ impl ImageCache for RetainAllImageCache {
     }
 }
 
-/// A provider struct for creating a retain-all image cache inline
+/// A provider struct for creating a retain-all image cache inline.
 pub struct RetainAllImageCacheProvider {
     id: ElementId,
 }

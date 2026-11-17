@@ -27,14 +27,14 @@ use gpui::EventEmitter;
 use gpui::FocusHandle;
 use gpui::Focusable;
 use gpui::GlobalElementId;
-use gpui::InteractiveElement;
+use gpui::InteractiveElement as _;
 use gpui::IntoElement;
 use gpui::LayoutId;
 use gpui::MouseButton;
 use gpui::MouseDownEvent;
 use gpui::MouseMoveEvent;
 use gpui::MouseUpEvent;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::PinchEvent;
 use gpui::Pixels;
 use gpui::Point;
@@ -43,7 +43,7 @@ use gpui::RenderImage;
 use gpui::ScrollDelta;
 use gpui::ScrollWheelEvent;
 use gpui::Style;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Subscription;
 use gpui::Task;
 use gpui::WeakEntity;
@@ -61,24 +61,24 @@ use project::Project;
 use project::ProjectPath;
 use project::image_store::ImageItemEvent;
 use ui::Tooltip;
-use ui::prelude::ActiveTheme;
-use ui::prelude::ButtonCommon;
-use ui::prelude::Clickable;
-use ui::prelude::FluentBuilder;
+use ui::prelude::ActiveTheme as _;
+use ui::prelude::ButtonCommon as _;
+use ui::prelude::Clickable as _;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Icon;
 use ui::prelude::IconButton;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
 use ui::prelude::SharedString;
-use ui::prelude::StatefulInteractiveElement;
+use ui::prelude::StatefulInteractiveElement as _;
 use ui::prelude::TextSize;
 use ui::prelude::h_flex;
 use ui::prelude::relative;
 use util::ResultExt as _;
-use util::paths::PathExt;
+use util::paths::PathExt as _;
 use workspace::Pane;
 use workspace::ToolbarItemEvent;
 use workspace::ToolbarItemLocation;
@@ -140,7 +140,7 @@ struct DisplayedImage {
 
 impl DisplayedImage {
     fn drop_atlas_entry(&self, window: &mut Window) {
-        window.drop_image(self.render_image.clone()).log_err();
+        window.drop_image(Arc::clone(&self.render_image)).log_err();
     }
 
     fn release(self, window: &mut Window, cx: &mut App) {
@@ -170,7 +170,7 @@ impl ImageView {
         }
 
         let Some(render_image) = render_image else {
-            self.pending_image.get_or_insert_with(|| image.clone());
+            self.pending_image.get_or_insert_with(|| Arc::clone(image));
             return;
         };
 
@@ -190,7 +190,7 @@ impl ImageView {
             }
         }
 
-        self.displayed_image = Some(DisplayedImage { source_image: image.clone(), render_image });
+        self.displayed_image = Some(DisplayedImage { source_image: Arc::clone(image), render_image });
     }
 
     pub fn new(
@@ -201,13 +201,13 @@ impl ImageView {
     ) -> Self {
         // Start loading the image to render in the background to prevent the view
         // from flickering in most cases.
-        let pending_image = image_item.read(cx).image.clone();
-        let _render_image = pending_image.clone().get_render_image(window, cx);
+        let pending_image = Arc::clone(&image_item.read(cx).image);
+        let _render_image = Arc::clone(&pending_image).get_render_image(window, cx);
 
         cx.subscribe(&image_item, Self::on_image_event).detach();
         cx.on_release_in(window, |this, window, cx| {
-            let image_data = this.image_item.read(cx).image.clone();
-            if let Some(image) = image_data.clone().get_render_image(window, cx) {
+            let image_data = Arc::clone(&this.image_item.read(cx).image);
+            if let Some(image) = Arc::clone(&image_data).get_render_image(window, cx) {
                 cx.drop_image(image, None);
             }
             image_data.remove_asset(cx);
@@ -402,7 +402,7 @@ impl Element for ImageContentElement {
         cx: &mut App,
     ) -> Self::PrepaintState {
         let image_view = self.image_view.read(cx);
-        let image = image_view.image_item.read(cx).image.clone();
+        let image = Arc::clone(&image_view.image_item.read(cx).image);
 
         let first_layout = image_view.container_bounds.is_none();
 
@@ -435,7 +435,7 @@ impl Element for ImageContentElement {
         }
 
         self.image_view.update(cx, |this, cx| {
-            let render_image = image.clone().use_render_image(window, cx);
+            let render_image = Arc::clone(&image).use_render_image(window, cx);
             this.update_displayed_image(&image, render_image, window, cx);
             this.container_bounds = Some(bounds);
             if let Some(initial_zoom_level) = initial_zoom_level {
@@ -557,7 +557,7 @@ impl Item for ImageView {
     }
 
     fn tab_content_text(&self, _: usize, cx: &App) -> SharedString {
-        self.image_item.read(cx).file.file_name(cx).to_string().into()
+        self.image_item.read(cx).file.file_name(cx).to_owned().into()
     }
 
     fn tab_icon(&self, _: &Window, cx: &App) -> Option<Icon> {

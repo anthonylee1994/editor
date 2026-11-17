@@ -34,7 +34,7 @@ impl AssetSource for () {
     }
 }
 
-/// A unique identifier for the image cache
+/// A unique identifier for the image cache.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct ImageId(pub usize);
 
@@ -45,9 +45,9 @@ pub struct RenderImageParams {
     pub frame_index: usize,
 }
 
-/// A cached and processed image, in BGRA format
+/// A cached and processed image, in BGRA format.
 pub struct RenderImage {
-    /// The ID associated with this image
+    /// The ID associated with this image.
     pub id: ImageId,
     /// The scale factor of this image on render.
     pub(crate) scale_factor: f32,
@@ -88,7 +88,7 @@ impl RenderImage {
         self.size(frame_index).map(|v| (v.0 as f32 / self.scale_factor).into())
     }
 
-    /// Get the delay of this frame from the previous
+    /// Get the delay of this frame from the previous.
     pub fn delay(&self, frame_index: usize) -> Delay {
         self.data.get(frame_index).map_or_else(|| Delay::from_numer_denom_ms(100, 1), image::Frame::delay)
     }

@@ -13,8 +13,8 @@ use std::sync::Arc;
 use std::task::Context;
 use std::task::Poll;
 use std::task::Waker;
+use std::thread;
 use std::thread::ThreadId;
-use std::thread::{self};
 use std::time::Duration;
 
 use async_task::Runnable;
@@ -164,11 +164,11 @@ impl LocalExecutor {
         Fut: Future + 'static,
         Fut::Output: Send + Sync + 'static,
     {
-        self.scheduler.clone().spawn_dedicated(box_dedicated(f)).downcast::<Fut::Output>()
+        Arc::clone(&self.scheduler).spawn_dedicated(box_dedicated(f)).downcast::<Fut::Output>()
     }
 
     fn schedule(&self) -> impl Fn(Runnable<RunnableMeta>) + Send + Sync + 'static {
-        let dispatch = self.dispatch.clone();
+        let dispatch = Arc::clone(&self.dispatch);
         move |runnable| dispatch(runnable)
     }
 }
@@ -251,7 +251,7 @@ impl BackgroundExecutor {
         Fut: Future + 'static,
         Fut::Output: Send + Sync + 'static,
     {
-        self.scheduler.clone().spawn_dedicated(box_dedicated(f)).downcast::<Fut::Output>()
+        Arc::clone(&self.scheduler).spawn_dedicated(box_dedicated(f)).downcast::<Fut::Output>()
     }
 
     fn schedule_with_priority(&self, priority: Priority) -> impl Fn(Runnable<RunnableMeta>) + Send + Sync + 'static {
@@ -308,7 +308,7 @@ impl DedicatedExecutor {
         let (runnable, task) = async_task::Builder::new().metadata(RunnableMeta::new_with_callers_location()).spawn(
             move |_| future,
             move |runnable| {
-                let _ = sender.send(runnable);
+                sender.send(runnable).ok();
             },
         );
         runnable.schedule();
@@ -326,7 +326,7 @@ impl DedicatedExecutor {
 pub struct Task<T>(TaskState<T>);
 
 enum TaskState<T> {
-    /// A task that is ready to return a value
+    /// A task that is ready to return a value.
     Ready(Option<T>),
 
     /// A task that is currently running.
@@ -454,7 +454,7 @@ impl<T> RendezvousSender<T> {
 }
 
 impl<T> Task<T> {
-    /// Creates a new task that will resolve with the value
+    /// Creates a new task that will resolve with the value.
     pub const fn ready(val: T) -> Self {
         Task(TaskState::Ready(Some(val)))
     }
@@ -465,7 +465,7 @@ impl<T> Task<T> {
     /// Dropping or detaching the task before delivery is honored on delivery.
     pub(crate) fn rendezvous() -> (Self, RendezvousSender<T>) {
         let shared = Arc::new(parking_lot::Mutex::new(RendezvousState::Pending(None)));
-        (Task(TaskState::Rendezvous(RendezvousReceiver { shared: shared.clone() })), RendezvousSender { shared })
+        (Task(TaskState::Rendezvous(RendezvousReceiver { shared: Arc::clone(&shared) })), RendezvousSender { shared })
     }
 
     pub fn is_ready(&self) -> bool {
@@ -477,7 +477,7 @@ impl<T> Task<T> {
         }
     }
 
-    /// Detaching a task runs it to completion in the background
+    /// Detaching a task runs it to completion in the background.
     pub fn detach(self) {
         match self {
             Task(TaskState::Ready(_)) => {}
@@ -530,7 +530,7 @@ impl<T> Debug for Task<T> {
 pub struct FallibleTask<T>(FallibleTaskState<T>);
 
 enum FallibleTaskState<T> {
-    /// A task that is ready to return a value
+    /// A task that is ready to return a value.
     Ready(Option<T>),
 
     /// A task that is currently running (wraps async_task::FallibleTask).
@@ -605,7 +605,7 @@ impl<T: 'static> Future for Task<T> {
         let this = unsafe { self.get_unchecked_mut() };
         loop {
             match &mut this.0 {
-                TaskState::Ready(val) => return Poll::Ready(val.take().unwrap()),
+                TaskState::Ready(val) => return Poll::Ready(val.take().expect("task polled after completion")),
                 TaskState::Spawned(task) => return Pin::new(task).poll(cx),
                 TaskState::Downcast { inner, .. } => {
                     return match Pin::new(inner.as_mut()).poll(cx) {
@@ -661,7 +661,9 @@ where
             // SAFETY: `inner` is wrapped in `ManuallyDrop`, so this is the only
             // place it is dropped. The thread check above ensures local futures
             // are dropped on the thread that created them.
-            unsafe { ManuallyDrop::drop(&mut self.inner) };
+            unsafe {
+                ManuallyDrop::drop(&mut self.inner);
+            }
         }
     }
 

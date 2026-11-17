@@ -3,9 +3,9 @@ use std::sync::Arc;
 use gpui::App;
 use gpui::Context;
 use gpui::Entity;
-use gpui::Focusable;
+use gpui::Focusable as _;
 use gpui::Render;
-use gpui_util::ResultExt;
+use gpui_util::ResultExt as _;
 use ui::Window;
 use ui::font;
 use ui::prelude::IntoElement;
@@ -45,19 +45,19 @@ impl Workspace {
     pub fn capture_dock_state(&self, _window: &Window, cx: &App) -> DockStructure {
         let left_dock = self.left_dock.read(cx);
         let left_visible = left_dock.is_open();
-        let left_active_panel = left_dock.active_panel().map(|panel| panel.persistent_name().to_string());
+        let left_active_panel = left_dock.active_panel().map(|panel| panel.persistent_name().to_owned());
         // `zoomed_position` is kept in sync with individual panel zoom state
         // by the dock code in `Dock::new` and `Dock::add_panel`.
         let left_dock_zoom = self.zoomed_position == Some(DockPosition::Left);
 
         let right_dock = self.right_dock.read(cx);
         let right_visible = right_dock.is_open();
-        let right_active_panel = right_dock.active_panel().map(|panel| panel.persistent_name().to_string());
+        let right_active_panel = right_dock.active_panel().map(|panel| panel.persistent_name().to_owned());
         let right_dock_zoom = self.zoomed_position == Some(DockPosition::Right);
 
         let bottom_dock = self.bottom_dock.read(cx);
         let bottom_visible = bottom_dock.is_open();
-        let bottom_active_panel = bottom_dock.active_panel().map(|panel| panel.persistent_name().to_string());
+        let bottom_active_panel = bottom_dock.active_panel().map(|panel| panel.persistent_name().to_owned());
         let bottom_dock_zoom = self.zoomed_position == Some(DockPosition::Bottom);
 
         DockStructure {

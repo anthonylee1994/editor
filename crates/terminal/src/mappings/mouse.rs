@@ -1,24 +1,24 @@
+use std::cmp;
 use std::cmp::min;
-use std::cmp::{self};
 use std::iter::repeat_n;
 
 /// Most of the code, and specifically the constants, in this are copied from Alacritty,
-/// with modifications for our circumstances
+/// with modifications for our circumstances.
 use gpui::Modifiers;
 /// Most of the code, and specifically the constants, in this are copied from Alacritty,
-/// with modifications for our circumstances
+/// with modifications for our circumstances.
 use gpui::MouseButton;
 /// Most of the code, and specifically the constants, in this are copied from Alacritty,
-/// with modifications for our circumstances
+/// with modifications for our circumstances.
 use gpui::Pixels;
 /// Most of the code, and specifically the constants, in this are copied from Alacritty,
-/// with modifications for our circumstances
+/// with modifications for our circumstances.
 use gpui::Point as GpuiPoint;
 /// Most of the code, and specifically the constants, in this are copied from Alacritty,
-/// with modifications for our circumstances
+/// with modifications for our circumstances.
 use gpui::ScrollWheelEvent;
 /// Most of the code, and specifically the constants, in this are copied from Alacritty,
-/// with modifications for our circumstances
+/// with modifications for our circumstances.
 use gpui::px;
 
 use crate::Modes;
@@ -185,7 +185,7 @@ pub(crate) fn grid_point_and_side(
     (Point::new(line.saturating_sub(display_offset), column), side)
 }
 
-///Generate the bytes to send to the terminal, from the cell location, a mouse event, and the terminal mode
+///Generate the bytes to send to the terminal, from the cell location, a mouse event, and the terminal mode.
 fn mouse_report(
     point: Point,
     button: MouseButtonCode,

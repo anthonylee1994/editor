@@ -8,22 +8,22 @@ use ::git::status::FileStatus;
 use buffer_diff::BufferDiff;
 use buffer_diff::DiffHunkStatus;
 use buffer_diff::DiffHunkStatusKind;
-use gpui::InteractiveElement;
-use gpui::ParentElement;
-use gpui::Styled;
+use gpui::InteractiveElement as _;
+use gpui::ParentElement as _;
+use gpui::Styled as _;
 use gpui::TaskExt as _;
-use gpui::prelude::FluentBuilder;
+use gpui::prelude::FluentBuilder as _;
 use project::git_store::Repository;
 use ui::Button;
 use ui::h_flex;
-use ui::prelude::Disableable;
+use ui::prelude::Disableable as _;
 
-use super::ActiveTheme;
+use super::ActiveTheme as _;
 use super::Anchor;
-use super::AnchorRangeExt;
+use super::AnchorRangeExt as _;
 use super::AnyElement;
 use super::App;
-use super::AppContext;
+use super::AppContext as _;
 use super::Arc;
 use super::Autoscroll;
 use super::Bias;
@@ -32,8 +32,8 @@ use super::BlameRenderer;
 use super::BlameRevision;
 use super::Buffer;
 use super::BufferId;
-use super::ButtonCommon;
-use super::Clickable;
+use super::ButtonCommon as _;
+use super::Clickable as _;
 use super::CollapseAllDiffHunks;
 use super::Context;
 use super::Debug;
@@ -44,8 +44,8 @@ use super::Editor;
 use super::EditorSnapshot;
 use super::Entity;
 use super::ExpandAllDiffHunks;
-use super::Focusable;
-use super::FutureExt;
+use super::Focusable as _;
+use super::FutureExt as _;
 use super::FxHashMap;
 use super::FxHashSet;
 use super::GitBlame;
@@ -56,8 +56,8 @@ use super::IconButton;
 use super::IconButtonShape;
 use super::IconName;
 use super::IconSize;
-use super::IntoElement;
-use super::Itertools;
+use super::IntoElement as _;
+use super::Itertools as _;
 use super::MultiBufferDiffHunk;
 use super::MultiBufferOffset;
 use super::MultiBufferRow;
@@ -67,13 +67,13 @@ use super::Pixels;
 use super::Point;
 use super::Project;
 use super::Range;
-use super::RangeExt;
+use super::RangeExt as _;
 use super::Result;
-use super::ResultExt;
+use super::ResultExt as _;
 use super::RowInfo;
 use super::SelectionEffects;
 use super::Task;
-use super::ToPoint;
+use super::ToPoint as _;
 use super::ToggleAllDiffHunks;
 use super::ToggleSelectedDiffHunks;
 use super::Tooltip;
@@ -223,7 +223,8 @@ impl Editor {
             let diff_snapshot = diff.read(cx).snapshot(cx);
             let main_buffer_id = diff_snapshot.buffer_id();
             let buffer = multibuffer.buffer(main_buffer_id).or_else(|| {
-                self.project.as_ref().and_then(|project| project.read(cx).buffer_for_id(main_buffer_id, cx))
+                let project = self.project.as_ref()?;
+                project.read(cx).buffer_for_id(main_buffer_id, cx)
             });
             let mut resolved_hunks = Vec::new();
 
@@ -783,7 +784,7 @@ impl Editor {
 
     fn open_git_blame_commit_internal(&self, window: &mut Window, cx: &mut Context<Self>) -> Option<()> {
         let (blame_entry, repo) = self.blame_entry_at_cursor(window, cx)?;
-        let renderer = cx.global::<GlobalBlameRenderer>().0.clone();
+        let renderer = Arc::clone(&cx.global::<GlobalBlameRenderer>().0);
         let workspace = self.workspace()?.downgrade();
         renderer.open_blame_commit(blame_entry, repo, workspace, window, cx);
         None
@@ -867,7 +868,7 @@ impl Editor {
         let Some(workspace) = self.workspace() else {
             return;
         };
-        let renderer = cx.global::<GlobalBlameRenderer>().0.clone();
+        let renderer = Arc::clone(&cx.global::<GlobalBlameRenderer>().0);
         renderer.open_blame_revision(path, revision, repository, workspace.downgrade(), window, cx);
     }
 
@@ -907,6 +908,40 @@ impl Editor {
         let result = snapshot.buffer_snapshot().diff_hunk_before(position);
 
         if wrap_around { result.or_else(|| snapshot.buffer_snapshot().diff_hunk_before(Point::MAX)) } else { result }
+    }
+
+    pub(super) fn update_uncommitted_diff_for_buffer(
+        &self,
+        project: &Entity<Project>,
+        buffers: impl IntoIterator<Item = Entity<Buffer>>,
+        cx: &mut Context<Self>,
+    ) -> Task<()> {
+        let mut tasks = Vec::new();
+        project.update(cx, |project, cx| {
+            let git_store = project.git_store().clone();
+            git_store.update(cx, |git_store, cx| {
+                for buffer in buffers {
+                    if project::File::from_dyn(buffer.read(cx).file()).is_some() {
+                        tasks.push(git_store.open_uncommitted_diff(buffer, cx));
+                    }
+                }
+            });
+        });
+
+        let editor = cx.entity();
+        let buffer = self.buffer.clone();
+        cx.spawn(async move |_, cx| {
+            let diffs = future::join_all(tasks).await;
+            if editor.read_with(cx, |editor, _cx| editor.diff_hunk_renderer.is_some()) {
+                return;
+            }
+
+            buffer.update(cx, |buffer, cx| {
+                for diff in diffs.into_iter().flatten() {
+                    buffer.add_diff(diff, cx);
+                }
+            });
+        })
     }
 }
 
@@ -1164,40 +1199,4 @@ pub fn render_diff_hunk_controls(
             )
         })
         .into_any_element()
-}
-
-impl Editor {
-    pub(super) fn update_uncommitted_diff_for_buffer(
-        &self,
-        project: &Entity<Project>,
-        buffers: impl IntoIterator<Item = Entity<Buffer>>,
-        cx: &mut Context<Self>,
-    ) -> Task<()> {
-        let mut tasks = Vec::new();
-        project.update(cx, |project, cx| {
-            let git_store = project.git_store().clone();
-            git_store.update(cx, |git_store, cx| {
-                for buffer in buffers {
-                    if project::File::from_dyn(buffer.read(cx).file()).is_some() {
-                        tasks.push(git_store.open_uncommitted_diff(buffer, cx));
-                    }
-                }
-            });
-        });
-
-        let editor = cx.entity();
-        let buffer = self.buffer.clone();
-        cx.spawn(async move |_, cx| {
-            let diffs = future::join_all(tasks).await;
-            if editor.read_with(cx, |editor, _cx| editor.diff_hunk_renderer.is_some()) {
-                return;
-            }
-
-            buffer.update(cx, |buffer, cx| {
-                for diff in diffs.into_iter().flatten() {
-                    buffer.add_diff(diff, cx);
-                }
-            });
-        })
-    }
 }

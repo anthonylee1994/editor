@@ -21,15 +21,15 @@ use gpui::Subscription;
 use gpui::TextStyle;
 use gpui::WeakEntity;
 use gpui::prelude::Context;
-use gpui::prelude::Element;
-use gpui::prelude::FluentBuilder;
-use gpui::prelude::InteractiveElement;
-use gpui::prelude::ParentElement;
-use gpui::prelude::StatefulInteractiveElement;
-use gpui::prelude::Styled;
+use gpui::prelude::Element as _;
+use gpui::prelude::FluentBuilder as _;
+use gpui::prelude::InteractiveElement as _;
+use gpui::prelude::ParentElement as _;
+use gpui::prelude::StatefulInteractiveElement as _;
+use gpui::prelude::Styled as _;
 use project::git_store::Repository;
 use ui::ContextMenu;
-use ui::prelude::ActiveTheme;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::AnyElement;
 use ui::prelude::App;
 use ui::prelude::SharedString;
@@ -256,11 +256,14 @@ fn open_buffer_blame_at_revision(
             async move |cx| {
                 let (language_registry, worktree_id) = workspace.read_with(cx, |workspace, cx| {
                     let project = workspace.project().read(cx);
-                    (project.languages().clone(), worktree_id_for_repo_path(repository.read(cx), project, &path, cx))
+                    (
+                        Arc::clone(project.languages()),
+                        worktree_id_for_repo_path(repository.read(cx), project, &path, cx),
+                    )
                 })?;
                 let worktree_id = worktree_id.context("project has no worktrees")?;
 
-                let file_name = path.file_name().map_or_else(|| path.display().to_string(), |name| name.to_string());
+                let file_name = path.file_name().map_or_else(|| path.display().to_owned(), |name| name.to_owned());
                 let display_name = format!("{file_name} @ {}", revision.display_short());
 
                 let activated_existing = workspace.update_in(cx, |workspace, window, cx| {
@@ -361,6 +364,6 @@ fn blame_entry_relative_timestamp(blame_entry: &BlameEntry) -> String {
                 time_format::TimestampFormat::Relative,
             )
         }
-        Err(_) => "Error parsing date".to_string(),
+        Err(_) => "Error parsing date".to_owned(),
     }
 }

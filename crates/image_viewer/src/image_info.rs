@@ -1,7 +1,7 @@
 use gpui::Context;
 use gpui::Entity;
 use gpui::IntoElement;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Render;
 use gpui::Subscription;
 use gpui::div;
@@ -9,9 +9,9 @@ use project::image_store::ImageFormat;
 use project::image_store::ImageMetadata;
 use project::image_store::RasterImageFormat;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
-use ui::prelude::Styled;
+use ui::prelude::Styled as _;
 use ui::prelude::Window;
 use util::size::format_file_size;
 use workspace::ItemHandle;
@@ -71,7 +71,7 @@ impl Render for ImageInfo {
                     _ => "Unknown",
                 },
             }
-            .to_string(),
+            .to_owned(),
         );
 
         div().child(Label::new(components.join(" • ")).size(LabelSize::Small))

@@ -198,7 +198,7 @@ impl LspStore {
             Err(e) => return Task::ready(Err(e)),
         };
         let Some(lang_server) = buffer.update(cx, |buffer, cx| {
-            self.language_server_for_local_buffer(buffer, server_id, cx).map(|(_, server)| server.clone())
+            self.language_server_for_local_buffer(buffer, server_id, cx).map(|(_, server)| Arc::clone(server))
         }) else {
             return Task::ready(Ok(color));
         };

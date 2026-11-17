@@ -28,7 +28,7 @@ use git::commit::ParsedCommitMessage;
 use git::repository::RebaseAction;
 use git::status::DiffStat;
 use git::status::StageStatus;
-use gpui::Action;
+use gpui::Action as _;
 use gpui::Anchor;
 use gpui::AnyElement;
 use gpui::AppContext as _;
@@ -37,7 +37,7 @@ use gpui::DismissEvent;
 use gpui::Empty;
 use gpui::Entity;
 use gpui::FocusHandle;
-use gpui::Focusable;
+use gpui::Focusable as _;
 use gpui::MouseButton;
 use gpui::MouseDownEvent;
 use gpui::Pixels;
@@ -68,38 +68,38 @@ use ui::Scrollbars;
 use ui::SplitButton;
 use ui::Tab;
 use ui::Tooltip;
-use ui::WithScrollbar;
-use ui::prelude::ActiveTheme;
+use ui::WithScrollbar as _;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::App;
 use ui::prelude::Button;
-use ui::prelude::ButtonCommon;
+use ui::prelude::ButtonCommon as _;
 use ui::prelude::ButtonSize;
 use ui::prelude::ButtonStyle;
-use ui::prelude::Clickable;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
 use ui::prelude::Context;
-use ui::prelude::Disableable;
+use ui::prelude::Disableable as _;
 use ui::prelude::Div;
 use ui::prelude::ElementId;
-use ui::prelude::FluentBuilder;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Icon;
 use ui::prelude::IconButton;
 use ui::prelude::IconName;
 use ui::prelude::IconPosition;
 use ui::prelude::IconSize;
-use ui::prelude::InteractiveElement;
+use ui::prelude::InteractiveElement as _;
 use ui::prelude::IntoElement;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
-use ui::prelude::ParentElement;
+use ui::prelude::ParentElement as _;
 use ui::prelude::Rems;
 use ui::prelude::Render;
 use ui::prelude::SharedString;
-use ui::prelude::StatefulInteractiveElement;
-use ui::prelude::Styled;
+use ui::prelude::StatefulInteractiveElement as _;
+use ui::prelude::Styled as _;
 use ui::prelude::ToggleState;
-use ui::prelude::Toggleable;
+use ui::prelude::Toggleable as _;
 use ui::prelude::Window;
 use ui::prelude::div;
 use ui::prelude::h_flex;
@@ -107,7 +107,7 @@ use ui::prelude::px;
 use ui::prelude::relative;
 use ui::prelude::v_flex;
 use workspace::CARD_RADIUS;
-use workspace::dock::Panel;
+use workspace::dock::Panel as _;
 
 use super::GitHeaderEntry;
 use super::GitListEntry;
@@ -216,7 +216,7 @@ fn git_panel_view_options_menu(focus_handle: FocusHandle, window: &mut Window, c
             .context(focus_handle.clone())
             .header("View")
             .item({
-                let view_options_menu_state = view_options_menu_state.clone();
+                let view_options_menu_state = Rc::clone(&view_options_menu_state);
                 ContextMenuEntry::new("List").toggle(IconPosition::End, !state.tree_view).handler(move |window, cx| {
                     if state.tree_view {
                         view_options_menu_state.set(GitPanelViewOptions { tree_view: false, ..state });
@@ -225,7 +225,7 @@ fn git_panel_view_options_menu(focus_handle: FocusHandle, window: &mut Window, c
                 })
             })
             .item({
-                let view_options_menu_state = view_options_menu_state.clone();
+                let view_options_menu_state = Rc::clone(&view_options_menu_state);
                 ContextMenuEntry::new("Tree").toggle(IconPosition::End, state.tree_view).handler(move |window, cx| {
                     if !state.tree_view {
                         view_options_menu_state.set(GitPanelViewOptions { tree_view: true, ..state });
@@ -237,7 +237,7 @@ fn git_panel_view_options_menu(focus_handle: FocusHandle, window: &mut Window, c
                 this.separator()
                     .header("Sort By")
                     .item({
-                        let view_options_menu_state = view_options_menu_state.clone();
+                        let view_options_menu_state = Rc::clone(&view_options_menu_state);
                         ContextMenuEntry::new("Path")
                             .toggle(IconPosition::End, state.sort_by == GitPanelSortBy::Path)
                             .handler(move |window, cx| {
@@ -249,7 +249,7 @@ fn git_panel_view_options_menu(focus_handle: FocusHandle, window: &mut Window, c
                             })
                     })
                     .item({
-                        let view_options_menu_state = view_options_menu_state.clone();
+                        let view_options_menu_state = Rc::clone(&view_options_menu_state);
                         ContextMenuEntry::new("Name")
                             .toggle(IconPosition::End, state.sort_by == GitPanelSortBy::Name)
                             .handler(move |window, cx| {
@@ -264,7 +264,7 @@ fn git_panel_view_options_menu(focus_handle: FocusHandle, window: &mut Window, c
             .separator()
             .header("Group By")
             .item({
-                let view_options_menu_state = view_options_menu_state.clone();
+                let view_options_menu_state = Rc::clone(&view_options_menu_state);
                 ContextMenuEntry::new("None")
                     .toggle(IconPosition::End, state.group_by == GitPanelGroupBy::None)
                     .handler(move |window, cx| {
@@ -276,7 +276,7 @@ fn git_panel_view_options_menu(focus_handle: FocusHandle, window: &mut Window, c
                     })
             })
             .item({
-                let view_options_menu_state = view_options_menu_state.clone();
+                let view_options_menu_state = Rc::clone(&view_options_menu_state);
                 ContextMenuEntry::new("Tracked & Untracked")
                     .toggle(IconPosition::End, state.group_by == GitPanelGroupBy::Status)
                     .handler(move |window, cx| {
@@ -288,7 +288,7 @@ fn git_panel_view_options_menu(focus_handle: FocusHandle, window: &mut Window, c
                     })
             })
             .item({
-                let view_options_menu_state = view_options_menu_state.clone();
+                let view_options_menu_state = Rc::clone(&view_options_menu_state);
                 ContextMenuEntry::new("Staged & Unstaged")
                     .toggle(IconPosition::End, state.group_by == GitPanelGroupBy::Staging)
                     .handler(move |window, cx| {
@@ -1155,7 +1155,7 @@ impl GitPanel {
         cx: &App,
     ) -> Option<AnyElement> {
         let repo = self.active_repository.as_ref()?.read(cx);
-        let project_path = (file.worktree_id(cx), file.path().clone()).into();
+        let project_path = (file.worktree_id(cx), Arc::clone(file.path())).into();
         let repo_path = repo.project_path_to_repo_path(&project_path, cx)?;
         let ix = self.entry_by_path(&repo_path)?;
         let entry = self.entries.get(ix)?;
@@ -1163,8 +1163,14 @@ impl GitPanel {
         let is_staging_or_staged = repo
             .pending_ops_for_path(&repo_path)
             .map(|ops| !ops.last_op_errored() && (ops.staging() || ops.staged()))
-            .or_else(|| repo.status_for_path(&repo_path).and_then(|status| status.status.staging().as_bool()))
-            .or_else(|| entry.status_entry().and_then(|entry| entry.staging.as_bool()));
+            .or_else(|| {
+                let status = repo.status_for_path(&repo_path)?;
+                status.status.staging().as_bool()
+            })
+            .or_else(|| {
+                let entry = entry.status_entry()?;
+                entry.staging.as_bool()
+            });
 
         let checkbox = Checkbox::new("stage-file", is_staging_or_staged.into())
             .fill()
@@ -1308,8 +1314,8 @@ impl GitPanel {
         _window: &Window,
         cx: &Context<Self>,
     ) -> AnyElement {
-        let id: ElementId = ElementId::Name(format!("header_{ix}").into());
-        let checkbox_id: ElementId = ElementId::Name(format!("header_{ix}_checkbox").into());
+        let id = ElementId::Name(format!("header_{ix}").into());
+        let checkbox_id = ElementId::Name(format!("header_{ix}_checkbox").into());
         let group_name: SharedString = format!("header_{ix}").into();
         let section = header.header;
         let weak = cx.weak_entity();
@@ -1606,10 +1612,9 @@ impl GitPanel {
         let label_color = Color::Default;
         let path_color = if status.is_deleted() { Color::Disabled } else { Color::Muted };
 
-        let id: ElementId = ElementId::Name(format!("entry_{display_name}_{ix}").into());
-        let checkbox_wrapper_id: ElementId =
-            ElementId::Name(format!("entry_{display_name}_{ix}_checkbox_wrapper").into());
-        let checkbox_id: ElementId = ElementId::Name(format!("entry_{display_name}_{ix}_checkbox").into());
+        let id = ElementId::Name(format!("entry_{display_name}_{ix}").into());
+        let checkbox_wrapper_id = ElementId::Name(format!("entry_{display_name}_{ix}_checkbox_wrapper").into());
+        let checkbox_id = ElementId::Name(format!("entry_{display_name}_{ix}_checkbox").into());
 
         let stage_status = GitPanel::stage_status_for_entry(entry, repo);
         let stage_intent = self.stage_intent_for_entry_index(ix);
@@ -1772,10 +1777,9 @@ impl GitPanel {
         let selected = self.selected_entry == Some(ix);
         let marked = self.marked_directories.contains(&entry.key);
         let label_color = Color::Muted;
-        let id: ElementId = ElementId::Name(format!("dir_{}_{}", entry.name, ix).into());
-        let checkbox_id: ElementId = ElementId::Name(format!("dir_checkbox_{}_{}", entry.name, ix).into());
-        let checkbox_wrapper_id: ElementId =
-            ElementId::Name(format!("dir_checkbox_wrapper_{}_{}", entry.name, ix).into());
+        let id = ElementId::Name(format!("dir_{}_{}", entry.name, ix).into());
+        let checkbox_id = ElementId::Name(format!("dir_checkbox_{}_{}", entry.name, ix).into());
+        let checkbox_wrapper_id = ElementId::Name(format!("dir_checkbox_wrapper_{}_{}", entry.name, ix).into());
 
         let selected_bg_alpha = 0.08;
         let marked_bg_alpha = 0.12;

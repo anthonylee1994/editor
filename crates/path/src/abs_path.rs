@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use anyhow::Context;
+use anyhow::Context as _;
 
 use crate::rel_path::RelPath;
 

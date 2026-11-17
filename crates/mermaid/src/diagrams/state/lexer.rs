@@ -331,7 +331,6 @@ impl<'a> Lexer<'a> {
 
     /// Lexes one token or skips one stretch. Returns false once the token list is finished.
     #[expect(
-        clippy::too_many_lines,
         clippy::many_single_char_names,
         reason = "mirrors Pele's lexer switch and names, one arm per start condition"
     )]
@@ -561,7 +560,6 @@ impl<'a> Lexer<'a> {
 
     /// The rules of the root document (`INITIAL`) and of a composite's body (`struct`).
     #[expect(
-        clippy::too_many_lines,
         clippy::many_single_char_names,
         reason = "mirrors Pele's rule order and names for the two document states"
     )]

@@ -11,11 +11,11 @@ use gpui::App;
 use gpui::AppContext as _;
 use gpui::Context;
 use gpui::Entity;
-use gpui::Focusable;
+use gpui::Focusable as _;
 use gpui::IntoElement;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Render;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Subscription;
 use gpui::WeakEntity;
 use gpui::Window;
@@ -28,7 +28,7 @@ use ui::PopoverMenu;
 use ui::PopoverMenuHandle;
 use ui::Tooltip;
 use ui::prelude::Color;
-use ui::prelude::FluentBuilder;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Icon;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
@@ -132,8 +132,7 @@ impl ActiveRepository {
             let repo_path = &repo.read(cx).work_directory_abs_path;
             worktree_abs_path.starts_with(repo_path.as_ref()) || repo_path.starts_with(&worktree_abs_path)
         });
-        active.project_name =
-            worktree.read(cx).root_name().file_name().map(|name| SharedString::from(name.to_string()));
+        active.project_name = worktree.read(cx).root_name().file_name().map(|name| SharedString::from(name.to_owned()));
         let Some(active_repo) = &active.repository else {
             return active;
         };
@@ -163,7 +162,7 @@ impl ActiveRepository {
             {
                 format!("{}/{}", repo_name, relative.display())
             } else {
-                repo_name.to_string()
+                repo_name.to_owned()
             };
             active.project_name = Some(SharedString::from(name));
         }
@@ -198,11 +197,8 @@ impl TitleBar {
         let project = workspace.project().clone();
         let git_store = project.read(cx).git_store().clone();
 
-        let application_menu = if option_env!("ED_USE_CROSS_PLATFORM_MENU").is_some() {
-            Some(cx.new(|cx| ApplicationMenu::new(window, cx)))
-        } else {
-            None
-        };
+        let application_menu =
+            option_env!("ED_USE_CROSS_PLATFORM_MENU").is_some().then(|| cx.new(|cx| ApplicationMenu::new(window, cx)));
 
         let mut subscriptions = Vec::new();
         subscriptions.push(cx.subscribe(&git_store, move |_, _, event, cx| match event {
@@ -251,7 +247,7 @@ impl TitleBar {
         let display_name = if let Some(ref name) = name {
             util::truncate_and_trailoff(name, MAX_PROJECT_NAME_LENGTH)
         } else {
-            "Open Recent Project".to_string()
+            "Open Recent Project".to_owned()
         };
 
         let focus_handle = workspace.upgrade().map_or_else(|| cx.focus_handle(), |w| w.read(cx).focus_handle(cx));
@@ -290,7 +286,7 @@ mod tests {
     use super::nested_repository_label;
 
     #[test]
-    fn test_nested_repository_label() {
+    fn nested_repository_label_works() {
         let folder = Path::new("/code/notebook");
         assert_eq!(
             nested_repository_label("notebook", folder, Path::new("/code/notebook/vendor/katex")).as_deref(),

@@ -2,13 +2,13 @@ use std::cmp;
 use std::collections::hash_map;
 use std::sync::Arc;
 
-use gpui::Action;
+use gpui::Action as _;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::Context;
 use gpui::Entity;
 use gpui::EntityId;
-use gpui::Focusable;
+use gpui::Focusable as _;
 use ui::Window;
 
 use super::ActivatePane;
@@ -34,7 +34,7 @@ impl Workspace {
             let mut pane = Pane::new(
                 self.weak_handle(),
                 self.project.clone(),
-                self.pane_history_timestamp.clone(),
+                Arc::clone(&self.pane_history_timestamp),
                 Some(Arc::new(|dragged, _, cx| !is_dragged_terminal(dragged, cx))),
                 NewFile.boxed_clone(),
                 window,
@@ -147,11 +147,7 @@ impl Workspace {
         ]
         .into_iter()
         .find_map(|(dock, origin)| {
-            if dock.focus_handle(cx).contains_focused(window, cx) && dock.read(cx).is_open() {
-                Some(origin)
-            } else {
-                None
-            }
+            (dock.focus_handle(cx).contains_focused(window, cx) && dock.read(cx).is_open()).then_some(origin)
         })
         .unwrap_or(Origin::Center);
 
@@ -265,7 +261,7 @@ impl Workspace {
     }
 
     pub fn move_pane_to_border(&mut self, direction: SplitDirection, cx: &mut Context<Self>) {
-        if self.center.move_to_border(&self.active_pane, direction, cx).unwrap() {
+        if self.center.move_to_border(&self.active_pane, direction, cx).expect("active pane is in the center group") {
             self.notify_mode(WorkspaceMode::Editor, cx);
         }
     }
@@ -529,7 +525,7 @@ impl Workspace {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.center.remove(&pane, cx).unwrap() {
+        if self.center.remove(&pane, cx).expect("pane is in the center group") {
             if self.maximized_pane.as_ref().and_then(gpui::WeakEntity::upgrade).as_ref() == Some(&pane) {
                 self.maximized_pane = None;
             }
@@ -631,7 +627,7 @@ impl Workspace {
             }
             focus_on.update(cx, |pane, cx| window.focus(&pane.focus_handle(cx), cx));
         } else if removing_active_pane {
-            let fallback_pane = self.panes.last().unwrap().clone();
+            let fallback_pane = self.panes.last().expect("workspace always has a pane").clone();
             self.set_active_pane(&fallback_pane, window, cx);
             if !self.has_active_modal(window, cx) {
                 fallback_pane.update(cx, |pane, cx| window.focus(&pane.focus_handle(cx), cx));

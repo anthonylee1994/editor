@@ -73,16 +73,16 @@ macro_rules! actions {
 /// `#[register_action]` macro, which only generates the code needed to register your action before
 /// `main`.
 pub trait Action: Any + Send {
-    /// Clone the action into a new box
+    /// Clone the action into a new box.
     fn boxed_clone(&self) -> Box<dyn Action>;
 
-    /// Do a partial equality check on this action and the other
+    /// Do a partial equality check on this action and the other.
     fn partial_eq(&self, action: &dyn Action) -> bool;
 
-    /// Get the name of this action, for displaying in UI
+    /// Get the name of this action, for displaying in UI.
     fn name(&self) -> &'static str;
 
-    /// Get the name of this action type (static)
+    /// Get the name of this action type (static).
     fn name_for_type() -> &'static str
     where
         Self: Sized;
@@ -278,7 +278,7 @@ mod no_action {
     ///
     /// In keymap JSON this is written as:
     ///
-    /// `["ed::Unbind", "editor::NewLine"]`
+    /// `["ed::Unbind", "editor::NewLine"]`.
     #[derive(Clone, Debug, PartialEq, Eq, Deserialize, gpui::Action)]
     #[action(namespace = ed)]
     pub struct Unbind(pub gpui::SharedString);

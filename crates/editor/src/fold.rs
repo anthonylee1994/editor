@@ -1,13 +1,13 @@
 use std::any::TypeId;
 
-use gpui::IntoElement;
+use gpui::IntoElement as _;
 use ui::font;
-use ui::prelude::Toggleable;
+use ui::prelude::Toggleable as _;
 
-use super::ActiveTheme;
+use super::ActiveTheme as _;
 use super::AnyElement;
 use super::App;
-use super::AppContext;
+use super::AppContext as _;
 use super::Arc;
 use super::Autoscroll;
 use super::BufferId;
@@ -20,7 +20,7 @@ use super::DisplayPoint;
 use super::Editor;
 use super::EditorEvent;
 use super::EditorSnapshot;
-use super::Element;
+use super::Element as _;
 use super::Entity;
 use super::FoldAtLevel;
 use super::FoldPlaceholder;
@@ -31,29 +31,29 @@ use super::GutterDimensions;
 use super::ItemBufferKind;
 use super::MultiBufferOffset;
 use super::MultiBufferRow;
-use super::OffsetRangeExt;
-use super::ParentElement;
+use super::OffsetRangeExt as _;
+use super::ParentElement as _;
 use super::Pixels;
 use super::Point;
 use super::Range;
 use super::RangeExt;
-use super::SelectionExt;
-use super::Styled;
+use super::SelectionExt as _;
+use super::Styled as _;
 use super::TextObject;
-use super::ToDisplayPoint;
+use super::ToDisplayPoint as _;
 use super::ToOffset;
 use super::TreeSitterOptions;
 use super::UnfoldLines;
 use super::UnfoldRecursive;
 use super::Window;
-use super::WorkspaceItem;
+use super::WorkspaceItem as _;
 use super::actions;
 use super::div;
 
 impl GutterDimensions {
     /// The width of the space reserved for the fold indicators,
     /// use alongside 'justify_end' and `gutter_width` to
-    /// right align content with the line numbers
+    /// right align content with the line numbers.
     pub fn fold_area_width(&self) -> Pixels {
         self.margin + self.right_padding
     }
@@ -91,22 +91,18 @@ impl EditorSnapshot {
 
         is_foldable |= !self.use_lsp_folding_ranges && self.starts_indent(buffer_row);
 
-        if folded || (is_foldable && (row_contains_cursor || self.gutter_hovered)) {
-            Some(
-                Disclosure::new(("gutter_crease", buffer_row.0), !folded)
-                    .toggle_state(folded)
-                    .on_click(window.listener_for(&editor, move |this, _e, window, cx| {
-                        if folded {
-                            this.unfold_at(buffer_row, window, cx);
-                        } else {
-                            this.fold_at(buffer_row, window, cx);
-                        }
-                    }))
-                    .into_any_element(),
-            )
-        } else {
-            None
-        }
+        (folded || (is_foldable && (row_contains_cursor || self.gutter_hovered))).then(|| {
+            Disclosure::new(("gutter_crease", buffer_row.0), !folded)
+                .toggle_state(folded)
+                .on_click(window.listener_for(&editor, move |this, _e, window, cx| {
+                    if folded {
+                        this.unfold_at(buffer_row, window, cx);
+                    } else {
+                        this.fold_at(buffer_row, window, cx);
+                    }
+                }))
+                .into_any_element()
+        })
     }
 
     pub fn render_crease_trailer(
@@ -701,26 +697,15 @@ impl Editor {
         let task = cx.background_spawn(async move {
             let new_newlines = snapshot
                 .buffer_chars_at(MultiBufferOffset(0))
-                .filter_map(|(c, i)| {
-                    if c == '\n' {
-                        Some(
-                            snapshot.buffer_snapshot().anchor_after(i)
-                                ..snapshot.buffer_snapshot().anchor_before(i + 1usize),
-                        )
-                    } else {
-                        None
-                    }
+                .filter(|&(c, _)| c == '\n')
+                .map(|(_, i)| {
+                    snapshot.buffer_snapshot().anchor_after(i)..snapshot.buffer_snapshot().anchor_before(i + 1_usize)
                 })
                 .collect::<Vec<_>>();
             let existing_newlines = snapshot
                 .folds_in_range(MultiBufferOffset(0)..snapshot.buffer_snapshot().len())
-                .filter_map(|fold| {
-                    if fold.placeholder.type_tag == Some(type_id) {
-                        Some(fold.range.start..fold.range.end)
-                    } else {
-                        None
-                    }
-                })
+                .filter(|fold| fold.placeholder.type_tag == Some(type_id))
+                .map(|fold| fold.range.start..fold.range.end)
                 .collect::<Vec<_>>();
 
             (new_newlines, existing_newlines)
@@ -797,7 +782,7 @@ mod tests {
     use super::all_buffers_folded;
 
     #[test]
-    fn test_all_buffers_folded() {
+    fn all_buffers_folded_works() {
         let ids = [BufferId::new(1).unwrap(), BufferId::new(2).unwrap()];
         let folded = |folded_ids: &[BufferId]| folded_ids.iter().copied().collect::<FxHashSet<BufferId>>();
         assert!(!all_buffers_folded(ids.into_iter(), &folded(&[])));

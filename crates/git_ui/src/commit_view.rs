@@ -39,12 +39,12 @@ use gpui::EntityId;
 use gpui::EventEmitter;
 use gpui::FocusHandle;
 use gpui::Focusable;
-use gpui::InteractiveElement;
+use gpui::InteractiveElement as _;
 use gpui::IntoElement;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::PromptLevel;
 use gpui::Render;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Subscription;
 use gpui::Task;
 use gpui::TaskExt as _;
@@ -70,29 +70,29 @@ use project::git_store::CommitFile;
 use project::git_store::Repository;
 use project::git_store::UnshallowState;
 use rustc_hash::FxHashMap;
-use theme::ActiveTheme;
+use theme::ActiveTheme as _;
 use ui::ContextMenu;
 use ui::DiffStat;
 use ui::Divider;
 use ui::Tooltip;
 use ui::prelude::Button;
-use ui::prelude::ButtonCommon;
+use ui::prelude::ButtonCommon as _;
 use ui::prelude::ButtonStyle;
-use ui::prelude::Clickable;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
-use ui::prelude::Disableable;
-use ui::prelude::FluentBuilder;
+use ui::prelude::Disableable as _;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Icon;
 use ui::prelude::IconButton;
 use ui::prelude::IconName;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
 use ui::prelude::SharedString;
 use ui::prelude::div;
 use ui::prelude::h_flex;
 use ui::prelude::v_flex;
-use util::ResultExt;
+use util::ResultExt as _;
 use util::rel_path::RelPath;
 use util::truncate_and_trailoff;
 use workspace::Item;
@@ -107,7 +107,7 @@ use workspace::WorkspaceMode;
 use workspace::item::ItemEvent;
 use workspace::item::TabTooltipContent;
 use workspace::notifications::NotificationId;
-use workspace::notifications::NotifyTaskExt;
+use workspace::notifications::NotifyTaskExt as _;
 use workspace::pane::SaveIntent;
 use workspace::searchable::SearchableItemHandle;
 
@@ -302,7 +302,7 @@ impl Addon for CommitDiffAddon {
                 .read(cx)
                 .entry_for_path(&project_path, cx)
                 .is_some();
-            exists_at_head.then(|| file.clone())
+            exists_at_head.then(|| Arc::clone(file))
         });
 
         menu.when_some(file_to_open, |menu, file| {
@@ -484,7 +484,7 @@ impl CommitView {
                                     .items()
                                     .filter_map(|item| item.downcast::<CommitView>())
                                     .find(|view| view.read(cx).commit.sha == commit_sha)
-                                    .unwrap();
+                                    .expect("commit view was found at ix");
 
                                 pane.remove_item(existing.item_id(), false, false, window, cx);
                                 pane.add_item(Box::new(commit_view), true, true, Some(ix), window, cx);
@@ -512,7 +512,7 @@ impl CommitView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
-        let language_registry = project.read(cx).languages().clone();
+        let language_registry = Arc::clone(project.read(cx).languages());
         let is_shallow_boundary = commit_diff.is_shallow_boundary;
         let multibuffer = cx.new(|cx| {
             let mut multibuffer = MultiBuffer::new(Capability::ReadOnly);
@@ -521,10 +521,10 @@ impl CommitView {
         });
 
         let details = cx.new(|cx| {
-            let mut details = CommitDetailsPanel::new(Some(language_registry.clone()));
+            let mut details = CommitDetailsPanel::new(Some(Arc::clone(&language_registry)));
             if let Ok(sha) = commit.sha.parse::<Oid>() {
                 details.set_commit(&repository, sha, Vec::new(), gpui::Hsla::default(), cx);
-                details.set_diff(commit_diff.clone(), cx);
+                details.set_diff(Arc::clone(&commit_diff), cx);
             }
             details
         });
@@ -562,7 +562,7 @@ impl CommitView {
             editor.set_diff_hunk_renderer(Some(Arc::new(HiddenDiffHunkRenderer)), cx);
             editor.rhs_editor().update(cx, |editor, _cx| {
                 editor.register_addon(CommitDiffAddon { file_statuses: FxHashMap::default(), commit_view });
-                editor.set_semantics_provider(Some(semantics_provider.clone()));
+                editor.set_semantics_provider(Some(Rc::<RevisionSemanticsProvider>::clone(&semantics_provider)));
             });
 
             editor
@@ -799,7 +799,7 @@ impl CommitView {
             return;
         };
         let repo_path = RepoPath::from_rel_path(file.path());
-        let provider = self.semantics_provider.clone();
+        let provider = Rc::clone(&self.semantics_provider);
         editor.update(cx, |editor, _| {
             editor.set_side_card(Some(self.details.clone().into()));
             editor.set_semantics_provider(Some(provider));
@@ -837,7 +837,7 @@ impl CommitView {
     /// Moves the diff's cursor to the first hunk of `repo_path`, returning
     /// false when the commit has no excerpt for it.
     fn select_file(&self, repo_path: &RepoPath, window: &mut Window, cx: &mut Context<Self>) -> bool {
-        let path_key = PathKey::with_sort_prefix(FILE_NAMESPACE_SORT_PREFIX, repo_path.as_ref().clone());
+        let path_key = PathKey::with_sort_prefix(FILE_NAMESPACE_SORT_PREFIX, Arc::clone(repo_path.as_ref()));
         let Some(position) = self.multibuffer.read(cx).location_for_path(&path_key, cx) else {
             return false;
         };
@@ -868,7 +868,7 @@ impl CommitView {
     /// top. The scroll is anchored inside the file, so files inserted above
     /// it while the diff is still loading don't push it out of view.
     fn scroll_to_file(&self, repo_path: &RepoPath, window: &mut Window, cx: &mut Context<Self>) {
-        let path_key = PathKey::with_sort_prefix(FILE_NAMESPACE_SORT_PREFIX, repo_path.as_ref().clone());
+        let path_key = PathKey::with_sort_prefix(FILE_NAMESPACE_SORT_PREFIX, Arc::clone(repo_path.as_ref()));
         let Some(position) = self.multibuffer.read(cx).location_for_path(&path_key, cx) else {
             return;
         };
@@ -1069,7 +1069,8 @@ impl CommitView {
                 };
 
                 let repo = workspace.update(cx, |workspace, cx| {
-                    workspace.panel::<GitPanel>(cx).and_then(|p| p.read(cx).active_repository.clone())
+                    let p = workspace.panel::<GitPanel>(cx)?;
+                    p.read(cx).active_repository.clone()
                 });
 
                 let Some(repo) = repo else {
@@ -1145,12 +1146,12 @@ async fn load_commit_file(
 ) -> Result<LoadedCommitFile> {
     let is_binary = file.is_binary;
     let new_text =
-        if is_binary { "(binary file not shown)".to_string() } else { file.new_text.clone().unwrap_or_default() };
+        if is_binary { "(binary file not shown)".to_owned() } else { file.new_text.clone().unwrap_or_default() };
     let old_text = if is_binary { None } else { file.old_text.clone() };
     let worktree_id = repository
         .read_with(&cx, |repository, cx| worktree_id_for_repo_path(repository, project.read(cx), &file.path, cx))
         .context("project has no worktrees")?;
-    let file_name = file.path.file_name().map_or_else(|| file.path.display().to_string(), |name| name.to_string());
+    let file_name = file.path.file_name().map_or_else(|| file.path.display().to_owned(), |name| name.to_owned());
     let blob = Arc::new(GitBlob {
         path: file.path.clone(),
         is_deleted: file.new_text.is_none(),
@@ -1164,7 +1165,12 @@ async fn load_commit_file(
         cx.update(|_, cx| {
             let snapshot = buffer.read(cx).snapshot();
             cx.new(|cx| {
-                BufferDiff::new_unchanged(&snapshot, snapshot.language().cloned(), Some(language_registry.clone()), cx)
+                BufferDiff::new_unchanged(
+                    &snapshot,
+                    snapshot.language().cloned(),
+                    Some(Arc::clone(language_registry)),
+                    cx,
+                )
             })
         })?
     } else {
@@ -1173,7 +1179,7 @@ async fn load_commit_file(
 
     let (path_key, excerpt_ranges) = cx.update(|_, cx| {
         let snapshot = buffer.read(cx).snapshot();
-        let path_key = PathKey::with_sort_prefix(FILE_NAMESPACE_SORT_PREFIX, file.path.as_ref().clone());
+        let path_key = PathKey::with_sort_prefix(FILE_NAMESPACE_SORT_PREFIX, Arc::clone(file.path.as_ref()));
         let full_range = vec![Point::zero()..snapshot.max_point()];
         let excerpt_ranges = if is_binary {
             full_range
@@ -1226,7 +1232,7 @@ pub(crate) async fn build_buffer(
     let buffer = cx.new(|cx| {
         let buffer = TextBuffer::new_normalized(cx.entity_id().as_non_zero_u64().into(), line_ending, text);
         let mut buffer = Buffer::build(buffer, Some(blob), Capability::ReadWrite, cx);
-        buffer.set_language_registry(language_registry.clone());
+        buffer.set_language_registry(Arc::clone(language_registry));
         buffer.set_language_async(language, cx);
         buffer
     });
@@ -1246,7 +1252,7 @@ async fn build_buffer_diff(
     let language = cx.update(|_, cx| buffer.read(cx).language().cloned())?;
     let buffer = cx.update(|_, cx| buffer.read(cx).snapshot())?;
 
-    let diff = cx.new(|cx| BufferDiff::new(&buffer.text, language, Some(language_registry.clone()), cx));
+    let diff = cx.new(|cx| BufferDiff::new(&buffer.text, language, Some(Arc::clone(language_registry)), cx));
 
     diff.update(cx, |diff, cx| {
         diff.set_base_text(old_text.map(|old_text| Arc::from(old_text.as_str())), buffer.text.clone(), cx)
@@ -1273,17 +1279,18 @@ impl Item for CommitView {
 
     fn tab_content_text(&self, _detail: usize, _cx: &App) -> SharedString {
         let short_sha = self.commit.sha.get(0..7).unwrap_or(&*self.commit.sha);
-        let subject = truncate_and_trailoff(self.commit.message.split('\n').next().unwrap(), 20);
+        let subject =
+            truncate_and_trailoff(self.commit.message.split('\n').next().expect("split yields at least one item"), 20);
         format!("{short_sha} — {subject}").into()
     }
 
     fn tab_tooltip_content(&self, _: &App) -> Option<TabTooltipContent> {
         let short_sha = self.commit.sha.get(0..16).unwrap_or(&*self.commit.sha);
-        let subject = self.commit.message.split('\n').next().unwrap();
+        let subject = self.commit.message.split('\n').next().expect("split yields at least one item");
 
         Some(TabTooltipContent::Custom(Box::new(Tooltip::element({
-            let subject = subject.to_string();
-            let short_sha = short_sha.to_string();
+            let subject = subject.to_owned();
+            let short_sha = short_sha.to_owned();
 
             move |_, _| {
                 v_flex()
@@ -1463,7 +1470,7 @@ fn shows_sidebar_beside_other_tab(
 
 #[cfg(test)]
 mod tests {
-    use editor::Addon;
+    use editor::Addon as _;
     use git::repository::RepoPath;
     use gpui::WeakEntity;
     use project::git_store::CommitFile;
@@ -1478,15 +1485,15 @@ mod tests {
     fn commit_file(path: &str) -> CommitFile {
         CommitFile {
             path: RepoPath::new(path).unwrap(),
-            old_text: Some("old".to_string()),
-            new_text: Some("new".to_string()),
+            old_text: Some("old".to_owned()),
+            new_text: Some("new".to_owned()),
             is_binary: false,
         }
     }
 
     #[test]
-    fn test_shows_sidebar_beside_other_tab() {
-        let [commit_view, details, revision, other_details] = [1u64, 2, 3, 4].map(gpui::EntityId::from);
+    fn shows_sidebar_beside_other_tab_works() {
+        let [commit_view, details, revision, other_details] = [1_u64, 2, 3, 4].map(gpui::EntityId::from);
         // A revision or preview showing this commit's sidebar opens revisions.
         assert!(shows_sidebar_beside_other_tab(revision, || Some(details), commit_view, details));
         // The commit view itself scrolls its diff, without reading its own side card.
@@ -1502,7 +1509,7 @@ mod tests {
     }
 
     #[test]
-    fn test_project_file_not_found_message() {
+    fn project_file_not_found_message_works() {
         let repo_path = RepoPath::new("crates/util/src/shell.rs").unwrap();
         assert_eq!(
             project_file_not_found_message(&repo_path),
@@ -1511,26 +1518,26 @@ mod tests {
     }
 
     #[test]
-    fn test_commit_diff_addon_open_file_label() {
+    fn commit_diff_addon_open_file_label() {
         let addon = CommitDiffAddon { file_statuses: FxHashMap::default(), commit_view: WeakEntity::new_invalid() };
         assert_eq!(addon.open_file_label(), Some("Open Revision"));
     }
 
     #[test]
-    fn test_commit_diff_addon_hides_project_file_actions() {
+    fn commit_diff_addon_hides_project_file_actions() {
         let addon = CommitDiffAddon { file_statuses: FxHashMap::default(), commit_view: WeakEntity::new_invalid() };
         assert!(!addon.shows_project_file_actions());
     }
 
     #[test]
-    fn test_initial_file_path() {
+    fn initial_file_path() {
         let path = RepoPath::new("src/lib.rs").unwrap();
         assert_eq!(InitialFile::Scroll(path.clone()).path(), &path);
         assert_eq!(InitialFile::Revision(path.clone()).path(), &path);
     }
 
     #[test]
-    fn test_file_load_order() {
+    fn file_load_order_works() {
         let files = vec![commit_file("a.rs"), commit_file("b.rs"), commit_file("c.rs")];
         let b = RepoPath::new("b.rs").unwrap();
         let c = RepoPath::new("c.rs").unwrap();

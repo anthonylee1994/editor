@@ -31,9 +31,7 @@ impl WorktreeSettings {
     pub fn is_path_hidden(&self, path: &RelPath) -> bool {
         path.ancestors().any(|ancestor| self.hidden_files.is_match(ancestor))
     }
-}
 
-impl WorktreeSettings {
     fn built_in() -> Self {
         let file_scan_exclusions = vec![
             "**/.git".into(),

@@ -7,7 +7,7 @@ use anyhow::bail;
 use derive_more::Deref;
 use derive_more::DerefMut;
 use futures::channel::oneshot;
-use futures::future::FutureExt;
+use futures::future::FutureExt as _;
 
 use super::Context;
 use super::WeakEntity;
@@ -17,7 +17,7 @@ use crate::App;
 use crate::AppCell;
 use crate::AppContext;
 use crate::BackgroundExecutor;
-use crate::BorrowAppContext;
+use crate::BorrowAppContext as _;
 use crate::Entity;
 use crate::EntityId;
 use crate::EventEmitter;
@@ -52,6 +52,128 @@ pub struct AsyncApp {
 impl AsyncApp {
     fn app(&self) -> Rc<AppCell> {
         self.app.upgrade().expect("app was released before async operation completed")
+    }
+
+    /// Schedules all windows in the application to be redrawn.
+    pub fn refresh(&self) {
+        let app = self.app();
+        let mut lock = app.borrow_mut();
+        // A direct call would leave the refresh effect queued, which cannot wake
+        // a platform render loop that has already parked.
+        lock.update(App::refresh_windows);
+    }
+
+    /// Get an executor which can be used to spawn futures in the background.
+    pub const fn background_executor(&self) -> &BackgroundExecutor {
+        &self.background_executor
+    }
+
+    /// Get an executor which can be used to spawn futures in the foreground.
+    pub const fn foreground_executor(&self) -> &ForegroundExecutor {
+        &self.foreground_executor
+    }
+
+    /// Invoke the given function in the context of the app, then flush any effects produced during its invocation.
+    #[inline(always)]
+    pub fn update<R>(&self, f: impl FnOnce(&mut App) -> R) -> R {
+        let app = self.app();
+        let mut lock = app.borrow_mut();
+        lock.update(f)
+    }
+
+    /// Arrange for the given callback to be invoked whenever the given entity emits an event of a given type.
+    /// The callback is provided a handle to the emitting entity and a reference to the emitted event.
+    pub fn subscribe<T, Event>(
+        &mut self,
+        entity: &Entity<T>,
+        on_event: impl FnMut(Entity<T>, &Event, &mut App) + 'static,
+    ) -> Subscription
+    where
+        T: 'static + EventEmitter<Event>,
+        Event: 'static,
+    {
+        let app = self.app();
+        let mut lock = app.borrow_mut();
+        lock.subscribe(entity, on_event)
+    }
+
+    /// Open a window with the given options based on the root view returned by the given function.
+    pub fn open_window<V>(
+        &self,
+        options: crate::WindowOptions,
+        build_root_view: impl FnOnce(&mut Window, &mut App) -> Entity<V>,
+    ) -> Result<WindowHandle<V>>
+    where
+        V: 'static + Render,
+    {
+        let app = self.app();
+        let mut lock = app.borrow_mut();
+        if lock.quitting {
+            bail!("app is quitting");
+        }
+        lock.open_window(options, build_root_view)
+    }
+
+    /// Schedule a future to be polled in the foreground.
+    #[track_caller]
+    #[inline(always)]
+    pub fn spawn<AsyncFn, R>(&self, f: AsyncFn) -> Task<R>
+    where
+        AsyncFn: AsyncFnOnce(&mut AsyncApp) -> R + 'static,
+        R: 'static,
+    {
+        let mut cx = self.clone();
+        self.foreground_executor.spawn(async move { f(&mut cx).await }.boxed_local())
+    }
+
+    /// Determine whether global state of the specified type has been assigned.
+    pub fn has_global<G: Global>(&self) -> bool {
+        let app = self.app();
+        let app = app.borrow_mut();
+        app.has_global::<G>()
+    }
+
+    /// Reads the global state of the specified type, passing it to the given callback.
+    ///
+    /// Panics if no global state of the specified type has been assigned.
+    #[inline(always)]
+    pub fn read_global<G: Global, R>(&self, read: impl FnOnce(&G, &App) -> R) -> R {
+        let app = self.app();
+        let app = app.borrow_mut();
+        read(app.global(), &app)
+    }
+
+    /// Reads the global state of the specified type, passing it to the given callback.
+    ///
+    /// Similar to [`AsyncApp::read_global`], but returns an error instead of panicking.
+    pub fn try_read_global<G: Global, R>(&self, read: impl FnOnce(&G, &App) -> R) -> Option<R> {
+        let app = self.app();
+        let app = app.borrow_mut();
+        if app.quitting {
+            return None;
+        }
+        Some(read(app.try_global()?, &app))
+    }
+
+    /// A convenience method for [`App::update_global`](BorrowAppContext::update_global)
+    /// for updating the global state of the specified type.
+    pub fn update_global<G: Global, R>(&self, update: impl FnOnce(&mut G, &mut App) -> R) -> R {
+        let app = self.app();
+        let mut app = app.borrow_mut();
+        app.update(|cx| cx.update_global(update))
+    }
+
+    /// Run something using this entity and cx, when the returned struct is dropped.
+    pub fn on_drop<T: 'static, Callback: FnOnce(&mut T, &mut Context<T>) + 'static>(
+        &self,
+        entity: &WeakEntity<T>,
+        f: Callback,
+    ) -> gpui_util::Deferred<impl FnOnce() + use<T, Callback>> {
+        let entity = entity.clone();
+        let mut cx = self.clone();
+        gpui_util::defer(move || {
+            entity.update(&mut cx, f).ok();
+        })
     }
 }
 
@@ -156,130 +278,6 @@ impl AppContext for AsyncApp {
         let app = self.app();
         let mut lock = app.borrow_mut();
         lock.update(|this| this.read_global(callback))
-    }
-}
-
-impl AsyncApp {
-    /// Schedules all windows in the application to be redrawn.
-    pub fn refresh(&self) {
-        let app = self.app();
-        let mut lock = app.borrow_mut();
-        // A direct call would leave the refresh effect queued, which cannot wake
-        // a platform render loop that has already parked.
-        lock.update(App::refresh_windows);
-    }
-
-    /// Get an executor which can be used to spawn futures in the background.
-    pub const fn background_executor(&self) -> &BackgroundExecutor {
-        &self.background_executor
-    }
-
-    /// Get an executor which can be used to spawn futures in the foreground.
-    pub const fn foreground_executor(&self) -> &ForegroundExecutor {
-        &self.foreground_executor
-    }
-
-    /// Invoke the given function in the context of the app, then flush any effects produced during its invocation.
-    #[inline(always)]
-    pub fn update<R>(&self, f: impl FnOnce(&mut App) -> R) -> R {
-        let app = self.app();
-        let mut lock = app.borrow_mut();
-        lock.update(f)
-    }
-
-    /// Arrange for the given callback to be invoked whenever the given entity emits an event of a given type.
-    /// The callback is provided a handle to the emitting entity and a reference to the emitted event.
-    pub fn subscribe<T, Event>(
-        &mut self,
-        entity: &Entity<T>,
-        on_event: impl FnMut(Entity<T>, &Event, &mut App) + 'static,
-    ) -> Subscription
-    where
-        T: 'static + EventEmitter<Event>,
-        Event: 'static,
-    {
-        let app = self.app();
-        let mut lock = app.borrow_mut();
-        lock.subscribe(entity, on_event)
-    }
-
-    /// Open a window with the given options based on the root view returned by the given function.
-    pub fn open_window<V>(
-        &self,
-        options: crate::WindowOptions,
-        build_root_view: impl FnOnce(&mut Window, &mut App) -> Entity<V>,
-    ) -> Result<WindowHandle<V>>
-    where
-        V: 'static + Render,
-    {
-        let app = self.app();
-        let mut lock = app.borrow_mut();
-        if lock.quitting {
-            bail!("app is quitting");
-        }
-        lock.open_window(options, build_root_view)
-    }
-
-    /// Schedule a future to be polled in the foreground.
-    #[track_caller]
-    #[inline(always)]
-    pub fn spawn<AsyncFn, R>(&self, f: AsyncFn) -> Task<R>
-    where
-        AsyncFn: AsyncFnOnce(&mut AsyncApp) -> R + 'static,
-        R: 'static,
-    {
-        let mut cx = self.clone();
-        self.foreground_executor.spawn(async move { f(&mut cx).await }.boxed_local())
-    }
-
-    /// Determine whether global state of the specified type has been assigned.
-    pub fn has_global<G: Global>(&self) -> bool {
-        let app = self.app();
-        let app = app.borrow_mut();
-        app.has_global::<G>()
-    }
-
-    /// Reads the global state of the specified type, passing it to the given callback.
-    ///
-    /// Panics if no global state of the specified type has been assigned.
-    #[inline(always)]
-    pub fn read_global<G: Global, R>(&self, read: impl FnOnce(&G, &App) -> R) -> R {
-        let app = self.app();
-        let app = app.borrow_mut();
-        read(app.global(), &app)
-    }
-
-    /// Reads the global state of the specified type, passing it to the given callback.
-    ///
-    /// Similar to [`AsyncApp::read_global`], but returns an error instead of panicking
-    pub fn try_read_global<G: Global, R>(&self, read: impl FnOnce(&G, &App) -> R) -> Option<R> {
-        let app = self.app();
-        let app = app.borrow_mut();
-        if app.quitting {
-            return None;
-        }
-        Some(read(app.try_global()?, &app))
-    }
-
-    /// A convenience method for [`App::update_global`](BorrowAppContext::update_global)
-    /// for updating the global state of the specified type.
-    pub fn update_global<G: Global, R>(&self, update: impl FnOnce(&mut G, &mut App) -> R) -> R {
-        let app = self.app();
-        let mut app = app.borrow_mut();
-        app.update(|cx| cx.update_global(update))
-    }
-
-    /// Run something using this entity and cx, when the returned struct is dropped
-    pub fn on_drop<T: 'static, Callback: FnOnce(&mut T, &mut Context<T>) + 'static>(
-        &self,
-        entity: &WeakEntity<T>,
-        f: Callback,
-    ) -> gpui_util::Deferred<impl FnOnce() + use<T, Callback>> {
-        let entity = entity.clone();
-        let mut cx = self.clone();
-        gpui_util::defer(move || {
-            entity.update(&mut cx, f).ok();
-        })
     }
 }
 

@@ -103,11 +103,29 @@ impl MacDisplay {
         if result == CGError::Success {
             // SAFETY: `CGGetActiveDisplayList` initialized `display_count`
             // entries, at most the capacity it was given.
-            unsafe { displays.set_len(display_count as usize) };
+            unsafe {
+                displays.set_len(display_count as usize);
+            }
         } else {
             log::error!("Failed to get active display list. Result: {}", result.0);
         }
         displays.into_iter().map(MacDisplay)
+    }
+
+    /// Find the NSScreen corresponding to this display.
+    unsafe fn get_nsscreen(&self) -> id {
+        let screens: id = unsafe { msg_send![class!(NSScreen), screens] };
+        let screen_number_key: id = unsafe { ns_string("NSScreenNumber") };
+
+        for screen in unsafe { array_iter(screens) } {
+            let device_description: id = unsafe { msg_send![screen, deviceDescription] };
+            let screen_number: id = unsafe { msg_send![device_description, objectForKey: screen_number_key] };
+            let screen_id: NSUInteger = msg_send![screen_number, unsignedIntegerValue];
+            if screen_id as CGDirectDisplayID == self.0 {
+                return screen;
+            }
+        }
+        nil
     }
 }
 
@@ -193,27 +211,9 @@ impl PlatformDisplay for MacDisplay {
             }
         };
         refresh_interval_from_hz(screen_hertz).or_else(|| {
-            CGDisplayCopyDisplayMode(self.0)
-                .and_then(|mode| refresh_interval_from_hz(CGDisplayMode::refresh_rate(Some(&mode))))
+            let mode = CGDisplayCopyDisplayMode(self.0)?;
+            refresh_interval_from_hz(CGDisplayMode::refresh_rate(Some(&mode)))
         })
-    }
-}
-
-impl MacDisplay {
-    /// Find the NSScreen corresponding to this display
-    unsafe fn get_nsscreen(&self) -> id {
-        let screens: id = unsafe { msg_send![class!(NSScreen), screens] };
-        let screen_number_key: id = unsafe { ns_string("NSScreenNumber") };
-
-        for screen in unsafe { array_iter(screens) } {
-            let device_description: id = unsafe { msg_send![screen, deviceDescription] };
-            let screen_number: id = unsafe { msg_send![device_description, objectForKey: screen_number_key] };
-            let screen_id: NSUInteger = msg_send![screen_number, unsignedIntegerValue];
-            if screen_id as CGDirectDisplayID == self.0 {
-                return screen;
-            }
-        }
-        nil
     }
 }
 
@@ -237,7 +237,7 @@ mod tests {
     use crate::ns::NSRect;
 
     #[test]
-    fn test_contains_point() {
+    fn contains_point_works() {
         // A second display to the right of and above the primary one.
         let primary = NSRect::new(NSPoint::new(0., 0.), NSSize::new(1728., 1117.));
         let second = NSRect::new(NSPoint::new(1728., -323.), NSSize::new(2560., 1440.));
@@ -254,7 +254,7 @@ mod tests {
     }
 
     #[test]
-    fn test_main_display_is_an_active_display() {
+    fn main_display_is_an_active_display() {
         // `None` without a window server connection (e.g. headless CI).
         if let Some(main) = MacDisplay::main() {
             assert!(MacDisplay::all().any(|display| display.0 == main.0), "{}", main.0);

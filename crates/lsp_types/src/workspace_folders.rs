@@ -7,7 +7,7 @@ use crate::Uri;
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceFoldersServerCapabilities {
-    /// The server has support for workspace folders
+    /// The server has support for workspace folders.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub supported: Option<bool>,
 
@@ -42,9 +42,9 @@ pub struct DidChangeWorkspaceFoldersParams {
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceFoldersChangeEvent {
-    /// The array of added workspace folders
+    /// The array of added workspace folders.
     pub added: Vec<WorkspaceFolder>,
 
-    /// The array of the removed workspace folders
+    /// The array of the removed workspace folders.
     pub removed: Vec<WorkspaceFolder>,
 }

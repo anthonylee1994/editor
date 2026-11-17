@@ -52,7 +52,7 @@ use workspace::tasks::ScheduledTaskResult;
 use crate::CodeActionSource;
 use crate::Editor;
 use crate::EditorStyle;
-use crate::RangeToAnchorExt;
+use crate::RangeToAnchorExt as _;
 use crate::ToggleCodeActions;
 use crate::UPDATE_DEBOUNCE;
 use crate::display_map::DisplayPoint;
@@ -578,7 +578,7 @@ impl Editor {
     ) -> Task<Vec<(TaskSourceKind, TaskTemplate)>> {
         let buffer = project.read(cx).buffer_for_id(runnable.buffer, cx);
         let tags = mem::take(&mut runnable.tags);
-        let templates = project::language_task_templates(buffer, runnable.language.clone(), cx);
+        let templates = project::language_task_templates(buffer, Arc::clone(&runnable.language), cx);
         cx.background_spawn(async move {
             let templates = templates.await;
             // Keep tag order: the first template is what a left click launches.
@@ -589,9 +589,7 @@ impl Editor {
                 .collect()
         })
     }
-}
 
-impl Editor {
     pub(super) fn active_run_indicators(
         &self,
         range: Range<DisplayRow>,
@@ -666,7 +664,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_query_rows_adds_a_screen_each_side() {
+    fn query_rows_adds_a_screen_each_side() {
         assert_eq!(query_rows(&(100..140), 1000), 60..181);
         // Clamped to the buffer.
         assert_eq!(query_rows(&(10..50), 60), 0..61);
@@ -675,7 +673,7 @@ mod tests {
     }
 
     #[test]
-    fn test_covers_needs_same_version_and_rows_inside() {
+    fn covers_needs_same_version_and_rows_inside() {
         let mut data = RunnableData::new();
         let mut version = Global::default();
         assert!(!data.covers(&version, &(0..10)));

@@ -3,7 +3,7 @@ use gpui::App;
 use gpui::Context;
 use gpui::Div;
 use gpui::Entity;
-use gpui::InteractiveElement;
+use gpui::InteractiveElement as _;
 use gpui::Window;
 use workspace::Pane;
 use workspace::Workspace;
@@ -28,7 +28,7 @@ impl PaneDivRegistrar {
     }
 
     pub fn into_div(self) -> Div {
-        self.div.unwrap()
+        self.div.expect("div is only taken by into_div")
     }
 }
 
@@ -86,7 +86,7 @@ impl SearchActionsRegistrar for Workspace {
 }
 
 type DidHandleAction = bool;
-/// Potentially executes the underlying action if some preconditions are met (e.g. buffer search bar is visible)
+/// Potentially executes the underlying action if some preconditions are met (e.g. buffer search bar is visible).
 pub trait ActionExecutor<A: Action>: 'static + Clone {
     fn execute(
         &self,

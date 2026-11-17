@@ -36,27 +36,27 @@ use parking_lot::Mutex;
 use ui::CopyButton;
 use ui::Tooltip;
 use ui::font;
-use ui::prelude::ActiveTheme;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::Button;
-use ui::prelude::ButtonCommon;
+use ui::prelude::ButtonCommon as _;
 use ui::prelude::ButtonSize;
-use ui::prelude::Clickable;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
 use ui::prelude::ElementId;
-use ui::prelude::FluentBuilder;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Icon;
 use ui::prelude::IconButton;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
-use ui::prelude::InteractiveElement;
+use ui::prelude::InteractiveElement as _;
 use ui::prelude::IntoElement;
 use ui::prelude::Label;
-use ui::prelude::ParentElement;
-use ui::prelude::Refineable;
+use ui::prelude::ParentElement as _;
+use ui::prelude::Refineable as _;
 use ui::prelude::SharedString;
-use ui::prelude::StatefulInteractiveElement;
-use ui::prelude::Styled;
-use ui::prelude::StyledExt;
+use ui::prelude::StatefulInteractiveElement as _;
+use ui::prelude::Styled as _;
+use ui::prelude::StyledExt as _;
 use ui::prelude::TextSize;
 use ui::prelude::Window;
 use ui::prelude::div;
@@ -64,7 +64,7 @@ use ui::prelude::h_flex;
 use ui::prelude::px;
 use ui::prelude::v_flex;
 use ui::prelude::vh;
-use util::ResultExt;
+use util::ResultExt as _;
 
 /// Language server prompts without actions auto-dismiss after this delay.
 const LSP_PROMPT_DISMISS_TIMEOUT: Duration = Duration::from_secs(5);
@@ -155,9 +155,10 @@ impl Workspace {
                         let id = id.clone();
                         async move |this, cx| {
                             cx.background_executor().timer(LSP_PROMPT_DISMISS_TIMEOUT).await;
-                            let _ = this.update(cx, |workspace, cx| {
+                            this.update(cx, |workspace, cx| {
                                 workspace.dismiss_notification(&id, cx);
-                            });
+                            })
+                            .ok();
                         }
                     });
                     prompt.update(cx, |prompt, _| {
@@ -236,7 +237,7 @@ impl Workspace {
         cx.notify();
     }
 
-    /// Hide all notifications matching the given ID
+    /// Hide all notifications matching the given ID.
     pub fn suppress_notification(&mut self, id: &NotificationId, cx: &mut Context<Self>) {
         self.dismiss_notification(id, cx);
         self.suppressed_notifications.insert(id.clone());
@@ -454,20 +455,20 @@ pub mod simple_message_notification {
     use gpui::EventEmitter;
     use gpui::FocusHandle;
     use gpui::Focusable;
-    use gpui::ParentElement;
+    use gpui::ParentElement as _;
     use gpui::Render;
     use gpui::ScrollHandle;
     use gpui::SharedString;
-    use gpui::Styled;
+    use gpui::Styled as _;
     use gpui::Task;
     use ui::CopyButton;
     use ui::Tooltip;
-    use ui::WithScrollbar;
+    use ui::WithScrollbar as _;
     use ui::prelude::App;
     use ui::prelude::Button;
-    use ui::prelude::ButtonCommon;
+    use ui::prelude::ButtonCommon as _;
     use ui::prelude::ButtonStyle;
-    use ui::prelude::Clickable;
+    use ui::prelude::Clickable as _;
     use ui::prelude::Color;
     use ui::prelude::Context;
     use ui::prelude::FluentBuilder;
@@ -476,13 +477,13 @@ pub mod simple_message_notification {
     use ui::prelude::IconName;
     use ui::prelude::IconPosition;
     use ui::prelude::IconSize;
-    use ui::prelude::InteractiveElement;
+    use ui::prelude::InteractiveElement as _;
     use ui::prelude::IntoElement;
     use ui::prelude::Label;
-    use ui::prelude::LabelCommon;
+    use ui::prelude::LabelCommon as _;
     use ui::prelude::LabelSize;
-    use ui::prelude::StatefulInteractiveElement;
-    use ui::prelude::StyledExt;
+    use ui::prelude::StatefulInteractiveElement as _;
+    use ui::prelude::StyledExt as _;
     use ui::prelude::Window;
     use ui::prelude::div;
     use ui::prelude::h_flex;
@@ -788,7 +789,7 @@ pub mod simple_message_notification {
         }
 
         /// Determines whether the given notification ID should be suppressible
-        /// Suppressed notifications will not be shown anymor
+        /// Suppressed notifications will not be shown anymor.
         pub const fn show_suppress_button(mut self, show: bool) -> Self {
             self.show_suppress_button = show;
             self
@@ -983,7 +984,7 @@ pub mod simple_message_notification {
                 }))
                 .child(h_flex().w_full().justify_end().children(
                     self.more_info_message.iter().zip(self.more_info_url.iter()).map(|(message, url)| {
-                        let url = url.clone();
+                        let url = Arc::clone(url);
                         Button::new(message.clone(), message.clone())
                             .label_size(LabelSize::Small)
                             .end_icon(Icon::new(IconName::ArrowUpRight).size(IconSize::Indicator).color(Color::Muted))

@@ -125,7 +125,6 @@ fn typed(id: &str, r#type: &'static str) -> Stmt {
 }
 
 /// Parses preprocessed state diagram source into `db`, as Pele's `parseState` does.
-#[expect(clippy::too_many_lines, reason = "mirrors Pele's parser loop, one arm per statement")]
 pub(crate) fn parse_state(src: &str, db: &mut StateDb) -> Result<(), Error> {
     let lexed = tokenize(src);
     let mut p = Parser { error: lexed.error, i: 0, src, tokens: lexed.tokens };
@@ -170,7 +169,7 @@ pub(crate) fn parse_state(src: &str, db: &mut StateDb) -> Result<(), Error> {
                 } else if p.kind() == T::Arrow {
                     p.i += 1;
                     let second = p.id_statement()?;
-                    let description = if p.kind() == T::Descr { Some(trim_colon(p.take())) } else { None };
+                    let description = (p.kind() == T::Descr).then(|| trim_colon(p.take()));
                     add(
                         &mut docs,
                         Stmt::Relation(Box::new(RelationStmt { description, state1: first, state2: second })),

@@ -30,7 +30,7 @@ impl ToggleState {
         }
     }
 
-    /// Returns whether this toggle state is selected
+    /// Returns whether this toggle state is selected.
     pub const fn selected(&self) -> bool {
         match self {
             ToggleState::Indeterminate | ToggleState::Unselected => false,

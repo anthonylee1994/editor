@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::fmt::Write;
+use std::fmt::Write as _;
 use std::ops::Range;
 use std::ops::RangeInclusive;
 use std::sync::Arc;
@@ -21,7 +21,7 @@ use gpui::Entity;
 use gpui::Hitbox;
 use gpui::HitboxBehavior;
 use gpui::Hsla;
-use gpui::IntoElement;
+use gpui::IntoElement as _;
 use gpui::Pixels;
 use gpui::ShapedLine;
 use gpui::SharedString;
@@ -34,7 +34,7 @@ use gpui::px;
 use gpui::quad;
 use gpui::size;
 use gpui::transparent_black;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use multi_buffer::ExpandExcerptDirection;
 use multi_buffer::ExpandInfo;
 use multi_buffer::MultiBufferRow;
@@ -43,19 +43,19 @@ use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use smallvec::SmallVec;
 use text::BufferId;
-use theme::ActiveTheme;
+use theme::ActiveTheme as _;
 use ui::Tooltip;
-use ui::prelude::ButtonCommon;
-use ui::prelude::Clickable;
+use ui::prelude::ButtonCommon as _;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
-use ui::prelude::FixedWidth;
+use ui::prelude::FixedWidth as _;
 use ui::prelude::IconButton;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
 use ui::prelude::rems;
-use util::ResultExt;
+use util::ResultExt as _;
 use workspace::Workspace;
-use workspace::item::Item;
+use workspace::item::Item as _;
 use workspace::item::ItemBufferKind;
 
 use super::EditorElement;
@@ -74,11 +74,11 @@ use crate::EditorSnapshot;
 use crate::EditorStyle;
 use crate::GutterDimensions;
 use crate::MIN_LINE_NUMBER_DIGITS;
-use crate::RowExt;
+use crate::RowExt as _;
 use crate::actions::ExpandExcerpts;
 use crate::code_context_menus::CodeActionsMenu;
 use crate::display_map::Block;
-use crate::display_map::ToDisplayPoint;
+use crate::display_map::ToDisplayPoint as _;
 use crate::git::blame::BlameRenderer;
 use crate::git::blame::GitBlame;
 use crate::git::blame::GlobalBlameRenderer;
@@ -186,7 +186,7 @@ impl EditorElement {
         let start_x = em_width;
 
         let mut last_used_color: Option<(Hsla, Oid)> = None;
-        let blame_renderer = cx.global::<GlobalBlameRenderer>().0.clone();
+        let blame_renderer = Arc::clone(&cx.global::<GlobalBlameRenderer>().0);
 
         let shaped_lines = blamed_rows
             .into_iter()
@@ -389,13 +389,14 @@ impl EditorElement {
                 return None;
             }
 
-            write!(&mut line_number, "{number}").unwrap();
+            write!(&mut line_number, "{number}").expect("writing to a String can't fail");
 
             let spec = active_rows.get(&display_row);
             let color = LineNumberStyle::new(spec.is_some(), row_info.diff_status).color(cx.theme().colors());
 
             let shaped_line = self.shape_line_number(SharedString::from(&line_number), color, window);
             let scroll_top = gutter.scroll_position.y * ScrollPixelOffset::from(gutter.line_height);
+            #[expect(clippy::modulo_arithmetic, reason = "scroll position and line height are non-negative")]
             let line_origin = gutter.hitbox.origin
                 + point(
                     gutter.hitbox.size.width - shaped_line.width - gutter.dimensions.right_padding,
@@ -633,11 +634,8 @@ impl EditorElement {
                     let end_row_in_current_excerpt = snapshot
                         .blocks_in_range(start_row..end_row)
                         .find_map(|(start_row, block)| {
-                            if matches!(block, Block::ExcerptBoundary { .. } | Block::BufferHeader { .. }) {
-                                Some(start_row)
-                            } else {
-                                None
-                            }
+                            matches!(block, Block::ExcerptBoundary { .. } | Block::BufferHeader { .. })
+                                .then_some(start_row)
                         })
                         .unwrap_or(end_row);
 

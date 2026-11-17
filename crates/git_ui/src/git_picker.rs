@@ -14,34 +14,35 @@ use gpui::Entity;
 use gpui::EventEmitter;
 use gpui::FocusHandle;
 use gpui::Focusable;
-use gpui::InteractiveElement;
+use gpui::InteractiveElement as _;
 use gpui::KeyContext;
 use gpui::ModifiersChangedEvent;
 use gpui::MouseButton;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Rems;
 use gpui::Render;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Subscription;
 use gpui::WeakEntity;
 use gpui::Window;
 use gpui::actions;
 use gpui::rems;
 use project::git_store::Repository;
-use ui::FluentBuilder;
+use ui::FluentBuilder as _;
 use ui::ToggleButtonGroup;
 use ui::ToggleButtonGroupStyle;
 use ui::ToggleButtonSimple;
 use ui::Tooltip;
 use ui::prelude::IntoElement;
 use ui::prelude::LabelSize;
-use ui::prelude::StyledExt;
+use ui::prelude::StyledExt as _;
 use ui::prelude::h_flex;
 use ui::prelude::v_flex;
 use workspace::ModalView;
 use workspace::Workspace;
 use workspace::pane;
 
+use crate::branch_picker;
 use crate::branch_picker::BranchList;
 use crate::branch_picker::CycleBranchFilter;
 use crate::branch_picker::DeleteBranch;
@@ -49,11 +50,10 @@ use crate::branch_picker::ForceDeleteBranch;
 use crate::branch_picker::ShowAllBranches;
 use crate::branch_picker::ShowLocalBranches;
 use crate::branch_picker::ShowRemoteBranches;
-use crate::branch_picker::{self};
+use crate::stash_picker;
 use crate::stash_picker::DropStashItem;
 use crate::stash_picker::ShowStashItem;
 use crate::stash_picker::StashList;
-use crate::stash_picker::{self};
 
 actions!(git_picker, [ActivateBranchesTab, ActivateStashTab,]);
 
@@ -154,7 +154,7 @@ impl GitPicker {
             self._subscriptions.push(subscription);
             self.branch_list = Some(branch_list);
         }
-        self.branch_list.clone().unwrap()
+        self.branch_list.clone().expect("branch list was just set")
     }
 
     fn ensure_stash_list(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Entity<StashList> {
@@ -180,7 +180,7 @@ impl GitPicker {
             self._subscriptions.push(subscription);
             self.stash_list = Some(stash_list);
         }
-        self.stash_list.clone().unwrap()
+        self.stash_list.clone().expect("stash list was just set")
     }
 
     fn activate_next_tab(&mut self, window: &mut Window, cx: &mut Context<Self>) {

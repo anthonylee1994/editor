@@ -45,7 +45,7 @@ mod tests {
     use super::take_window_move;
 
     #[test]
-    fn test_take_window_move() {
+    fn take_window_move_works() {
         WINDOW_MOVE_PENDING.set(false);
         assert!(!take_window_move(true));
 

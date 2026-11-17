@@ -1,14 +1,14 @@
 use gpui::Hsla;
 
-use crate::prelude::ActiveTheme;
+use crate::prelude::ActiveTheme as _;
 use crate::prelude::App;
 use crate::prelude::ElementId;
-use crate::prelude::FluentBuilder;
-use crate::prelude::InteractiveElement;
+use crate::prelude::FluentBuilder as _;
+use crate::prelude::InteractiveElement as _;
 use crate::prelude::IntoElement;
-use crate::prelude::ParentElement;
+use crate::prelude::ParentElement as _;
 use crate::prelude::RenderOnce;
-use crate::prelude::Styled;
+use crate::prelude::Styled as _;
 use crate::prelude::Window;
 use crate::prelude::div;
 use crate::prelude::px;

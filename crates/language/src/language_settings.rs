@@ -162,7 +162,7 @@ impl LanguageSettings {
         if let Some(resolved) = buffer.resolved_settings()
             && override_language.is_none_or(|language| Some(language) == buffer.language().map(|l| l.name()).as_ref())
         {
-            return resolved.clone();
+            return Arc::clone(resolved);
         }
 
         Self::resolve_uncached(buffer, override_language, cx)
@@ -176,6 +176,26 @@ impl LanguageSettings {
         let buffer_language = buffer.language().map(|l| l.name());
         let language_name = override_language.or(buffer_language.as_ref());
         AllLanguageSettings::get_global(cx).language(language_name)
+    }
+
+    /// Settings for buffers without a language or with an unregistered one.
+    pub fn fallback() -> Self {
+        Self {
+            tab_size: NonZeroU32::new(4).expect("non-zero"),
+            hard_tabs: false,
+            soft_wrap: false,
+            preferred_line_length: 120,
+            wrap_guides: vec![120],
+            formatter: Formatter::Auto,
+            code_actions_on_format: FxHashMap::default(),
+            remove_trailing_whitespace_on_save: true,
+            ensure_final_newline_on_save: true,
+            lsp_document_symbols: true,
+            allow_rewrap: RewrapBehavior::InComments,
+            use_on_type_format: true,
+            auto_indent_on_paste: true,
+            word_completions: WordsCompletionMode::Fallback,
+        }
     }
 }
 
@@ -265,28 +285,6 @@ impl AllLanguageSettings {
     pub fn language(&self, language_name: Option<&LanguageName>) -> Arc<LanguageSettings> {
         let settings = language_name.and_then(|name| self.languages.get(name)).unwrap_or(&self.fallback);
         Arc::clone(settings)
-    }
-}
-
-impl LanguageSettings {
-    /// Settings for buffers without a language or with an unregistered one.
-    pub fn fallback() -> Self {
-        Self {
-            tab_size: NonZeroU32::new(4).unwrap(),
-            hard_tabs: false,
-            soft_wrap: false,
-            preferred_line_length: 120,
-            wrap_guides: vec![120],
-            formatter: Formatter::Auto,
-            code_actions_on_format: FxHashMap::default(),
-            remove_trailing_whitespace_on_save: true,
-            ensure_final_newline_on_save: true,
-            lsp_document_symbols: true,
-            allow_rewrap: RewrapBehavior::InComments,
-            use_on_type_format: true,
-            auto_indent_on_paste: true,
-            word_completions: WordsCompletionMode::Fallback,
-        }
     }
 }
 
@@ -414,7 +412,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_language_falls_back_for_missing_or_unregistered_language() {
+    fn language_falls_back_for_missing_or_unregistered_language() {
         let mut all = AllLanguageSettings::default();
         let rust = LanguageSettings { tab_size: NonZeroU32::new(2).unwrap(), ..LanguageSettings::fallback() };
         all.insert(LanguageName::new_static("Rust"), rust.clone(), &[], None);
@@ -425,7 +423,7 @@ mod tests {
     }
 
     #[test]
-    fn test_insert_records_file_types_only_when_given() {
+    fn insert_records_file_types_only_when_given() {
         let mut all = AllLanguageSettings::default();
         all.insert(LanguageName::new_static("JSONC"), LanguageSettings::fallback(), &["tsconfig*.json"], None);
         all.insert(LanguageName::new_static("JSON"), LanguageSettings::fallback(), &[], None);
@@ -433,12 +431,12 @@ mod tests {
         let (globs, patterns) = &all.file_types["JSONC"];
         assert!(globs.is_match("tsconfig.base.json"));
         assert!(!globs.is_match("package.json"));
-        assert_eq!(patterns, &vec!["tsconfig*.json".to_string()]);
+        assert_eq!(patterns, &vec!["tsconfig*.json".to_owned()]);
         assert!(!all.file_types.contains_key("JSON"));
     }
 
     #[test]
-    fn test_insert_records_semantic_token_rules_only_when_given() {
+    fn insert_records_semantic_token_rules_only_when_given() {
         let mut all = AllLanguageSettings::default();
         let rust = LanguageName::new_static("Rust");
         let go = LanguageName::new_static("Go");
@@ -450,7 +448,7 @@ mod tests {
     }
 
     #[test]
-    fn test_indent_guide_visible_line_width() {
+    fn indent_guide_visible_line_width() {
         assert_eq!(INDENT_GUIDES.visible_line_width(false), 1);
         let wide = IndentGuideSettings { active_line_width: 20, ..INDENT_GUIDES };
         assert_eq!(wide.visible_line_width(true), 10);

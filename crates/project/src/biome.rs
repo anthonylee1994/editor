@@ -106,7 +106,7 @@ mod tests {
         fs::write(&biome, "").unwrap();
         #[cfg(unix)]
         {
-            use std::os::unix::fs::PermissionsExt;
+            use std::os::unix::fs::PermissionsExt as _;
             fs::set_permissions(&biome, Permissions::from_mode(0o755)).unwrap();
         }
         let command = resolve_command(Some(&root), Some(&path_env));

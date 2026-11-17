@@ -18,8 +18,8 @@ const _: () = assert!(
 
 use std::cell::RefCell;
 use std::env;
-use std::io::IsTerminal;
-use std::io::{self};
+use std::io;
+use std::io::IsTerminal as _;
 use std::path::Path;
 use std::process;
 use std::rc::Rc;
@@ -39,21 +39,21 @@ use ed::open_listener::open_paths_with_positions;
 use editor::Editor;
 use fs::Fs;
 use fs::RealFs;
-use futures::FutureExt;
-use futures::StreamExt;
+use futures::FutureExt as _;
+use futures::StreamExt as _;
 use futures::channel::oneshot;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::Application;
 use gpui::AsyncApp;
 use gpui::QuitMode;
 use gpui::Task;
-use gpui::TaskExt;
+use gpui::TaskExt as _;
 use gpui::UpdateGlobal as _;
 use language::LanguageRegistry;
 use rustc_hash::FxHashMap;
-use theme::ActiveTheme;
-use util::ResultExt;
+use theme::ActiveTheme as _;
+use util::ResultExt as _;
 use workspace::AppState;
 use workspace::SessionWorkspace;
 use workspace::Toast;
@@ -69,6 +69,7 @@ fn build_application() -> Application {
     Application::with_platform(Rc::new(gpui_macos::MacPlatform::new(false))).with_quit_mode(QuitMode::LastWindowClosed)
 }
 
+#[expect(clippy::print_stderr, reason = "fatal startup error, the log may not be visible")]
 fn files_not_created_on_launch(errors: FxHashMap<io::ErrorKind, Vec<&Path>>) {
     let message = "ed failed to launch";
     let error_details = errors
@@ -121,12 +122,14 @@ fn fail_to_open_window_async(e: anyhow::Error, cx: &AsyncApp) {
     cx.update(|cx| fail_to_open_window(e, cx));
 }
 
+#[expect(clippy::print_stderr, reason = "fatal startup error, the log may not be visible")]
 fn fail_to_open_window(e: anyhow::Error, _cx: &mut App) {
-    log::error!("Failed to open window: {e:?}");
-    eprintln!("ed failed to open a window: {e:?}.");
+    log::error!("Failed to open window: {e:#}");
+    eprintln!("ed failed to open a window: {e:#}.");
     process::exit(1);
 }
 
+#[expect(clippy::print_stdout, clippy::print_stderr, reason = "startup messages before logging is set up")]
 fn main() {
     util::prevent_root_execution();
 
@@ -183,7 +186,7 @@ fn main() {
         return;
     }
 
-    let fs = RealFs::new(app.background_executor());
+    let fs: Arc<dyn Fs> = RealFs::new(app.background_executor());
     if !stdout_is_a_pty() {
         app.background_executor()
             .spawn(async {
@@ -215,18 +218,18 @@ fn main() {
 
         initialize_keymap(cx);
 
-        <dyn Fs>::set_global(fs.clone(), cx);
+        <dyn Fs>::set_global(Arc::clone(&fs), cx);
 
         OpenListener::set_global(cx, open_listener.clone());
 
         let languages = Arc::new(LanguageRegistry::new(cx.background_executor().clone()));
 
-        languages::init(languages.clone(), fs.clone(), cx);
+        languages::init(Arc::clone(&languages), Arc::clone(&fs), cx);
 
         ed::init(cx);
 
-        let app_state = Arc::new(AppState { languages, fs: fs.clone(), build_window_options });
-        AppState::set_global(app_state.clone(), cx);
+        let app_state = Arc::new(AppState { languages, fs: Arc::clone(&fs), build_window_options });
+        AppState::set_global(Arc::clone(&app_state), cx);
 
         command_palette::init(cx);
 
@@ -236,7 +239,7 @@ fn main() {
         image_viewer::init(cx);
         diagnostics::init(cx);
 
-        workspace::init(app_state.clone(), cx);
+        workspace::init(Arc::clone(&app_state), cx);
 
         go_to_line::init(cx);
         file_finder::init(cx);
@@ -269,7 +272,7 @@ fn main() {
 
         app_state.languages.set_theme(cx.theme());
 
-        initialize_workspace(app_state.clone(), cx);
+        initialize_workspace(Arc::clone(&app_state), cx);
         control_server::init(cx);
 
         cx.activate(true);
@@ -277,11 +280,9 @@ fn main() {
         let urls: Vec<_> = args.paths_or_urls.iter().map(|arg| parse_url_arg(arg, cx)).collect();
 
         // Check if any diff paths are directories to determine diff_all mode
-        let diff_all_mode =
-            args.diff.chunks(2).any(|pair| Path::new(&pair[0]).is_dir() || Path::new(&pair[1]).is_dir());
-
-        let diff_paths: Vec<[String; 2]> =
-            args.diff.chunks(2).map(|chunk| [chunk[0].clone(), chunk[1].clone()]).collect();
+        let (diff_pairs, _) = args.diff.as_chunks::<2>();
+        let diff_all_mode = diff_pairs.iter().any(|[old, new]| Path::new(old).is_dir() || Path::new(new).is_dir());
+        let diff_paths = diff_pairs.to_vec();
 
         if !urls.is_empty() || !diff_paths.is_empty() {
             open_listener.open(RawOpenRequest { urls, diff_paths, diff_all: diff_all_mode });
@@ -289,11 +290,11 @@ fn main() {
 
         let restore_task = match open_rx.try_recv().ok().map(OpenRequest::parse) {
             Some(request) => {
-                handle_open_request(request, app_state.clone(), cx);
+                handle_open_request(request, Arc::clone(&app_state), cx);
                 Task::ready(())
             }
             None => cx.spawn({
-                let app_state = app_state.clone();
+                let app_state = Arc::clone(&app_state);
                 async move |cx| {
                     if let Err(e) = restore_or_create_workspace(app_state, cx).await {
                         fail_to_open_window_async(e, cx);
@@ -326,7 +327,7 @@ fn main() {
                     _ = first_window_placed.clone() => {}
                 }
                 cx.update(|cx| {
-                    handle_open_request(OpenRequest::parse(urls), app_state.clone(), cx);
+                    handle_open_request(OpenRequest::parse(urls), Arc::clone(&app_state), cx);
                 });
             }
         })
@@ -335,44 +336,40 @@ fn main() {
 }
 
 fn handle_open_request(request: OpenRequest, app_state: Arc<AppState>, cx: &App) {
-    let task = if !request.open_paths.is_empty() || !request.diff_paths.is_empty() {
-        Some(cx.spawn(async move |cx| {
-            let paths_with_position = derive_paths_with_position(app_state.fs.as_ref(), request.open_paths).await;
-            let (_window, results) = open_paths_with_positions(
-                &paths_with_position,
-                &request.diff_paths,
-                request.diff_all,
-                app_state,
-                workspace::OpenOptions::default(),
-                cx,
-            )
-            .await?;
-            for result in results.into_iter().flatten() {
-                if let Err(err) = result {
-                    log::error!("Error opening path: {err:#}");
-                }
-            }
-            anyhow::Ok(())
-        }))
-    } else {
-        None
-    };
-
-    if let Some(task) = task {
-        cx.spawn(async move |cx| {
-            if let Err(err) = task.await {
-                fail_to_open_window_async(err, cx);
-            }
-        })
-        .detach();
+    if request.open_paths.is_empty() && request.diff_paths.is_empty() {
+        return;
     }
+    let task = cx.spawn(async move |cx| {
+        let paths_with_position = derive_paths_with_position(app_state.fs.as_ref(), request.open_paths).await;
+        let (_window, results) = open_paths_with_positions(
+            &paths_with_position,
+            &request.diff_paths,
+            request.diff_all,
+            app_state,
+            workspace::OpenOptions::default(),
+            cx,
+        )
+        .await?;
+        for result in results.into_iter().flatten() {
+            if let Err(err) = result {
+                log::error!("Error opening path: {err:#}");
+            }
+        }
+        anyhow::Ok(())
+    });
+    cx.spawn(async move |cx| {
+        if let Err(err) = task.await {
+            fail_to_open_window_async(err, cx);
+        }
+    })
+    .detach();
 }
 
 pub(crate) async fn restore_or_create_workspace(app_state: Arc<AppState>, cx: &mut AsyncApp) -> Result<()> {
     if let Some(session_workspaces) = restorable_workspaces(cx, &app_state).await {
         let mut error_count = 0;
         for session_workspace in session_workspaces {
-            let result = restore_workspace(session_workspace, app_state.clone(), cx).await.map(|_| ());
+            let result = restore_workspace(session_workspace, Arc::clone(&app_state), cx).await.map(|_| ());
 
             if let Err(error) = result {
                 log::error!("Failed to restore workspace: {error:#}");
@@ -382,7 +379,7 @@ pub(crate) async fn restore_or_create_workspace(app_state: Arc<AppState>, cx: &m
 
         if error_count > 0 {
             let message = if error_count == 1 {
-                "Failed to restore 1 workspace. Check logs for details.".to_string()
+                "Failed to restore 1 workspace. Check logs for details.".to_owned()
             } else {
                 format!("Failed to restore {error_count} workspaces. Check logs for details.")
             };
@@ -409,7 +406,7 @@ pub(crate) async fn restore_or_create_workspace(app_state: Arc<AppState>, cx: &m
                 cx.update(|cx| {
                     workspace::open_new(
                         workspace::OpenOptions::default(),
-                        app_state.clone(),
+                        Arc::clone(&app_state),
                         cx,
                         |workspace, _window, cx| {
                             workspace.show_toast(Toast::new(NotificationId::unique::<()>(), message), cx);
@@ -497,7 +494,7 @@ struct Args {
     #[arg(long, value_name = "DIR", verbatim_doc_comment)]
     user_data_dir: Option<String>,
 
-    /// Output current environment variables as JSON to stdout
+    /// Output current environment variables as JSON to stdout.
     #[arg(long, hide = true)]
     printenv: bool,
 }

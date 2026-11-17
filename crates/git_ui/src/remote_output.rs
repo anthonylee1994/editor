@@ -106,7 +106,7 @@ pub fn format_output(action: &RemoteAction, output: RemoteCommandOutput) -> Succ
         }
         RemoteAction::Push(branch_name, remote_ref) => {
             if output.stderr.ends_with("Everything up-to-date\n") {
-                SuccessMessage { message: "Push: Everything is up-to-date".to_string(), style: SuccessStyle::Toast }
+                SuccessMessage { message: "Push: Everything is up-to-date".to_owned(), style: SuccessStyle::Toast }
             } else {
                 SuccessMessage {
                     message: format!("Pushed {} to {}", branch_name, remote_ref.name),
@@ -134,7 +134,7 @@ mod tests {
     }
 
     #[test]
-    fn test_format_pull_output() {
+    fn format_pull_output() {
         assert_eq!(pull_message("Already up to date.\n", ""), ("Pull: Already up to date".into(), false));
         assert_eq!(
             pull_message(
@@ -161,7 +161,7 @@ mod tests {
     }
 
     #[test]
-    fn test_format_rebase_output() {
+    fn format_rebase_output() {
         let message = |action, stderr: &str| {
             let output = RemoteCommandOutput { stdout: String::new(), stderr: stderr.into() };
             let message = format_output(&RemoteAction::Rebase(action), output);

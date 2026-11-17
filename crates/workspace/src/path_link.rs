@@ -1,12 +1,13 @@
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::Entity;
 use gpui::Task;
 use gpui::WeakEntity;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use project::Entry;
 use project::Worktree;
 use util::paths::PathWithPosition;
@@ -177,7 +178,8 @@ pub fn resolve_open_target(
             let normalized_path = if path_to_check.path.is_relative() {
                 relative_cwd.as_ref().and_then(|relative_cwd| {
                     let joined = relative_cwd.as_ref().as_std_path().join(&path_to_check.path);
-                    normalize_lexically(&joined).ok().and_then(|path| RelPath::new(&path).ok().map(|x| x.into_owned()))
+                    let path = normalize_lexically(&joined).ok()?;
+                    RelPath::new(&path).ok().map(|x| x.into_owned())
                 })
             } else {
                 None
@@ -185,10 +187,11 @@ pub fn resolve_open_target(
             let original_path = RelPath::new(&path_to_check.path).ok();
 
             if !worktree.read(cx).is_single_file()
-                && let Some(entry) = normalized_path
-                    .as_ref()
-                    .and_then(|path| worktree.read(cx).entry_for_path(path))
-                    .or_else(|| original_path.as_ref().and_then(|path| worktree.read(cx).entry_for_path(path.as_ref())))
+                && let Some(entry) =
+                    normalized_path.as_ref().and_then(|path| worktree.read(cx).entry_for_path(path)).or_else(|| {
+                        let path = original_path.as_ref()?;
+                        worktree.read(cx).entry_for_path(path.as_ref())
+                    })
             {
                 open_target = Some(OpenTarget::Worktree(
                     PathWithPosition {
@@ -215,7 +218,7 @@ pub fn resolve_open_target(
 
     let project = workspace.read(cx).project().clone();
     let fs_paths_to_check = local_paths_to_check(&potential_paths, matching, cwd, &worktree_candidates, cx);
-    let fs = project.read(cx).fs().clone();
+    let fs = Arc::clone(project.read(cx).fs());
     let background_resolution_task = cx.background_spawn(async move {
         for mut path_to_check in fs_paths_to_check {
             if let Some(fs_path_to_check) = fs.canonicalize(&path_to_check.path).await.ok()

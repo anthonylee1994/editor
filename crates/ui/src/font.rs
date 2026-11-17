@@ -120,16 +120,16 @@ mod tests {
     use super::ui_font;
 
     #[test]
-    fn test_clamp_font_size() {
+    fn clamp_font_size_works() {
         assert_eq!(clamp_font_size(px(1.0)), MIN_FONT_SIZE);
         assert_eq!(clamp_font_size(px(15.0)), px(15.0));
         assert_eq!(clamp_font_size(px(500.0)), MAX_FONT_SIZE);
     }
 
     #[test]
-    fn test_fonts() {
+    fn fonts() {
         assert_eq!(ui_font().family.as_ref(), ".SystemUIFont");
-        assert_eq!(ui_font().features.tag_value_list(), &[("calt".to_string(), 0)]);
+        assert_eq!(ui_font().features.tag_value_list(), &[("calt".to_owned(), 0)]);
         assert_eq!(buffer_font().family.as_ref(), "JetBrainsMono Nerd Font");
         assert!(buffer_font().features.tag_value_list().is_empty());
     }

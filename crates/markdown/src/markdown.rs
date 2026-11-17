@@ -961,7 +961,7 @@ impl ParsedMarkdown {
     pub(crate) fn text_for_range(&self, range: Range<usize>) -> String {
         let mut text = String::new();
         let mut pending_newline = false;
-        let mut image_depth = 0usize;
+        let mut image_depth = 0_usize;
         for (event_range, event) in self.events.iter() {
             let intersects = event_range.start < range.end && event_range.end > range.start;
             let fragment = match event {
@@ -1150,7 +1150,7 @@ mod tests {
         let parsed = parse_markdown_with_options(source, MarkdownOptions::default());
         let blocks = render_blocks(source, &parsed.events);
         ParsedMarkdown {
-            source: source.to_string().into(),
+            source: source.to_owned().into(),
             events: parsed.events.into(),
             blocks: blocks.into(),
             ..Default::default()

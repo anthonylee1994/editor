@@ -22,9 +22,9 @@ pub use terminal::TerminalModeDelegate;
 pub(crate) use terminal::is_dragged_terminal;
 pub use terminal::set_terminal_mode_delegate;
 use ui::prelude::Div;
-use ui::prelude::FluentBuilder;
-use ui::prelude::ParentElement;
-use ui::prelude::Styled;
+use ui::prelude::FluentBuilder as _;
+use ui::prelude::ParentElement as _;
+use ui::prelude::Styled as _;
 
 use crate::CARD_GAP;
 use crate::Pane;
@@ -108,7 +108,10 @@ impl Workspace {
     /// which [`Workspace::has_zoomed`] also counts.
     pub(crate) fn zoomed_pane(&self, mode: WorkspaceMode, cx: &App) -> Option<Entity<Pane>> {
         match mode {
-            WorkspaceMode::Editor => self.zoomed.as_ref().and_then(|view| view.upgrade()?.downcast::<Pane>().ok()),
+            WorkspaceMode::Editor => {
+                let view = self.zoomed.as_ref()?;
+                view.upgrade()?.downcast::<Pane>().ok()
+            }
             WorkspaceMode::GitHistory => {
                 self.git_history_center.panes().into_iter().find(|pane| pane.read(cx).is_zoomed()).cloned()
             }

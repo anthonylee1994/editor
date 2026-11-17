@@ -44,12 +44,12 @@ impl IgnoreStack {
 
     pub fn append(self, kind: IgnoreKind, ignore: Arc<Gitignore>) -> Self {
         let top = match self.top.as_ref() {
-            IgnoreStackEntry::All => self.top.clone(),
+            IgnoreStackEntry::All => Arc::clone(&self.top),
             _ => Arc::new(match kind {
                 IgnoreKind::Gitignore(abs_base_path) => {
-                    IgnoreStackEntry::Some { abs_base_path, ignore, parent: self.top.clone() }
+                    IgnoreStackEntry::Some { abs_base_path, ignore, parent: Arc::clone(&self.top) }
                 }
-                IgnoreKind::RepoExclude => IgnoreStackEntry::RepoExclude { ignore, parent: self.top.clone() },
+                IgnoreKind::RepoExclude => IgnoreStackEntry::RepoExclude { ignore, parent: Arc::clone(&self.top) },
             }),
         };
         Self { repo_root: self.repo_root, global_ignore_root: self.global_ignore_root, top }
@@ -89,7 +89,7 @@ impl IgnoreStack {
                     return IgnoreStack {
                         repo_root: self.repo_root.clone(),
                         global_ignore_root: self.global_ignore_root.clone(),
-                        top: parent.clone(),
+                        top: Arc::clone(parent),
                     }
                     .is_abs_path_ignored(abs_path, is_dir);
                 }
@@ -98,7 +98,7 @@ impl IgnoreStack {
                     ignore::Match::None => IgnoreStack {
                         repo_root: self.repo_root.clone(),
                         global_ignore_root: self.global_ignore_root.clone(),
-                        top: parent.clone(),
+                        top: Arc::clone(parent),
                     }
                     .is_abs_path_ignored(abs_path, is_dir),
                     ignore::Match::Ignore(_) => true,
@@ -106,11 +106,13 @@ impl IgnoreStack {
                 }
             }
             IgnoreStackEntry::Some { abs_base_path, ignore, parent: prev } => {
-                match ignore.matched(abs_path.strip_prefix(abs_base_path).unwrap(), is_dir) {
+                match ignore
+                    .matched(abs_path.strip_prefix(abs_base_path).expect("path is inside the ignore base"), is_dir)
+                {
                     ignore::Match::None => IgnoreStack {
                         repo_root: self.repo_root.clone(),
                         global_ignore_root: self.global_ignore_root.clone(),
-                        top: prev.clone(),
+                        top: Arc::clone(prev),
                     }
                     .is_abs_path_ignored(abs_path, is_dir),
                     ignore::Match::Ignore(_) => true,

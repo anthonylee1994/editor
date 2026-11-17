@@ -169,7 +169,7 @@ impl From<Arc<str>> for SharedString {
 impl From<&Arc<str>> for SharedString {
     #[inline]
     fn from(s: &Arc<str>) -> SharedString {
-        SharedString(SmolStr::from(s.clone()))
+        SharedString(SmolStr::from(Arc::clone(s)))
     }
 }
 
@@ -223,7 +223,7 @@ mod tests {
         assert_eq!(text, SharedString::from(text.to_string()));
         assert_ne!(text, SharedString::new_static("a string"));
         // Same start pointer, different length.
-        let abc: &'static str = "abc";
+        let abc = "abc";
         assert_ne!(SharedString::new_static(abc), SharedString::new_static(&abc[..2]));
     }
 }

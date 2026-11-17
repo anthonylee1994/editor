@@ -10,7 +10,7 @@ use serde::Serialize;
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum Shell {
-    /// Use the system's default terminal configuration in /etc/passwd
+    /// Use the system's default terminal configuration in /etc/passwd.
     #[default]
     System,
     /// Use a specific program with no arguments.
@@ -21,7 +21,7 @@ pub enum Shell {
         program: String,
         /// The arguments to pass to the program.
         args: Vec<String>,
-        /// An optional string to override the title of the terminal tab
+        /// An optional string to override the title of the terminal tab.
         title_override: Option<String>,
     },
 }
@@ -60,11 +60,11 @@ pub enum ShellKind {
 }
 
 pub fn get_system_shell() -> String {
-    env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string())
+    env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_owned())
 }
 
 pub fn get_default_system_shell() -> String {
-    "/bin/sh".to_string()
+    "/bin/sh".to_owned()
 }
 
 impl fmt::Display for ShellKind {
@@ -120,7 +120,7 @@ mod tests {
     use super::ShellKind;
 
     #[test]
-    fn test_shell_kind_new() {
+    fn shell_kind_new() {
         assert_eq!(ShellKind::new("/opt/homebrew/bin/fish"), ShellKind::Fish);
         assert_eq!(ShellKind::new("fish"), ShellKind::Fish);
         assert_eq!(ShellKind::new("/bin/zsh"), ShellKind::Posix);
@@ -129,7 +129,7 @@ mod tests {
     }
 
     #[test]
-    fn test_try_quote() {
+    fn try_quote() {
         for kind in [ShellKind::Posix, ShellKind::Fish] {
             assert_eq!(kind.try_quote("plain").as_deref(), Some("plain"));
             assert_eq!(kind.try_quote("has space").as_deref(), Some("'has space'"));

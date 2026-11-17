@@ -46,7 +46,7 @@ const ATTR_REST: u8 = 8;
 
 /// The character classes of ASCII characters.
 const CLASS: [u8; 128] = {
-    let mut table = [0u8; 128];
+    let mut table = [0_u8; 128];
     let mut c = 0;
     while c < 128 {
         #[expect(clippy::cast_possible_truncation, reason = "c is below 128")]
@@ -89,7 +89,8 @@ fn is_attr(c: char, kind: u8) -> bool {
 
 /// The character at byte `at`.
 fn char_at(src: &str, at: usize) -> Option<char> {
-    src.get(at..).and_then(|rest| rest.chars().next())
+    let rest = src.get(at..)?;
+    rest.chars().next()
 }
 
 /// Whether the character at `at` is JavaScript `\s`.
@@ -326,7 +327,6 @@ impl<'a> Lexer<'a> {
     }
 
     /// The keywords and relationship symbols, by lower-cased first character.
-    #[allow(clippy::too_many_lines, reason = "one arm per keyword letter, as in Pele")]
     fn keyword(&mut self, lc: u8) -> bool {
         let p = self.p;
         let d = self.at(p + 1);

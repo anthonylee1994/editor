@@ -20,7 +20,7 @@ use task::ShellKind;
 use task::TaskTemplate;
 use text::BufferId;
 use text::PointUtf16;
-use text::ToPointUtf16;
+use text::ToPointUtf16 as _;
 
 use crate::LocationLink;
 use crate::lsp_command::LspCommand;
@@ -173,7 +173,7 @@ pub struct GoToParentModule {
     pub server_id: LanguageServerId,
 }
 
-pub struct LspGoToParentModule {}
+pub struct LspGoToParentModule;
 
 impl Request for LspGoToParentModule {
     type Params = lsp::TextDocumentPositionParams;
@@ -297,7 +297,7 @@ pub struct CargoRunnableArgs {
     #[serde(default, skip_serializing_if = "FxHashMap::is_empty")]
     pub environment: FxHashMap<String, String>,
     pub cwd: PathBuf,
-    /// Command to be executed instead of cargo
+    /// Command to be executed instead of cargo.
     #[serde(default)]
     pub override_cargo: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -339,18 +339,18 @@ pub fn runnable_to_task_template(label: String, args: RunnableArgs) -> TaskTempl
         RunnableArgs::Cargo(cargo) => {
             match cargo.override_cargo {
                 Some(override_cargo) => {
-                    let mut override_parts = override_cargo.split(' ').map(ToString::to_string);
+                    let mut override_parts = override_cargo.split(' ').map(str::to_owned);
                     task_template.command = override_parts.next().unwrap_or_else(|| override_cargo.clone());
                     task_template.args.extend(override_parts);
                 }
-                None => task_template.command = "cargo".to_string(),
+                None => "cargo".clone_into(&mut task_template.command),
             }
             task_template.env = cargo.environment;
             task_template.cwd = Some(cargo.workspace_root.unwrap_or(cargo.cwd).to_string_lossy().to_string());
             task_template.args.extend(cargo.cargo_args);
             if !cargo.executable_args.is_empty() {
                 let shell_kind = ShellKind::system();
-                task_template.args.push("--".to_string());
+                task_template.args.push("--".to_owned());
                 task_template.args.extend(
                     cargo
                         .executable_args
@@ -422,13 +422,13 @@ impl LspCommand for GetLspRunnables {
 }
 
 #[derive(Debug)]
-pub struct LspExtCancelFlycheck {}
+pub struct LspExtCancelFlycheck;
 
 #[derive(Debug)]
-pub struct LspExtRunFlycheck {}
+pub struct LspExtRunFlycheck;
 
 #[derive(Debug)]
-pub struct LspExtClearFlycheck {}
+pub struct LspExtClearFlycheck;
 
 impl Notification for LspExtCancelFlycheck {
     type Params = ();

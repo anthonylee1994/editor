@@ -68,7 +68,7 @@ pub struct WorkspaceFileOperationsServerCapabilities {
 
 /// The options to register for file operations.
 ///
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileOperationRegistrationOptions {
@@ -79,7 +79,7 @@ pub struct FileOperationRegistrationOptions {
 /// A filter to describe in which file operation requests or notifications
 /// the server is interested in.
 ///
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileOperationFilter {
@@ -94,7 +94,7 @@ pub struct FileOperationFilter {
 /// A pattern kind describing if a glob pattern matches a file a folder or
 /// both.
 ///
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum FileOperationPatternKind {
@@ -107,7 +107,7 @@ pub enum FileOperationPatternKind {
 
 /// Matching options for the file operation pattern.
 ///
-/// @since 3.16.0
+/// @since 3.16.0.
 ///
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -120,7 +120,7 @@ pub struct FileOperationPatternOptions {
 /// A pattern to describe in which file operation requests or notifications
 /// the server is interested in.
 ///
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileOperationPattern {
@@ -151,7 +151,7 @@ pub struct FileOperationPattern {
 /// The parameters sent in notifications/requests for user-initiated creation
 /// of files.
 ///
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateFilesParams {
@@ -160,7 +160,7 @@ pub struct CreateFilesParams {
 }
 /// Represents information on a file/folder create.
 ///
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileCreate {
@@ -171,7 +171,7 @@ pub struct FileCreate {
 /// The parameters sent in notifications/requests for user-initiated renames
 /// of files.
 ///
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RenameFilesParams {
@@ -182,7 +182,7 @@ pub struct RenameFilesParams {
 
 /// Represents information on a file/folder rename.
 ///
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileRename {
@@ -196,7 +196,7 @@ pub struct FileRename {
 /// The parameters sent in notifications/requests for user-initiated deletes
 /// of files.
 ///
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeleteFilesParams {
@@ -206,7 +206,7 @@ pub struct DeleteFilesParams {
 
 /// Represents information on a file/folder delete.
 ///
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FileDelete {

@@ -1,7 +1,7 @@
 use std::cell::Cell;
 use std::cell::RefCell;
+use std::cmp;
 use std::cmp::Ordering;
-use std::cmp::{self};
 use std::collections::Bound;
 use std::fmt;
 use std::fmt::Debug;
@@ -9,7 +9,7 @@ use std::fmt::Formatter;
 use std::iter;
 use std::ops::Deref;
 use std::ops::DerefMut;
-use std::ops::Not;
+use std::ops::Not as _;
 use std::ops::Range;
 use std::ops::RangeBounds;
 use std::ops::RangeInclusive;
@@ -34,28 +34,28 @@ use multi_buffer::MultiBufferPoint;
 use multi_buffer::MultiBufferRow;
 use multi_buffer::MultiBufferSnapshot;
 use multi_buffer::RowInfo;
-use multi_buffer::ToOffset;
+use multi_buffer::ToOffset as _;
 use multi_buffer::ToPoint as _;
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use sum_tree::Bias;
-use sum_tree::ContextLessSummary;
+use sum_tree::ContextLessSummary as _;
 use sum_tree::Dimensions;
 use sum_tree::SumTree;
 use sum_tree::TreeMap;
 use text::BufferId;
 use text::Edit;
 use ui::ElementId;
-use ui::IntoElement;
+use ui::IntoElement as _;
 
 use super::Highlights;
 use super::fold_map::Chunk;
+use super::wrap_map;
 use super::wrap_map::WrapEdit;
 use super::wrap_map::WrapPatch;
 use super::wrap_map::WrapPoint;
 use super::wrap_map::WrapSnapshot;
-use super::wrap_map::{self};
 use crate::EditorStyle;
 use crate::GutterDimensions;
 use crate::display_map::Companion;
@@ -149,6 +149,10 @@ impl_for_row_types! {
 impl BlockPoint {
     pub const fn row(&self) -> BlockRow {
         BlockRow(self.0.row)
+    }
+
+    pub const fn new(row: BlockRow, column: u32) -> Self {
+        Self(Point::new(row.0, column))
     }
 }
 
@@ -378,7 +382,9 @@ impl From<BlockId> for ElementId {
     fn from(value: BlockId) -> Self {
         match value {
             BlockId::Custom(CustomBlockId(id)) => ("Block", id).into(),
-            BlockId::ExcerptBoundary(anchor) => anchor.opaque_id().unwrap().into(),
+            BlockId::ExcerptBoundary(anchor) => {
+                anchor.opaque_id().expect("excerpt boundary anchors have an opaque id").into()
+            }
             BlockId::FoldedBuffer(id) => ("FoldedBuffer", EntityId::from(id.as_u64())).into(),
             BlockId::Spacer(SpacerId(id)) => ("Spacer", id).into(),
         }
@@ -386,6 +392,7 @@ impl From<BlockId> for ElementId {
 }
 
 impl fmt::Display for BlockId {
+    #[expect(clippy::use_debug, reason = "inner ids have no Display")]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::Custom(id) => write!(f, "Block({id:?})"),
@@ -741,10 +748,10 @@ impl BlockMap {
             placement: block.placement.clone(),
             height: block.height,
             style: block.style,
-            render: Arc::new(Mutex::new(block.render.clone())),
+            render: Arc::new(Mutex::new(Arc::clone(&block.render))),
             priority: block.priority,
         });
-        self.custom_blocks.insert(block_ix, new_block.clone());
+        self.custom_blocks.insert(block_ix, Arc::clone(&new_block));
         self.custom_blocks_by_id.insert(id, new_block);
         id
     }
@@ -789,7 +796,6 @@ impl BlockMap {
             companion_wrap_edits: companion_edits,
             companion,
             display_map_id,
-            ..
         }) = companion_view
         {
             let mut companion_edits_in_my_space: Vec<WrapEdit> = companion_edits
@@ -1017,7 +1023,7 @@ impl BlockMap {
                 {
                     return None;
                 }
-                Some((placement, Block::Custom(block.clone())))
+                Some((placement, Block::Custom(Arc::clone(block))))
             }));
 
             blocks_in_edit.extend(self.header_and_footer_blocks(buffer, (start_bound, end_bound), |point, bias| {
@@ -1233,12 +1239,10 @@ impl BlockMap {
             let companion_wrap = companion_wrapper(their_point, bias);
             let new_delta = companion_wrap.0.cast_signed() - our_wrap.0.cast_signed();
 
-            let spacer = if new_delta > delta {
+            let spacer = (new_delta > delta).then(|| {
                 let height = (new_delta - delta) as u32;
-                Some((our_wrap, height))
-            } else {
-                None
-            };
+                (our_wrap, height)
+            });
             (new_delta, spacer)
         }
 
@@ -1247,7 +1251,7 @@ impl BlockMap {
         for excerpt in patches {
             let mut source_points = (excerpt.edited_range.start.row..=excerpt.edited_range.end.row)
                 .map(|row| MultiBufferPoint::new(row, 0))
-                .chain(if excerpt.edited_range.end.column > 0 { Some(excerpt.edited_range.end) } else { None })
+                .chain((excerpt.edited_range.end.column > 0).then_some(excerpt.edited_range.end))
                 .peekable();
             let last_source_point = if excerpt.edited_range.end.column > 0 {
                 excerpt.edited_range.end
@@ -1511,12 +1515,6 @@ fn push_isomorphic(tree: &mut SumTree<Transform>, rows: RowDelta, wrap_snapshot:
     }
 }
 
-impl BlockPoint {
-    pub const fn new(row: BlockRow, column: u32) -> Self {
-        Self(Point::new(row.0, column))
-    }
-}
-
 impl Deref for BlockPoint {
     type Target = Point;
 
@@ -1712,11 +1710,11 @@ impl BlockMapWriter<'_> {
                     placement: block.placement.clone(),
                     height: Some(new_height),
                     style: block.style,
-                    render: block.render.clone(),
+                    render: Arc::clone(&block.render),
                     priority: block.priority,
                 };
                 let new_block = Arc::new(new_block);
-                *block = new_block.clone();
+                *block = Arc::clone(&new_block);
                 self.block_map.custom_blocks_by_id.insert(block.id, new_block);
 
                 if let Some(companion) = &self.companion
@@ -2062,7 +2060,7 @@ impl BlockSnapshot {
         let wrap_point = match block_id {
             BlockId::Custom(custom_block_id) => {
                 let custom_block = self.custom_blocks_by_id.get(&custom_block_id)?;
-                return Some(Block::Custom(custom_block.clone()));
+                return Some(Block::Custom(Arc::clone(custom_block)));
             }
             BlockId::ExcerptBoundary(start_anchor) => {
                 let start_point = start_anchor.to_point(buffer);
@@ -2233,7 +2231,7 @@ impl BlockSnapshot {
 }
 
 impl BlockChunks<'_> {
-    /// Go to the next transform
+    /// Go to the next transform.
     fn advance(&mut self) {
         self.input_chunk = Chunk::default();
         self.transforms.next();
@@ -2275,7 +2273,7 @@ impl<'a> Iterator for BlockChunks<'a> {
             self.output_row += RowDelta(lines);
             return Some(Chunk {
                 text: unsafe { str::from_utf8_unchecked(&NEWLINES[..lines as usize]) },
-                chars: 1u128.unbounded_shl(lines).wrapping_sub(1),
+                chars: 1_u128.unbounded_shl(lines).wrapping_sub(1),
                 ..Default::default()
             });
         }
@@ -2298,7 +2296,7 @@ impl<'a> Iterator for BlockChunks<'a> {
 
             return Some(Chunk {
                 text: unsafe { str::from_utf8_unchecked(&NEWLINES[..lines.0 as usize]) },
-                chars: 1u128.unbounded_shl(lines.0).wrapping_sub(1),
+                chars: 1_u128.unbounded_shl(lines.0).wrapping_sub(1),
                 ..Default::default()
             });
         }
@@ -2333,7 +2331,7 @@ impl<'a> Iterator for BlockChunks<'a> {
             // need to have the same number of chars in the input as output.
             let bullet_len = prefix.chars().count();
             prefix = unsafe { str::from_utf8_unchecked(&BULLETS[..bullet_len]) };
-            (0, 1u128.unbounded_shl(bullet_len as u32).wrapping_sub(1), 0)
+            (0, 1_u128.unbounded_shl(bullet_len as u32).wrapping_sub(1), 0)
         } else {
             (self.input_chunk.tabs, self.input_chunk.chars, self.input_chunk.newlines)
         };

@@ -1,11 +1,11 @@
-use std::ops::Index;
+use std::ops::Index as _;
 use std::ops::Range as StdRange;
 use std::time::Duration;
 use std::time::Instant;
 
 use alacritty_terminal::Term;
 use alacritty_terminal::event::EventListener;
-use alacritty_terminal::grid::Dimensions;
+use alacritty_terminal::grid::Dimensions as _;
 use alacritty_terminal::index::Boundary;
 use alacritty_terminal::index::Column;
 use alacritty_terminal::index::Direction as AlacDirection;
@@ -162,7 +162,7 @@ fn normalize_hyperlink_match(maybe_url_or_path: String, is_url: bool, range: Ran
             }
             // Fallback: strip file:// prefix if URL parsing fails
             let path = maybe_url_or_path.strip_prefix("file://").unwrap_or(&maybe_url_or_path);
-            HyperlinkMatch { text: path.to_string(), is_url: false, range }
+            HyperlinkMatch { text: path.to_owned(), is_url: false, range }
         } else {
             HyperlinkMatch { text: maybe_url_or_path, is_url: true, range }
         }
@@ -345,11 +345,14 @@ fn path_match<T>(
     for regex in path_hyperlink_regexes {
         let mut path_found = false;
 
-        for (line_start_offset, captures) in regex.captures_iter(line).map(|captures| (0usize, captures)) {
+        for (line_start_offset, captures) in regex.captures_iter(line).map(|captures| (0_usize, captures)) {
             path_found = true;
-            let match_range = captures.get(0).unwrap().range();
+            let match_range = captures.get(0).expect("capture group 0 always exists").range();
             let (mut path_range, line_column) = if let Some(path) = captures.name("path") {
-                let parse = |name: &str| captures.name(name).and_then(|capture| capture.as_str().parse().ok());
+                let parse = |name: &str| {
+                    let capture = captures.name(name)?;
+                    capture.as_str().parse().ok()
+                };
 
                 (path.range(), parse("line").map(|line| (line, parse("column"))))
             } else {

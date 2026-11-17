@@ -1,9 +1,9 @@
 use std::cell::OnceCell;
-use std::cmp::{self};
+use std::cmp;
+use std::ops;
 use std::ops::AddAssign;
 use std::ops::Range;
 use std::ops::Sub;
-use std::ops::{self};
 
 use buffer_diff::DiffHunkStatus;
 use language::BufferSnapshot;

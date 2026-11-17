@@ -14,13 +14,13 @@ use gpui::Focusable as _;
 use gpui::GlobalElementId;
 use gpui::Hitbox;
 use gpui::HitboxBehavior;
-use gpui::InteractiveElement;
+use gpui::InteractiveElement as _;
 use gpui::IntoElement;
 use gpui::LayoutId;
 use gpui::ManagedView;
 use gpui::MouseButton;
 use gpui::MouseDownEvent;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Pixels;
 use gpui::Point;
 use gpui::Size;
@@ -69,13 +69,13 @@ impl<M: ManagedView> RightClickMenu<M> {
     }
 
     /// anchor defines which corner of the menu to anchor to the attachment point
-    /// (by default the cursor position, but see attach)
+    /// (by default the cursor position, but see attach).
     pub const fn anchor(mut self, anchor: Anchor) -> Self {
         self.anchor = Some(anchor);
         self
     }
 
-    /// attach defines which corner of the handle to attach the menu's anchor to
+    /// attach defines which corner of the handle to attach the menu's anchor to.
     pub const fn attach(mut self, attach: Anchor) -> Self {
         self.attach = Some(attach);
         self
@@ -89,14 +89,14 @@ impl<M: ManagedView> RightClickMenu<M> {
         f: impl FnOnce(&mut Self, &mut MenuHandleElementState<M>, &mut Window, &mut App) -> R,
     ) -> R {
         window.with_optional_element_state::<MenuHandleElementState<M>, _>(Some(global_id), |element_state, window| {
-            let mut element_state = element_state.unwrap().unwrap_or_default();
+            let mut element_state = element_state.expect("global id is provided").unwrap_or_default();
             let result = f(self, &mut element_state, window, cx);
             (result, Some(element_state))
         })
     }
 }
 
-/// Creates a [`RightClickMenu`]
+/// Creates a [`RightClickMenu`].
 pub fn right_click_menu<M: ManagedView>(id: impl Into<ElementId>) -> RightClickMenu<M> {
     RightClickMenu {
         id: id.into(),
@@ -150,38 +150,44 @@ impl<M: ManagedView> Element for RightClickMenu<M> {
         window: &mut Window,
         cx: &mut App,
     ) -> (gpui::LayoutId, Self::RequestLayoutState) {
-        self.with_element_state(id.unwrap(), window, cx, |this, element_state, window, cx| {
-            let mut menu_layout_id = None;
+        self.with_element_state(
+            id.expect("right click menu has an id"),
+            window,
+            cx,
+            |this, element_state, window, cx| {
+                let mut menu_layout_id = None;
 
-            let menu_element = element_state.menu.borrow_mut().as_mut().map(|menu| {
-                let mut anchored = anchored().snap_to_window_with_margin(px(8.));
-                if let Some(anchor) = this.anchor {
-                    anchored = anchored.anchor(anchor);
+                let menu_element = element_state.menu.borrow_mut().as_mut().map(|menu| {
+                    let mut anchored = anchored().snap_to_window_with_margin(px(8.));
+                    if let Some(anchor) = this.anchor {
+                        anchored = anchored.anchor(anchor);
+                    }
+                    anchored = anchored.position(*element_state.position.borrow());
+
+                    let mut element =
+                        deferred(anchored.child(div().occlude().child(menu.clone()))).with_priority(1).into_any();
+
+                    menu_layout_id = Some(element.request_layout(window, cx));
+                    element
+                });
+
+                let mut child_element = this
+                    .child_builder
+                    .take()
+                    .map(|child_builder| (child_builder)(element_state.menu.borrow().is_some(), window, cx));
+
+                let child_layout_id =
+                    child_element.as_mut().map(|child_element| child_element.request_layout(window, cx));
+
+                let mut style = gpui::Style::default();
+                if this.size_full {
+                    style.size = Size::full();
                 }
-                anchored = anchored.position(*element_state.position.borrow());
+                let layout_id = window.request_layout(style, menu_layout_id.into_iter().chain(child_layout_id), cx);
 
-                let mut element =
-                    deferred(anchored.child(div().occlude().child(menu.clone()))).with_priority(1).into_any();
-
-                menu_layout_id = Some(element.request_layout(window, cx));
-                element
-            });
-
-            let mut child_element = this
-                .child_builder
-                .take()
-                .map(|child_builder| (child_builder)(element_state.menu.borrow().is_some(), window, cx));
-
-            let child_layout_id = child_element.as_mut().map(|child_element| child_element.request_layout(window, cx));
-
-            let mut style = gpui::Style::default();
-            if this.size_full {
-                style.size = Size::full();
-            }
-            let layout_id = window.request_layout(style, menu_layout_id.into_iter().chain(child_layout_id), cx);
-
-            (layout_id, RequestLayoutState { child_layout_id, child_element, menu_element })
-        })
+                (layout_id, RequestLayoutState { child_layout_id, child_element, menu_element })
+            },
+        )
     }
 
     fn prepaint(
@@ -217,71 +223,82 @@ impl<M: ManagedView> Element for RightClickMenu<M> {
         window: &mut Window,
         cx: &mut App,
     ) {
-        self.with_element_state(id.unwrap(), window, cx, |this, element_state, window, cx| {
-            if let Some(mut child) = request_layout.child_element.take() {
-                child.paint(window, cx);
-            }
-
-            if let Some(mut menu) = request_layout.menu_element.take() {
-                menu.paint(window, cx);
-            }
-
-            let Some(builder) = this.menu_builder.take() else {
-                return;
-            };
-
-            let attach = this.attach;
-            let menu = element_state.menu.clone();
-            let position = element_state.position.clone();
-            let child_bounds = prepaint_state.child_bounds;
-
-            let hitbox_id = prepaint_state.hitbox.id;
-            window.on_mouse_event(move |event: &MouseDownEvent, phase, window, cx| {
-                if phase == DispatchPhase::Bubble && event.button == MouseButton::Right && hitbox_id.is_hovered(window)
-                {
-                    cx.stop_propagation();
-                    window.prevent_default();
-
-                    let Some(new_menu) = (builder)(window, cx) else {
-                        return;
-                    };
-                    let menu2 = menu.clone();
-                    let previous_focus_handle = window.focused(cx);
-
-                    window
-                        .subscribe(&new_menu, cx, move |modal, _: &DismissEvent, window, cx| {
-                            if modal.focus_handle(cx).contains_focused(window, cx)
-                                && let Some(previous_focus_handle) = previous_focus_handle.as_ref()
-                            {
-                                window.focus(previous_focus_handle, cx);
-                            }
-                            *menu2.borrow_mut() = None;
-                            window.refresh();
-                        })
-                        .detach();
-
-                    // Since menus are rendered in a deferred fashion, their focus handles are
-                    // not linked in the dispatch tree until after the deferred draw callback
-                    // runs. We need to wait for that to happen before focusing it, so that
-                    // calling `contains_focused` on the parent's focus handle returns `true`
-                    // when the menu is focused. This prevents the pane's tab bar buttons from
-                    // flickering when opening menus.
-                    let focus_handle = new_menu.focus_handle(cx);
-                    window.on_next_frame(move |window, _cx| {
-                        window.on_next_frame(move |window, cx| {
-                            window.focus(&focus_handle, cx);
-                        });
-                    });
-                    *menu.borrow_mut() = Some(new_menu);
-                    *position.borrow_mut() = if let Some(child_bounds) = child_bounds {
-                        if let Some(attach) = attach { child_bounds.corner(attach) } else { window.mouse_position() }
-                    } else {
-                        window.mouse_position()
-                    };
-                    window.refresh();
+        self.with_element_state(
+            id.expect("right click menu has an id"),
+            window,
+            cx,
+            |this, element_state, window, cx| {
+                if let Some(mut child) = request_layout.child_element.take() {
+                    child.paint(window, cx);
                 }
-            });
-        });
+
+                if let Some(mut menu) = request_layout.menu_element.take() {
+                    menu.paint(window, cx);
+                }
+
+                let Some(builder) = this.menu_builder.take() else {
+                    return;
+                };
+
+                let attach = this.attach;
+                let menu = Rc::clone(&element_state.menu);
+                let position = Rc::clone(&element_state.position);
+                let child_bounds = prepaint_state.child_bounds;
+
+                let hitbox_id = prepaint_state.hitbox.id;
+                window.on_mouse_event(move |event: &MouseDownEvent, phase, window, cx| {
+                    if phase == DispatchPhase::Bubble
+                        && event.button == MouseButton::Right
+                        && hitbox_id.is_hovered(window)
+                    {
+                        cx.stop_propagation();
+                        window.prevent_default();
+
+                        let Some(new_menu) = (builder)(window, cx) else {
+                            return;
+                        };
+                        let menu2 = Rc::clone(&menu);
+                        let previous_focus_handle = window.focused(cx);
+
+                        window
+                            .subscribe(&new_menu, cx, move |modal, _: &DismissEvent, window, cx| {
+                                if modal.focus_handle(cx).contains_focused(window, cx)
+                                    && let Some(previous_focus_handle) = previous_focus_handle.as_ref()
+                                {
+                                    window.focus(previous_focus_handle, cx);
+                                }
+                                *menu2.borrow_mut() = None;
+                                window.refresh();
+                            })
+                            .detach();
+
+                        // Since menus are rendered in a deferred fashion, their focus handles are
+                        // not linked in the dispatch tree until after the deferred draw callback
+                        // runs. We need to wait for that to happen before focusing it, so that
+                        // calling `contains_focused` on the parent's focus handle returns `true`
+                        // when the menu is focused. This prevents the pane's tab bar buttons from
+                        // flickering when opening menus.
+                        let focus_handle = new_menu.focus_handle(cx);
+                        window.on_next_frame(move |window, _cx| {
+                            window.on_next_frame(move |window, cx| {
+                                window.focus(&focus_handle, cx);
+                            });
+                        });
+                        *menu.borrow_mut() = Some(new_menu);
+                        *position.borrow_mut() = if let Some(child_bounds) = child_bounds {
+                            if let Some(attach) = attach {
+                                child_bounds.corner(attach)
+                            } else {
+                                window.mouse_position()
+                            }
+                        } else {
+                            window.mouse_position()
+                        };
+                        window.refresh();
+                    }
+                });
+            },
+        );
     }
 }
 

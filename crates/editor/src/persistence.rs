@@ -17,7 +17,7 @@ mod tests {
     use super::SerializedEditor;
 
     #[test]
-    fn test_serialized_editor_round_trip() {
+    fn serialized_editor_round_trip() {
         let editor = SerializedEditor { abs_path: "/p/a.rs".into() };
         let json = serde_json::to_value(&editor).unwrap();
         assert_eq!(json, serde_json::json!({ "abs_path": "/p/a.rs" }));
@@ -25,7 +25,7 @@ mod tests {
     }
 
     #[test]
-    fn test_serialized_editor_ignores_legacy_fields() {
+    fn serialized_editor_ignores_legacy_fields() {
         let json = serde_json::json!({
             "abs_path": "/p/a.rs",
             "contents": "old",
@@ -39,7 +39,7 @@ mod tests {
     }
 
     #[test]
-    fn test_serialized_editor_rejects_legacy_untitled_buffer() {
+    fn serialized_editor_rejects_legacy_untitled_buffer() {
         let json = serde_json::json!({ "contents": "unsaved" });
         serde_json::from_value::<SerializedEditor>(json).unwrap_err();
     }

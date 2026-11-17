@@ -4,7 +4,7 @@ use ed_actions::workspace::CopyPath;
 use ed_actions::workspace::CopyRelativePath;
 use file_icons::FileIcons;
 use git::status::FileStatus;
-use gpui::Action;
+use gpui::Action as _;
 use gpui::AnyElement;
 use gpui::App;
 use gpui::AvailableSpace;
@@ -18,10 +18,10 @@ use gpui::IntoElement;
 use gpui::Length;
 use gpui::Modifiers;
 use gpui::MouseButton;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Pixels;
 use gpui::SharedString;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Window;
 use gpui::WindowBackgroundAppearance;
 use gpui::div;
@@ -34,7 +34,7 @@ use multi_buffer::MultiBuffer;
 use project::Entry;
 use rustc_hash::FxHashMap;
 use text::BufferId;
-use theme::ActiveTheme;
+use theme::ActiveTheme as _;
 use ui::ButtonLike;
 use ui::ContextMenu;
 use ui::DiffStat;
@@ -42,18 +42,18 @@ use ui::Indicator;
 use ui::Tooltip;
 use ui::font;
 use ui::prelude::Button;
-use ui::prelude::ButtonCommon;
+use ui::prelude::ButtonCommon as _;
 use ui::prelude::ButtonStyle;
-use ui::prelude::Clickable;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
-use ui::prelude::FixedWidth;
-use ui::prelude::FluentBuilder;
+use ui::prelude::FixedWidth as _;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Icon;
 use ui::prelude::IconName;
-use ui::prelude::InteractiveElement;
+use ui::prelude::InteractiveElement as _;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
-use ui::prelude::StatefulInteractiveElement;
+use ui::prelude::LabelCommon as _;
+use ui::prelude::StatefulInteractiveElement as _;
 use ui::prelude::h_flex;
 use ui::prelude::rems_from_px;
 use ui::prelude::v_flex;
@@ -383,7 +383,7 @@ pub(crate) fn render_buffer_header(
                                 Some(parent) if !parent.is_empty() => {
                                     format!("{}{}", parent, filename.as_str())
                                 }
-                                _ => filename.as_str().to_string(),
+                                _ => filename.as_str().to_owned(),
                             };
 
                             path_header
@@ -539,7 +539,7 @@ pub(crate) fn render_buffer_header(
                                 Some(Box::new(CopyRelativePath)),
                                 window.handler_for(&editor, move |_, _, cx| {
                                     cx.write_to_clipboard(ClipboardItem::new_string(
-                                        relative_path.display().to_string(),
+                                        relative_path.display().to_owned(),
                                     ));
                                 }),
                             )

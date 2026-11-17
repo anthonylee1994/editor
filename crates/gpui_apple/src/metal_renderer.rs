@@ -4,8 +4,8 @@ use std::mem;
 use std::mem::MaybeUninit;
 use std::ops::Range;
 use std::process;
+use std::ptr;
 use std::ptr::NonNull;
-use std::ptr::{self};
 use std::slice;
 use std::sync::Arc;
 
@@ -43,7 +43,7 @@ use objc2_metal::MTLCommandQueue;
 use objc2_metal::MTLCopyAllDevices;
 use objc2_metal::MTLCreateSystemDefaultDevice;
 use objc2_metal::MTLDevice;
-use objc2_metal::MTLDrawable;
+use objc2_metal::MTLDrawable as _;
 use objc2_metal::MTLGPUFamily;
 use objc2_metal::MTLLibrary;
 use objc2_metal::MTLLoadAction;
@@ -166,7 +166,7 @@ pub struct MetalRenderer {
     is_unified_memory: bool,
     presents_with_transaction: bool,
     display_link_mode: DisplayLinkMode,
-    /// For headless rendering, tracks whether output should be opaque
+    /// For headless rendering, tracks whether output should be opaque.
     opaque: bool,
     command_queue: Retained<ProtocolObject<dyn MTLCommandQueue>>,
     paths_rasterization_pipeline_state: Retained<RenderPipelineState>,
@@ -474,7 +474,9 @@ impl MetalRenderer {
             let msaa_descriptor = texture_descriptor;
             msaa_descriptor.setTextureType(MTLTextureType::Type2DMultisample);
             msaa_descriptor.setStorageMode(storage_mode);
-            unsafe { msaa_descriptor.setSampleCount(self.path_sample_count as usize) };
+            unsafe {
+                msaa_descriptor.setSampleCount(self.path_sample_count as usize);
+            }
             self.path_intermediate_msaa_texture = self.device.newTextureWithDescriptor(&msaa_descriptor);
         } else {
             self.path_intermediate_msaa_texture = None;
@@ -612,7 +614,7 @@ impl MetalRenderer {
         let command_buffer =
             self.draw_primitives_to_texture(scene, &instance_bindings, &mut writer, texture, viewport_size)?;
 
-        let instance_buffer_pool = self.instance_buffer_pool.clone();
+        let instance_buffer_pool = Arc::clone(&self.instance_buffer_pool);
         let instance_buffer = Cell::new(Some(writer.finish()));
         let block = RcBlock::new(move |_: NonNull<CommandBuffer>| {
             if let Some(instance_buffer) = instance_buffer.take() {
@@ -781,7 +783,9 @@ impl MetalRenderer {
                 ShadowInputIndex::Shadows as usize,
             );
         };
-        unsafe { set_vertex_bytes(command_encoder, ShadowInputIndex::ViewportSize as usize, &viewport_size) };
+        unsafe {
+            set_vertex_bytes(command_encoder, ShadowInputIndex::ViewportSize as usize, &viewport_size);
+        }
 
         unsafe {
             command_encoder.drawPrimitives_vertexStart_vertexCount_instanceCount_baseInstance(
@@ -827,7 +831,9 @@ impl MetalRenderer {
                 QuadInputIndex::Quads as usize,
             );
         };
-        unsafe { set_vertex_bytes(command_encoder, QuadInputIndex::ViewportSize as usize, &viewport_size) };
+        unsafe {
+            set_vertex_bytes(command_encoder, QuadInputIndex::ViewportSize as usize, &viewport_size);
+        }
 
         unsafe {
             command_encoder.drawPrimitives_vertexStart_vertexCount_instanceCount_baseInstance(
@@ -861,7 +867,9 @@ impl MetalRenderer {
                 SpriteInputIndex::Vertices as usize,
             );
         };
-        unsafe { set_vertex_bytes(command_encoder, SpriteInputIndex::ViewportSize as usize, &viewport_size) };
+        unsafe {
+            set_vertex_bytes(command_encoder, SpriteInputIndex::ViewportSize as usize, &viewport_size);
+        }
 
         unsafe {
             command_encoder
@@ -876,7 +884,7 @@ impl MetalRenderer {
         // batch combines different draw orders, we perform a single copy
         // for a minimal spanning rect.
 
-        let sprites = if paths.last().unwrap().order == first_path.order {
+        let sprites = if paths.last().expect("paths are non-empty").order == first_path.order {
             paths.iter().map(|path| PathSprite { bounds: path.clipped_bounds() }).collect()
         } else {
             let mut bounds = first_path.clipped_bounds();
@@ -939,7 +947,9 @@ impl MetalRenderer {
                 UnderlineInputIndex::Underlines as usize,
             );
         };
-        unsafe { set_vertex_bytes(command_encoder, UnderlineInputIndex::ViewportSize as usize, &viewport_size) };
+        unsafe {
+            set_vertex_bytes(command_encoder, UnderlineInputIndex::ViewportSize as usize, &viewport_size);
+        }
 
         unsafe {
             command_encoder.drawPrimitives_vertexStart_vertexCount_instanceCount_baseInstance(
@@ -986,8 +996,12 @@ impl MetalRenderer {
                 SpriteInputIndex::Sprites as usize,
             );
         };
-        unsafe { set_vertex_bytes(command_encoder, SpriteInputIndex::ViewportSize as usize, &viewport_size) };
-        unsafe { set_vertex_bytes(command_encoder, SpriteInputIndex::AtlasTextureSize as usize, &texture_size) };
+        unsafe {
+            set_vertex_bytes(command_encoder, SpriteInputIndex::ViewportSize as usize, &viewport_size);
+        }
+        unsafe {
+            set_vertex_bytes(command_encoder, SpriteInputIndex::AtlasTextureSize as usize, &texture_size);
+        }
         unsafe {
             command_encoder.setFragmentBuffer_offset_atIndex(
                 Some(&instance_bindings.monochrome_sprites.buffer),
@@ -995,7 +1009,9 @@ impl MetalRenderer {
                 SpriteInputIndex::Sprites as usize,
             );
         };
-        unsafe { command_encoder.setFragmentTexture_atIndex(Some(&texture), SpriteInputIndex::AtlasTexture as usize) };
+        unsafe {
+            command_encoder.setFragmentTexture_atIndex(Some(&texture), SpriteInputIndex::AtlasTexture as usize);
+        }
 
         unsafe {
             command_encoder.drawPrimitives_vertexStart_vertexCount_instanceCount_baseInstance(
@@ -1042,8 +1058,12 @@ impl MetalRenderer {
                 SpriteInputIndex::Sprites as usize,
             );
         };
-        unsafe { set_vertex_bytes(command_encoder, SpriteInputIndex::ViewportSize as usize, &viewport_size) };
-        unsafe { set_vertex_bytes(command_encoder, SpriteInputIndex::AtlasTextureSize as usize, &texture_size) };
+        unsafe {
+            set_vertex_bytes(command_encoder, SpriteInputIndex::ViewportSize as usize, &viewport_size);
+        }
+        unsafe {
+            set_vertex_bytes(command_encoder, SpriteInputIndex::AtlasTextureSize as usize, &texture_size);
+        }
         unsafe {
             command_encoder.setFragmentBuffer_offset_atIndex(
                 Some(&instance_bindings.polychrome_sprites.buffer),
@@ -1051,7 +1071,9 @@ impl MetalRenderer {
                 SpriteInputIndex::Sprites as usize,
             );
         };
-        unsafe { command_encoder.setFragmentTexture_atIndex(Some(&texture), SpriteInputIndex::AtlasTexture as usize) };
+        unsafe {
+            command_encoder.setFragmentTexture_atIndex(Some(&texture), SpriteInputIndex::AtlasTexture as usize);
+        }
 
         unsafe {
             command_encoder.drawPrimitives_vertexStart_vertexCount_instanceCount_baseInstance(
@@ -1098,7 +1120,7 @@ fn new_command_encoder_for_texture(
 
 /// Binds `value` as inline vertex data at `index`.
 ///
-/// Safety: `index` must name a vertex argument whose type matches `T`.
+/// # Safety `index` must name a vertex argument whose type matches `T`.
 unsafe fn set_vertex_bytes<T>(command_encoder: &RenderCommandEncoder, index: usize, value: &T) {
     unsafe {
         command_encoder.setVertexBytes_length_atIndex(
@@ -1230,7 +1252,7 @@ struct InstanceBufferWriter {
 impl InstanceBufferWriter {
     fn new(device: &Retained<Device>, pool: &Arc<Mutex<InstanceBufferPool>>, unified_memory: bool) -> Self {
         let current = pool.lock().acquire(device, unified_memory);
-        Self { device: device.clone(), pool: pool.clone(), unified_memory, filled: Vec::new(), current, offset: 0 }
+        Self { device: device.clone(), pool: Arc::clone(pool), unified_memory, filled: Vec::new(), current, offset: 0 }
     }
 
     fn allocate<T>(&mut self, count: usize) -> Result<(InstanceBinding, &mut [MaybeUninit<T>])> {

@@ -6,12 +6,12 @@ use gpui::SharedString;
 
 use crate::IconButtonShape;
 use crate::prelude::App;
-use crate::prelude::ButtonCommon;
-use crate::prelude::Clickable;
+use crate::prelude::ButtonCommon as _;
+use crate::prelude::Clickable as _;
 use crate::prelude::Color;
-use crate::prelude::Disableable;
+use crate::prelude::Disableable as _;
 use crate::prelude::ElementId;
-use crate::prelude::FluentBuilder;
+use crate::prelude::FluentBuilder as _;
 use crate::prelude::IconButton;
 use crate::prelude::IconName;
 use crate::prelude::IconSize;

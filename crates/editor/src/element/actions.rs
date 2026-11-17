@@ -1,5 +1,6 @@
 use std::any::Any;
 use std::any::TypeId;
+use std::rc::Rc;
 
 use gpui::Action;
 use gpui::App;
@@ -7,10 +8,10 @@ use gpui::Context;
 use gpui::DispatchPhase;
 use gpui::Entity;
 use gpui::ModifiersChangedEvent;
-use gpui::TaskExt;
+use gpui::TaskExt as _;
 use gpui::Window;
-use util::ResultExt;
-use workspace::item::Item;
+use util::ResultExt as _;
+use workspace::item::Item as _;
 use workspace::item::ItemBufferKind;
 
 use super::EditorElement;
@@ -23,7 +24,7 @@ use crate::LineDown;
 use crate::LineUp;
 use crate::PageDown;
 use crate::PageUp;
-use crate::hover_popover::{self};
+use crate::hover_popover;
 use crate::rust_analyzer_ext;
 use crate::scroll::scroll_amount::ScrollAmount;
 
@@ -430,7 +431,7 @@ impl EditorElement {
     }
 
     pub(super) fn register_key_listeners(&self, window: &mut Window, _: &mut App, layout: &EditorLayout) {
-        let position_map = layout.position_map.clone();
+        let position_map = Rc::clone(&layout.position_map);
         window.on_key_event({
             let editor = self.editor.clone();
             move |event: &ModifiersChangedEvent, phase, window, cx| {
@@ -458,7 +459,9 @@ pub fn register_action<T: Action>(
         editor,
         window,
         TypeId::of::<T>(),
-        Box::new(move |editor, action, window, cx| listener(editor, action.downcast_ref().unwrap(), window, cx)),
+        Box::new(move |editor, action, window, cx| {
+            listener(editor, action.downcast_ref().expect("action type matches listener"), window, cx);
+        }),
     );
 }
 

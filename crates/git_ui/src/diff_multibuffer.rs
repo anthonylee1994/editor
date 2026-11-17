@@ -34,34 +34,34 @@ use language::Anchor;
 use language::Buffer;
 use language::BufferId;
 use language::Capability;
-use language::OffsetRangeExt;
+use language::OffsetRangeExt as _;
 use multi_buffer::MultiBuffer;
 use multi_buffer::PathKey;
 use project::ConflictSet;
 use project::Project;
 use project::ProjectPath;
 use project::git_store::Repository;
+use project::git_store::diff_buffer_list;
 use project::git_store::diff_buffer_list::BranchDiffEvent;
 use project::git_store::diff_buffer_list::DiffBase;
-use project::git_store::diff_buffer_list::{self};
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
-use theme::ActiveTheme;
+use theme::ActiveTheme as _;
 use ui::CommonAnimationExt as _;
 use ui::KeyBinding;
 use ui::prelude::Button;
-use ui::prelude::Clickable;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
 use ui::prelude::Context;
-use ui::prelude::FluentBuilder;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Icon;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
-use ui::prelude::InteractiveElement;
+use ui::prelude::InteractiveElement as _;
 use ui::prelude::IntoElement;
 use ui::prelude::Label;
-use ui::prelude::ParentElement;
-use ui::prelude::Styled;
+use ui::prelude::ParentElement as _;
+use ui::prelude::Styled as _;
 use ui::prelude::TextSize;
 use ui::prelude::Window;
 use ui::prelude::div;
@@ -72,7 +72,7 @@ use util::rel_path::RelPath;
 use workspace::CloseActiveItem;
 use workspace::ItemNavHistory;
 use workspace::Workspace;
-use workspace::item::Item;
+use workspace::item::Item as _;
 use workspace::item::SaveOptions;
 
 use crate::conflict_view;
@@ -643,7 +643,7 @@ impl DiffMultibuffer {
         let (text_anchor, _) = snapshot.anchor_to_buffer_anchor(position)?;
         let buffer = multibuffer.buffer(text_anchor.buffer_id)?;
         let file = buffer.read(cx).file()?;
-        Some(ProjectPath { worktree_id: file.worktree_id(cx), path: file.path().clone() })
+        Some(ProjectPath { worktree_id: file.worktree_id(cx), path: Arc::clone(file.path()) })
     }
 
     pub(crate) fn added_to_workspace(&self, workspace: &mut Workspace, window: &mut Window, cx: &mut Context<Self>) {

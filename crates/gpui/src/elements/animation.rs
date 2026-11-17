@@ -18,9 +18,9 @@ use crate::Window;
 /// An animation that can be applied to an element.
 #[derive(Clone)]
 pub struct Animation {
-    /// The amount of time for which this animation should run
+    /// The amount of time for which this animation should run.
     pub duration: Duration,
-    /// Whether to repeat this animation when it finishes
+    /// Whether to repeat this animation when it finishes.
     pub oneshot: bool,
     /// Whether to derive the phase from a shared clock. See [`Animation::repeat_synced`].
     pub synced: bool,
@@ -59,9 +59,9 @@ impl Animation {
     }
 }
 
-/// An extension trait for adding the animation wrapper to both Elements and Components
+/// An extension trait for adding the animation wrapper to both Elements and Components.
 pub trait AnimationExt {
-    /// Render this component or element with an animation
+    /// Render this component or element with an animation.
     fn with_animation(
         self,
         id: impl Into<ElementId>,
@@ -79,7 +79,7 @@ pub trait AnimationExt {
         }
     }
 
-    /// Render this component or element with a chain of animations
+    /// Render this component or element with a chain of animations.
     fn with_animations(
         self,
         id: impl Into<ElementId>,
@@ -100,7 +100,7 @@ pub trait AnimationExt {
 
 impl<E: IntoElement + 'static> AnimationExt for E {}
 
-/// A GPUI element that applies an animation to another element
+/// A GPUI element that applies an animation to another element.
 pub struct AnimationElement<E> {
     id: ElementId,
     element: Option<E>,
@@ -154,7 +154,7 @@ impl<E: IntoElement + 'static> Element for AnimationElement<E> {
         window: &mut Window,
         cx: &mut App,
     ) -> (crate::LayoutId, Self::RequestLayoutState) {
-        window.with_element_state(global_id.unwrap(), |state, window| {
+        window.with_element_state(global_id.expect("animation elements always have an id"), |state, window| {
             let mut state = state.unwrap_or_else(|| AnimationState { start: Instant::now(), animation_ix: 0 });
             let animation_ix = state.animation_ix;
             let duration = self.animations[animation_ix].duration;
@@ -179,7 +179,7 @@ impl<E: IntoElement + 'static> Element for AnimationElement<E> {
                     }
                     delta = 1.0;
                 } else {
-                    delta %= 1.0;
+                    delta = delta.fract();
                 }
             }
             let delta = (self.animations[animation_ix].easing)(delta);
@@ -222,17 +222,17 @@ impl<E: IntoElement + 'static> Element for AnimationElement<E> {
 mod easing {
     use std::f32::consts::PI;
 
-    /// The linear easing function, or delta itself
+    /// The linear easing function, or delta itself.
     pub const fn linear(delta: f32) -> f32 {
         delta
     }
 
-    /// The quadratic easing function, delta * delta
+    /// The quadratic easing function, delta * delta.
     pub fn quadratic(delta: f32) -> f32 {
         delta * delta
     }
 
-    /// The quadratic ease-in-out function, which starts and ends slowly but speeds up in the middle
+    /// The quadratic ease-in-out function, which starts and ends slowly but speeds up in the middle.
     pub fn ease_in_out(delta: f32) -> f32 {
         if delta < 0.5 {
             2.0 * delta * delta
@@ -242,12 +242,12 @@ mod easing {
         }
     }
 
-    /// The Quint ease-out function, which starts quickly and decelerates to a stop
+    /// The Quint ease-out function, which starts quickly and decelerates to a stop.
     pub fn ease_out_quint() -> impl Fn(f32) -> f32 {
         move |delta| 1.0 - (1.0 - delta).powi(5)
     }
 
-    /// A custom easing function for pulsating alpha that slows down as it approaches 0.1
+    /// A custom easing function for pulsating alpha that slows down as it approaches 0.1.
     pub fn pulsating_between(min: f32, max: f32) -> impl Fn(f32) -> f32 {
         let range = max - min;
 

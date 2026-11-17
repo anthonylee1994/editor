@@ -61,7 +61,7 @@ impl LspAdapter for BashLspAdapter {
 /// Settings for Shell Script.
 pub(crate) fn settings() -> LanguageSettings {
     LanguageSettings {
-        tab_size: NonZeroU32::new(4).unwrap(),
+        tab_size: NonZeroU32::new(4).expect("non-zero"),
         hard_tabs: false,
         soft_wrap: false,
         preferred_line_length: 120,

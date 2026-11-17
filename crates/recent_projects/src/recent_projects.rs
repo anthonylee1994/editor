@@ -10,7 +10,7 @@ use fs::Fs;
 use fuzzy::StringMatch;
 use fuzzy::StringMatchCandidate;
 use fuzzy::match_strings;
-use gpui::Action;
+use gpui::Action as _;
 use gpui::AnyElement;
 use gpui::App;
 use gpui::AppContext as _;
@@ -22,7 +22,7 @@ use gpui::FocusHandle;
 use gpui::Focusable;
 use gpui::Subscription;
 use gpui::Task;
-use gpui::TaskExt;
+use gpui::TaskExt as _;
 use gpui::WeakEntity;
 use gpui::Window;
 use gpui::actions;
@@ -48,37 +48,37 @@ use ui::PopoverMenu;
 use ui::PopoverMenuHandle;
 use ui::TintColor;
 use ui::Tooltip;
-use ui::prelude::ActiveTheme;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::Button;
-use ui::prelude::ButtonCommon;
+use ui::prelude::ButtonCommon as _;
 use ui::prelude::ButtonStyle;
-use ui::prelude::Clickable;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
-use ui::prelude::Element;
-use ui::prelude::FluentBuilder;
+use ui::prelude::Element as _;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Icon;
 use ui::prelude::IconButton;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
-use ui::prelude::InteractiveElement;
+use ui::prelude::InteractiveElement as _;
 use ui::prelude::IntoElement;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
-use ui::prelude::ParentElement;
+use ui::prelude::ParentElement as _;
 use ui::prelude::Render;
-use ui::prelude::RenderOnce;
-use ui::prelude::SelectableButton;
+use ui::prelude::RenderOnce as _;
+use ui::prelude::SelectableButton as _;
 use ui::prelude::SharedString;
-use ui::prelude::StatefulInteractiveElement;
-use ui::prelude::Styled;
-use ui::prelude::Toggleable;
+use ui::prelude::StatefulInteractiveElement as _;
+use ui::prelude::Styled as _;
+use ui::prelude::Toggleable as _;
 use ui::prelude::h_flex;
 use ui::prelude::rems;
 use ui::prelude::v_flex;
-use util::ResultExt;
+use util::ResultExt as _;
 use util::disambiguate;
-use util::paths::PathExt;
+use util::paths::PathExt as _;
 use workspace::HistoryManager;
 use workspace::ModalView;
 use workspace::OpenMode;
@@ -89,7 +89,7 @@ use workspace::ProjectsStore;
 use workspace::RecentWorkspace;
 use workspace::Workspace;
 use workspace::WorkspaceMode;
-use workspace::notifications::DetachAndPromptErr;
+use workspace::notifications::DetachAndPromptErr as _;
 use workspace::with_active_or_new_workspace;
 
 actions!(recent_projects, [ToggleActionsMenu, RemoveSelected, AddToWorkspace,]);
@@ -202,7 +202,7 @@ fn get_open_folders(workspace: &Workspace, cx: &App) -> Vec<OpenFolderEntry> {
 }
 
 fn repository_branch(repo: &Repository) -> Option<SharedString> {
-    repo.branch.as_ref().map(|branch| SharedString::from(branch.name().to_string()))
+    repo.branch.as_ref().map(|branch| SharedString::from(branch.name().to_owned()))
 }
 
 pub fn init(cx: &mut App) {
@@ -314,7 +314,7 @@ impl RecentProjects {
     ) {
         let weak = cx.entity().downgrade();
         let open_folders = get_open_folders(workspace, cx);
-        let fs = Some(workspace.app_state().fs.clone());
+        let fs = Some(Arc::clone(&workspace.app_state().fs));
 
         let create_new_window = create_new_window.unwrap_or(false);
 
@@ -342,7 +342,7 @@ impl RecentProjects {
             || (Vec::new(), None),
             |workspace| {
                 let workspace = workspace.read(cx);
-                (get_open_folders(workspace, cx), Some(workspace.app_state().fs.clone()))
+                (get_open_folders(workspace, cx), Some(Arc::clone(&workspace.app_state().fs)))
             },
         );
 
@@ -470,6 +470,200 @@ impl RecentProjectsDelegate {
 
     pub fn set_workspaces(&mut self, workspaces: Vec<RecentWorkspace>) {
         self.workspaces = workspaces;
+    }
+
+    fn open_recent_projects(
+        &self,
+        candidate_id: usize,
+        secondary: bool,
+        window: &mut Window,
+        cx: &mut Context<Picker<Self>>,
+    ) {
+        let Some(workspace) = self.workspace.upgrade() else {
+            return;
+        };
+        let Some(candidate_workspace) = self.workspaces.get(candidate_id) else {
+            return;
+        };
+
+        let replace_current_window = self.create_new_window == secondary;
+        let candidate_project_location = ProjectLocation::new(&candidate_workspace.paths);
+        let candidate_workspace_paths = candidate_workspace.paths.clone();
+
+        workspace.update(cx, |workspace, cx| {
+            if workspace.project_location(cx).as_ref() == Some(&candidate_project_location) {
+                return;
+            }
+            let paths = candidate_workspace_paths.paths().to_vec();
+            if replace_current_window {
+                if let Some(handle) = window.window_handle().downcast::<Workspace>() {
+                    cx.defer(move |cx| {
+                        if let Some(task) = handle
+                            .update(cx, |workspace, window, cx| {
+                                workspace.open_project(paths, OpenMode::Activate, window, cx)
+                            })
+                            .log_err()
+                        {
+                            task.detach_and_log_err(cx);
+                        }
+                    });
+                }
+            } else {
+                workspace.open_workspace_for_paths(OpenMode::NewWindow, paths, window, cx).detach_and_prompt_err(
+                    "Failed to open project",
+                    window,
+                    cx,
+                    |_| None,
+                );
+            }
+        });
+        cx.emit(DismissEvent);
+    }
+
+    fn add_paths_to_project(&self, paths: Vec<PathBuf>, window: &mut Window, cx: &mut Context<Picker<Self>>) {
+        let Some(workspace) = self.workspace.upgrade() else {
+            return;
+        };
+        let open_paths_task = workspace.update(cx, |workspace, cx| {
+            workspace.open_paths(
+                paths,
+                OpenOptions { visible: Some(OpenVisible::All), ..Default::default() },
+                None,
+                window,
+                cx,
+            )
+        });
+        cx.spawn_in(window, async move |picker, cx| {
+            let _result = open_paths_task.await;
+            picker
+                .update_in(cx, |picker, window, cx| {
+                    let Some(workspace) = picker.delegate.workspace.upgrade() else {
+                        return;
+                    };
+                    picker.delegate.open_folders = get_open_folders(workspace.read(cx), cx);
+                    let query = picker.query(cx);
+                    picker.update_matches(query, window, cx);
+                })
+                .ok();
+        })
+        .detach();
+    }
+
+    /// Returns the new selection index after the entry at `deleted_index`
+    /// is removed.
+    ///
+    /// - Prefers the nearest entry matching `prefer_section` so the user
+    ///   stays in the same section they were navigating.
+    /// - Falls back to any other selectable entry so the picker doesn't
+    ///   land on a header.
+    fn replacement_index_after_deletion(
+        &self,
+        deleted_index: usize,
+        prefer_previous: bool,
+        prefer_section: fn(&ProjectPickerEntry) -> bool,
+    ) -> Option<usize> {
+        let replacement_index = |matches_entry: fn(&ProjectPickerEntry) -> bool| {
+            let next_index = self
+                .filtered_entries
+                .iter()
+                .enumerate()
+                .skip(deleted_index)
+                .find_map(|(index, entry)| matches_entry(entry).then_some(index));
+            let previous_index = self
+                .filtered_entries
+                .iter()
+                .enumerate()
+                .take(deleted_index.min(self.filtered_entries.len()))
+                .rev()
+                .find_map(|(index, entry)| matches_entry(entry).then_some(index));
+
+            if prefer_previous { previous_index.or(next_index) } else { next_index.or(previous_index) }
+        };
+
+        replacement_index(prefer_section).or_else(|| replacement_index(is_selectable_entry))
+    }
+
+    fn update_picker_after_recent_project_deletion(
+        picker: &mut Picker<Self>,
+        deleted_index: usize,
+        workspaces: Vec<RecentWorkspace>,
+        window: &mut Window,
+        cx: &mut Context<Picker<Self>>,
+    ) {
+        let prefer_previous = picker.is_scrolled_to_end() == Some(true);
+        picker.delegate.set_workspaces(workspaces);
+        picker.delegate.snap_selection_to_first_non_header_match = false;
+        picker.update_matches_with_options(picker.query(cx), ScrollBehavior::PreserveOffset, window, cx);
+        if let Some(replacement_index) =
+            picker.delegate.replacement_index_after_deletion(deleted_index, prefer_previous, |entry| {
+                matches!(entry, ProjectPickerEntry::RecentProject(_))
+            })
+        {
+            picker.set_selected_index(replacement_index, None, false, window, cx);
+        }
+    }
+
+    fn delete_recent_project(&self, ix: usize, window: &Window, cx: &Context<Picker<Self>>) {
+        if let Some(ProjectPickerEntry::RecentProject(selected_match)) = self.filtered_entries.get(ix) {
+            let Some(recent_workspace) = self.workspaces.get(selected_match.candidate_id).cloned() else {
+                return;
+            };
+            let fs = self.workspace.upgrade().map(|ws| Arc::clone(&ws.read(cx).app_state().fs));
+            cx.spawn_in(window, async move |this, cx| {
+                let Some(fs) = fs else { return };
+                workspace::delete_recent_workspace_group(&recent_workspace, fs.as_ref(), cx).await;
+                let recent = cx.update(|_, cx| ProjectsStore::global(cx).recent()).unwrap_or_default();
+                let workspaces = workspace::recent_project_workspaces(recent, fs.as_ref()).await;
+                this.update_in(cx, move |picker, window, cx| {
+                    Self::update_picker_after_recent_project_deletion(picker, ix, workspaces, window, cx);
+                    // Keep the dock's recent-projects menu in step with the list.
+                    if let Some(history_manager) = HistoryManager::global(cx) {
+                        history_manager.update(cx, |this, cx| this.delete_history(&recent_workspace.paths, cx));
+                    }
+                })
+                .ok();
+            })
+            .detach();
+        }
+    }
+
+    fn remove_open_folder(
+        picker: &mut Picker<Self>,
+        worktree_id: WorktreeId,
+        window: &mut Window,
+        cx: &mut Context<Picker<Self>>,
+    ) {
+        let Some(workspace) = picker.delegate.workspace.upgrade() else {
+            return;
+        };
+
+        workspace.update(cx, |workspace, cx| {
+            let project = workspace.project().clone();
+            project.update(cx, |project, cx| {
+                project.remove_worktree(worktree_id, cx);
+            });
+        });
+
+        picker.delegate.open_folders = get_open_folders(workspace.read(cx), cx);
+        let query = picker.query(cx);
+        picker.update_matches(query, window, cx);
+    }
+
+    fn is_current_workspace(&self, recent: &RecentWorkspace, cx: &Context<Picker<Self>>) -> bool {
+        let Some(workspace) = self.workspace.upgrade() else {
+            return false;
+        };
+        workspace.read(cx).project_location(cx) == Some(ProjectLocation::new(&recent.paths))
+    }
+
+    fn is_open_folder(&self, workspace: &RecentWorkspace) -> bool {
+        workspace.paths.paths().iter().any(|workspace_path| {
+            self.open_folders.iter().any(|folder| folder.nested_repository.is_none() && workspace_path == &folder.path)
+        })
+    }
+
+    fn is_valid_recent_candidate(&self, workspace: &RecentWorkspace, cx: &Context<Picker<Self>>) -> bool {
+        !self.is_current_workspace(workspace, cx) && !self.is_open_folder(workspace)
     }
 }
 
@@ -1124,200 +1318,4 @@ fn open_local_project(workspace: WeakEntity<Workspace>, create_new_window: bool,
             }
         })
         .detach();
-}
-
-impl RecentProjectsDelegate {
-    fn open_recent_projects(
-        &self,
-        candidate_id: usize,
-        secondary: bool,
-        window: &mut Window,
-        cx: &mut Context<Picker<Self>>,
-    ) {
-        let Some(workspace) = self.workspace.upgrade() else {
-            return;
-        };
-        let Some(candidate_workspace) = self.workspaces.get(candidate_id) else {
-            return;
-        };
-
-        let replace_current_window = self.create_new_window == secondary;
-        let candidate_project_location = ProjectLocation::new(&candidate_workspace.paths);
-        let candidate_workspace_paths = candidate_workspace.paths.clone();
-
-        workspace.update(cx, |workspace, cx| {
-            if workspace.project_location(cx).as_ref() == Some(&candidate_project_location) {
-                return;
-            }
-            let paths = candidate_workspace_paths.paths().to_vec();
-            if replace_current_window {
-                if let Some(handle) = window.window_handle().downcast::<Workspace>() {
-                    cx.defer(move |cx| {
-                        if let Some(task) = handle
-                            .update(cx, |workspace, window, cx| {
-                                workspace.open_project(paths, OpenMode::Activate, window, cx)
-                            })
-                            .log_err()
-                        {
-                            task.detach_and_log_err(cx);
-                        }
-                    });
-                }
-            } else {
-                workspace.open_workspace_for_paths(OpenMode::NewWindow, paths, window, cx).detach_and_prompt_err(
-                    "Failed to open project",
-                    window,
-                    cx,
-                    |_| None,
-                );
-            }
-        });
-        cx.emit(DismissEvent);
-    }
-
-    fn add_paths_to_project(&self, paths: Vec<PathBuf>, window: &mut Window, cx: &mut Context<Picker<Self>>) {
-        let Some(workspace) = self.workspace.upgrade() else {
-            return;
-        };
-        let open_paths_task = workspace.update(cx, |workspace, cx| {
-            workspace.open_paths(
-                paths,
-                OpenOptions { visible: Some(OpenVisible::All), ..Default::default() },
-                None,
-                window,
-                cx,
-            )
-        });
-        cx.spawn_in(window, async move |picker, cx| {
-            let _result = open_paths_task.await;
-            picker
-                .update_in(cx, |picker, window, cx| {
-                    let Some(workspace) = picker.delegate.workspace.upgrade() else {
-                        return;
-                    };
-                    picker.delegate.open_folders = get_open_folders(workspace.read(cx), cx);
-                    let query = picker.query(cx);
-                    picker.update_matches(query, window, cx);
-                })
-                .ok();
-        })
-        .detach();
-    }
-
-    /// Returns the new selection index after the entry at `deleted_index`
-    /// is removed.
-    ///
-    /// - Prefers the nearest entry matching `prefer_section` so the user
-    ///   stays in the same section they were navigating.
-    /// - Falls back to any other selectable entry so the picker doesn't
-    ///   land on a header.
-    fn replacement_index_after_deletion(
-        &self,
-        deleted_index: usize,
-        prefer_previous: bool,
-        prefer_section: fn(&ProjectPickerEntry) -> bool,
-    ) -> Option<usize> {
-        let replacement_index = |matches_entry: fn(&ProjectPickerEntry) -> bool| {
-            let next_index = self
-                .filtered_entries
-                .iter()
-                .enumerate()
-                .skip(deleted_index)
-                .find_map(|(index, entry)| matches_entry(entry).then_some(index));
-            let previous_index = self
-                .filtered_entries
-                .iter()
-                .enumerate()
-                .take(deleted_index.min(self.filtered_entries.len()))
-                .rev()
-                .find_map(|(index, entry)| matches_entry(entry).then_some(index));
-
-            if prefer_previous { previous_index.or(next_index) } else { next_index.or(previous_index) }
-        };
-
-        replacement_index(prefer_section).or_else(|| replacement_index(is_selectable_entry))
-    }
-
-    fn update_picker_after_recent_project_deletion(
-        picker: &mut Picker<Self>,
-        deleted_index: usize,
-        workspaces: Vec<RecentWorkspace>,
-        window: &mut Window,
-        cx: &mut Context<Picker<Self>>,
-    ) {
-        let prefer_previous = picker.is_scrolled_to_end() == Some(true);
-        picker.delegate.set_workspaces(workspaces);
-        picker.delegate.snap_selection_to_first_non_header_match = false;
-        picker.update_matches_with_options(picker.query(cx), ScrollBehavior::PreserveOffset, window, cx);
-        if let Some(replacement_index) =
-            picker.delegate.replacement_index_after_deletion(deleted_index, prefer_previous, |entry| {
-                matches!(entry, ProjectPickerEntry::RecentProject(_))
-            })
-        {
-            picker.set_selected_index(replacement_index, None, false, window, cx);
-        }
-    }
-
-    fn delete_recent_project(&self, ix: usize, window: &Window, cx: &Context<Picker<Self>>) {
-        if let Some(ProjectPickerEntry::RecentProject(selected_match)) = self.filtered_entries.get(ix) {
-            let Some(recent_workspace) = self.workspaces.get(selected_match.candidate_id).cloned() else {
-                return;
-            };
-            let fs = self.workspace.upgrade().map(|ws| ws.read(cx).app_state().fs.clone());
-            cx.spawn_in(window, async move |this, cx| {
-                let Some(fs) = fs else { return };
-                workspace::delete_recent_workspace_group(&recent_workspace, fs.as_ref(), cx).await;
-                let recent = cx.update(|_, cx| ProjectsStore::global(cx).recent()).unwrap_or_default();
-                let workspaces = workspace::recent_project_workspaces(recent, fs.as_ref()).await;
-                this.update_in(cx, move |picker, window, cx| {
-                    Self::update_picker_after_recent_project_deletion(picker, ix, workspaces, window, cx);
-                    // Keep the dock's recent-projects menu in step with the list.
-                    if let Some(history_manager) = HistoryManager::global(cx) {
-                        history_manager.update(cx, |this, cx| this.delete_history(&recent_workspace.paths, cx));
-                    }
-                })
-                .ok();
-            })
-            .detach();
-        }
-    }
-
-    fn remove_open_folder(
-        picker: &mut Picker<Self>,
-        worktree_id: WorktreeId,
-        window: &mut Window,
-        cx: &mut Context<Picker<Self>>,
-    ) {
-        let Some(workspace) = picker.delegate.workspace.upgrade() else {
-            return;
-        };
-
-        workspace.update(cx, |workspace, cx| {
-            let project = workspace.project().clone();
-            project.update(cx, |project, cx| {
-                project.remove_worktree(worktree_id, cx);
-            });
-        });
-
-        picker.delegate.open_folders = get_open_folders(workspace.read(cx), cx);
-        let query = picker.query(cx);
-        picker.update_matches(query, window, cx);
-    }
-
-    fn is_current_workspace(&self, recent: &RecentWorkspace, cx: &Context<Picker<Self>>) -> bool {
-        let Some(workspace) = self.workspace.upgrade() else {
-            return false;
-        };
-        workspace.read(cx).project_location(cx) == Some(ProjectLocation::new(&recent.paths))
-    }
-
-    fn is_open_folder(&self, workspace: &RecentWorkspace) -> bool {
-        workspace.paths.paths().iter().any(|workspace_path| {
-            self.open_folders.iter().any(|folder| folder.nested_repository.is_none() && workspace_path == &folder.path)
-        })
-    }
-
-    fn is_valid_recent_candidate(&self, workspace: &RecentWorkspace, cx: &Context<Picker<Self>>) -> bool {
-        !self.is_current_workspace(workspace, cx) && !self.is_open_folder(workspace)
-    }
 }

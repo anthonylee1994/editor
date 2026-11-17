@@ -13,7 +13,7 @@ use anyhow::Result;
 use anyhow::anyhow;
 use fs::Fs;
 use fs::copy_recursive;
-use futures::FutureExt;
+use futures::FutureExt as _;
 use futures::future;
 use futures::future::Shared;
 use gpui::App;
@@ -160,7 +160,7 @@ impl WorktreeStore {
     }
 
     pub fn next_entry_id(&self) -> Arc<AtomicUsize> {
-        self.next_entry_id.clone()
+        Arc::clone(&self.next_entry_id)
     }
 
     pub fn next_worktree_id(&self) -> WorktreeId {
@@ -256,7 +256,7 @@ impl WorktreeStore {
         diagnostics
     }
 
-    /// Iterates through all worktrees, including ones that don't appear in the project panel
+    /// Iterates through all worktrees, including ones that don't appear in the project panel.
     pub fn worktrees(&self) -> impl '_ + DoubleEndedIterator<Item = Entity<Worktree>> {
         self.worktrees.iter().filter_map(WorktreeHandle::upgrade)
     }
@@ -372,7 +372,7 @@ impl WorktreeStore {
                 let fs = &self.fs;
                 let old_abs_path = old_worktree.read(cx).absolutize(&old_entry.path);
                 let new_abs_path = new_worktree.read(cx).absolutize(&new_project_path.path);
-                let fs = fs.clone();
+                let fs = Arc::clone(fs);
                 let copy = cx.background_spawn(async move {
                     copy_recursive(fs.as_ref(), &old_abs_path, &new_abs_path, fs::CopyOptions::default()).await
                 });
@@ -417,7 +417,7 @@ impl WorktreeStore {
                     new_worktree_ref.absolutize(&new_project_path.path)
                 };
 
-                let fs = fs.clone();
+                let fs = Arc::clone(fs);
                 let case_sensitive = new_worktree.read(cx).fs_is_case_sensitive();
 
                 let do_rename = async move |fs: &dyn Fs, old_path: &Path, new_path: &Path, overwrite| {
@@ -469,7 +469,7 @@ impl WorktreeStore {
                                     drop(this.refresh_entries_for_paths(vec![parent.into()]));
                                 }
                                 // Then refresh the new path
-                                this.refresh_entry(new_project_path.path.clone(), Some(old_entry.path), cx)
+                                this.refresh_entry(Arc::clone(&new_project_path.path), Some(old_entry.path), cx)
                             }
                         })
                         .await?
@@ -503,10 +503,11 @@ impl WorktreeStore {
         }
         let library_name: Option<Arc<str>> = library.map(|library| library.name.into());
         if !self.loading_worktrees.contains_key(&abs_path) {
-            let task = self.create_local_worktree(self.fs.clone(), abs_path.clone(), visible, library_name, cx);
+            let task =
+                self.create_local_worktree(Arc::clone(&self.fs), Arc::clone(&abs_path), visible, library_name, cx);
 
             let loading_task = cx.spawn({
-                let abs_path = abs_path.clone();
+                let abs_path = Arc::clone(&abs_path);
                 async move |this, cx| {
                     let result = task.await;
                     this.update(cx, |this, cx| {
@@ -530,13 +531,13 @@ impl WorktreeStore {
                 }
             });
 
-            self.loading_worktrees.insert(abs_path.clone(), loading_task.shared());
+            self.loading_worktrees.insert(Arc::clone(&abs_path), loading_task.shared());
 
             if visible && self.scanning_enabled {
                 self.initial_scan_complete.0.send(false).ok();
             }
         }
-        let task = self.loading_worktrees.get(&abs_path).unwrap().clone();
+        let task = self.loading_worktrees[&abs_path].clone();
         cx.background_spawn(async move { task.await.map_err(|error| anyhow!("{error:#}")) })
     }
 
@@ -548,14 +549,14 @@ impl WorktreeStore {
         library_name: Option<Arc<str>>,
         cx: &Context<Self>,
     ) -> Task<Result<Entity<Worktree>, Arc<anyhow::Error>>> {
-        let next_entry_id = self.next_entry_id.clone();
+        let next_entry_id = Arc::clone(&self.next_entry_id);
         let scanning_enabled = self.scanning_enabled;
 
         let worktree_id = self.next_worktree_id();
 
         cx.spawn(async move |this, cx| {
             let worktree = Worktree::local(
-                SanitizedPath::cast_arc(abs_path.clone()),
+                SanitizedPath::cast_arc(Arc::clone(&abs_path)),
                 visible,
                 fs,
                 next_entry_id,
@@ -599,10 +600,10 @@ impl WorktreeStore {
             let worktree_id = worktree.read(cx).id();
             match event {
                 worktree::Event::UpdatedEntries(changes) => {
-                    cx.emit(WorktreeStoreEvent::WorktreeUpdatedEntries(worktree_id, changes.clone()));
+                    cx.emit(WorktreeStoreEvent::WorktreeUpdatedEntries(worktree_id, Arc::clone(changes)));
                 }
                 worktree::Event::UpdatedGitRepositories(set) => {
-                    cx.emit(WorktreeStoreEvent::WorktreeUpdatedGitRepositories(worktree_id, set.clone()));
+                    cx.emit(WorktreeStoreEvent::WorktreeUpdatedGitRepositories(worktree_id, Arc::clone(set)));
                 }
                 worktree::Event::DeletedEntry(id) => {
                     cx.emit(WorktreeStoreEvent::WorktreeDeletedEntry(worktree_id, *id));
@@ -711,7 +712,7 @@ impl WorktreeStore {
     }
 
     pub fn fs(&self) -> Arc<dyn Fs> {
-        self.fs.clone()
+        Arc::clone(&self.fs)
     }
 
     pub fn paths(&self, cx: &App) -> WorktreePaths {

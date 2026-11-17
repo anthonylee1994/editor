@@ -4,8 +4,8 @@ use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
 use super::db::ErDb;
+use super::graph;
 use super::graph::ErGraphNode;
-use super::graph::{self};
 use super::markers::MARKER_LENGTH;
 use super::markers::er_marker;
 use crate::Options;
@@ -371,7 +371,7 @@ pub(crate) fn render(db: &ErDb, config: &Value, options: &Options) -> Rendered {
                 view.h = (name_h + 2.0 * BOX_PAD_Y).max(if below { 0.0 } else { bands + 8.0 });
             } else {
                 let row_line = js_round(row_size * 1.5);
-                let mut widths = [0.0f64; 4];
+                let mut widths = [0.0_f64; 4];
                 for attribute in node.attributes {
                     let keys = attribute.keys.join(", ");
                     let cells = [
@@ -392,7 +392,7 @@ pub(crate) fn render(db: &ErDb, config: &Value, options: &Options) -> Rendered {
                     view.rows.push(Row { cells, h: h + ROW_PAD });
                     view.h += h + ROW_PAD;
                 }
-                let mut columns = 0usize;
+                let mut columns = 0_usize;
                 let mut inner = 0.0;
                 for &w in &widths {
                     if w == 0.0 {

@@ -7,9 +7,9 @@ use gpui::Window;
 use gpui::actions;
 use ui::IconName;
 use ui::Tooltip;
-use ui::prelude::ButtonCommon;
-use ui::prelude::Clickable;
-use ui::prelude::IntoElement;
+use ui::prelude::ButtonCommon as _;
+use ui::prelude::Clickable as _;
+use ui::prelude::IntoElement as _;
 
 use crate::ItemHandle;
 use crate::Pane;
@@ -110,7 +110,7 @@ mod tests {
     use super::split_hint;
 
     #[test]
-    fn test_split_hint() {
+    fn split_hint_works() {
         assert_eq!(split_hint("⌥-click"), "⌥-click to open in a split");
     }
 }

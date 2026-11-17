@@ -5,7 +5,7 @@ use std::str;
 
 use gpui::App;
 use gpui::SharedString;
-use util::paths::PathExt;
+use util::paths::PathExt as _;
 
 use crate::icons::ICONS;
 
@@ -16,11 +16,8 @@ pub struct FileIcons;
 impl FileIcons {
     pub fn get_icon(path: &Path, cx: &App) -> Option<SharedString> {
         let get_icon_from_suffix = |suffix: &str| -> Option<SharedString> {
-            ICONS
-                .file_stems
-                .get(suffix)
-                .or_else(|| ICONS.file_suffixes.get(suffix))
-                .and_then(|typ| Self::get_icon_for_type(typ, cx))
+            let typ = ICONS.file_stems.get(suffix).or_else(|| ICONS.file_suffixes.get(suffix))?;
+            Self::get_icon_for_type(typ, cx)
         };
         // TODO: Associate a type with the languages and have the file's language
         //       override these associations

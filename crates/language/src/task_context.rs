@@ -28,7 +28,6 @@ pub trait ContextProvider: Send + Sync {
         _project_env: Option<FxHashMap<String, String>>,
         _cx: &mut App,
     ) -> Task<Result<TaskVariables>> {
-        let _ = _location;
         Task::ready(Ok(TaskVariables::default()))
     }
 

@@ -4,7 +4,7 @@ use std::sync::atomic::Ordering;
 
 use editor::Editor;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::Context;
 use gpui::DismissEvent;
 use gpui::Entity;

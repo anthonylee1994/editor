@@ -307,7 +307,7 @@ mod tests {
     fn stream_reports_changes_under_the_requested_root() {
         let dir = tempfile::tempdir().unwrap();
         let real = dir.path().join("real");
-        fs::create_dir(&real).unwrap();
+        fs::create_dir_all(&real).unwrap();
         let link = dir.path().join("link");
         unix::fs::symlink(&real, &link).unwrap();
 
@@ -316,7 +316,7 @@ mod tests {
 
         // Named through the symlink, although FSEvents reports the real path.
         let file = link.join("sub").join("file.txt");
-        fs::create_dir(link.join("sub")).unwrap();
+        fs::create_dir_all(link.join("sub")).unwrap();
         fs::write(&file, "one").unwrap();
         let created = wait_for(&rx, |event| event.path == file);
         assert!(created.kinds().any(|kind| kind == PathEventKind::Created));

@@ -4,8 +4,8 @@ use std::any::TypeId;
 use std::any::type_name;
 use std::cell::RefCell;
 use std::cmp::Ordering;
+use std::fmt;
 use std::fmt::Display;
-use std::fmt::{self};
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::marker::PhantomData;
@@ -50,12 +50,12 @@ impl From<u64> for EntityId {
 }
 
 impl EntityId {
-    /// Converts this entity id to a [NonZeroU64]
+    /// Converts this entity id to a [NonZeroU64].
     pub fn as_non_zero_u64(self) -> NonZeroU64 {
-        NonZeroU64::new(self.0.as_ffi()).unwrap()
+        NonZeroU64::new(self.0.as_ffi()).expect("entity ids are never zero")
     }
 
-    /// Converts this entity id to a [u64]
+    /// Converts this entity id to a [u64].
     pub fn as_u64(self) -> u64 {
         self.0.as_ffi()
     }
@@ -159,7 +159,7 @@ impl EntityMap {
     }
 
     pub(super) fn end_lease_erased(&mut self, entity_id: EntityId, mut lease: LeaseInner) {
-        self.end_lease_inner(entity_id, lease.entity.take().unwrap());
+        self.end_lease_inner(entity_id, lease.entity.take().expect("entity is leased"));
     }
 
     /// Records entities accessed by a reused draw. Entities released since it
@@ -214,7 +214,7 @@ impl EntityMap {
 
         dropped_entity_ids
             .filter_map(|entity_id| {
-                ref_counts.counts.remove(entity_id).unwrap();
+                ref_counts.counts.remove(entity_id).expect("dropped entity has a ref count");
                 accessed_entities.frame.remove(&entity_id);
                 for scope in &mut accessed_entities.scopes {
                     scope.remove(&entity_id);
@@ -259,13 +259,13 @@ impl<T: 'static> ops::Deref for Lease<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        self.inner.entity.as_ref().unwrap().downcast_ref().unwrap()
+        self.inner.entity.as_ref().expect("entity is leased").downcast_ref().expect("entity type matches its handle")
     }
 }
 
 impl<T: 'static> ops::DerefMut for Lease<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.inner.entity.as_mut().unwrap().downcast_mut().unwrap()
+        self.inner.entity.as_mut().expect("entity is leased").downcast_mut().expect("entity type matches its handle")
     }
 }
 
@@ -307,7 +307,7 @@ impl AnyEntity {
         AnyWeakEntity {
             entity_id: self.entity_id,
             entity_type: self.entity_type,
-            entity_ref_counts: self.entity_map.clone(),
+            entity_ref_counts: Weak::clone(&self.entity_map),
         }
     }
 
@@ -331,7 +331,7 @@ impl Clone for AnyEntity {
             assert_ne!(prev_count, 0, "Detected over-release of a entity.");
         }
 
-        Self { entity_id: self.entity_id, entity_type: self.entity_type, entity_map: self.entity_map.clone() }
+        Self { entity_id: self.entity_id, entity_type: self.entity_type, entity_map: Weak::clone(&self.entity_map) }
     }
 }
 
@@ -395,7 +395,7 @@ impl fmt::Debug for AnyEntity {
 }
 
 /// A strong, well-typed reference to a struct which is managed
-/// by GPUI
+/// by GPUI.
 #[derive(Deref, DerefMut)]
 pub struct Entity<T> {
     #[deref]
@@ -415,13 +415,13 @@ impl<T: 'static> Entity<T> {
         Self { any_entity: AnyEntity::new(id, TypeId::of::<T>(), entity_map), entity_type: PhantomData }
     }
 
-    /// Get the entity ID associated with this entity
+    /// Get the entity ID associated with this entity.
     #[inline]
     pub const fn entity_id(&self) -> EntityId {
         self.any_entity.entity_id
     }
 
-    /// Downgrade this entity pointer to a non-retaining weak pointer
+    /// Downgrade this entity pointer to a non-retaining weak pointer.
     #[inline]
     pub fn downgrade(&self) -> WeakEntity<T> {
         WeakEntity { any_entity: self.any_entity.downgrade(), entity_type: self.entity_type }
@@ -546,7 +546,7 @@ impl AnyWeakEntity {
         self.entity_id
     }
 
-    /// Check if this weak handle can be upgraded, or if the entity has already been dropped
+    /// Check if this weak handle can be upgraded, or if the entity has already been dropped.
     pub fn is_upgradable(&self) -> bool {
         let ref_count = self
             .entity_ref_counts
@@ -571,7 +571,7 @@ impl AnyWeakEntity {
         Some(AnyEntity {
             entity_id: self.entity_id,
             entity_type: self.entity_type,
-            entity_map: self.entity_ref_counts.clone(),
+            entity_map: Weak::clone(&self.entity_ref_counts),
         })
     }
 
@@ -671,7 +671,7 @@ impl<T> Clone for WeakEntity<T> {
 }
 
 impl<T: 'static> WeakEntity<T> {
-    /// Upgrade this weak entity reference into a strong entity reference
+    /// Upgrade this weak entity reference into a strong entity reference.
     pub fn upgrade(&self) -> Option<Entity<T>> {
         Some(Entity { any_entity: self.any_entity.upgrade()?, entity_type: self.entity_type })
     }

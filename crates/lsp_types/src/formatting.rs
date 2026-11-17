@@ -14,7 +14,7 @@ pub type DocumentFormattingClientCapabilities = DynamicRegistrationClientCapabil
 pub type DocumentRangeFormattingClientCapabilities = DynamicRegistrationClientCapabilities;
 pub type DocumentOnTypeFormattingClientCapabilities = DynamicRegistrationClientCapabilities;
 
-/// Format document on type options
+/// Format document on type options.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentOnTypeFormattingOptions {
@@ -80,10 +80,10 @@ pub struct DocumentRangeFormattingParams {
     /// The document to format.
     pub text_document: TextDocumentIdentifier,
 
-    /// The range to format
+    /// The range to format.
     pub range: Range,
 
-    /// The format options
+    /// The format options.
     pub options: FormattingOptions,
 
     #[serde(flatten)]
@@ -104,7 +104,7 @@ pub struct DocumentOnTypeFormattingParams {
     pub options: FormattingOptions,
 }
 
-/// Extends TextDocumentRegistrationOptions
+/// Extends TextDocumentRegistrationOptions.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentOnTypeFormattingRegistrationOptions {
@@ -146,7 +146,7 @@ mod tests {
             &FormattingOptions {
                 tab_size: 123,
                 insert_spaces: true,
-                properties: vec![("prop".to_string(), FormattingProperty::Number(1))].into_iter().collect(),
+                properties: vec![("prop".to_owned(), FormattingProperty::Number(1))].into_iter().collect(),
                 trim_trailing_whitespace: None,
                 insert_final_newline: None,
                 trim_final_newlines: None,

@@ -10,7 +10,6 @@ use rustc_hash::FxHashMap;
 use serde::Serialize;
 use sum_tree::Bias;
 use sum_tree::SumTree;
-use sum_tree::{self};
 use text::Anchor;
 use text::FromAnchor;
 use text::PointUtf16;
@@ -209,7 +208,7 @@ impl DiagnosticSet {
     pub fn len(&self) -> usize {
         self.diagnostics.summary().count
     }
-    /// Returns true when there are no diagnostics in this diagnostic set
+    /// Returns true when there are no diagnostics in this diagnostic set.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }

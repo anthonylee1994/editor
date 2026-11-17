@@ -22,7 +22,7 @@ use git::repository::LogSource;
 use git::repository::RepoPath;
 use git::repository::SearchCommitArgs;
 use git::repository::commit_hash_search_query;
-use gpui::Action;
+use gpui::Action as _;
 use gpui::Anchor;
 use gpui::AnyElement;
 use gpui::AnyView;
@@ -58,13 +58,13 @@ use gpui::anchored;
 use gpui::deferred;
 use gpui::point;
 use gpui::prelude::Context;
-use gpui::prelude::FluentBuilder;
-use gpui::prelude::InteractiveElement;
+use gpui::prelude::FluentBuilder as _;
+use gpui::prelude::InteractiveElement as _;
 use gpui::prelude::IntoElement;
-use gpui::prelude::ParentElement;
+use gpui::prelude::ParentElement as _;
 use gpui::prelude::Render;
-use gpui::prelude::StatefulInteractiveElement;
-use gpui::prelude::Styled;
+use gpui::prelude::StatefulInteractiveElement as _;
+use gpui::prelude::Styled as _;
 use gpui::px;
 use gpui::relative;
 use indexmap::IndexSet;
@@ -102,7 +102,7 @@ use ui::ListItem;
 use ui::ListItemSpacing;
 use ui::PopoverMenu;
 use ui::RedistributableColumnsState;
-use ui::ScrollableHandle;
+use ui::ScrollableHandle as _;
 use ui::Table;
 use ui::TableInteractionState;
 use ui::TableRenderContext;
@@ -110,13 +110,13 @@ use ui::TableResizeBehavior;
 use ui::TintColor;
 use ui::Tooltip;
 use ui::bind_redistributable_columns;
-use ui::prelude::ActiveTheme;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::Button;
-use ui::prelude::ButtonCommon;
+use ui::prelude::ButtonCommon as _;
 use ui::prelude::ButtonStyle;
-use ui::prelude::Clickable;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
-use ui::prelude::Disableable;
+use ui::prelude::Disableable as _;
 use ui::prelude::DynamicSpacing;
 use ui::prelude::Icon;
 use ui::prelude::IconButton;
@@ -124,11 +124,11 @@ use ui::prelude::IconName;
 use ui::prelude::IconPosition;
 use ui::prelude::IconSize;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
 use ui::prelude::Rems;
 use ui::prelude::TextSize;
-use ui::prelude::Toggleable;
+use ui::prelude::Toggleable as _;
 use ui::prelude::div;
 use ui::prelude::h_flex;
 use ui::prelude::rems;
@@ -366,7 +366,7 @@ pub struct OpenAtCommit {
 
 pub(crate) fn format_timestamp(timestamp: i64) -> String {
     let Ok(datetime) = OffsetDateTime::from_unix_timestamp(timestamp) else {
-        return "Unknown".to_string();
+        return "Unknown".to_owned();
     };
 
     let local_offset = UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC);
@@ -749,7 +749,7 @@ impl GraphData {
             }
 
             self.commits.push(Rc::new(CommitEntry {
-                data: commit.clone(),
+                data: Arc::clone(commit),
                 lane: commit_lane,
                 color_idx: commit_color.0 as usize,
             }));
@@ -881,7 +881,7 @@ fn resolve_file_history_target(workspace: &Workspace, window: &Window, cx: &App)
     let editor = workspace.active_item_as::<Editor>(cx)?;
 
     let file = editor.read(cx).file_at(editor.read(cx).selections.newest_anchor().head(), cx)?;
-    let project_path = ProjectPath { worktree_id: file.worktree_id(cx), path: file.path().clone() };
+    let project_path = ProjectPath { worktree_id: file.worktree_id(cx), path: Arc::clone(file.path()) };
 
     let git_store = workspace.project().read(cx).git_store();
     let (repo, repo_path) = git_store.read(cx).repository_and_path_for_project_path(&project_path, cx)?;
@@ -954,7 +954,7 @@ fn ensure_repository_graph(
 
     let git_store = workspace.project().read(cx).git_store().clone();
     let workspace_handle = workspace.weak_handle();
-    let languages = workspace.project().read(cx).languages().clone();
+    let languages = Arc::clone(workspace.project().read(cx).languages());
     let git_graph =
         cx.new(|cx| GitGraph::new(repo_id, git_store, workspace_handle, languages, Some(LogSource::All), window, cx));
     pane.update(cx, |pane, cx| {
@@ -997,7 +997,7 @@ pub fn open_or_reuse_graph(
         existing
     } else {
         let workspace_handle = workspace.weak_handle();
-        let languages = workspace.project().read(cx).languages().clone();
+        let languages = Arc::clone(workspace.project().read(cx).languages());
         let git_graph =
             cx.new(|cx| GitGraph::new(repo_id, git_store, workspace_handle, languages, Some(log_source), window, cx));
         // The repository-wide graph is always the first tab.
@@ -1040,7 +1040,7 @@ fn loaded_index(index: Option<usize>, loaded_commit_count: usize) -> Option<usiz
 }
 
 fn new_commits_label(count: usize) -> String {
-    if count == 1 { "1 new commit".to_string() } else { format!("{count} new commits") }
+    if count == 1 { "1 new commit".to_owned() } else { format!("{count} new commits") }
 }
 
 /// The branch name shown for a filter ref, without `refs/heads/` or `refs/remotes/`.
@@ -1537,9 +1537,8 @@ impl GitGraph {
                             self.graph_data.add_commits(commits);
 
                             let pending_sha_index = self.pending_select_sha.and_then(|oid| {
-                                repository
-                                    .get_graph_data(source.clone(), *order)
-                                    .and_then(|data| data.commit_oid_to_index.get(&oid).copied())
+                                let data = repository.get_graph_data(source.clone(), *order)?;
+                                data.commit_oid_to_index.get(&oid).copied()
                             });
 
                             if !is_loading && pending_sha_index.is_none() {
@@ -1615,7 +1614,7 @@ impl GitGraph {
         if name.is_empty() || name == "HEAD" {
             return None;
         }
-        Some(SharedString::from(name.to_string()))
+        Some(SharedString::from(name.to_owned()))
     }
 
     /// Renders a ref chip for the commit at `commit_idx`. Chips get a
@@ -1717,7 +1716,7 @@ impl GitGraph {
         range
             .map(|idx| {
                 let Some((commit, repository)) = self.graph_data.commits.get(idx).zip(repository.as_ref()) else {
-                    return (0..4).map(|_| div().h(row_height).into_any_element()).collect();
+                    return std::iter::repeat_with(|| div().h(row_height).into_any_element()).take(4).collect();
                 };
 
                 let data = repository
@@ -2064,7 +2063,7 @@ impl GitGraph {
     }
 
     fn update_commit_message_search_highlights(&self, cx: &mut Context<Self>) {
-        let query = self.search_state.confirmed_query().map(str::to_string);
+        let query = self.search_state.confirmed_query().map(str::to_owned);
         let case_sensitive = self.search_state.case_sensitive;
         self.commit_details.update(cx, |details, cx| {
             details.set_search_highlight(query.as_deref(), case_sensitive, cx);
@@ -2189,7 +2188,7 @@ impl GitGraph {
             .data
             .tag_names()
             .into_iter()
-            .map(|tag_name| SharedString::from(tag_name.to_string()))
+            .map(|tag_name| SharedString::from(tag_name.to_owned()))
             .collect::<Vec<_>>();
 
         match tag_names.as_slice() {
@@ -2286,7 +2285,7 @@ impl GitGraph {
                     .data
                     .tag_names()
                     .into_iter()
-                    .map(|tag_name| SharedString::from(tag_name.to_string()))
+                    .map(|tag_name| SharedString::from(tag_name.to_owned()))
                     .collect(),
             },
             ref_name,
@@ -2568,7 +2567,7 @@ impl GitGraph {
         let branch_filter = self.branch_filter.clone();
         let label: SharedString = branch_filter
             .as_deref()
-            .map_or_else(|| "All Branches".into(), |ref_name| branch_filter_label(ref_name).to_string().into());
+            .map_or_else(|| "All Branches".into(), |ref_name| branch_filter_label(ref_name).to_owned().into());
 
         h_flex()
             .gap_0p5()
@@ -2680,7 +2679,7 @@ impl GitGraph {
         let selected_entry_idx = self.selected_entry_idx;
         let context_menu_target_index = self.context_menu.as_ref().and_then(|menu| menu.target_entry_index);
         let is_focused = self.focus_handle.is_focused(window);
-        let graph_canvas_bounds = self.graph_canvas_bounds.clone();
+        let graph_canvas_bounds = Rc::clone(&self.graph_canvas_bounds);
 
         gpui::canvas(
             move |_bounds, _window, _cx| {},
@@ -2924,7 +2923,7 @@ impl GitGraph {
 
         let head_branch_name: Option<SharedString> = self
             .get_repository(cx)
-            .and_then(|repo| repo.read(cx).branch.as_ref().map(|branch| SharedString::from(branch.name().to_string())));
+            .and_then(|repo| repo.read(cx).branch.as_ref().map(|branch| SharedString::from(branch.name().to_owned())));
 
         let theme = cx.theme();
         let accent_colors = *theme.accents();
@@ -3180,9 +3179,9 @@ impl Render for GitGraph {
             let message = if let Some(error) = &error {
                 format!("Error loading: {error}")
             } else if is_loading {
-                "Loading".to_string()
+                "Loading".to_owned()
             } else {
-                "No commits found".to_string()
+                "No commits found".to_owned()
             };
             let label = Label::new(message).color(Color::Muted).size(LabelSize::Large);
 
@@ -3200,7 +3199,7 @@ impl Render for GitGraph {
 
             // The graph column (index 0) only exists in the non-path-history layout and is
             // rendered as a separate canvas outside the table.
-            let graph_visible = is_path_history || !column_filter.get(0usize).copied().unwrap_or(false);
+            let graph_visible = is_path_history || !column_filter.get(0_usize).copied().unwrap_or(false);
 
             let table_offset = if is_path_history { 0 } else { 1 };
             let table_filter =
@@ -3538,7 +3537,7 @@ impl Item for GitGraph {
             repo.read(cx).work_directory_abs_path.file_name().map(|name| name.to_string_lossy().to_string())
         });
         let path_history_path = match &self.log_source {
-            LogSource::Path(path) => Some(path.as_unix_str().to_string()),
+            LogSource::Path(path) => Some(path.as_unix_str().to_owned()),
             _ => None,
         };
 
@@ -3560,8 +3559,8 @@ impl Item for GitGraph {
     fn tab_content_text(&self, _detail: usize, cx: &App) -> SharedString {
         if let LogSource::Path(path) = &self.log_source {
             return path.as_ref().file_name().map_or_else(
-                || SharedString::from(path.as_unix_str().to_string()),
-                |name| SharedString::from(name.to_string()),
+                || SharedString::from(path.as_unix_str().to_owned()),
+                |name| SharedString::from(name.to_owned()),
             );
         }
 
@@ -3623,7 +3622,7 @@ mod tests {
     use super::search_match_ranges;
 
     #[test]
-    fn test_format_timestamp() {
+    fn format_timestamp_works() {
         // Local offset varies, so check the shape: "DD Mon YYYY HH:MM".
         let formatted = format_timestamp(1_700_000_000);
         let parts: Vec<&str> = formatted.split(' ').collect();
@@ -3636,7 +3635,7 @@ mod tests {
     }
 
     #[test]
-    fn test_history_reveal_path() {
+    fn history_reveal_path_works() {
         let path = RepoPath::new("crates/ui/src/ui_input.rs").unwrap();
         assert_eq!(history_reveal_path(&LogSource::Path(path.clone())), Some(path));
         assert_eq!(history_reveal_path(&LogSource::All), None);
@@ -3644,7 +3643,7 @@ mod tests {
     }
 
     #[test]
-    fn test_graph_data_source() {
+    fn graph_data_source_works() {
         let main = SharedString::from("refs/remotes/origin/main");
         let path = LogSource::Path(RepoPath::new("README.md").unwrap());
         assert_eq!(graph_data_source(&LogSource::All, None), LogSource::All);
@@ -3654,17 +3653,17 @@ mod tests {
     }
 
     #[test]
-    fn test_branch_filter_label() {
+    fn branch_filter_label_works() {
         assert_eq!(branch_filter_label("refs/heads/feat/table"), "feat/table");
         assert_eq!(branch_filter_label("refs/remotes/origin/main"), "origin/main");
         assert_eq!(branch_filter_label("main"), "main");
     }
 
     #[test]
-    fn test_kept_branch_filter() {
+    fn kept_branch_filter_works() {
         let branch = |ref_name: &str| Branch {
             is_head: false,
-            ref_name: ref_name.to_string().into(),
+            ref_name: ref_name.to_owned().into(),
             upstream: None,
             most_recent_commit: None,
         };
@@ -3676,7 +3675,7 @@ mod tests {
     }
 
     #[test]
-    fn test_loaded_index() {
+    fn loaded_index_works() {
         assert_eq!(loaded_index(Some(2), 3), Some(2));
         assert_eq!(loaded_index(Some(3), 3), None);
         assert_eq!(loaded_index(Some(0), 0), None);
@@ -3684,20 +3683,20 @@ mod tests {
     }
 
     #[test]
-    fn test_new_commits_label() {
+    fn new_commits_label_works() {
         assert_eq!(new_commits_label(1), "1 new commit");
         assert_eq!(new_commits_label(3), "3 new commits");
     }
 
     #[test]
-    fn test_is_repository_graph() {
+    fn is_repository_graph_works() {
         assert!(is_repository_graph(&LogSource::All));
         assert!(!is_repository_graph(&LogSource::Branch("main".into())));
         assert!(!is_repository_graph(&LogSource::Path(RepoPath::new("README.md").unwrap())));
     }
 
     #[test]
-    fn test_commit_graph_repo() {
+    fn commit_graph_repo_works() {
         let a = RepositoryId(1);
         let b = RepositoryId(2);
         assert_eq!(commit_graph_repo(Some(b), Some(a)), Some(b));
@@ -3707,7 +3706,7 @@ mod tests {
     }
 
     #[test]
-    fn test_newest_commit_to_select() {
+    fn newest_commit_to_select_works() {
         assert_eq!(newest_commit_to_select(None, false, 3), Some(0));
         assert_eq!(newest_commit_to_select(Some(2), false, 3), None);
         assert_eq!(newest_commit_to_select(None, true, 3), None);
@@ -3715,7 +3714,7 @@ mod tests {
     }
 
     #[test]
-    fn test_search_match_ranges() {
+    fn search_match_ranges_works() {
         assert_eq!(search_match_ranges("Fix fix FIX", "fix", true), vec![4..7]);
         assert_eq!(search_match_ranges("Fix fix FIX", "fix", false), vec![0..3, 4..7, 8..11]);
         assert_eq!(search_match_ranges("aaaa", "aa", false), vec![0..2, 2..4]);
@@ -3727,7 +3726,7 @@ mod tests {
     }
 
     #[test]
-    fn test_case_insensitive_prefix_len() {
+    fn case_insensitive_prefix_len_works() {
         assert_eq!(case_insensitive_prefix_len("FooBar", "foo"), Some(3));
         assert_eq!(case_insensitive_prefix_len("Foo", "foo"), Some(3));
         assert_eq!(case_insensitive_prefix_len("Fo", "foo"), None);
@@ -3736,7 +3735,7 @@ mod tests {
     }
 
     #[test]
-    fn test_is_head_ref() {
+    fn is_head_ref_works() {
         let head = Some(SharedString::from("main"));
         assert!(GitGraph::is_head_ref("main", head.as_ref()));
         assert!(GitGraph::is_head_ref("HEAD -> main", head.as_ref()));
@@ -3745,7 +3744,7 @@ mod tests {
     }
 
     #[test]
-    fn test_commit_hash_match_range() {
+    fn commit_hash_match_range_works() {
         assert_eq!(commit_hash_match_range("abc1234", "ABC1234"), Some(0..7));
         assert_eq!(commit_hash_match_range("abc1234", "abc1234def"), Some(0..7));
         assert_eq!(commit_hash_match_range("abc1234", "abc1235"), None);

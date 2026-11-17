@@ -112,7 +112,7 @@ mod tests {
     use super::existing_directory;
 
     #[test]
-    fn test_existing_directory() {
+    fn existing_directory_works() {
         let temp_dir = env::temp_dir();
         assert_eq!(existing_directory(Some(temp_dir.clone())), Some(temp_dir));
         let missing = PathBuf::from("/definitely/not/a/real/dir");

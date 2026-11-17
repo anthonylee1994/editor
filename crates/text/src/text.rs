@@ -10,9 +10,9 @@ pub mod subscription;
 mod undo_map;
 
 use std::borrow::Cow;
+use std::cmp;
 use std::cmp::Ordering;
 use std::cmp::Reverse;
-use std::cmp::{self};
 use std::fmt::Display;
 use std::iter::Iterator;
 use std::num::NonZeroU64;
@@ -44,7 +44,7 @@ pub use sum_tree::Bias;
 use sum_tree::Dimensions;
 use sum_tree::FilterCursor;
 use sum_tree::SumTree;
-use sum_tree::Summary;
+use sum_tree::Summary as _;
 use sum_tree::TreeSet;
 use undo_map::UndoMap;
 
@@ -185,7 +185,7 @@ impl History {
         clock: &mut clock::Lamport,
     ) -> Option<TransactionId> {
         self.transaction_depth += 1;
-        if self.transaction_depth == 1 {
+        (self.transaction_depth == 1).then(|| {
             let id = clock.tick();
             self.undo_stack.push(HistoryEntry {
                 transaction: Transaction { id, start, edit_ids: Vec::default() },
@@ -193,22 +193,20 @@ impl History {
                 last_edit_at: now,
                 suppress_grouping: false,
             });
-            Some(id)
-        } else {
-            None
-        }
+            id
+        })
     }
 
     fn end_transaction(&mut self, now: Instant) -> Option<&HistoryEntry> {
         assert_ne!(self.transaction_depth, 0);
         self.transaction_depth -= 1;
         if self.transaction_depth == 0 {
-            if self.undo_stack.last().unwrap().transaction.edit_ids.is_empty() {
+            if self.undo_stack.last().expect("undo stack is non-empty").transaction.edit_ids.is_empty() {
                 self.undo_stack.pop();
                 None
             } else {
                 self.redo_stack.clear();
-                let entry = self.undo_stack.last_mut().unwrap();
+                let entry = self.undo_stack.last_mut().expect("undo stack is non-empty");
                 entry.last_edit_at = now;
                 Some(entry)
             }
@@ -292,7 +290,7 @@ impl History {
     /// the redo stack is cleared. The easiest way to ensure the redo stack is
     /// cleared is to create transactions with the usual `start_transaction` and
     /// `end_transaction` methods and merging the resulting transactions into
-    /// the transaction created by this method
+    /// the transaction created by this method.
     fn push_empty_transaction(
         &mut self,
         start: clock::Global,
@@ -313,7 +311,7 @@ impl History {
 
     fn push_undo(&mut self, op_id: clock::Lamport) {
         assert_ne!(self.transaction_depth, 0);
-        let last_transaction = self.undo_stack.last_mut().unwrap();
+        let last_transaction = self.undo_stack.last_mut().expect("undo stack is non-empty");
         last_transaction.transaction.edit_ids.push(op_id);
     }
 
@@ -828,7 +826,7 @@ impl Buffer {
     pub fn end_transaction_at(&mut self, now: Instant) -> Option<(TransactionId, clock::Global)> {
         if let Some(entry) = self.history.end_transaction(now) {
             let since = entry.transaction.start.clone();
-            let id = self.history.group().unwrap();
+            let id = self.history.group().expect("transaction just ended");
             Some((id, since))
         } else {
             None
@@ -941,7 +939,7 @@ impl Buffer {
     /// the redo stack is cleared. The easiest way to ensure the redo stack is
     /// cleared is to create transactions with the usual `start_transaction` and
     /// `end_transaction` methods and merging the resulting transactions into
-    /// the transaction created by this method
+    /// the transaction created by this method.
     pub fn push_empty_transaction(&mut self, now: Instant) -> TransactionId {
         self.history.push_empty_transaction(self.version.clone(), now, &mut self.lamport_clock)
     }
@@ -1115,7 +1113,8 @@ impl BufferSnapshot {
 
         let mut new_ropes = RopeBuilder::new(self.visible_text.cursor(0), self.deleted_text.cursor(0));
         let mut old_fragments = self.fragments.cursor::<FragmentTextSummary>(());
-        let mut new_fragments = FragmentBuilder::new(old_fragments.slice(&edits.peek().unwrap().0.start, Bias::Right));
+        let mut new_fragments =
+            FragmentBuilder::new(old_fragments.slice(&edits.peek().expect("edits are non-empty").0.start, Bias::Right));
         new_ropes.append(new_fragments.summary().text);
 
         let mut fragment_start = old_fragments.start().visible;
@@ -1126,7 +1125,7 @@ impl BufferSnapshot {
             if fragment_end < range.start {
                 if fragment_start > old_fragments.start().visible {
                     if fragment_end > fragment_start {
-                        let mut suffix = old_fragments.item().unwrap().clone();
+                        let mut suffix = old_fragments.item().expect("fragment exists at cursor").clone();
                         suffix.len = (fragment_end - fragment_start) as u32;
                         suffix.insertion_offset += (fragment_start - old_fragments.start().visible) as u32;
                         new_insertions.push(InsertionFragment::insert_new(&suffix));
@@ -1143,7 +1142,7 @@ impl BufferSnapshot {
             }
 
             if fragment_start < range.start {
-                let mut prefix = old_fragments.item().unwrap().clone();
+                let mut prefix = old_fragments.item().expect("fragment exists at cursor").clone();
                 prefix.len = (range.start - fragment_start) as u32;
                 prefix.insertion_offset += (fragment_start - old_fragments.start().visible) as u32;
                 prefix.id = Locator::between(&new_fragments.summary().max_id, &prefix.id);
@@ -1173,7 +1172,7 @@ impl BufferSnapshot {
             }
 
             while fragment_start < range.end {
-                let fragment = old_fragments.item().unwrap();
+                let fragment = old_fragments.item().expect("fragment exists at cursor");
                 let fragment_end = old_fragments.end().visible;
                 let mut intersection = fragment.clone();
                 let intersection_end = cmp::min(range.end, fragment_end);
@@ -1204,7 +1203,7 @@ impl BufferSnapshot {
         if fragment_start > old_fragments.start().visible {
             let fragment_end = old_fragments.end().visible;
             if fragment_end > fragment_start {
-                let mut suffix = old_fragments.item().unwrap().clone();
+                let mut suffix = old_fragments.item().expect("fragment exists at cursor").clone();
                 suffix.len = (fragment_end - fragment_start) as u32;
                 suffix.insertion_offset += (fragment_start - old_fragments.start().visible) as u32;
                 new_insertions.push(InsertionFragment::insert_new(&suffix));
@@ -1592,7 +1591,7 @@ impl BufferSnapshot {
             } else {
                 fragment_cursor.seek_forward(&fragment_id, Bias::Left);
             }
-            let fragment = fragment_cursor.item().unwrap();
+            let fragment = fragment_cursor.item().expect("fragment exists at cursor");
             let mut fragment_offset = fragment_cursor.start().1;
             if fragment.visible {
                 fragment_offset += (anchor.offset - insertion.split_offset) as usize;
@@ -1630,7 +1629,7 @@ impl BufferSnapshot {
                 &Some(&insertion.fragment_id),
                 Bias::Left,
             );
-            let fragment = item.unwrap();
+            let fragment = item.expect("insertion fragment exists");
             let mut fragment_offset = start.1;
             if fragment.visible {
                 fragment_offset += (anchor.offset - insertion.split_offset) as usize;
@@ -1878,7 +1877,7 @@ impl BufferSnapshot {
 
     pub fn range_to_version(&self, range: Range<usize>, version: &clock::Global) -> Range<usize> {
         let mut offsets = self.offsets_to_version([range.start, range.end], version);
-        offsets.next().unwrap()..offsets.next().unwrap()
+        offsets.next().expect("range has two offsets")..offsets.next().expect("range has two offsets")
     }
 
     /// Converts the given sequence of offsets into their corresponding offsets
@@ -2476,7 +2475,7 @@ pub fn chunks_with_line_ending(rope: &Rope, line_ending: LineEnding) -> impl Ite
         chunk
             .lines()
             .flat_map(move |line| {
-                let ending = if newline { Some(line_ending.as_str()) } else { None };
+                let ending = newline.then(|| line_ending.as_str());
                 newline = true;
                 ending.into_iter().chain([line])
             })

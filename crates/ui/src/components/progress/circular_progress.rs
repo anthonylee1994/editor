@@ -5,12 +5,12 @@ use gpui::PathBuilder;
 use gpui::canvas;
 use gpui::point;
 
-use crate::prelude::ActiveTheme;
+use crate::prelude::ActiveTheme as _;
 use crate::prelude::App;
 use crate::prelude::IntoElement;
 use crate::prelude::Pixels;
 use crate::prelude::RenderOnce;
-use crate::prelude::Styled;
+use crate::prelude::Styled as _;
 use crate::prelude::Window;
 use crate::prelude::px;
 

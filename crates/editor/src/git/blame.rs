@@ -22,7 +22,7 @@ use gpui::Task;
 use gpui::TextStyle;
 use gpui::WeakEntity;
 use gpui::Window;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use language::Bias;
 use language::Buffer;
 use language::BufferSnapshot;

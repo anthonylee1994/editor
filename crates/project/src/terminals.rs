@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
-use futures::FutureExt;
+use futures::FutureExt as _;
 use futures::future::Shared;
 use gpui::App;
 use gpui::AppContext as _;
@@ -51,7 +51,7 @@ impl Project {
     pub fn first_project_directory(&self, cx: &App) -> Option<PathBuf> {
         let worktree = self.worktrees(cx).next()?;
         let worktree = worktree.read(cx);
-        if worktree.root_entry()?.is_dir() { Some(worktree.abs_path().to_path_buf()) } else { None }
+        worktree.root_entry()?.is_dir().then(|| worktree.abs_path().to_path_buf())
     }
 
     /// The `.venv` directory at the root of the worktree containing `path`, when
@@ -241,7 +241,7 @@ impl Project {
         cx: &mut App,
     ) -> Shared<Task<Option<FxHashMap<String, String>>>> {
         if let Some(path) = path {
-            let shell = Shell::Program(shell.to_string());
+            let shell = Shell::Program(shell.to_owned());
             self.environment.update(cx, |project_env, cx| project_env.local_directory_environment(&shell, path, cx))
         } else {
             Task::ready(None).shared()

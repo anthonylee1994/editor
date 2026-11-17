@@ -4,9 +4,9 @@
 use std::collections::BTreeMap;
 
 use super::db::FlowDb;
+use super::graph;
 use super::graph::GraphEdge;
 use super::graph::GraphNode;
-use super::graph::{self};
 use super::shapes::canonical_shape;
 use crate::Options;
 use crate::diagrams::Rendered;
@@ -95,7 +95,6 @@ fn asset_size(value: Option<f64>, fallback: f64) -> f64 {
 }
 
 /// Draws a flowchart.
-#[expect(clippy::too_many_lines, reason = "mirrors Pele's draw, one pass per drawing stage")]
 pub(crate) fn render(db: &FlowDb, config: &Value, options: &Options) -> Rendered {
     let flow = get(config, "flowchart").filter(|value| matches!(value, Value::Object(_)));
     let curve = match flow.and_then(|flow| get(flow, "curve")) {
@@ -242,7 +241,7 @@ pub(crate) fn render(db: &FlowDb, config: &Value, options: &Options) -> Rendered
     let mut cedges: Vec<CEdge> = Vec::with_capacity(graph.edges.len());
     let mut edge_labels: Vec<Label> = Vec::with_capacity(graph.edges.len());
     let mut drawn: Vec<&GraphEdge> = Vec::with_capacity(graph.edges.len());
-    let mut loops = vec![0usize; views.len()];
+    let mut loops = vec![0_usize; views.len()];
 
     for edge in &graph.edges {
         let (Some(&src), Some(&dst)) = (index.get(edge.start.as_str()), index.get(edge.end.as_str())) else {
@@ -409,7 +408,7 @@ pub(crate) fn render(db: &FlowDb, config: &Value, options: &Options) -> Rendered
 
     let mut edges_out = String::new();
     let mut labels_out = String::new();
-    let mut loop_seen = vec![0usize; views.len()];
+    let mut loop_seen = vec![0_usize; views.len()];
 
     for i in 0..cedges.len() {
         let (Some(edge), Some(label)) = (drawn.get(i), edge_labels.get(i)) else {

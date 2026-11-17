@@ -17,16 +17,16 @@ use gpui::EventEmitter;
 use gpui::FocusHandle;
 use gpui::Focusable;
 use gpui::Hsla;
-use gpui::InteractiveElement;
+use gpui::InteractiveElement as _;
 use gpui::IntoElement;
 use gpui::MouseButton;
 use gpui::MouseDownEvent;
 use gpui::MouseMoveEvent;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Render;
 use gpui::ScrollStrategy;
 use gpui::SharedString;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::UniformListScrollHandle;
 use gpui::WeakEntity;
 use gpui::Window;
@@ -36,24 +36,24 @@ use gpui::rems;
 use gpui::uniform_list;
 use language::Buffer;
 use language::OwnedSyntaxLayer;
-use theme::ActiveTheme;
+use theme::ActiveTheme as _;
 use tree_sitter::Node;
 use tree_sitter::TreeCursor;
-use ui::ButtonCommon;
+use ui::ButtonCommon as _;
 use ui::ButtonLike;
-use ui::Clickable;
+use ui::Clickable as _;
 use ui::Color;
 use ui::ContextMenu;
 use ui::FluentBuilder as _;
 use ui::IconButton;
 use ui::IconName;
 use ui::Label;
-use ui::LabelCommon;
+use ui::LabelCommon as _;
 use ui::LabelSize;
 use ui::PopoverMenu;
-use ui::StyledExt;
+use ui::StyledExt as _;
 use ui::Tooltip;
-use ui::WithScrollbar;
+use ui::WithScrollbar as _;
 use ui::h_flex;
 use ui::v_flex;
 use workspace::Event as WorkspaceEvent;
@@ -138,8 +138,10 @@ impl SyntaxTreeView {
 
         this.handle_item_updated(active_item, window, cx);
 
-        cx.subscribe_in(&workspace_handle.upgrade().unwrap(), window, move |this, workspace, event, window, cx| {
-            match event {
+        cx.subscribe_in(
+            &workspace_handle.upgrade().expect("workspace is alive during construction"),
+            window,
+            move |this, workspace, event, window, cx| match event {
                 WorkspaceEvent::ItemAdded { .. } | WorkspaceEvent::ActiveItemChanged => {
                     this.handle_item_updated(workspace.read(cx).active_item(cx), window, cx);
                 }
@@ -147,8 +149,8 @@ impl SyntaxTreeView {
                     this.handle_item_removed(*item_id, window, cx);
                 }
                 _ => {}
-            }
-        })
+            },
+        )
         .detach();
 
         this
@@ -220,7 +222,7 @@ impl SyntaxTreeView {
             let multi_buffer = editor.buffer().read(cx);
             let (buffer, range, _) =
                 snapshot.buffer_snapshot().range_to_buffer_ranges(selection_range.start..selection_range.end).pop()?;
-            let buffer = multi_buffer.buffer(buffer.buffer_id()).unwrap();
+            let buffer = multi_buffer.buffer(buffer.buffer_id()).expect("multibuffer contains the excerpt's buffer");
             Some((buffer, range))
         })?;
 
@@ -549,20 +551,19 @@ impl SyntaxTreeToolbarItemView {
     }
 
     fn render_update_button(&self, cx: &mut Context<Self>) -> Option<IconButton> {
-        self.tree_view.as_ref().and_then(|view| {
-            view.update(cx, |view, cx| {
-                view.last_active_editor.as_ref().map(|editor| {
-                    IconButton::new("syntax-view-update", IconName::RotateCw)
-                        .tooltip({
-                            let active_tab_name =
-                                editor.read_with(cx, |editor, cx| editor.tab_content_text(Default::default(), cx));
+        let view = self.tree_view.as_ref()?;
+        view.update(cx, |view, cx| {
+            view.last_active_editor.as_ref().map(|editor| {
+                IconButton::new("syntax-view-update", IconName::RotateCw)
+                    .tooltip({
+                        let active_tab_name =
+                            editor.read_with(cx, |editor, cx| editor.tab_content_text(Default::default(), cx));
 
-                            Tooltip::text(format!("Update view to '{active_tab_name}'"))
-                        })
-                        .on_click(cx.listener(|this, _, window, cx| {
-                            this.update_active_editor(window, cx);
-                        }))
-                })
+                        Tooltip::text(format!("Update view to '{active_tab_name}'"))
+                    })
+                    .on_click(cx.listener(|this, _, window, cx| {
+                        this.update_active_editor(window, cx);
+                    }))
             })
         })
     }

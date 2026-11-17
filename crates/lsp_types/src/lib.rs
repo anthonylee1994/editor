@@ -3,13 +3,13 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Formatter;
-use std::str::FromStr;
+use std::str::FromStr as _;
 
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
+use serde::de;
 use serde::de::Error as Error_;
-use serde::de::{self};
 use serde_json::Value;
 
 mod uri;
@@ -46,7 +46,7 @@ const fn fmt_pascal_case_const(name: &str) -> (PascalCaseBuf, usize) {
 fn fmt_pascal_case(f: &mut Formatter<'_>, name: &str) -> fmt::Result {
     for word in name.split('_') {
         let mut chars = word.chars();
-        let first = chars.next().unwrap();
+        let first = chars.next().expect("split words are non-empty");
         write!(f, "{first}")?;
         for rest in chars {
             write!(f, "{}", rest.to_lowercase())?;
@@ -244,19 +244,19 @@ pub struct CancelParams {
 
 /* ----------------- Basic JSON Structures ----------------- */
 
-/// The LSP any type
+/// The LSP any type.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 pub type LSPAny = serde_json::Value;
 
 /// LSP object definition.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 pub type LSPObject = serde_json::Map<String, serde_json::Value>;
 
 /// LSP arrays.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 pub type LSPArray = Vec<serde_json::Value>;
 
 /// Position in a text document expressed as zero-based line and character offset.
@@ -332,7 +332,7 @@ pub struct LocationLink {
 /// A type indicating how positions are encoded,
 /// specifically what column offsets mean.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, Eq, PartialEq, Hash, PartialOrd, Clone, Deserialize, Serialize)]
 pub struct PositionEncodingKind(Cow<'static, str>);
 
@@ -343,7 +343,7 @@ impl PositionEncodingKind {
     /// Character offsets count UTF-16 code units.
     ///
     /// This is the default and must always be supported
-    /// by servers
+    /// by servers.
     pub const UTF16: PositionEncodingKind = PositionEncodingKind::new("utf-16");
 
     /// Character offsets count UTF-32 code units.
@@ -452,7 +452,7 @@ pub struct Diagnostic {
 
     /// An optional property to describe the error code.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub code_description: Option<CodeDescription>,
 
@@ -479,7 +479,7 @@ pub struct Diagnostic {
     /// A data entry field that is preserved between a `textDocument/publishDiagnostics`
     /// notification and `textDocument/codeAction` request.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<serde_json::Value>,
 }
@@ -636,25 +636,25 @@ impl TextEdit {
 /// An identifier referring to a change annotation managed by a workspace
 /// edit.
 ///
-/// @since 3.16.0
+/// @since 3.16.0.
 pub type ChangeAnnotationIdentifier = String;
 
 /// A special text edit with an additional change annotation.
 ///
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AnnotatedTextEdit {
     #[serde(flatten)]
     pub text_edit: TextEdit,
 
-    /// The actual annotation
+    /// The actual annotation.
     pub annotation_id: ChangeAnnotationIdentifier,
 }
 
 /// An interactive text edit.
 ///
-/// @since 3.18.0
+/// @since 3.18.0.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SnippetTextEdit {
@@ -670,7 +670,7 @@ pub struct SnippetTextEdit {
 
 /// The kind of string value.
 ///
-/// @since 3.18.0
+/// @since 3.18.0.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum StringValueKind {
@@ -685,7 +685,7 @@ pub enum StringValueKind {
 ///  the end of the snippet. Variables are defined with `$name` and
 ///  `${name:default value}`.
 ///
-///  @since 3.18.0
+///  @since 3.18.0.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StringValue {
@@ -717,16 +717,16 @@ pub struct TextDocumentEdit {
     /// The edits to be applied.
     ///
     /// @since 3.16.0 - support for AnnotatedTextEdit. This is guarded by the
-    /// client capability `workspace.workspaceEdit.changeAnnotationSupport`
+    /// client capability `workspace.workspaceEdit.changeAnnotationSupport`.
     ///
     /// @since 3.18.0 - support for SnippetTextEdit. This is guarded by the
-    /// client capability `workspace.workspaceEdit.snippetEditSupport`
+    /// client capability `workspace.workspaceEdit.snippetEditSupport`.
     pub edits: Vec<Edit>,
 }
 
 /// Additional information that describes document changes.
 ///
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ChangeAnnotation {
@@ -759,7 +759,7 @@ pub struct ChangeAnnotationWorkspaceEditClientCapabilities {
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateFileOptions {
-    /// Overwrite existing file. Overwrite wins over `ignoreIfExists`
+    /// Overwrite existing file. Overwrite wins over `ignoreIfExists`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub overwrite: Option<bool>,
     /// Ignore if exists.
@@ -767,28 +767,28 @@ pub struct CreateFileOptions {
     pub ignore_if_exists: Option<bool>,
 }
 
-/// Create file operation
+/// Create file operation.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateFile {
     /// The resource to create.
     pub uri: Uri,
-    /// Additional options
+    /// Additional options.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub options: Option<CreateFileOptions>,
 
     /// An optional annotation identifier describing the operation.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub annotation_id: Option<ChangeAnnotationIdentifier>,
 }
 
-/// Rename file options
+/// Rename file options.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RenameFileOptions {
-    /// Overwrite target if existing. Overwrite wins over `ignoreIfExists`
+    /// Overwrite target if existing. Overwrite wins over `ignoreIfExists`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub overwrite: Option<bool>,
     /// Ignores if target exists.
@@ -796,7 +796,7 @@ pub struct RenameFileOptions {
     pub ignore_if_exists: Option<bool>,
 }
 
-/// Rename file operation
+/// Rename file operation.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RenameFile {
@@ -810,12 +810,12 @@ pub struct RenameFile {
 
     /// An optional annotation identifier describing the operation.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub annotation_id: Option<ChangeAnnotationIdentifier>,
 }
 
-/// Delete file options
+/// Delete file options.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeleteFileOptions {
@@ -828,12 +828,12 @@ pub struct DeleteFileOptions {
 
     /// An optional annotation identifier describing the operation.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub annotation_id: Option<ChangeAnnotationIdentifier>,
 }
 
-/// Delete file operation
+/// Delete file operation.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeleteFile {
@@ -877,7 +877,7 @@ pub struct WorkspaceEdit {
     /// Whether clients honor this property depends on the client capability
     /// `workspace.changeAnnotationSupport`.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub change_annotations: Option<HashMap<ChangeAnnotationIdentifier, ChangeAnnotation>>,
 }
@@ -1037,7 +1037,7 @@ mod url_map {
         S: serde::Serializer,
         V: serde::Serialize,
     {
-        use serde::ser::SerializeMap;
+        use serde::ser::SerializeMap as _;
 
         match *changes {
             Some(ref changes) => {
@@ -1119,7 +1119,7 @@ impl VersionedTextDocumentIdentifier {
     }
 }
 
-/// An identifier which optionally denotes a specific version of a text document. This information usually flows from the server to the client
+/// An identifier which optionally denotes a specific version of a text document. This information usually flows from the server to the client.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct OptionalVersionedTextDocumentIdentifier {
     // This field was "mixed-in" from TextDocumentIdentifier
@@ -1170,7 +1170,7 @@ impl TextDocumentPositionParams {
 /// files with name package.json:
 ///
 /// { language: 'typescript', scheme: 'file' }
-/// { language: 'json', pattern: '**/package.json' }
+/// { language: 'json', pattern: '**/package.json' }.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct DocumentFilter {
     /// A language id, like `typescript`.
@@ -1210,7 +1210,7 @@ pub struct InitializeParams {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub initialization_options: Option<Value>,
 
-    /// The capabilities provided by the client (editor or tool)
+    /// The capabilities provided by the client (editor or tool).
     pub capabilities: ClientCapabilities,
 
     /// The initial trace setting. If omitted trace is disabled ('off').
@@ -1234,9 +1234,9 @@ pub struct InitializeParams {
     /// system.
     ///
     /// Uses IETF language tags as the value's syntax
-    /// (See <https://en.wikipedia.org/wiki/IETF_language_tag>)
+    /// (See <https://en.wikipedia.org/wiki/IETF_language_tag>).
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub locale: Option<String>,
 
@@ -1256,7 +1256,7 @@ pub struct ClientInfo {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Deserialize, Serialize)]
-pub struct InitializedParams {}
+pub struct InitializedParams;
 
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct GenericRegistrationOptions {
@@ -1310,7 +1310,7 @@ pub struct GotoCapability {
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceEditClientCapabilities {
-    /// The client supports versioned document changes in `WorkspaceEdit`s
+    /// The client supports versioned document changes in `WorkspaceEdit`s.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub document_changes: Option<bool>,
 
@@ -1328,20 +1328,20 @@ pub struct WorkspaceEditClientCapabilities {
     /// If set to `true` the client will normalize line ending characters
     /// in a workspace edit to the client specific new line character(s).
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub normalizes_line_endings: Option<bool>,
 
     /// Whether the client in general supports change annotations on text edits,
     /// create file, rename file and delete file changes.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub change_annotation_support: Option<ChangeAnnotationWorkspaceEditClientCapabilities>,
 
     /// Whether the client supports snippets as text edits.
     ///
-    /// @since 3.18.0
+    /// @since 3.18.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub snippet_edit_support: Option<bool>,
 }
@@ -1419,11 +1419,11 @@ pub struct SymbolKindCapability {
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceClientCapabilities {
     /// The client supports applying batch edits to the workspace by supporting
-    /// the request 'workspace/applyEdit'
+    /// the request 'workspace/applyEdit'.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub apply_edit: Option<bool>,
 
-    /// Capabilities specific to `WorkspaceEdit`s
+    /// Capabilities specific to `WorkspaceEdit`s.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_edit: Option<WorkspaceEditClientCapabilities>,
 
@@ -1445,48 +1445,48 @@ pub struct WorkspaceClientCapabilities {
 
     /// The client has support for workspace folders.
     ///
-    /// @since 3.6.0
+    /// @since 3.6.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_folders: Option<bool>,
 
     /// The client supports `workspace/configuration` requests.
     ///
-    /// @since 3.6.0
+    /// @since 3.6.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub configuration: Option<bool>,
 
     /// Capabilities specific to the semantic token requests scoped to the workspace.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub semantic_tokens: Option<SemanticTokensWorkspaceClientCapabilities>,
 
     /// Capabilities specific to the code lens requests scoped to the workspace.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub code_lens: Option<CodeLensWorkspaceClientCapabilities>,
 
     /// The client has support for file requests/notifications.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file_operations: Option<WorkspaceFileOperationsClientCapabilities>,
 
     /// Client workspace capabilities specific to inline values.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub inline_value: Option<InlineValueWorkspaceClientCapabilities>,
 
     /// Client workspace capabilities specific to inlay hints.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub inlay_hint: Option<InlayHintWorkspaceClientCapabilities>,
 
     /// Client workspace capabilities specific to diagnostics.
-    /// since 3.17.0
+    /// since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub diagnostics: Option<DiagnosticWorkspaceClientCapabilities>,
 }
@@ -1528,13 +1528,13 @@ pub struct PublishDiagnosticsClientCapabilities {
     /// Whether the client interprets the version property of the
     /// `textDocument/publishDiagnostics` notification's parameter.
     ///
-    /// @since 3.15.0
+    /// @since 3.15.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub version_support: Option<bool>,
 
-    /// Client supports a codeDescription property
+    /// Client supports a codeDescription property.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub code_description_support: Option<bool>,
 
@@ -1542,7 +1542,7 @@ pub struct PublishDiagnosticsClientCapabilities {
     /// preserved between a `textDocument/publishDiagnostics` and
     /// `textDocument/codeAction` request.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data_support: Option<bool>,
 }
@@ -1557,7 +1557,7 @@ pub struct TagSupport<T> {
 impl<T> TagSupport<T> {
     /// Support for deserializing a boolean tag Support, in case it's present.
     ///
-    /// This is currently the case for vscode 1.41.1
+    /// This is currently the case for vscode 1.41.1.
     fn deserialize_compat<'de, S>(serializer: S) -> Result<Option<TagSupport<T>>, S::Error>
     where
         S: serde::Deserializer<'de>,
@@ -1578,66 +1578,66 @@ impl<T> TagSupport<T> {
 pub struct TextDocumentClientCapabilities {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub synchronization: Option<TextDocumentSyncClientCapabilities>,
-    /// Capabilities specific to the `textDocument/completion`
+    /// Capabilities specific to the `textDocument/completion`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub completion: Option<CompletionClientCapabilities>,
 
-    /// Capabilities specific to the `textDocument/hover`
+    /// Capabilities specific to the `textDocument/hover`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hover: Option<HoverClientCapabilities>,
 
-    /// Capabilities specific to the `textDocument/signatureHelp`
+    /// Capabilities specific to the `textDocument/signatureHelp`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub signature_help: Option<SignatureHelpClientCapabilities>,
 
-    /// Capabilities specific to the `textDocument/references`
+    /// Capabilities specific to the `textDocument/references`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub references: Option<ReferenceClientCapabilities>,
 
-    /// Capabilities specific to the `textDocument/documentHighlight`
+    /// Capabilities specific to the `textDocument/documentHighlight`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub document_highlight: Option<DocumentHighlightClientCapabilities>,
 
-    /// Capabilities specific to the `textDocument/documentSymbol`
+    /// Capabilities specific to the `textDocument/documentSymbol`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub document_symbol: Option<DocumentSymbolClientCapabilities>,
-    /// Capabilities specific to the `textDocument/formatting`
+    /// Capabilities specific to the `textDocument/formatting`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub formatting: Option<DocumentFormattingClientCapabilities>,
 
-    /// Capabilities specific to the `textDocument/rangeFormatting`
+    /// Capabilities specific to the `textDocument/rangeFormatting`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub range_formatting: Option<DocumentRangeFormattingClientCapabilities>,
 
-    /// Capabilities specific to the `textDocument/onTypeFormatting`
+    /// Capabilities specific to the `textDocument/onTypeFormatting`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub on_type_formatting: Option<DocumentOnTypeFormattingClientCapabilities>,
 
-    /// Capabilities specific to the `textDocument/declaration`
+    /// Capabilities specific to the `textDocument/declaration`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub declaration: Option<GotoCapability>,
 
-    /// Capabilities specific to the `textDocument/definition`
+    /// Capabilities specific to the `textDocument/definition`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub definition: Option<GotoCapability>,
 
-    /// Capabilities specific to the `textDocument/typeDefinition`
+    /// Capabilities specific to the `textDocument/typeDefinition`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub type_definition: Option<GotoCapability>,
 
-    /// Capabilities specific to the `textDocument/implementation`
+    /// Capabilities specific to the `textDocument/implementation`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub implementation: Option<GotoCapability>,
 
-    /// Capabilities specific to the `textDocument/codeAction`
+    /// Capabilities specific to the `textDocument/codeAction`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub code_action: Option<CodeActionClientCapabilities>,
 
-    /// Capabilities specific to the `textDocument/codeLens`
+    /// Capabilities specific to the `textDocument/codeLens`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub code_lens: Option<CodeLensClientCapabilities>,
 
-    /// Capabilities specific to the `textDocument/documentLink`
+    /// Capabilities specific to the `textDocument/documentLink`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub document_link: Option<DocumentLinkClientCapabilities>,
 
@@ -1646,7 +1646,7 @@ pub struct TextDocumentClientCapabilities {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub color_provider: Option<DocumentColorClientCapabilities>,
 
-    /// Capabilities specific to the `textDocument/rename`
+    /// Capabilities specific to the `textDocument/rename`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rename: Option<RenameClientCapabilities>,
 
@@ -1660,13 +1660,13 @@ pub struct TextDocumentClientCapabilities {
 
     /// Capabilities specific to the `textDocument/selectionRange` request.
     ///
-    /// @since 3.15.0
+    /// @since 3.15.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub selection_range: Option<SelectionRangeClientCapabilities>,
 
     /// Capabilities specific to `textDocument/linkedEditingRange` requests.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub linked_editing_range: Option<LinkedEditingRangeClientCapabilities>,
 
@@ -1676,31 +1676,31 @@ pub struct TextDocumentClientCapabilities {
 
     /// Capabilities specific to the `textDocument/moniker` request.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub moniker: Option<MonikerClientCapabilities>,
 
     /// Capabilities specific to the various type hierarchy requests.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub type_hierarchy: Option<TypeHierarchyClientCapabilities>,
 
     /// Capabilities specific to the `textDocument/inlineValue` request.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub inline_value: Option<InlineValueClientCapabilities>,
 
     /// Capabilities specific to the `textDocument/inlayHint` request.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub inlay_hint: Option<InlayHintClientCapabilities>,
 
     /// Capabilities specific to the diagnostic pull model.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub diagnostic: Option<DiagnosticClientCapabilities>,
 }
@@ -1735,20 +1735,20 @@ pub struct ClientCapabilities {
 pub struct GeneralClientCapabilities {
     /// Client capabilities specific to regular expressions.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub regular_expressions: Option<RegularExpressionsClientCapabilities>,
 
     /// Client capabilities specific to the client's markdown parser.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub markdown: Option<MarkdownClientCapabilities>,
 
     /// Client capability that signals how the client handles stale requests (e.g. a request for
     /// which the client will not process the response anymore since the information is outdated).
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stale_request_support: Option<StaleRequestSupportClientCapabilities>,
 
@@ -1769,7 +1769,7 @@ pub struct GeneralClientCapabilities {
     /// is best done where the file is read which is usually on the server
     /// side.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub position_encodings: Option<Vec<PositionEncodingKind>>,
 }
@@ -1779,7 +1779,7 @@ pub struct GeneralClientCapabilities {
 /// for which the client will not process the response
 /// anymore since the information is outdated).
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, PartialEq, Eq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StaleRequestSupportClientCapabilities {
@@ -1788,7 +1788,7 @@ pub struct StaleRequestSupportClientCapabilities {
 
     /// The list of requests for which the client
     /// will retry the request if it receives a
-    /// response with error code `ContentModified``
+    /// response with error code `ContentModified``.
     pub retry_on_content_modified: Vec<String>,
 }
 
@@ -1798,7 +1798,7 @@ pub struct RegularExpressionsClientCapabilities {
     /// The engine's name.
     pub engine: String,
 
-    /// The engine's version
+    /// The engine's version.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub version: Option<String>,
 }
@@ -1816,7 +1816,7 @@ pub struct MarkdownClientCapabilities {
     /// A list of HTML tags that the client allows / supports in
     /// Markdown.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub allowed_tags: Option<Vec<String>>,
 }
@@ -1876,7 +1876,7 @@ pub type ExecuteCommandClientCapabilities = DynamicRegistrationClientCapabilitie
 /// Execute command options.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 pub struct ExecuteCommandOptions {
-    /// The commands to be executed on the server
+    /// The commands to be executed on the server.
     pub commands: Vec<String>,
 
     #[serde(flatten)]
@@ -2011,7 +2011,7 @@ pub struct ServerCapabilities {
     ///
     /// If omitted it defaults to 'utf-16'.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub position_encoding: Option<PositionEncodingKind>,
 
@@ -2107,7 +2107,7 @@ pub struct ServerCapabilities {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub execute_command_provider: Option<ExecuteCommandOptions>,
 
-    /// Workspace specific server capabilities
+    /// Workspace specific server capabilities.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace: Option<WorkspaceServerCapabilities>,
 
@@ -2121,25 +2121,25 @@ pub struct ServerCapabilities {
 
     /// The server provides linked editing range support.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub linked_editing_range_provider: Option<LinkedEditingRangeServerCapabilities>,
 
     /// The server provides inline values.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub inline_value_provider: Option<OneOf<bool, InlineValueServerCapabilities>>,
 
     /// The server provides inlay hints.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub inlay_hint_provider: Option<OneOf<bool, InlayHintServerCapabilities>>,
 
     /// The server has support for pull model diagnostics.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub diagnostic_provider: Option<DiagnosticServerCapabilities>,
 
@@ -2259,7 +2259,7 @@ pub struct DocumentSymbolOptions {
     /// A human-readable string that is shown when multiple outlines trees are
     /// shown for the same document.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
 
@@ -2290,7 +2290,7 @@ pub struct WorkspaceSymbolOptions {
     /// The server provides support to resolve additional
     /// information for a workspace symbol.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resolve_provider: Option<bool>,
 }
@@ -2324,7 +2324,7 @@ pub struct UnregistrationParams {
 
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 pub struct DidChangeConfigurationParams {
-    /// The actual changed settings
+    /// The actual changed settings.
     pub settings: Value,
 }
 
@@ -2357,7 +2357,7 @@ pub struct TextDocumentContentChangeEvent {
 
     /// The length of the range that got replaced.
     ///
-    /// Deprecated: Use range instead
+    /// Deprecated: Use range instead.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub range_length: Option<u32>,
 
@@ -2367,7 +2367,7 @@ pub struct TextDocumentContentChangeEvent {
 
 /// Describe options to be used when registering for text document change events.
 ///
-/// Extends TextDocumentRegistrationOptions
+/// Extends TextDocumentRegistrationOptions.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TextDocumentChangeRegistrationOptions {
@@ -2451,7 +2451,7 @@ pub struct DidChangeWatchedFilesClientCapabilities {
     /// Whether the client has support for relative patterns
     /// or not.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub relative_pattern_support: Option<bool>,
 }
@@ -2520,7 +2520,7 @@ pub struct FileSystemWatcher {
 
 /// The glob pattern. Either a string pattern or a relative pattern.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum GlobPattern {
@@ -2546,7 +2546,7 @@ impl From<RelativePattern> for GlobPattern {
 /// relatively to a base URI. The common value for a `baseUri` is a workspace
 /// folder root, but it can be another absolute URI as well.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RelativePattern {
@@ -2571,7 +2571,7 @@ pub struct RelativePattern {
 ///   (e.g., `example.[!0-9]` to match on `example.a`, `example.b`,
 ///   but not `example.0`)
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 pub type Pattern = String;
 
 bitflags::bitflags! {
@@ -2722,7 +2722,7 @@ pub struct ExecuteCommandParams {
 /// Execute command registration options.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct ExecuteCommandRegistrationOptions {
-    /// The commands to be executed on the server
+    /// The commands to be executed on the server.
     pub commands: Vec<String>,
 
     #[serde(flatten)]
@@ -2751,7 +2751,7 @@ pub struct ApplyWorkspaceEditResponse {
     /// An optional textual description for why the edit was not applied.
     /// This may be used may be used by the server for diagnostic
     /// logging or to provide a suitable error for a request that
-    /// triggered the edit
+    /// triggered the edit.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub failure_reason: Option<String>,
 
@@ -2770,9 +2770,9 @@ pub struct ApplyWorkspaceEditResponse {
 #[derive(Debug, Eq, PartialEq, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum MarkupKind {
-    /// Plain text is supported as a content format
+    /// Plain text is supported as a content format.
     PlainText,
-    /// Markdown is supported as a content format
+    /// Markdown is supported as a content format.
     Markdown,
 }
 
@@ -2799,7 +2799,7 @@ pub struct PartialResultParams {
 
 /// Symbol tags are extra annotations that tweak the rendering of a symbol.
 ///
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(transparent)]
 pub struct SymbolTag(i32);
@@ -2813,13 +2813,13 @@ impl SymbolTag {
 #[cfg(test)]
 mod tests {
     use std::fmt::Debug;
+    use std::str::FromStr as _;
 
     use serde::Deserialize;
     use serde::Serialize;
 
     use super::ConfigurationItem;
     use super::DiagnosticMessage;
-    use super::FromStr;
     use super::InitializeParams;
     use super::LanguageString;
     use super::MarkedString;
@@ -2853,7 +2853,7 @@ mod tests {
 
     #[test]
     fn one_of() {
-        test_serialization(&OneOf::<bool, ()>::Left(true), r"true");
+        test_serialization(&OneOf::<bool, ()>::Left(true), "true");
         test_serialization(&OneOf::<String, ()>::Left("abcd".into()), r#""abcd""#);
         test_serialization(
             &OneOf::<String, WorkDoneProgressOptions>::Right(WorkDoneProgressOptions {
@@ -2865,7 +2865,7 @@ mod tests {
 
     #[test]
     fn number_or_string() {
-        test_serialization(&NumberOrString::Number(123), r"123");
+        test_serialization(&NumberOrString::Number(123), "123");
 
         test_serialization(&NumberOrString::String("abcd".into()), r#""abcd""#);
     }
@@ -2908,7 +2908,7 @@ mod tests {
 
     #[test]
     fn workspace_edit() {
-        use std::str::FromStr;
+        use std::str::FromStr as _;
 
         test_serialization(
             &WorkspaceEdit {
@@ -2919,7 +2919,7 @@ mod tests {
             r#"{"changes":{}}"#,
         );
 
-        test_serialization(&WorkspaceEdit { changes: None, document_changes: None, ..Default::default() }, r"{}");
+        test_serialization(&WorkspaceEdit { changes: None, document_changes: None, ..Default::default() }, "{}");
 
         test_serialization(
             &WorkspaceEdit {
@@ -2946,14 +2946,14 @@ mod tests {
     }
 
     #[test]
-    fn test_watch_kind() {
+    fn watch_kind() {
         test_serialization(&WatchKind::Create, "1");
         test_serialization(&(WatchKind::Create | WatchKind::Change), "3");
         test_serialization(&(WatchKind::Create | WatchKind::Change | WatchKind::Delete), "7");
     }
 
     #[test]
-    fn test_resource_operation_kind() {
+    fn resource_operation_kind() {
         test_serialization(
             &vec![ResourceOperationKind::Create, ResourceOperationKind::Rename, ResourceOperationKind::Delete],
             r#"["create","rename","delete"]"#,
@@ -2966,7 +2966,7 @@ mod tests {
         let item: ConfigurationItem =
             serde_json::from_str(r#"{"scopeUri": "file:///test.yaml", "section": "yaml"}"#).unwrap();
         assert_eq!(item.scope_uri.as_ref().map(|u| u.as_str()), Some("file:///test.yaml"));
-        assert_eq!(item.section, Some("yaml".to_string()));
+        assert_eq!(item.section, Some("yaml".to_owned()));
 
         // Literal "null" string is treated as None (yaml-language-server sends this)
         let item: ConfigurationItem = serde_json::from_str(r#"{"scopeUri": "null", "section": "yaml"}"#).unwrap();

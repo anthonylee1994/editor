@@ -12,21 +12,21 @@ use crate::rgb;
 /// These are used for styling base components, examples and more.
 #[derive(Clone, Debug)]
 pub struct Colors {
-    /// Text color
+    /// Text color.
     pub text: Rgba,
-    /// Selected text color
+    /// Selected text color.
     pub selected_text: Rgba,
-    /// Background color
+    /// Background color.
     pub background: Rgba,
-    /// Disabled color
+    /// Disabled color.
     pub disabled: Rgba,
-    /// Selected color
+    /// Selected color.
     pub selected: Rgba,
-    /// Border color
+    /// Border color.
     pub border: Rgba,
-    /// Separator color
+    /// Separator color.
     pub separator: Rgba,
-    /// Container color
+    /// Container color.
     pub container: Rgba,
 }
 
@@ -65,13 +65,13 @@ impl Colors {
         }
     }
 
-    /// Get [Colors] from the global state
+    /// Get [Colors] from the global state.
     pub fn get_global(cx: &App) -> &Arc<Colors> {
         &cx.global::<GlobalColors>().0
     }
 }
 
-/// Get [Colors] from the global state
+/// Get [Colors] from the global state.
 #[derive(Clone, Debug)]
 pub struct GlobalColors(pub Arc<Colors>);
 
@@ -87,7 +87,7 @@ impl Global for GlobalColors {}
 
 /// Implement this trait to allow global [Colors] access via `cx.default_colors()`.
 pub trait DefaultColors {
-    /// Returns the default [`Colors`]
+    /// Returns the default [`Colors`].
     fn default_colors(&self) -> &Arc<Colors>;
 }
 
@@ -97,7 +97,7 @@ impl DefaultColors for App {
     }
 }
 
-/// The appearance of the base GPUI colors, used to style GPUI elements
+/// The appearance of the base GPUI colors, used to style GPUI elements.
 ///
 /// Varies based on the system's current [`WindowAppearance`].
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]

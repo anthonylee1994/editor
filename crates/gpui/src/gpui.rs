@@ -57,7 +57,7 @@ pub mod private {
 
 mod seal {
     /// A mechanism for restricting implementations of a trait to only those in GPUI.
-    /// See: <https://predr.ag/blog/definitive-guide-to-sealed-traits-in-rust/>
+    /// See: <https://predr.ag/blog/definitive-guide-to-sealed-traits-in-rust/>.
     pub trait Sealed {}
 }
 
@@ -197,12 +197,12 @@ pub trait AppContext {
     where
         T: 'static;
 
-    /// Spawn a future on a background thread
+    /// Spawn a future on a background thread.
     fn background_spawn<R>(&self, future: impl Future<Output = R> + Send + 'static) -> Task<R>
     where
         R: Send + 'static;
 
-    /// Read a global from this app context
+    /// Read a global from this app context.
     fn read_global<G, R>(&self, callback: impl FnOnce(&G, &App) -> R) -> R
     where
         G: Global;
@@ -228,7 +228,7 @@ pub trait VisualContext: AppContext {
     /// Returns the handle of the window associated with this context.
     fn window_handle(&self) -> AnyWindowHandle;
 
-    /// Update a view with the given callback
+    /// Update a view with the given callback.
     fn update_window_entity<T: 'static, R>(
         &mut self,
         entity: &Entity<T>,

@@ -669,7 +669,6 @@ struct Detour {
 /// Routes a relation from `boxes[a]` to `boxes[b]`. `shift` moves the line sideways when another
 /// runs the opposite way. `others` are the boxes to steer clear of, `None` to skip that check.
 /// `lanes` holds what the routes before it take up, so that this one keeps apart from them.
-#[expect(clippy::too_many_lines, reason = "mirrors Pele's route")]
 pub(crate) fn route(
     boxes: &[Box],
     ids: (usize, usize),

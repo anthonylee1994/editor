@@ -59,7 +59,7 @@ mod tests {
     use super::SyntaxTheme;
 
     #[test]
-    fn test_empty_is_shared_and_has_no_styles() {
+    fn empty_is_shared_and_has_no_styles() {
         assert!(std::ptr::eq(SyntaxTheme::empty(), SyntaxTheme::empty()));
         assert_eq!(SyntaxTheme::empty(), &SyntaxTheme::default());
         assert!(SyntaxTheme::empty().style_for_name("keyword").is_none());

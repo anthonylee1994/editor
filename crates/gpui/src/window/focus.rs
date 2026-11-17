@@ -81,7 +81,7 @@ impl FocusHandle {
         let id =
             handles.write().handles.insert(FocusRef { ref_count: AtomicUsize::new(1), tab_index: 0, tab_stop: false });
 
-        Self { id, tab_index: 0, tab_stop: false, handles: handles.clone() }
+        Self { id, tab_index: 0, tab_stop: false, handles: Arc::clone(handles) }
     }
 
     pub(crate) fn for_id(id: FocusId, handles: &Arc<RwLock<FocusMap>>) -> Option<Self> {
@@ -90,7 +90,7 @@ impl FocusHandle {
         if atomic_incr_if_not_zero(&focus.ref_count) == 0 {
             return None;
         }
-        Some(Self { id, tab_index: focus.tab_index, tab_stop: focus.tab_stop, handles: handles.clone() })
+        Some(Self { id, tab_index: focus.tab_index, tab_stop: focus.tab_stop, handles: Arc::clone(handles) })
     }
 
     /// Sets the tab index of the element associated with this handle.
@@ -145,7 +145,7 @@ impl FocusHandle {
         self.id.contains(other.id, window)
     }
 
-    /// Dispatch an action on the element that rendered this focus handle
+    /// Dispatch an action on the element that rendered this focus handle.
     pub fn dispatch_action(&self, action: &dyn Action, window: &mut Window, cx: &mut App) {
         if let Some(node_id) = window.rendered_frame.dispatch_tree.focusable_node_id(self.id) {
             window.dispatch_action_on_node(node_id, action, cx);
@@ -155,7 +155,7 @@ impl FocusHandle {
 
 impl Clone for FocusHandle {
     fn clone(&self) -> Self {
-        Self::for_id(self.id, &self.handles).unwrap()
+        Self::for_id(self.id, &self.handles).expect("cloned handle keeps the focus id alive")
     }
 }
 
@@ -215,7 +215,7 @@ impl PartialEq<WeakFocusHandle> for FocusHandle {
 }
 
 /// Focusable allows users of your view to easily
-/// focus it (using window.focus_view(cx, view))
+/// focus it (using window.focus_view(cx, view)).
 pub trait Focusable: 'static {
     /// Returns the focus handle associated with this view.
     fn focus_handle(&self, cx: &App) -> FocusHandle;

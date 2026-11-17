@@ -1,17 +1,17 @@
-use std::cmp::{self};
+use std::cmp;
 use std::collections::BTreeMap;
 use std::fmt;
-use std::iter::{self};
+use std::iter;
+use std::ops;
 use std::ops::AddAssign;
 use std::ops::ControlFlow;
 use std::ops::Range;
 use std::ops::Sub;
-use std::ops::{self};
 use std::sync::Arc;
 
 use async_macos::yield_now;
 use gpui::App;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use language::BufferSnapshot;
 use language::CharClassifier;
 use language::DiagnosticEntryRef;
@@ -142,9 +142,9 @@ impl MultiBufferSnapshot {
 
     /// Returns the smallest enclosing bracket ranges containing the given range or
     /// None if no brackets contain range or the range is not contained in a single
-    /// excerpt
+    /// excerpt.
     ///
-    /// Can optionally pass a range_filter to filter the ranges of brackets to consider
+    /// Can optionally pass a range_filter to filter the ranges of brackets to consider.
     #[allow(clippy::type_complexity)]
     pub fn innermost_enclosing_bracket_ranges<T: ToOffset>(
         &self,
@@ -178,7 +178,7 @@ impl MultiBufferSnapshot {
     }
 
     /// Returns enclosing bracket ranges containing the given range or returns None if the range is
-    /// not contained in a single excerpt
+    /// not contained in a single excerpt.
     pub fn enclosing_bracket_ranges<T: ToOffset>(
         &self,
         range: Range<T>,
@@ -203,7 +203,7 @@ impl MultiBufferSnapshot {
     }
 
     /// Returns enclosing bracket ranges containing the given range or returns None if the range is
-    /// not contained in a single excerpt
+    /// not contained in a single excerpt.
     pub fn text_object_ranges<T: ToOffset>(
         &self,
         range: Range<T>,
@@ -535,7 +535,7 @@ impl MultiBufferSnapshot {
             match depth.cmp(&current_depth) {
                 cmp::Ordering::Less => {
                     for _ in 0..(current_depth - depth) {
-                        let mut indent = indent_stack.pop().unwrap();
+                        let mut indent = indent_stack.pop().expect("indent stack is as deep as current depth");
                         if last_row != first_row {
                             // In this case, we landed on an empty row, had to seek forward,
                             // and discovered that the indent we where on is ending.
@@ -573,19 +573,21 @@ impl MultiBufferSnapshot {
     }
 
     pub fn language_at<T: ToOffset>(&self, offset: T) -> Option<&Arc<Language>> {
-        self.point_to_buffer_offset(offset).and_then(|(buffer, offset)| buffer.language_at(offset))
+        let (buffer, offset) = self.point_to_buffer_offset(offset)?;
+        buffer.language_at(offset)
     }
 
     pub fn language_settings_at<T: ToOffset>(&self, point: T, cx: &App) -> Arc<LanguageSettings> {
         if let Some((buffer, offset)) = self.point_to_buffer_offset(point) {
             buffer.settings_at(offset, cx)
         } else {
-            AllLanguageSettings::get_global(cx).fallback.clone()
+            Arc::clone(&AllLanguageSettings::get_global(cx).fallback)
         }
     }
 
     pub fn language_scope_at<T: ToOffset>(&self, point: T) -> Option<LanguageScope> {
-        self.point_to_buffer_offset(point).and_then(|(buffer, offset)| buffer.language_scope_at(offset))
+        let (buffer, offset) = self.point_to_buffer_offset(point)?;
+        buffer.language_scope_at(offset)
     }
 
     pub fn char_classifier_at<T: ToOffset>(&self, point: T) -> CharClassifier {

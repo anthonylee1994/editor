@@ -1,8 +1,8 @@
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic;
 use std::sync::atomic::AtomicBool;
-use std::sync::atomic::{self};
 
 use file_icons::FileIcons;
 use futures::channel::oneshot;
@@ -28,11 +28,11 @@ use ui::prelude::App;
 use ui::prelude::Color;
 use ui::prelude::Icon;
 use ui::prelude::IconName;
-use ui::prelude::IntoElement;
-use ui::prelude::ParentElement;
+use ui::prelude::IntoElement as _;
+use ui::prelude::ParentElement as _;
 use ui::prelude::SharedString;
-use ui::prelude::Toggleable;
-use util::ResultExt;
+use ui::prelude::Toggleable as _;
+use util::ResultExt as _;
 use util::paths::compare_paths;
 use workspace::Workspace;
 
@@ -63,7 +63,7 @@ impl OpenPathDelegate {
             string_matches: Vec::new(),
             cancel_flag: Arc::new(AtomicBool::new(false)),
             should_dismiss: true,
-            prompt_root: "/".to_string(),
+            prompt_root: "/".to_owned(),
             replace_prompt: Task::ready(()),
             render_footer: Arc::new(|_, _| None),
             hidden_entries: false,
@@ -219,7 +219,7 @@ impl PickerDelegate for OpenPathDelegate {
         };
         self.cancel_flag.store(true, atomic::Ordering::Release);
         self.cancel_flag = Arc::new(AtomicBool::new(false));
-        let cancel_flag = self.cancel_flag.clone();
+        let cancel_flag = Arc::clone(&self.cancel_flag);
         let hidden_entries = self.hidden_entries;
         let parent_path_is_root = self.prompt_root == dir;
         let current_dir = self.current_dir();
@@ -324,7 +324,7 @@ impl PickerDelegate for OpenPathDelegate {
                     new_entries.insert(
                         0,
                         CandidateInfo {
-                            path: StringMatchCandidate::new(max_id + 1, current_dir.to_string()),
+                            path: StringMatchCandidate::new(max_id + 1, current_dir.to_owned()),
                             is_dir: true,
                         },
                     );
@@ -459,7 +459,7 @@ impl PickerDelegate for OpenPathDelegate {
             return None;
         }
         let trimmed = parent_path.trim_end_matches(['/', '\\']);
-        let (dir, _) = get_dir_and_suffix(trimmed.to_string());
+        let (dir, _) = get_dir_and_suffix(trimmed.to_owned());
         Some(dir)
     }
     fn confirm_completion(
@@ -622,7 +622,7 @@ impl PickerDelegate for OpenPathDelegate {
         match &self.directory_state {
             DirectoryState::List { parent_path, .. } => {
                 let (label, indices) = if is_current_dir_candidate {
-                    ("open this directory".to_string(), vec![])
+                    ("open this directory".to_owned(), vec![])
                 } else if *parent_path == self.prompt_root {
                     for position in &mut match_positions {
                         *position += self.prompt_root.len();
@@ -753,7 +753,7 @@ mod tests {
     use super::path_candidates;
 
     #[test]
-    fn test_path_candidates_lists_directories_first() {
+    fn path_candidates_lists_directories_first() {
         let item = |path: &str, is_dir: bool| DirectoryItem { path: PathBuf::from(path), is_dir };
         let children = vec![item("b.txt", false), item("z", true), item("a.txt", false), item("c", true)];
 
@@ -764,7 +764,7 @@ mod tests {
     }
 
     #[test]
-    fn test_path_candidates_adds_root_entry() {
+    fn path_candidates_adds_root_entry() {
         let candidates = path_candidates(true, vec![DirectoryItem { path: PathBuf::from("a"), is_dir: true }]);
         let names: Vec<_> = candidates.iter().map(|c| c.path.string.as_str()).collect();
         assert_eq!(names, ["", "a"]);

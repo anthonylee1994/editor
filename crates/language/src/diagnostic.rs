@@ -97,7 +97,7 @@ impl DiagnosticMessage {
 
     pub fn to_lsp_message(&self) -> lsp::DiagnosticMessage {
         if let Some((kind, value)) = self.lsp_markup() {
-            lsp::DiagnosticMessage::MarkupContent(MarkupContent { kind: kind.clone(), value: value.to_string() })
+            lsp::DiagnosticMessage::MarkupContent(MarkupContent { kind: kind.clone(), value: value.to_owned() })
         } else {
             lsp::DiagnosticMessage::String(self.text.to_string())
         }

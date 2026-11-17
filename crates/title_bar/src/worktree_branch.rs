@@ -6,24 +6,24 @@ use gpui::AnyElement;
 use gpui::AppContext as _;
 use gpui::Context;
 use gpui::Entity;
-use gpui::IntoElement;
-use gpui::ParentElement;
+use gpui::IntoElement as _;
+use gpui::ParentElement as _;
 use project::git_store::Repository;
 use ui::PopoverMenu;
 use ui::TintColor;
 use ui::Tooltip;
 use ui::prelude::Button;
-use ui::prelude::ButtonCommon;
+use ui::prelude::ButtonCommon as _;
 use ui::prelude::ButtonSize;
 use ui::prelude::ButtonStyle;
 use ui::prelude::Color;
-use ui::prelude::FluentBuilder;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Icon;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
-use ui::prelude::SelectableButton;
+use ui::prelude::LabelCommon as _;
+use ui::prelude::SelectableButton as _;
 use ui::prelude::SharedString;
 use ui::prelude::h_flex;
 
@@ -69,7 +69,7 @@ pub(crate) fn header_text_button(id: &'static str, label: impl Into<SharedString
     Button::new(id, label)
         .size(ButtonSize::Medium)
         .selected_style(ButtonStyle::Tinted(TintColor::Accent))
-        .tab_index(0isize)
+        .tab_index(0_isize)
 }
 
 impl TitleBar {
@@ -173,7 +173,7 @@ mod tests {
     use super::worktree_display_label;
 
     #[test]
-    fn test_branch_status_icon() {
+    fn branch_status_icon_works() {
         assert_eq!(branch_status_icon(GitSummary::UNCHANGED), (IconName::GitBranch, Color::Muted));
         assert_eq!(branch_status_icon(GitSummary::UNTRACKED), (IconName::SquarePlus, Color::VersionControlAdded));
         let modified = GitSummary {
@@ -192,7 +192,7 @@ mod tests {
     }
 
     #[test]
-    fn test_worktree_display_label() {
+    fn worktree_display_label_works() {
         assert_eq!(worktree_display_label(None, None, false), SharedString::from("main"));
         assert_eq!(worktree_display_label(Some("feature".into()), None, false), SharedString::from("feature"));
         let name = SharedString::from("next");

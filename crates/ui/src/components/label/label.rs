@@ -8,17 +8,17 @@ use gpui::TextAlign;
 
 use crate::LabelLike;
 use crate::font;
-use crate::prelude::ActiveTheme;
+use crate::prelude::ActiveTheme as _;
 use crate::prelude::App;
 use crate::prelude::Color;
 use crate::prelude::IntoElement;
 use crate::prelude::LabelCommon;
 use crate::prelude::LabelSize;
 use crate::prelude::LineHeightStyle;
-use crate::prelude::ParentElement;
+use crate::prelude::ParentElement as _;
 use crate::prelude::RenderOnce;
 use crate::prelude::SharedString;
-use crate::prelude::Styled;
+use crate::prelude::Styled as _;
 use crate::prelude::Window;
 use crate::utils::replace_control_characters;
 
@@ -62,10 +62,8 @@ impl Label {
         self.base = self.base.line_clamp(lines);
         self
     }
-}
 
-// Style methods.
-impl Label {
+    // Style methods.
     fn style(&mut self) -> &mut StyleRefinement {
         self.base.base.style()
     }

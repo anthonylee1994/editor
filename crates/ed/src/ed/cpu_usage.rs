@@ -84,7 +84,9 @@ unsafe extern "C" {
 fn timebase() -> (u32, u32) {
     let mut info = MachTimebaseInfo { numer: 1, denom: 1 };
     // SAFETY: `info` is a valid, writable struct with the C layout the function expects.
-    unsafe { mach_timebase_info(&raw mut info) };
+    unsafe {
+        mach_timebase_info(&raw mut info);
+    }
     (info.numer, info.denom)
 }
 
@@ -130,8 +132,8 @@ mod tests {
     #[test]
     fn samples_grow_while_working() {
         let start = CpuSample::now();
-        let mut sum = 0u64;
-        for i in 0..5_000_000u64 {
+        let mut sum = 0_u64;
+        for i in 0..5_000_000_u64 {
             sum = std::hint::black_box(sum.wrapping_add(i * i));
         }
         let usage = CpuSample::now().since(&start);

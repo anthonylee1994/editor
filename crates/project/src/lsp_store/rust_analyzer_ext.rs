@@ -23,9 +23,9 @@ use crate::lsp_store;
 pub const RUST_ANALYZER_NAME: LanguageServerName = LanguageServerName::new_static("rust-analyzer");
 pub const CARGO_DIAGNOSTICS_SOURCE_NAME: &str = "rustc";
 
-/// Experimental: Informs the end user about the state of the server
+/// Experimental: Informs the end user about the state of the server.
 ///
-/// [Rust Analyzer Specification](https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#server-status)
+/// [Rust Analyzer Specification](https://rust-analyzer.github.io/book/contributing/lsp-extensions.html#server-status).
 #[derive(Debug)]
 struct ServerStatus(!);
 
@@ -198,11 +198,8 @@ fn find_rust_analyzer_server(
                     .read(cx)
                     .language_server_statuses
                     .iter()
-                    .filter_map(
-                        |(server_id, server_status)| {
-                            if server_status.name == RUST_ANALYZER_NAME { Some(*server_id) } else { None }
-                        },
-                    )
+                    .filter(|(_, server_status)| server_status.name == RUST_ANALYZER_NAME)
+                    .map(|(server_id, _)| *server_id)
                     .collect::<Vec<_>>();
                 if rust_analyzer_servers.len() == 1 { rust_analyzer_servers.first().copied() } else { None }
             })

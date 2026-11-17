@@ -17,14 +17,14 @@ use crate::h_flex;
 use crate::prelude::AbsoluteLength;
 use crate::prelude::Color;
 use crate::prelude::DynamicSpacing;
-use crate::prelude::FluentBuilder;
+use crate::prelude::FluentBuilder as _;
 use crate::prelude::Label;
-use crate::prelude::LabelCommon;
+use crate::prelude::LabelCommon as _;
 use crate::prelude::LabelSize;
-use crate::prelude::ParentElement;
+use crate::prelude::ParentElement as _;
 use crate::prelude::RenderOnce;
 use crate::prelude::SharedString;
-use crate::prelude::Styled;
+use crate::prelude::Styled as _;
 use crate::prelude::TextSize;
 use crate::prelude::div;
 use crate::utils::capitalize;
@@ -282,7 +282,7 @@ fn render_modifiers_with_style(
 
     let platform_keys = itertools::intersperse(platform_keys, separator.clone());
 
-    platform_keys.chain(if modifiers.modified() && trailing_separator { Some(separator) } else { None }).flatten().map(
+    platform_keys.chain((modifiers.modified() && trailing_separator).then_some(separator)).flatten().map(
         move |key_or_icon| match key_or_icon {
             KeyOrIcon::Key(key) => match style {
                 KeyBindingStyle::Default => Key::new(key, color).size(size).into_any_element(),

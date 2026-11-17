@@ -4,7 +4,7 @@ use anyhow::Result;
 use editor::items::open_resolved_target;
 use gpui::Context;
 use gpui::Task;
-use gpui::TaskExt;
+use gpui::TaskExt as _;
 use gpui::WeakEntity;
 use gpui::Window;
 use terminal::PathLikeTarget;

@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use gpui::Along;
+use gpui::Along as _;
 use gpui::App;
 use gpui::Axis as ScrollbarAxis;
 use gpui::BorderStyle;
@@ -12,7 +12,7 @@ use gpui::Edges;
 use gpui::Hitbox;
 use gpui::HitboxBehavior;
 use gpui::Hsla;
-use gpui::IsZero;
+use gpui::IsZero as _;
 use gpui::MouseButton;
 use gpui::MouseDownEvent;
 use gpui::MouseMoveEvent;
@@ -23,8 +23,8 @@ use gpui::Window;
 use gpui::px;
 use gpui::quad;
 use gpui::size;
-use theme::ActiveTheme;
-use workspace::item::Item;
+use theme::ActiveTheme as _;
+use workspace::item::Item as _;
 use workspace::item::ItemBufferKind;
 
 use super::EditorElement;

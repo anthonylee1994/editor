@@ -7,14 +7,14 @@
 /// message should contain human readable information about why
 /// the request failed.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 pub const REQUEST_FAILED: i64 = -32803;
 
 /// The server cancelled the request. This error code should
 /// only be used for requests that explicitly support being
 /// server cancellable.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 pub const SERVER_CANCELLED: i64 = -32802;
 
 /// The server detected that the content of a document got

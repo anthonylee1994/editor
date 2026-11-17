@@ -265,8 +265,7 @@ impl Builder<'_> {
             } else {
                 let slot = self.next_slot;
                 self.next_slot += 1;
-                draft.color_index =
-                    if label::trim(&class_str()).is_empty() && styles.is_empty() { Some(slot) } else { None };
+                draft.color_index = (label::trim(&class_str()).is_empty() && styles.is_empty()).then_some(slot);
             }
             self.slots.insert(id.to_owned(), draft.color_index);
             draft.css_classes.push_str(" statediagram-cluster ");

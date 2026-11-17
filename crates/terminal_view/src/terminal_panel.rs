@@ -7,7 +7,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use futures::channel::oneshot;
 use futures::future::join_all;
-use gpui::Action;
+use gpui::Action as _;
 use gpui::App;
 use gpui::AppContext as _;
 use gpui::AsyncApp;
@@ -18,16 +18,16 @@ use gpui::EventEmitter;
 use gpui::FocusHandle;
 use gpui::Focusable;
 use gpui::IntoElement;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Pixels;
 use gpui::Render;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Task;
-use gpui::TaskExt;
+use gpui::TaskExt as _;
 use gpui::WeakEntity;
 use gpui::Window;
 use gpui::actions;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use project::Project;
 use rustc_hash::FxHashMap;
 use task::RevealStrategy;
@@ -35,26 +35,26 @@ use task::SpawnInTerminal;
 use task::TaskId;
 use terminal::Terminal;
 use terminal::terminal_settings::TerminalSettings;
-use ui::CommonAnimationExt;
+use ui::CommonAnimationExt as _;
 use ui::Tooltip;
-use ui::prelude::ActiveTheme;
-use ui::prelude::ButtonCommon;
-use ui::prelude::Clickable;
+use ui::prelude::ActiveTheme as _;
+use ui::prelude::ButtonCommon as _;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
 use ui::prelude::DynamicSpacing;
-use ui::prelude::FluentBuilder;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Icon;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
-use ui::prelude::InteractiveElement;
+use ui::prelude::InteractiveElement as _;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
 use ui::prelude::SharedString;
 use ui::prelude::div;
 use ui::prelude::h_flex;
 use ui::prelude::v_flex;
-use util::ResultExt;
+use util::ResultExt as _;
 use util::defer;
 use workspace::ActivateNextPane;
 use workspace::ActivatePane;
@@ -421,7 +421,7 @@ impl TerminalPanel {
                 .filter_map(|(index, item)| Some((index, item.act_as::<TerminalView>(cx)?)))
                 .filter_map(|(index, terminal_view)| {
                     let task_state = terminal_view.read(cx).terminal().read(cx).task()?;
-                    if task_state.spawned_task.full_label == label { Some((index, terminal_view)) } else { None }
+                    (task_state.spawned_task.full_label == label).then_some((index, terminal_view))
                 })
                 .map(move |(index, terminal_view)| (index, pane.clone(), terminal_view))
         };
@@ -658,7 +658,7 @@ impl TerminalPanel {
     }
 
     fn move_pane_to_border(&mut self, direction: SplitDirection, cx: &mut Context<Self>) {
-        if self.center.move_to_border(&self.active_pane, direction, cx).unwrap() {
+        if self.center.move_to_border(&self.active_pane, direction, cx).expect("active pane is in the center group") {
             cx.notify();
         }
     }
@@ -1034,7 +1034,7 @@ impl Panel for TerminalPanel {
     }
 
     fn icon(&self, _window: &Window, _cx: &App) -> Option<IconName> {
-        if TerminalSettings::get().button { Some(IconName::TerminalAlt) } else { None }
+        TerminalSettings::get().button.then_some(IconName::TerminalAlt)
     }
 
     fn icon_tooltip(&self, _window: &Window, _cx: &App) -> Option<&'static str> {
@@ -1119,7 +1119,7 @@ mod tests {
     }
 
     #[test]
-    fn test_shell_toggle_target() {
+    fn shell_toggle_target_works() {
         // A shell in front: close when visible, just show when hidden.
         assert_eq!(shell_toggle_target(true, 0, &[pane(Some(0), &[true])]), ShellToggleTarget::Close);
         assert_eq!(

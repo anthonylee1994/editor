@@ -21,8 +21,8 @@ use crate::error::Error;
 use crate::error::push_u32;
 use crate::util::chars::is_space;
 use crate::util::float;
+use crate::yaml;
 use crate::yaml::Value;
-use crate::yaml::{self};
 
 /// Options Pele's flowchart entry passes to `FlowDb`. Pele's `direction` and `warn` options are
 /// never set by it, so they are left out.
@@ -644,7 +644,8 @@ impl FlowDb {
 
     /// The subgraph with `id`.
     pub(crate) fn subgraph(&self, id: &str) -> Option<&FlowSubgraph> {
-        self.subgraph_lookup.get(id).and_then(|&index| self.subgraphs.get(index))
+        let &index = self.subgraph_lookup.get(id)?;
+        self.subgraphs.get(index)
     }
 }
 

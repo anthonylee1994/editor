@@ -287,7 +287,7 @@ mod tests {
         block_on(async {
             let mut child = new_command("/bin/cat").stdin(Stdio::piped()).stdout(Stdio::piped()).spawn().unwrap();
             let mut stdin = child.stdin.take().unwrap();
-            let payload = vec![7u8; 300_000];
+            let payload = vec![7_u8; 300_000];
             let write = async {
                 stdin.write_all(&payload).await.unwrap();
                 stdin.close().await.unwrap();

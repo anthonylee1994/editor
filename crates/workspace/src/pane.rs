@@ -45,20 +45,20 @@ use gpui::Stateful;
 use gpui::StyleRefinement;
 use gpui::Subscription;
 use gpui::Task;
-use gpui::TaskExt;
+use gpui::TaskExt as _;
 use gpui::WeakEntity;
 use gpui::WeakFocusHandle;
 use gpui::Window;
 use gpui::actions;
-use gpui::prelude::Element;
-use gpui::prelude::FluentBuilder;
-use gpui::prelude::InteractiveElement;
+use gpui::prelude::Element as _;
+use gpui::prelude::FluentBuilder as _;
+use gpui::prelude::InteractiveElement as _;
 use gpui::prelude::IntoElement;
-use gpui::prelude::ParentElement;
-use gpui::prelude::RenderOnce;
-use gpui::prelude::StatefulInteractiveElement;
+use gpui::prelude::ParentElement as _;
+use gpui::prelude::RenderOnce as _;
+use gpui::prelude::StatefulInteractiveElement as _;
 use gpui::prelude::Styled;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use parking_lot::Mutex;
 use project::DirectoryLister;
 use project::Project;
@@ -83,24 +83,24 @@ use ui::TabPosition;
 use ui::TabStyle;
 use ui::Tooltip;
 use ui::font;
-use ui::prelude::ActiveTheme;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::Button;
-use ui::prelude::ButtonCommon;
+use ui::prelude::ButtonCommon as _;
 use ui::prelude::ButtonSize;
 use ui::prelude::ButtonStyle;
-use ui::prelude::Clickable;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
 use ui::prelude::DefiniteLength;
 use ui::prelude::DynamicSpacing;
 use ui::prelude::ElementId;
-use ui::prelude::FixedWidth;
+use ui::prelude::FixedWidth as _;
 use ui::prelude::Icon;
 use ui::prelude::IconButton;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
-use ui::prelude::StyledExt;
-use ui::prelude::Toggleable;
-use ui::prelude::VisibleOnHover;
+use ui::prelude::StyledExt as _;
+use ui::prelude::Toggleable as _;
+use ui::prelude::VisibleOnHover as _;
 use ui::prelude::div;
 use ui::prelude::h_flex;
 use ui::prelude::px;
@@ -108,7 +108,7 @@ use ui::prelude::relative;
 use ui::prelude::v_flex;
 use ui::right_click_menu;
 use ui::utils;
-use util::ResultExt;
+use util::ResultExt as _;
 use util::disambiguate;
 use util::markdown::MarkdownInlineCode;
 use util::truncate_and_remove_front;
@@ -135,7 +135,7 @@ use crate::item::TabTooltipContent;
 use crate::item::WeakItemHandle;
 use crate::item_registry::WorkspaceItemBuilder;
 use crate::move_item;
-use crate::notifications::NotifyResultExt;
+use crate::notifications::NotifyResultExt as _;
 use crate::preview;
 use crate::toolbar::Toolbar;
 
@@ -167,22 +167,22 @@ impl DraggedSelection {
 #[serde(rename_all = "snake_case")]
 pub enum SaveIntent {
     /// write all files (even if unchanged)
-    /// prompt before overwriting on-disk changes
+    /// prompt before overwriting on-disk changes.
     Save,
-    /// same as Save, but always formats regardless of the format_on_save setting
+    /// same as Save, but always formats regardless of the format_on_save setting.
     FormatAndSave,
-    /// same as Save, but without auto formatting
+    /// same as Save, but without auto formatting.
     SaveWithoutFormat,
     /// write any files that have local changes
-    /// prompt before overwriting on-disk changes
+    /// prompt before overwriting on-disk changes.
     SaveAll,
-    /// always prompt for a new path
+    /// always prompt for a new path.
     SaveAs,
-    /// prompt "you have unsaved changes" before writing
+    /// prompt "you have unsaved changes" before writing.
     Close,
-    /// write all dirty files, don't prompt on conflict
+    /// write all dirty files, don't prompt on conflict.
     Overwrite,
-    /// skip all save-related behavior
+    /// skip all save-related behavior.
     Skip,
 }
 
@@ -492,7 +492,7 @@ pub struct Pane {
     tab_bar: Entity<TabBarView>,
     tab_bar_scroll_handle: ScrollHandle,
     /// This is set to true if a user scroll has occurred more recently than a system scroll
-    /// We want to suppress certain system scrolls when the user has intentionally scrolled
+    /// We want to suppress certain system scrolls when the user has intentionally scrolled.
     suppress_scroll: bool,
     double_click_dispatch_action: Box<dyn Action>,
     save_modals_spawned: FxHashSet<EntityId>,
@@ -624,7 +624,7 @@ impl Pane {
             focus_handle,
             items: Vec::new(),
             activation_history: Vec::new(),
-            next_activation_timestamp: next_timestamp.clone(),
+            next_activation_timestamp: Arc::clone(&next_timestamp),
             was_focused: false,
             zoomed: false,
             active_item_index: 0,
@@ -1071,7 +1071,7 @@ impl Pane {
         }
         self.nav_history.set_preview_item(Some(id), None);
 
-        if item_idx < self.items.len() { Some(item_idx) } else { None }
+        (item_idx < self.items.len()).then_some(item_idx)
     }
 
     pub fn add_item_inner(
@@ -1226,25 +1226,16 @@ impl Pane {
 
     pub fn item_for_entry(&self, entry_id: ProjectEntryId, cx: &App) -> Option<Box<dyn ItemHandle>> {
         self.items.iter().find_map(|item| {
-            if item.buffer_kind(cx) == ItemBufferKind::Singleton
-                && (item.project_entry_ids(cx).as_slice() == [entry_id])
-            {
-                Some(item.boxed_clone())
-            } else {
-                None
-            }
+            (item.buffer_kind(cx) == ItemBufferKind::Singleton && (item.project_entry_ids(cx).as_slice() == [entry_id]))
+                .then(|| item.boxed_clone())
         })
     }
 
     pub fn item_for_path(&self, project_path: ProjectPath, cx: &App) -> Option<Box<dyn ItemHandle>> {
         self.items.iter().find_map(move |item| {
-            if item.buffer_kind(cx) == ItemBufferKind::Singleton
-                && (item.project_path(cx).as_slice() == [project_path.clone()])
-            {
-                Some(item.boxed_clone())
-            } else {
-                None
-            }
+            (item.buffer_kind(cx) == ItemBufferKind::Singleton
+                && (item.project_path(cx).as_slice() == [project_path.clone()]))
+            .then(|| item.boxed_clone())
         })
     }
 
@@ -1605,7 +1596,7 @@ impl Pane {
                 }
                 let filename =
                     project_item.project_path(cx).and_then(|path| path.path.file_name().map(ToOwned::to_owned));
-                file_names.insert(filename.unwrap_or_else(|| "untitled".to_string()));
+                file_names.insert(filename.unwrap_or_else(|| "untitled".to_owned()));
             });
         }
         if file_names.len() > 6 {
@@ -1943,19 +1934,11 @@ impl Pane {
                 if !will_autosave {
                     let item_id = item.item_id();
                     let answer_task = pane.update_in(cx, |pane, window, cx| {
-                        if pane.save_modals_spawned.insert(item_id) {
+                        pane.save_modals_spawned.insert(item_id).then(|| {
                             pane.activate_item(item_ix, true, true, window, cx);
                             let prompt = dirty_message_for(item.project_path(cx));
-                            Some(window.prompt(
-                                PromptLevel::Warning,
-                                &prompt,
-                                None,
-                                &["Save", "Don't Save", "Cancel"],
-                                cx,
-                            ))
-                        } else {
-                            None
-                        }
+                            window.prompt(PromptLevel::Warning, &prompt, None, &["Save", "Don't Save", "Cancel"], cx)
+                        })
                     })?;
                     if let Some(answer_task) = answer_task {
                         let answer = answer_task.await;
@@ -2111,12 +2094,8 @@ impl Pane {
         cx: &mut Context<Pane>,
     ) -> Option<()> {
         let item_id = self.items().find_map(|item| {
-            if item.buffer_kind(cx) == ItemBufferKind::Singleton && item.project_entry_ids(cx).as_slice() == [entry_id]
-            {
-                Some(item.item_id())
-            } else {
-                None
-            }
+            (item.buffer_kind(cx) == ItemBufferKind::Singleton && item.project_entry_ids(cx).as_slice() == [entry_id])
+                .then(|| item.item_id())
         })?;
 
         self.remove_item(item_id, false, true, window, cx);
@@ -2550,7 +2529,7 @@ impl Pane {
                             entry_abs_path.as_deref().and_then(|abs_path| Some(abs_path.parent()?.to_path_buf()));
                         let relative_path = project_path
                             .as_ref()
-                            .map(|project_path| project_path.path.clone())
+                            .map(|project_path| Arc::clone(&project_path.path))
                             .filter(|_| has_relative_path);
 
                         let visible_in_project_panel =
@@ -2576,7 +2555,7 @@ impl Pane {
                                     Some(Box::new(CopyRelativePath)),
                                     window.handler_for(&pane, move |_, _, cx| {
                                         cx.write_to_clipboard(ClipboardItem::new_string(
-                                            relative_path.display().to_string(),
+                                            relative_path.display().to_owned(),
                                         ));
                                     }),
                                 )
@@ -2746,7 +2725,7 @@ impl Pane {
         let unpinned_tabs = tab_items.split_off(self.pinned_tab_count);
         let pinned_tabs = tab_items;
 
-        let render_tab_buttons = self.render_tab_bar_buttons.clone();
+        let render_tab_buttons = Rc::clone(&self.render_tab_bar_buttons);
         let (left_children, right_children) = render_tab_buttons(self, window, cx);
         TabBar::new("tab_bar")
             .style(self.tab_style)
@@ -3224,7 +3203,7 @@ impl Render for TabBarView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.pane
             .update(cx, |pane, cx| {
-                let tab_bar = (pane.render_tab_bar.clone())(pane, window, cx);
+                let tab_bar = Rc::clone(&pane.render_tab_bar)(pane, window, cx);
                 pane.with_tab_bar_header_room(tab_bar)
             })
             .unwrap_or_else(|_| gpui::Empty.into_any())
@@ -3493,12 +3472,18 @@ impl ItemNavHistory {
     pub fn push<D: 'static + Any + Send + Sync>(&mut self, data: Option<D>, row: Option<u32>, cx: &mut App) {
         if self.item.upgrade().is_some_and(|item| item.include_in_nav_history()) {
             let is_preview_item = self.is_preview_item();
-            self.history.push(data, self.item.clone(), is_preview_item, row, cx);
+            self.history.push(data, Arc::<dyn WeakItemHandle>::clone(&self.item), is_preview_item, row, cx);
         }
     }
 
     pub fn navigation_entry(&self, data: Option<Arc<dyn Any + Send + Sync>>) -> NavigationEntry {
-        NavigationEntry { item: self.item.clone(), data, timestamp: 0, is_preview: self.is_preview_item(), row: None }
+        NavigationEntry {
+            item: Arc::<dyn WeakItemHandle>::clone(&self.item),
+            data,
+            timestamp: 0,
+            is_preview: self.is_preview_item(),
+            row: None,
+        }
     }
 
     pub fn push_tag(&mut self, origin: Option<NavigationEntry>, target: Option<NavigationEntry>) {
@@ -3786,7 +3771,7 @@ fn dirty_message_for(buffer_path: Option<ProjectPath>) -> String {
             let path = truncate_and_remove_front(path, 80);
             format!("{} contains unsaved edits. Do you want to save it?", MarkdownInlineCode(path.as_str()))
         }
-        None => "This buffer contains unsaved edits. Do you want to save it?".to_string(),
+        None => "This buffer contains unsaved edits. Do you want to save it?".to_owned(),
     }
 }
 
@@ -3846,7 +3831,7 @@ mod tests {
 
     use gpui::EntityId;
     use gpui::StyleRefinement;
-    use gpui::Styled;
+    use gpui::Styled as _;
     use gpui::WeakEntity;
     use gpui::px;
     use theme::built_in;
@@ -3869,7 +3854,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tab_strip_height() {
+    fn tab_strip_height_works() {
         assert_eq!(tab_strip_height(false, true, px(36.)), px(0.));
         assert_eq!(tab_strip_height(true, false, px(36.)), px(36.));
         assert_eq!(tab_strip_height(true, true, px(36.)), px(36.) + crate::CARD_GAP);
@@ -3885,7 +3870,7 @@ mod tests {
     }
 
     #[test]
-    fn test_card_corner_mask_style() {
+    fn card_corner_mask_style_works() {
         let colors = built_in::theme_colors();
         let style = Pane::card_corner_mask_style(&colors)(StyleRefinement::default());
 
@@ -3897,7 +3882,7 @@ mod tests {
     }
 
     #[test]
-    fn test_drags_out_only_tab() {
+    fn drags_out_only_tab_works() {
         assert!(drags_out_only_tab(true, 1));
         assert!(!drags_out_only_tab(true, 2));
         assert!(!drags_out_only_tab(false, 1));
@@ -3905,7 +3890,7 @@ mod tests {
     }
 
     #[test]
-    fn test_empty_pane_hints() {
+    fn empty_pane_hints_works() {
         let hints = empty_pane_hints(EmptyPaneHints::Files);
         let labels: Vec<_> = hints.iter().map(|(_, label, _, _)| *label).collect();
         assert_eq!(labels, ["New File", "Open File", "Go to File", "Command Palette"]);
@@ -3918,7 +3903,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tab_drop_side() {
+    fn tab_drop_side_works() {
         assert_eq!(tab_drop_side(None, 2), Some(TabDropSide::Before));
         assert_eq!(tab_drop_side(Some(4), 2), Some(TabDropSide::Before));
         assert_eq!(tab_drop_side(Some(0), 2), Some(TabDropSide::After));
@@ -3926,7 +3911,7 @@ mod tests {
     }
 
     #[test]
-    fn test_shared_nav_history_tracks_each_panes_preview() {
+    fn shared_nav_history_tracks_each_panes_preview() {
         let history = NavHistory::new(WeakEntity::new_invalid(), Arc::new(AtomicUsize::new(0)));
         assert!(!history.can_go_back());
         assert!(!history.can_go_forward());
@@ -3947,7 +3932,7 @@ mod tests {
     }
 
     #[test]
-    fn test_drop_target_style() {
+    fn drop_target_style_works() {
         let colors = built_in::theme_colors();
         let style = Pane::drop_target_style(&colors)(StyleRefinement::default().rounded(px(8.)));
 
@@ -3959,7 +3944,7 @@ mod tests {
     }
 
     #[test]
-    fn test_git_event_recolors_tabs_on_status_changes_only() {
+    fn git_event_recolors_tabs_on_status_changes_only() {
         use project::git_store::GitStoreEvent;
         use project::git_store::RepositoryEvent;
         use project::git_store::RepositoryId;

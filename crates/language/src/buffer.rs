@@ -4,15 +4,15 @@ pub mod row_chunk;
 
 use std::any::Any;
 use std::cell::Cell;
+use std::cmp;
 use std::cmp::Ordering;
 use std::cmp::Reverse;
-use std::cmp::{self};
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::future::Future;
+use std::iter;
 use std::iter::Iterator;
 use std::iter::Peekable;
-use std::iter::{self};
 use std::mem;
 use std::num::NonZeroU32;
 use std::ops::Deref;
@@ -76,7 +76,7 @@ pub use text::Transaction;
 pub use text::TransactionId;
 pub use text::Unclipped;
 use theme::SyntaxTheme;
-use util::RangeExt;
+use util::RangeExt as _;
 use util::rel_path::RelPath;
 
 pub use crate::CaptureId;
@@ -102,8 +102,8 @@ use crate::language_settings::LanguageSettings;
 use crate::outline::OutlineItem;
 use crate::row_chunk::RowChunkId;
 use crate::row_chunk::RowChunks;
+use crate::runnable;
 use crate::runnable::RunnableRange;
-use crate::runnable::{self};
 use crate::syntax_map::MAX_BYTES_TO_QUERY;
 use crate::syntax_map::SyntaxLayer;
 use crate::syntax_map::SyntaxMap;
@@ -112,7 +112,7 @@ use crate::syntax_map::SyntaxMapCaptures;
 use crate::syntax_map::SyntaxMapMatch;
 use crate::syntax_map::SyntaxMapMatches;
 use crate::syntax_map::SyntaxSnapshot;
-use crate::syntax_map::ToTreeSitterPoint;
+use crate::syntax_map::ToTreeSitterPoint as _;
 use crate::syntax_map::flattened_highlight_regions;
 use crate::text_diff::text_diff;
 
@@ -255,14 +255,14 @@ pub enum IndentKind {
 /// The shape of a selection cursor.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 pub enum CursorShape {
-    /// A vertical bar
+    /// A vertical bar.
     #[default]
     Bar,
-    /// A block that surrounds the following character
+    /// A block that surrounds the following character.
     Block,
-    /// An underline that runs along the following character
+    /// An underline that runs along the following character.
     Underline,
-    /// A box drawn around the following character
+    /// A box drawn around the following character.
     Hollow,
 }
 
@@ -281,7 +281,7 @@ pub enum BufferEvent {
     FileHandleChanged,
     /// The buffer was reloaded.
     Reloaded,
-    /// The buffer is in need of a reload
+    /// The buffer is in need of a reload.
     ReloadNeeded,
     /// The buffer's language was changed.
     /// The boolean indicates whether this buffer did not have a language before, but does now.
@@ -351,7 +351,7 @@ pub enum DiskState {
     /// Deleted file that was previously present.
     Deleted,
     /// An old version of a file that was previously present
-    /// usually from a version control system. e.g. A git blob
+    /// usually from a version control system. e.g. A git blob.
     Historic { was_deleted: bool },
 }
 
@@ -397,7 +397,7 @@ impl DiskState {
 
 /// The file associated with a buffer, in the case where the file is on the local disk.
 pub trait LocalFile: File {
-    /// Returns the absolute path of this file
+    /// Returns the absolute path of this file.
     fn abs_path(&self, cx: &App) -> PathBuf;
 
     /// Loads the file contents from disk and returns them as a UTF-8 encoded string.
@@ -428,7 +428,7 @@ pub enum AutoindentMode {
         ///
         /// If the original indent column is `a`, and the first line of insertion
         /// is then auto-indented to column `b`, then every other line of
-        /// the insertion will be auto-indented to column `b - a`
+        /// the insertion will be auto-indented to column `b - a`.
         original_indent_columns: Vec<Option<u32>>,
     },
 }
@@ -508,9 +508,9 @@ pub struct Chunk<'a> {
     pub diagnostic_severity: Option<DiagnosticSeverity>,
     /// A bitset of which characters are tabs in this string.
     pub tabs: u128,
-    /// Bitmap of character indices in this chunk
+    /// Bitmap of character indices in this chunk.
     pub chars: u128,
-    /// Bitmap of newline indices in this chunk
+    /// Bitmap of newline indices in this chunk.
     pub newlines: u128,
     /// Whether this chunk of text is marked as unnecessary.
     pub is_unnecessary: bool,
@@ -567,7 +567,7 @@ pub enum CharScopeContext {
     LinkedEdit,
 }
 
-/// A runnable is a set of data about a region that could be resolved into a task
+/// A runnable is a set of data about a region that could be resolved into a task.
 pub struct Runnable {
     pub tags: SmallVec<[RunnableTag; 1]>,
     pub language: Arc<Language>,
@@ -800,7 +800,7 @@ impl Buffer {
         };
 
         let tree_sitter_data = if self.text.version() == *self.tree_sitter_data.version() {
-            self.tree_sitter_data.clone()
+            Arc::clone(&self.tree_sitter_data)
         } else {
             Arc::new(TreeSitterData::new(text))
         };
@@ -1144,7 +1144,7 @@ impl Buffer {
             .layers_for_range(offset..offset, text, false)
             .filter(|layer| layer.included_sub_ranges.is_none_or(|ranges| offset_in_sub_ranges(ranges, offset, text)))
             .last()
-            .map(|info| info.language.clone())
+            .map(|info| Arc::clone(info.language))
             .or_else(|| self.language.clone())
     }
 
@@ -1160,13 +1160,13 @@ impl Buffer {
                 // For combined injections, check if offset is within the actual sub-ranges.
                 layer.included_sub_ranges.is_none_or(|ranges| offset_in_sub_ranges(ranges, offset, text))
             })
-            .map(|info| info.language.clone())
+            .map(|info| Arc::clone(info.language))
             .collect();
 
         if languages.is_empty()
             && let Some(buffer_language) = self.language()
         {
-            languages.push(buffer_language.clone());
+            languages.push(Arc::clone(buffer_language));
         }
 
         languages
@@ -1267,7 +1267,7 @@ impl Buffer {
         drop(syntax_map);
         let file = self.file.clone();
 
-        self.parse_status.0.send(ParseStatus::Parsing).unwrap();
+        self.parse_status.0.send(ParseStatus::Parsing).expect("parse status receiver is owned by the buffer");
         if may_block
             && let Some(sync_parse_timeout) = self.sync_parse_timeout
             && matches!(
@@ -1275,7 +1275,7 @@ impl Buffer {
                     &text,
                     file.as_deref(),
                     language_registry.clone(),
-                    language.clone(),
+                    Arc::clone(&language),
                     sync_parse_timeout,
                 ),
                 Ok(())
@@ -1287,7 +1287,7 @@ impl Buffer {
         }
 
         let parse_task = cx.background_spawn({
-            let language = language.clone();
+            let language = Arc::clone(&language);
             let language_registry = language_registry.clone();
             async move {
                 syntax_snapshot.reparse(&text, file.as_deref(), language_registry, language);
@@ -1334,7 +1334,7 @@ impl Buffer {
         }
         if parsing_complete {
             self.request_autoindent(cx, block_budget);
-            self.parse_status.0.send(ParseStatus::Idle).unwrap();
+            self.parse_status.0.send(ParseStatus::Idle).expect("parse status receiver is owned by the buffer");
         }
         Self::invalidate_tree_sitter_data(&mut self.tree_sitter_data, self.text.snapshot());
         cx.emit(BufferEvent::Reparsed);
@@ -1345,7 +1345,7 @@ impl Buffer {
         self.parse_status.1.clone()
     }
 
-    /// Wait until the buffer is no longer parsing
+    /// Wait until the buffer is no longer parsing.
     pub fn parsing_idle(&self) -> impl Future<Output = ()> + use<> {
         let mut parse_status = self.parse_status();
         async move {
@@ -1457,7 +1457,7 @@ impl Buffer {
                         request.before_edit.suggest_autoindents(old_edited_range.clone()).into_iter().flatten();
                     for (old_row, suggestion) in old_edited_range.zip(suggestions) {
                         if let Some(suggestion) = suggestion {
-                            let new_row = *old_to_new_rows.get(&old_row).unwrap();
+                            let new_row = old_to_new_rows[&old_row];
 
                             // Find the indent size based on the language for this row.
                             while let Some((row, size)) = language_indent_sizes.peek() {
@@ -1644,7 +1644,11 @@ impl Buffer {
         cx.background_spawn(async move {
             let ranges = trailing_whitespace_ranges(&old_text, modified_rows.as_deref());
             let empty = Arc::<str>::from("");
-            Diff { base_version, line_ending, edits: ranges.into_iter().map(|range| (range, empty.clone())).collect() }
+            Diff {
+                base_version,
+                line_ending,
+                edits: ranges.into_iter().map(|range| (range, Arc::clone(&empty))).collect(),
+            }
         })
     }
 
@@ -1837,7 +1841,7 @@ impl Buffer {
         assert!(self.transaction_depth > 0);
         self.transaction_depth -= 1;
         let was_dirty = if self.transaction_depth == 0 {
-            self.was_dirty_before_starting_transaction.take().unwrap()
+            self.was_dirty_before_starting_transaction.take().expect("transaction was started")
         } else {
             false
         };
@@ -1864,7 +1868,7 @@ impl Buffer {
     /// the redo stack is cleared. The easiest way to ensure the redo stack is
     /// cleared is to create transactions with the usual `start_transaction` and
     /// `end_transaction` methods and merging the resulting transactions into
-    /// the transaction created by this method
+    /// the transaction created by this method.
     pub fn push_empty_transaction(&mut self, now: Instant) -> TransactionId {
         self.text.push_empty_transaction(now)
     }
@@ -1880,12 +1884,12 @@ impl Buffer {
         self.text.group_until_transaction(transaction_id);
     }
 
-    /// Manually remove a transaction from the buffer's undo history
+    /// Manually remove a transaction from the buffer's undo history.
     pub fn forget_transaction(&mut self, transaction_id: TransactionId) -> Option<Transaction> {
         self.text.forget_transaction(transaction_id)
     }
 
-    /// Retrieve a transaction from the buffer's undo history
+    /// Retrieve a transaction from the buffer's undo history.
     pub fn get_transaction(&self, transaction_id: TransactionId) -> Option<&Transaction> {
         self.text.get_transaction(transaction_id)
     }
@@ -2029,7 +2033,7 @@ impl Buffer {
         let edit_id = self.text.edit(edits.iter().cloned());
 
         if let Some((before_edit, mode)) = autoindent_request {
-            let mut delta = 0isize;
+            let mut delta = 0_isize;
             let entries: Vec<_> = edits
                 .into_iter()
                 .enumerate()
@@ -2581,7 +2585,7 @@ impl BufferSnapshot {
                     start_positions.push(StartPosition {
                         start: Point::from_ts_point(capture.node.start_position()),
                         suffix: suffix.clone(),
-                        language: mat.language.clone(),
+                        language: Arc::clone(&mat.language),
                     });
                 }
             }
@@ -2658,7 +2662,7 @@ impl BufferSnapshot {
                 }
                 while let Some(pos) = start_positions_iter.peek() {
                     if pos.start.row < row {
-                        let pos = start_positions_iter.next().unwrap().clone();
+                        let pos = start_positions_iter.next().expect("peeked item exists").clone();
                         last_seen_suffix.entry(pos.suffix.to_string()).or_default().push(pos);
                     } else {
                         break;
@@ -3086,7 +3090,7 @@ impl BufferSnapshot {
             {
                 smallest_range_and_depth = Some((range, layer.depth));
                 scope = Some(LanguageScope {
-                    language: layer.language.clone(),
+                    language: Arc::clone(layer.language),
                     override_id: layer.override_id(offset, &self.text),
                 });
             }
@@ -3321,7 +3325,7 @@ impl BufferSnapshot {
         result
     }
 
-    /// Returns the root syntax node within the given row
+    /// Returns the root syntax node within the given row.
     pub fn syntax_root_ancestor(&self, position: Anchor) -> Option<tree_sitter::Node<'_>> {
         let start_offset = position.to_offset(self);
 
@@ -3382,7 +3386,11 @@ impl BufferSnapshot {
         let range = range.to_offset(self);
         let mut matches =
             self.syntax.matches(range.clone(), &self.text, |grammar| grammar.outline_config.as_ref().map(|c| &c.query));
-        let configs = matches.grammars().iter().map(|g| g.outline_config.as_ref().unwrap()).collect::<Vec<_>>();
+        let configs = matches
+            .grammars()
+            .iter()
+            .map(|g| g.outline_config.as_ref().expect("grammars were filtered by outline config"))
+            .collect::<Vec<_>>();
 
         iter::from_fn(move || {
             while let Some(mat) = matches.peek() {
@@ -3391,7 +3399,7 @@ impl BufferSnapshot {
                     let item_node = mat
                         .captures
                         .iter()
-                        .find_map(|cap| if cap.index == config.item_capture_ix { Some(cap.node) } else { None })?;
+                        .find_map(|cap| (cap.index == config.item_capture_ix).then_some(cap.node))?;
 
                     let item_byte_range = item_node.byte_range();
                     if item_byte_range.end < range.start || item_byte_range.start > range.end {
@@ -3462,7 +3470,10 @@ impl BufferSnapshot {
         let mut items = Vec::new();
         let mut annotation_row_ranges: Vec<Range<u32>> = Vec::new();
         while let Some(mat) = matches.peek() {
-            let config = matches.grammars()[mat.grammar_index].outline_config.as_ref().unwrap();
+            let config = matches.grammars()[mat.grammar_index]
+                .outline_config
+                .as_ref()
+                .expect("grammars were filtered by outline config");
             if let Some(item) = self.next_outline_item(config, &mat, &range, include_extra_context, theme) {
                 items.push(item);
             } else if let Some(capture) =
@@ -3544,10 +3555,8 @@ impl BufferSnapshot {
         include_extra_context: bool,
         theme: Option<&SyntaxTheme>,
     ) -> Option<OutlineItem<Point>> {
-        let item_node = mat
-            .captures
-            .iter()
-            .find_map(|cap| if cap.index == config.item_capture_ix { Some(cap.node) } else { None })?;
+        let item_node =
+            mat.captures.iter().find_map(|cap| (cap.index == config.item_capture_ix).then_some(cap.node))?;
 
         let item_byte_range = item_node.byte_range();
         if item_byte_range.end < range.start || item_byte_range.start > range.end {
@@ -3589,7 +3598,8 @@ impl BufferSnapshot {
         if buffer_ranges.is_empty() {
             return None;
         }
-        let source_range_for_text = buffer_ranges.first().unwrap().0.start..buffer_ranges.last().unwrap().0.end;
+        let source_range_for_text = buffer_ranges.first().expect("buffer ranges are non-empty").0.start
+            ..buffer_ranges.last().expect("buffer ranges are non-empty").0.end;
         let selection_range = buffer_ranges
             .iter()
             .filter(|(_, node_is_name)| *node_is_name)
@@ -3773,7 +3783,7 @@ impl BufferSnapshot {
             let ranges = syntax_matches.peek().and_then(|mat| {
                 let config = &configs[mat.grammar_index]?;
                 let content_capture_range = mat.captures.iter().find_map(|capture| {
-                    if capture.index == config.content_capture_ix { Some(capture.node.byte_range()) } else { None }
+                    (capture.index == config.content_capture_ix).then(|| capture.node.byte_range())
                 })?;
                 let language = self.language_at(content_capture_range.start)?;
                 Some((content_capture_range, language))
@@ -3914,7 +3924,7 @@ impl BufferSnapshot {
             if file.path().file_name().is_none() || include_root || !file.is_in_visible_worktree(cx) {
                 Some(file.full_path(cx).to_string_lossy().into_owned())
             } else {
-                Some(file.path().display().to_string())
+                Some(file.path().display().to_owned())
             }
         } else {
             None
@@ -4031,7 +4041,7 @@ impl Clone for BufferSnapshot {
             file: self.file.clone(),
             diagnostics: self.diagnostics.clone(),
             language: self.language.clone(),
-            tree_sitter_data: self.tree_sitter_data.clone(),
+            tree_sitter_data: Arc::clone(&self.tree_sitter_data),
             fallback_highlighter: self.fallback_highlighter.clone(),
             non_text_state_update_count: self.non_text_state_update_count,
             capability: self.capability,
@@ -4323,14 +4333,14 @@ impl<'a> Iterator for BufferChunks<'a> {
 
             let slice = &chunk[bit_start..bit_end];
 
-            let mask = 1u128.unbounded_shl((bit_end - bit_start) as u32).wrapping_sub(1);
+            let mask = 1_u128.unbounded_shl((bit_end - bit_start) as u32).wrapping_sub(1);
             let tabs = (tabs >> bit_start) & mask;
             let chars = (chars_map >> bit_start) & mask;
             let newlines = (newlines >> bit_start) & mask;
 
             self.range.start = chunk_end;
             if self.range.start == self.chunks.offset() + chunk.len() {
-                self.chunks.next().unwrap();
+                self.chunks.next().expect("chunk exists at current offset");
             }
 
             Some(Chunk {
@@ -4558,7 +4568,7 @@ mod file_deletion_tests {
     use super::clears_on_file_deletion;
 
     #[test]
-    fn test_clears_on_file_deletion() {
+    fn clears_on_file_deletion_works() {
         assert!(clears_on_file_deletion(true, true, false));
         // Unsaved edits are kept, so they can be saved to recreate the file.
         assert!(!clears_on_file_deletion(true, true, true));
@@ -4574,7 +4584,7 @@ mod parse_deferral_tests {
     use super::autoindents_edits;
 
     #[test]
-    fn test_autoindents_edits() {
+    fn autoindents_edits_works() {
         assert!(autoindents_edits(true, false));
         // No pre-edit syntax tree to compare against.
         assert!(!autoindents_edits(true, true));

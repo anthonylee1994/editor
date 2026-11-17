@@ -584,7 +584,7 @@ impl Request for CodeActionRequest {
 /// This is usually used to compute the `edit` property of a code action to avoid its unnecessary computation
 /// during the `textDocument/codeAction` request.
 ///
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Debug)]
 pub struct CodeActionResolveRequest(!);
 

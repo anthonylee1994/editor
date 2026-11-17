@@ -175,10 +175,10 @@ impl ConflictSet {
                 }
                 theirs_start = Some(line_end + 1);
             } else if let Some(branch_name) = line.strip_prefix(">>>>>>> ")
-                && conflict_start.is_some()
-                && ours_start.is_some()
-                && ours_end.is_some()
-                && theirs_start.is_some()
+                && let Some(start) = conflict_start
+                && let Some(ours_from) = ours_start
+                && let Some(ours_to) = ours_end
+                && let Some(theirs_from) = theirs_start
             {
                 let branch_name = branch_name.trim();
                 if !branch_name.is_empty() {
@@ -188,9 +188,9 @@ impl ConflictSet {
                 let theirs_end = line_pos;
                 let conflict_end = (line_end + 1).min(buffer_len);
 
-                let range = buffer.anchor_after(conflict_start.unwrap())..buffer.anchor_before(conflict_end);
-                let ours = side_range(buffer, ours_start.unwrap(), ours_end.unwrap());
-                let theirs = side_range(buffer, theirs_start.unwrap(), theirs_end);
+                let range = buffer.anchor_after(start)..buffer.anchor_before(conflict_end);
+                let ours = side_range(buffer, ours_from, ours_to);
+                let theirs = side_range(buffer, theirs_from, theirs_end);
                 let base = base_start.zip(base_end).map(|(start, end)| side_range(buffer, start, end));
 
                 conflicts.push(ConflictRegion {

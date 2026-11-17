@@ -8,9 +8,9 @@ use std::cmp;
 use std::fmt;
 use std::io;
 use std::mem;
+use std::ops;
 use std::ops::AddAssign;
 use std::ops::Range;
-use std::ops::{self};
 use std::str;
 
 pub use chunk::Chunk;
@@ -172,7 +172,7 @@ impl Rope {
                 split_ix -= 1;
             }
             let (chunk, remainder) = text.split_at(split_ix);
-            new_chunks.push(chunk).unwrap();
+            new_chunks.push(chunk).expect("chunks fit in vec");
             text = remainder;
         }
         self.chunks.extend(new_chunks.into_iter().map(Chunk::new), ());
@@ -654,13 +654,13 @@ impl<'a> Cursor<'a> {
 }
 
 pub struct ChunkBitmaps<'a> {
-    /// A slice of text up to 128 bytes in size
+    /// A slice of text up to 128 bytes in size.
     pub text: &'a str,
-    /// Bitmap of character locations in text. LSB ordered
+    /// Bitmap of character locations in text. LSB ordered.
     pub chars: Bitmap,
-    /// Bitmap of tab locations in text. LSB ordered
+    /// Bitmap of tab locations in text. LSB ordered.
     pub tabs: Bitmap,
-    /// Bitmap of newlines location in text. LSB ordered
+    /// Bitmap of newlines location in text. LSB ordered.
     pub newlines: Bitmap,
 }
 
@@ -856,7 +856,7 @@ impl<'a> Chunks<'a> {
         Some((chunk, slice_range))
     }
 
-    /// Returns bitmaps that represent character positions and tab positions
+    /// Returns bitmaps that represent character positions and tab positions.
     pub fn peek_with_bitmaps(&self) -> Option<ChunkBitmaps<'a>> {
         let (chunk, slice_range) = self.current_chunk()?;
         let chunk_start_offset = slice_range.start;
@@ -913,7 +913,7 @@ impl<'a> Chunks<'a> {
 pub struct ChunkWithBitmaps<'a>(pub Chunks<'a>);
 
 impl<'a> Iterator for ChunkWithBitmaps<'a> {
-    /// text, chars bitmap, tabs bitmap
+    /// text, chars bitmap, tabs bitmap.
     type Item = ChunkBitmaps<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -1131,22 +1131,22 @@ pub struct TextSummary {
     pub len: usize,
     /// Length in UTF-8.
     pub chars: usize,
-    /// Length in UTF-16 code units
+    /// Length in UTF-16 code units.
     pub len_utf16: OffsetUtf16,
     /// A point representing the number of lines and the length of the last line.
     ///
     /// In other words, it marks the point after the last byte in the text, (if
     /// EOF was a character, this would be its position).
     pub lines: Point,
-    /// How many `char`s are in the first line
+    /// How many `char`s are in the first line.
     pub first_line_chars: u32,
-    /// How many `char`s are in the last line
+    /// How many `char`s are in the last line.
     pub last_line_chars: u32,
-    /// How many UTF-16 code units are in the last line
+    /// How many UTF-16 code units are in the last line.
     pub last_line_len_utf16: u32,
-    /// The row idx of the longest row
+    /// The row idx of the longest row.
     pub longest_row: u32,
-    /// How many `char`s are in the longest row
+    /// How many `char`s are in the longest row.
     pub longest_row_chars: u32,
 }
 

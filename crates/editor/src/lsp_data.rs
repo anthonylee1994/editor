@@ -1,12 +1,12 @@
 use std::time::Duration;
 
-use futures::FutureExt;
+use futures::FutureExt as _;
 use futures::future::Shared;
 use gpui::Context;
 use gpui::Entity;
 use gpui::Task;
 use gpui::Window;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use language::Buffer;
 use text::BufferId;
 

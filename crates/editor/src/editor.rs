@@ -70,9 +70,9 @@ use std::any::Any;
 use std::any::TypeId;
 use std::borrow::Cow;
 use std::cell::RefCell;
+use std::cmp;
 use std::cmp::Ordering;
 use std::cmp::Reverse;
-use std::cmp::{self};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::VecDeque;
@@ -332,8 +332,8 @@ use element::MinimapRowCache;
 pub use element::PointForPosition;
 use element::PositionMap;
 use futures::FutureExt;
+use futures::future;
 use futures::future::Shared;
-use futures::future::{self};
 use fuzzy::StringMatch;
 use fuzzy::StringMatchCandidate;
 pub use git::DefaultDiffHunkRenderer;
@@ -366,7 +366,7 @@ use gpui::FontId;
 use gpui::Global;
 use gpui::HighlightStyle;
 use gpui::Hsla;
-use gpui::IsZero;
+use gpui::IsZero as _;
 use gpui::KeyContext;
 use gpui::Modifiers;
 use gpui::MouseButton;
@@ -395,11 +395,11 @@ use gpui::div;
 use gpui::point;
 use gpui::prelude::BorrowAppContext;
 use gpui::prelude::Element;
-use gpui::prelude::FluentBuilder;
-use gpui::prelude::InteractiveElement;
+use gpui::prelude::FluentBuilder as _;
+use gpui::prelude::InteractiveElement as _;
 use gpui::prelude::IntoElement;
-use gpui::prelude::Refineable;
-use gpui::prelude::StatefulInteractiveElement;
+use gpui::prelude::Refineable as _;
+use gpui::prelude::StatefulInteractiveElement as _;
 use gpui::px;
 use gpui::relative;
 use gpui::size;
@@ -559,7 +559,7 @@ use workspace::Workspace;
 use workspace::item::ItemBufferKind;
 use workspace::item::ItemHandle;
 use workspace::notifications::NotifyResultExt;
-use workspace::notifications::NotifyTaskExt;
+use workspace::notifications::NotifyTaskExt as _;
 pub use workspace::searchable::Direction;
 use workspace::searchable::SelectSearchOptions;
 
@@ -719,7 +719,7 @@ pub enum EditorMode {
         scale_ui_elements_with_buffer_font_size: bool,
         /// When set to `true`, the editor will render a background for the active line.
         show_active_line_background: bool,
-        /// Determines the sizing behavior for this editor
+        /// Determines the sizing behavior for this editor.
         sizing_behavior: SizingBehavior,
     },
     Minimap {
@@ -896,7 +896,7 @@ impl MinimapVisibility {
     }
 }
 
-/// Addons allow storing per-editor state in other crates (e.g. Vim)
+/// Addons allow storing per-editor state in other crates (e.g. Vim).
 pub trait Addon: 'static {
     fn render_buffer_header_controls(
         &self,
@@ -1065,7 +1065,7 @@ struct SettledScrollRange {
 pub struct Editor {
     focus_handle: FocusHandle,
     last_focused_descendant: Option<WeakFocusHandle>,
-    /// The text buffer being edited
+    /// The text buffer being edited.
     buffer: Entity<MultiBuffer>,
     /// Map of how text in the buffer should be displayed.
     /// Handles soft wraps, folds, fake inlay text insertions, etc.
@@ -1153,7 +1153,7 @@ pub struct Editor {
     searchable: bool,
     cursor_shape: CursorShape,
     /// Whether the cursor is offset one character to the left when something is
-    /// selected (needed for vim visual mode)
+    /// selected (needed for vim visual mode).
     cursor_offset_on_selection: bool,
     /// Whether to collapse search match ranges to just their start position.
     /// When true, navigating to a match positions the cursor at the match
@@ -1174,7 +1174,7 @@ pub struct Editor {
 
     code_action_providers: Vec<Rc<dyn CodeActionProvider>>,
 
-    /// Used to prevent flickering as the user types while the menu is open
+    /// Used to prevent flickering as the user types while the menu is open.
     show_completions_on_input_override: Option<bool>,
 
     in_leading_whitespace: bool,
@@ -1883,7 +1883,7 @@ impl Editor {
                         Self::open_transaction_for_hidden_buffers(
                             workspace,
                             transaction.clone(),
-                            "Rename".to_string(),
+                            "Rename".to_owned(),
                             window,
                             cx,
                         );
@@ -1902,7 +1902,7 @@ impl Editor {
                         Self::open_transaction_for_hidden_buffers(
                             workspace,
                             transaction.clone(),
-                            "LSP Edit".to_string(),
+                            "LSP Edit".to_owned(),
                             window,
                             cx,
                         );
@@ -1936,8 +1936,7 @@ impl Editor {
             cx.observe_pending_input(window, Self::observe_pending_input).detach();
         }
 
-        let show_indent_guides =
-            if matches!(mode, EditorMode::SingleLine | EditorMode::Minimap { .. }) { Some(false) } else { None };
+        let show_indent_guides = matches!(mode, EditorMode::SingleLine | EditorMode::Minimap { .. }).then_some(false);
 
         let mut code_action_providers = Vec::new();
         if let Some(project) = project.clone() {
@@ -2797,7 +2796,7 @@ impl Editor {
         if self.read_only(cx) {
             cx.theme().cursor_colors().read_only()
         } else {
-            self.style.as_ref().unwrap().cursor_colors
+            self.style.as_ref().expect("style is set before rendering").cursor_colors
         }
     }
 
@@ -2889,7 +2888,7 @@ impl Editor {
                 log::error!("No selection history for undone transaction; selection unchanged");
             }
             let selections = transaction
-                .map(|transaction| (transaction.undo.clone(), transaction.undo_add_selections_state.clone()));
+                .map(|transaction| (Arc::clone(&transaction.undo), transaction.undo_add_selections_state.clone()));
             self.restore_selections(selections, window, cx);
             self.request_autoscroll(Autoscroll::fit(), cx);
             self.unmark_text(window, cx);
@@ -3222,7 +3221,8 @@ impl Editor {
         cx: &mut App,
     ) -> Vec<Range<MultiBufferOffsetUtf16>> {
         let selections = self.selections.all::<MultiBufferOffsetUtf16>(&self.display_snapshot(cx));
-        let newest_selection = selections.iter().max_by_key(|selection| selection.id).unwrap();
+        let newest_selection =
+            selections.iter().max_by_key(|selection| selection.id).expect("selections are never empty");
         let start_delta = range.start.0.0.cast_signed() - newest_selection.start.0.0.cast_signed();
         let end_delta = range.end.0.0.cast_signed() - newest_selection.end.0.0.cast_signed();
         let snapshot = self.buffer.read(cx).read(cx);
@@ -3288,10 +3288,10 @@ impl Editor {
                 }
 
                 if chunk_lines.peek().is_some() {
-                    if line.len() > 1 && line.front().unwrap().text.is_empty() {
+                    if line.len() > 1 && line.front().expect("line is non-empty").text.is_empty() {
                         line.pop_front();
                     }
-                    if line.len() > 1 && line.back().unwrap().text.is_empty() {
+                    if line.len() > 1 && line.back().expect("line is non-empty").text.is_empty() {
                         line.pop_back();
                     }
 
@@ -3323,7 +3323,7 @@ impl Editor {
         let id = self.next_editor_action_id.post_inc();
         self.editor_actions.borrow_mut().insert(id, Box::new(listener));
 
-        let editor_actions = self.editor_actions.clone();
+        let editor_actions = Rc::clone(&self.editor_actions);
         Subscription::new(move || {
             editor_actions.borrow_mut().remove(&id);
         })
@@ -3335,7 +3335,9 @@ impl Editor {
     ) -> Subscription {
         self.register_action_erased(
             TypeId::of::<A>(),
-            Arc::new(move |action, window, cx| listener(action.downcast_ref().unwrap(), window, cx)),
+            Arc::new(move |action, window, cx| {
+                listener(action.downcast_ref().expect("action type matches listener"), window, cx);
+            }),
         )
     }
 
@@ -3349,7 +3351,7 @@ impl Editor {
         self.editor_actions.borrow_mut().insert(
             id,
             Box::new(move |_, window, _| {
-                let listener = listener.clone();
+                let listener = Arc::clone(&listener);
                 window.on_action(action_type, move |action, phase, window, cx| {
                     if phase == DispatchPhase::Bubble {
                         listener(action, window, cx);
@@ -3358,7 +3360,7 @@ impl Editor {
             }),
         );
 
-        let editor_actions = self.editor_actions.clone();
+        let editor_actions = Rc::clone(&self.editor_actions);
         Subscription::new(move || {
             editor_actions.borrow_mut().remove(&id);
         })
@@ -3431,12 +3433,14 @@ impl Editor {
 
     pub fn addon<T: Addon>(&self) -> Option<&T> {
         let type_id = TypeId::of::<T>();
-        self.addons.get(&type_id).and_then(|item| item.to_any().downcast_ref::<T>())
+        let item = self.addons.get(&type_id)?;
+        item.to_any().downcast_ref::<T>()
     }
 
     pub fn addon_mut<T: Addon>(&mut self) -> Option<&mut T> {
         let type_id = TypeId::of::<T>();
-        self.addons.get_mut(&type_id).and_then(|item| item.to_any_mut()?.downcast_mut::<T>())
+        let item = self.addons.get_mut(&type_id)?;
+        item.to_any_mut()?.downcast_mut::<T>()
     }
 
     fn character_dimensions(&self, window: &mut Window, cx: &mut App) -> CharacterDimensions {
@@ -3445,8 +3449,8 @@ impl Editor {
         let font_id = window.text_system().resolve_font(&style.text.font());
         let font_size = style.text.font_size.to_pixels(window.rem_size());
         let line_height = style.text.line_height_in_pixels(window.rem_size());
-        let em_width = window.text_system().em_width(font_id, font_size).unwrap();
-        let em_advance = window.text_system().em_advance(font_id, font_size).unwrap();
+        let em_width = window.text_system().em_width(font_id, font_size).expect("font is resolved");
+        let em_advance = window.text_system().em_advance(font_id, font_size).expect("font is resolved");
 
         CharacterDimensions { em_width, em_advance, line_height }
     }
@@ -3859,7 +3863,7 @@ mod tests {
     }
 
     #[test]
-    fn test_addon_shows_project_file_actions_by_default() {
+    fn addon_shows_project_file_actions_by_default() {
         assert!(DefaultAddon.shows_project_file_actions());
     }
 

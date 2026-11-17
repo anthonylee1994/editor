@@ -37,12 +37,14 @@ impl<V> Default for Ordered<V> {
 impl<V> Ordered<V> {
     /// The record for `key`.
     pub(crate) fn get(&self, key: &str) -> Option<&V> {
-        self.index.get(key).and_then(|&at| self.values.get(at))
+        let &at = self.index.get(key)?;
+        self.values.get(at)
     }
 
     /// The record for `key`, to change.
     pub(crate) fn get_mut(&mut self, key: &str) -> Option<&mut V> {
-        self.index.get(key).and_then(|&at| self.values.get_mut(at))
+        let &at = self.index.get(key)?;
+        self.values.get_mut(at)
     }
 
     /// The position of the record for `key`.

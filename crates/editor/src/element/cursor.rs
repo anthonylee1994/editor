@@ -1,6 +1,7 @@
-use std::cmp::{self};
+use std::cmp;
 use std::collections::BTreeMap;
 use std::ops::Range;
+use std::sync::Arc;
 use std::time::Instant;
 
 use gpui::AnyElement;
@@ -11,12 +12,12 @@ use gpui::Bounds;
 use gpui::Font;
 use gpui::Hitbox;
 use gpui::Hsla;
-use gpui::InteractiveElement;
-use gpui::IntoElement;
-use gpui::ParentElement;
+use gpui::InteractiveElement as _;
+use gpui::IntoElement as _;
+use gpui::ParentElement as _;
 use gpui::Pixels;
 use gpui::ShapedLine;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::TextAlign;
 use gpui::TextRun;
 use gpui::Window;
@@ -27,15 +28,15 @@ use gpui::point;
 use gpui::px;
 use gpui::size;
 use multi_buffer::Anchor;
-use multi_buffer::ToOffset;
+use multi_buffer::ToOffset as _;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use sum_tree::Bias;
-use theme::ActiveTheme;
+use theme::ActiveTheme as _;
 use theme::Appearance;
 use theme::CursorColors;
-use unicode_segmentation::UnicodeSegmentation;
-use util::ResultExt;
+use unicode_segmentation::UnicodeSegmentation as _;
+use util::ResultExt as _;
 
 use super::EditorElement;
 use super::EditorLayout;
@@ -47,7 +48,7 @@ use crate::DisplayPoint;
 use crate::DisplayRow;
 use crate::EditorSnapshot;
 use crate::Point;
-use crate::RowExt;
+use crate::RowExt as _;
 use crate::Selection;
 use crate::ToPoint;
 use crate::cursor_motion::CursorViewport;
@@ -266,9 +267,8 @@ impl EditorElement {
                     let block_text = if selection.cursor_shape == CursorShape::Block
                         && let Some(text) = snapshot.grapheme_at(cursor_position).or_else(|| {
                             if snapshot.is_empty() {
-                                snapshot
-                                    .placeholder_text()
-                                    .and_then(|s| s.graphemes(true).next().map(|s| s.to_string().into()))
+                                let s = snapshot.placeholder_text()?;
+                                s.graphemes(true).next().map(|s| s.to_owned().into())
                             } else {
                                 None
                             }
@@ -406,7 +406,7 @@ impl EditorElement {
             .read(cx)
             .navigation_overlay_sets()
             .iter()
-            .map(|(key, overlays)| (*key, overlays.clone()))
+            .map(|(key, overlays)| (*key, Arc::clone(overlays)))
             .collect::<Vec<_>>();
         if overlay_sets.is_empty() {
             return Vec::new();

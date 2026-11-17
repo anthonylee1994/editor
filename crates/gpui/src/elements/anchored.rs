@@ -57,7 +57,7 @@ impl Anchored {
     }
 
     /// Sets the position in window coordinates
-    /// (otherwise the location the anchored element is rendered is used)
+    /// (otherwise the location the anchored element is rendered is used).
     pub const fn position(mut self, anchor: Point<Pixels>) -> Self {
         self.anchor_position = Some(anchor);
         self
@@ -132,7 +132,7 @@ impl Element for Anchored {
             .iter()
             .map(|id| window.layout_bounds(*id))
             .reduce(|acc, bounds| acc.union(&bounds))
-            .unwrap();
+            .expect("child layout ids are non-empty");
 
         let (origin, mut desired) = self.position_mode.get_position_and_bounds(
             self.anchor_position,

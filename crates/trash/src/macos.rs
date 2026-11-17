@@ -6,21 +6,22 @@ use objc2_foundation::NSFileManager;
 use objc2_foundation::NSString;
 use objc2_foundation::NSURL;
 
-use crate::Error;
+use crate::TrashError;
 use crate::TrashItem;
 use crate::restore_from;
 
 /// Trashes with `NSFileManager`, which needs no extra permissions and returns
 /// where the item landed. Unlike Finder, Finder's "Put Back" isn't offered for
 /// it.
-pub(crate) fn delete(path: PathBuf) -> Result<TrashItem, Error> {
+pub(crate) fn delete(path: PathBuf) -> Result<TrashItem, TrashError> {
     // APFS and HFS+ file names are always valid UTF-8.
-    let path_str = path.to_str().ok_or_else(|| Error::Unknown { description: format!("{path:?} is not UTF-8") })?;
+    let path_str =
+        path.to_str().ok_or_else(|| TrashError::Unknown { description: format!("{path:?} is not UTF-8") })?;
     let url = NSURL::fileURLWithPath(&NSString::from_str(path_str));
     let mut trashed_url = None;
-    NSFileManager::defaultManager()
-        .trashItemAtURL_resultingItemURL_error(&url, Some(&mut trashed_url))
-        .map_err(|error| Error::Unknown { description: format!("`trashItemAtURL` failed for {path:?}: {error}") })?;
+    NSFileManager::defaultManager().trashItemAtURL_resultingItemURL_error(&url, Some(&mut trashed_url)).map_err(
+        |error| TrashError::Unknown { description: format!("`trashItemAtURL` failed for {path:?}: {error}") },
+    )?;
 
     // Without a resulting URL the item is trashed but can't be restored;
     // restoring then reports it as no longer in the trash.
@@ -34,6 +35,6 @@ pub(crate) fn delete(path: PathBuf) -> Result<TrashItem, Error> {
 
 /// Moves the item back by renaming. The trash's `.DS_Store` isn't updated,
 /// which Finder tolerates.
-pub(crate) fn restore(item: TrashItem) -> Result<(), Error> {
+pub(crate) fn restore(item: TrashItem) -> Result<(), TrashError> {
     restore_from(Path::new(&item.id), &item)
 }

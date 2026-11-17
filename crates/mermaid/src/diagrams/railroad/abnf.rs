@@ -202,7 +202,7 @@ fn alternation(r: &mut Reader<'_>, ast: &mut Vec<AstNode<Abnf>>) -> Result<usize
     let root = add(ast, Abnf::Alternation);
     let mut top = frame(ast, None, root, None, None);
     loop {
-        let mut repeat = if r.kind() == t::REPEAT || r.kind() == t::EXACT { Some(r.take().to_owned()) } else { None };
+        let mut repeat = (r.kind() == t::REPEAT || r.kind() == t::EXACT).then(|| r.take().to_owned());
         let kind = r.kind();
         let mut primary = match kind {
             t::STRING => add(ast, Abnf::StringLiteral(unquote(r.take()))),

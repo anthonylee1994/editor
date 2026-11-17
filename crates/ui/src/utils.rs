@@ -1,7 +1,7 @@
-//! UI-related utilities
+//! UI-related utilities.
 
 use gpui::App;
-use theme::ActiveTheme;
+use theme::ActiveTheme as _;
 
 use crate::font;
 

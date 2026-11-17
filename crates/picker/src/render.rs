@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use std::sync::Arc;
 
 use gpui::Action as _;
@@ -5,35 +6,35 @@ use gpui::Focusable as _;
 use gpui::canvas;
 use ui::Color;
 use ui::Context;
-use ui::Disableable;
+use ui::Disableable as _;
 use ui::Divider;
 use ui::DocumentationAside;
 use ui::DocumentationSide;
-use ui::FluentBuilder;
-use ui::InteractiveElement;
+use ui::FluentBuilder as _;
+use ui::InteractiveElement as _;
 use ui::IntoElement;
 use ui::Label;
-use ui::LabelCommon;
+use ui::LabelCommon as _;
 use ui::ListItem;
 use ui::ListItemSpacing;
-use ui::ParentElement;
+use ui::ParentElement as _;
 use ui::Render;
 use ui::ScrollAxes;
 use ui::Scrollbars;
-use ui::Styled;
-use ui::StyledExt;
+use ui::Styled as _;
+use ui::StyledExt as _;
 use ui::Tooltip;
 use ui::Window;
-use ui::WithScrollbar;
+use ui::WithScrollbar as _;
 use ui::div;
 use ui::font;
 use ui::h_flex;
-use ui::prelude::ButtonCommon;
-use ui::prelude::Clickable;
+use ui::prelude::ButtonCommon as _;
+use ui::prelude::Clickable as _;
 use ui::prelude::IconButton;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
-use ui::prelude::Toggleable;
+use ui::prelude::Toggleable as _;
 use ui::rems_from_px;
 use ui::utils::WithRemSize;
 use ui::v_flex;
@@ -101,7 +102,7 @@ impl<D: PickerDelegate> Picker<D> {
         let aside = self.delegate.documentation_aside(window, cx);
 
         let editor_position = self.delegate.editor_position();
-        let picker_bounds = self.picker_bounds.clone();
+        let picker_bounds = Rc::clone(&self.picker_bounds);
 
         let menu = v_flex()
             .key_context("Picker")
@@ -135,14 +136,10 @@ impl<D: PickerDelegate> Picker<D> {
             .on_action(cx.listener(Self::toggle_multi_select))
             .on_action(cx.listener(Self::multi_select_next))
             .children(match &self.head {
-                Head::Editor(editor) => {
-                    if editor_position == PickerEditorPosition::Start {
-                        let editor = editor.clone();
-                        Some(self.render_editor(&editor, window, cx))
-                    } else {
-                        None
-                    }
-                }
+                Head::Editor(editor) => (editor_position == PickerEditorPosition::Start).then(|| {
+                    let editor = Arc::clone(editor);
+                    self.render_editor(&editor, window, cx)
+                }),
                 Head::Empty(empty_head) => Some(h_flex().child(empty_head.clone())),
             })
             .when(self.delegate.match_count() > 0, |el| {
@@ -189,14 +186,10 @@ impl<D: PickerDelegate> Picker<D> {
             })
             .children(self.delegate.render_footer(window, cx))
             .children(match &self.head {
-                Head::Editor(editor) => {
-                    if editor_position == PickerEditorPosition::End {
-                        let editor = editor.clone();
-                        Some(self.render_editor(&editor, window, cx))
-                    } else {
-                        None
-                    }
-                }
+                Head::Editor(editor) => (editor_position == PickerEditorPosition::End).then(|| {
+                    let editor = Arc::clone(editor);
+                    self.render_editor(&editor, window, cx)
+                }),
                 Head::Empty(empty_head) => Some(div().child(empty_head.clone())),
             });
 

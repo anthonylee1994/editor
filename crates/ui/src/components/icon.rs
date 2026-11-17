@@ -1,4 +1,4 @@
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 mod decorated_icon;
 mod icon_decoration;
 
@@ -24,16 +24,16 @@ pub use icon_decoration::*;
 pub use icons::*;
 
 use crate::Indicator;
-use crate::prelude::ActiveTheme;
+use crate::prelude::ActiveTheme as _;
 use crate::prelude::App;
 use crate::prelude::Color;
 use crate::prelude::DynamicSpacing;
-use crate::prelude::FluentBuilder;
-use crate::prelude::InteractiveElement;
+use crate::prelude::FluentBuilder as _;
+use crate::prelude::InteractiveElement as _;
 use crate::prelude::Pixels;
 use crate::prelude::RenderOnce;
 use crate::prelude::SharedString;
-use crate::prelude::Styled;
+use crate::prelude::Styled as _;
 use crate::prelude::Window;
 use crate::prelude::div;
 use crate::prelude::rems_from_px;
@@ -79,16 +79,16 @@ impl RenderOnce for AnyIcon {
 
 #[derive(Default, PartialEq, Copy, Clone)]
 pub enum IconSize {
-    /// 10px
+    /// 10px.
     Indicator,
-    /// 12px
+    /// 12px.
     XSmall,
-    /// 14px
+    /// 14px.
     Small,
     #[default]
-    /// 16px
+    /// 16px.
     Medium,
-    /// 48px
+    /// 48px.
     XLarge,
     Custom(Rems),
 }
@@ -209,7 +209,7 @@ impl Icon {
 
     pub fn preload(&self, cx: &mut App) {
         if let IconSource::External(path) = &self.source {
-            drop(cx.fetch_asset::<ImgResourceLoader>(&Resource::Path(path.clone())));
+            drop(cx.fetch_asset::<ImgResourceLoader>(&Resource::Path(Arc::clone(path))));
         }
     }
 

@@ -92,8 +92,8 @@ pub fn init(cx: &mut App) {
         loop {
             match listener.accept().await {
                 Ok(stream) => {
-                    let pressed_button = pressed_button.clone();
-                    let perf_start = perf_start.clone();
+                    let pressed_button = Rc::clone(&pressed_button);
+                    let perf_start = Rc::clone(&perf_start);
                     cx.spawn(async move |cx| handle_connection(stream, pressed_button, perf_start, cx).await.log_err())
                         .detach();
                 }
@@ -169,7 +169,7 @@ async fn handle_request(
         Command::Actions { available } => {
             let mut names: Vec<String> = window.update(cx, |_, window, cx| {
                 if available {
-                    window.available_actions(cx).iter().map(|action| action.name().to_string()).collect()
+                    window.available_actions(cx).iter().map(|action| action.name().to_owned()).collect()
                 } else {
                     cx.all_action_names().iter().map(ToString::to_string).collect()
                 }
@@ -354,9 +354,9 @@ fn dispatch_event(window: AnyWindowHandle, event: PlatformInput, cx: &mut AsyncA
 
 fn keystroke_for_char(character: char) -> Keystroke {
     let (key, key_char) = match character {
-        ' ' => ("space".to_string(), " ".to_string()),
-        '\n' => ("enter".to_string(), "\n".to_string()),
-        '\t' => ("tab".to_string(), "\t".to_string()),
+        ' ' => ("space".to_owned(), " ".to_owned()),
+        '\n' => ("enter".to_owned(), "\n".to_owned()),
+        '\t' => ("tab".to_owned(), "\t".to_owned()),
         character => (character.to_lowercase().to_string(), character.to_string()),
     };
     let modifiers = Modifiers { shift: character.is_uppercase(), ..Modifiers::default() };
@@ -417,7 +417,7 @@ fn tree(window: &Window) -> control::Tree {
     let focus = window.focus_id();
     let ui_elements = window.ui_elements();
     let index_by_id: FxHashMap<&[ElementId], usize> =
-        ui_elements.iter().enumerate().map(|(ix, element)| (&element.id[..], ix)).collect();
+        ui_elements.iter().enumerate().map(|(ix, element)| ((&*element.id), ix)).collect();
 
     let mut elements: Vec<control::Element> = ui_elements
         .iter()
@@ -456,7 +456,7 @@ fn format_id(ids: &[ElementId]) -> String {
             // Component ids are Rust type paths; the last segment is enough.
             let id = id.to_string();
             match id.rsplit_once("::") {
-                Some((_, name)) if !id.contains('/') => name.to_string(),
+                Some((_, name)) if !id.contains('/') => name.to_owned(),
                 _ => id,
             }
         })
@@ -485,8 +485,10 @@ fn state(window: &Window, cx: &mut App) -> control::State {
     let focused_pane = workspace.read(cx).focused_pane(window, cx);
     let workspace = workspace.read(cx);
     let project = workspace.project().read(cx);
-    let item_path =
-        |item: &dyn ItemHandle| item.project_path(cx).and_then(|project_path| project.absolute_path(&project_path, cx));
+    let item_path = |item: &dyn ItemHandle| {
+        let project_path = item.project_path(cx)?;
+        project.absolute_path(&project_path, cx)
+    };
 
     let pane_state = |pane_entity: &Entity<Pane>, active_pane: &Entity<Pane>| {
         let pane = pane_entity.read(cx);
@@ -517,9 +519,9 @@ fn state(window: &Window, cx: &mut App) -> control::State {
         .map(|dock_entity| {
             let dock = dock_entity.read(cx);
             control::DockState {
-                position: dock_position_name(dock.position()).to_string(),
+                position: dock_position_name(dock.position()).to_owned(),
                 open: dock.is_open(),
-                visible_panel: dock.visible_panel().map(|panel| panel.persistent_name().to_string()),
+                visible_panel: dock.visible_panel().map(|panel| panel.persistent_name().to_owned()),
                 has_focus: dock_entity.focus_handle(cx).contains_focused(window, cx),
             }
         })
@@ -529,7 +531,7 @@ fn state(window: &Window, cx: &mut App) -> control::State {
         WorkspaceMode::GitHistory => "git_history",
         WorkspaceMode::Terminal => "terminal",
     }
-    .to_string();
+    .to_owned();
 
     let roots = workspace.root_paths(cx).iter().map(|path| path.to_path_buf()).collect();
     let language_servers = workspace
@@ -605,7 +607,7 @@ mod tests {
     use super::dock_position_name;
 
     #[test]
-    fn test_dock_position_name() {
+    fn dock_position_name_works() {
         assert_eq!(dock_position_name(DockPosition::Left), "left");
         assert_eq!(dock_position_name(DockPosition::Bottom), "bottom");
         assert_eq!(dock_position_name(DockPosition::Right), "right");

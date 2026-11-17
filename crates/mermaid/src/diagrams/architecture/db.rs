@@ -135,7 +135,8 @@ fn fail(parts: &[&str]) -> Error {
 impl ArchitectureDb {
     /// The node with `id`.
     pub(crate) fn node(&self, id: &str) -> Option<&ArchNode> {
-        self.position(id).and_then(|i| self.nodes.get(i))
+        let i = self.position(id)?;
+        self.nodes.get(i)
     }
 
     /// The index in [`Self::nodes`] of the node with `id`.

@@ -2,7 +2,7 @@ use editor::Editor;
 use gpui::Context;
 use gpui::Entity;
 use gpui::IntoElement;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Render;
 use gpui::SharedString;
 use gpui::Subscription;
@@ -12,9 +12,9 @@ use gpui::div;
 use language::LanguageName;
 use language::PLAIN_TEXT;
 use ui::Button;
-use ui::ButtonCommon;
-use ui::Clickable;
-use ui::FluentBuilder;
+use ui::ButtonCommon as _;
+use ui::Clickable as _;
+use ui::FluentBuilder as _;
 use ui::LabelSize;
 use ui::Tooltip;
 use workspace::StatusItemView;
@@ -63,7 +63,7 @@ impl Render for ActiveBufferLanguage {
             el.child(
                 Button::new("change-language", active_language_text)
                     .label_size(LabelSize::Small)
-                    .tab_index(0isize)
+                    .tab_index(0_isize)
                     .on_click(cx.listener(|this, _, window, cx| {
                         if let Some(workspace) = this.workspace.upgrade() {
                             workspace.update(cx, |workspace, cx| LanguageSelector::toggle(workspace, window, cx));

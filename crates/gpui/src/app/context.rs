@@ -7,7 +7,7 @@ use std::ops;
 use std::sync::Arc;
 
 use anyhow::Result;
-use futures::FutureExt;
+use futures::FutureExt as _;
 use gpui_util::Deferred;
 
 use super::App;
@@ -93,7 +93,7 @@ impl<'a, T: 'static> Context<'a, T> {
         self.app.observe_internal(entity, move |entity, cx| invoke_observer(&observer, entity, cx, &mut on_notify))
     }
 
-    /// Observe changes to ourselves
+    /// Observe changes to ourselves.
     pub fn observe_self(&mut self, mut on_event: impl FnMut(&mut T, &mut Context<T>) + 'static) -> Subscription
     where
         T: 'static,
@@ -102,7 +102,7 @@ impl<'a, T: 'static> Context<'a, T> {
         self.app.observe(&this, move |this, cx| this.update(cx, |this, cx| on_event(this, cx)))
     }
 
-    /// Subscribe to an event type from another entity
+    /// Subscribe to an event type from another entity.
     pub fn subscribe<T2, Evt>(
         &mut self,
         entity: &Entity<T2>,
@@ -119,7 +119,7 @@ impl<'a, T: 'static> Context<'a, T> {
         })
     }
 
-    /// Subscribe to an event type from ourself
+    /// Subscribe to an event type from ourself.
     pub fn subscribe_self<Evt>(
         &mut self,
         mut on_event: impl FnMut(&mut T, &Evt, &mut Context<T>) + 'static,
@@ -146,7 +146,7 @@ impl<'a, T: 'static> Context<'a, T> {
         )
     }
 
-    /// Register a callback to be run on the release of another entity
+    /// Register a callback to be run on the release of another entity.
     pub fn observe_release<T2>(
         &self,
         entity: &Entity<T2>,
@@ -169,7 +169,7 @@ impl<'a, T: 'static> Context<'a, T> {
         )
     }
 
-    /// Register a callback to for updates to the given global
+    /// Register a callback to for updates to the given global.
     pub fn observe_global<G: 'static>(&mut self, mut f: impl FnMut(&mut T, &mut Context<T>) + 'static) -> Subscription
     where
         T: 'static,
@@ -250,7 +250,7 @@ impl<'a, T: 'static> Context<'a, T> {
         move |e: E, window: &mut Window, cx: &mut App| view.update(cx, |view, cx| f(view, e, window, cx))
     }
 
-    /// Run something using this entity and cx, when the returned struct is dropped
+    /// Run something using this entity and cx, when the returned struct is dropped.
     pub fn on_drop(&self, f: impl FnOnce(&mut T, &mut Context<T>) + 'static) -> Deferred<impl FnOnce()> {
         let this = self.weak_entity();
         let mut cx = self.to_async();

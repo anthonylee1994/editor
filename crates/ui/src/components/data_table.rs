@@ -29,24 +29,24 @@ use crate::DraggedColumn;
 use crate::ElementId;
 use crate::FluentBuilder as _;
 use crate::HeaderResizeInfo;
-use crate::InteractiveElement;
+use crate::InteractiveElement as _;
 use crate::IntoElement;
-use crate::ParentElement;
+use crate::ParentElement as _;
 use crate::Pixels;
 use crate::RESIZE_DIVIDER_WIDTH;
 use crate::RedistributableColumnsState;
 use crate::RenderOnce;
 use crate::ScrollAxes;
-use crate::ScrollableHandle;
+use crate::ScrollableHandle as _;
 use crate::Scrollbars;
 use crate::SharedString;
-use crate::StatefulInteractiveElement;
-use crate::Styled;
+use crate::StatefulInteractiveElement as _;
+use crate::Styled as _;
 use crate::StyledExt as _;
-use crate::StyledTypography;
+use crate::StyledTypography as _;
 use crate::TableResizeBehavior;
 use crate::Window;
-use crate::WithScrollbar;
+use crate::WithScrollbar as _;
 use crate::bind_redistributable_columns;
 use crate::div;
 use crate::h_flex;
@@ -60,7 +60,7 @@ use crate::table_row::TableRow;
 pub mod table_row;
 
 /// Represents an unchecked table row, which is a vector of elements.
-/// Will be converted into `TableRow<T>` internally
+/// Will be converted into `TableRow<T>` internally.
 pub type UncheckedTableRow<T> = Vec<T>;
 
 /// State for independently resizable columns (spreadsheet-style).
@@ -165,7 +165,7 @@ struct UniformListData {
 }
 
 struct VariableRowHeightListData {
-    /// Unlike UniformList, this closure renders only single row, allowing each one to have its own height
+    /// Unlike UniformList, this closure renders only single row, allowing each one to have its own height.
     #[allow(clippy::type_complexity)]
     render_row_fn: Box<dyn Fn(usize, &mut Window, &mut App) -> UncheckedTableRow<AnyElement>>,
     list_state: ListState,
@@ -330,7 +330,7 @@ impl ColumnWidthConfig {
     }
 }
 
-/// A table component
+/// A table component.
 #[derive(IntoElement)]
 pub struct Table {
     striped: bool,
@@ -345,7 +345,7 @@ pub struct Table {
     use_ui_font: bool,
     #[allow(clippy::type_complexity)]
     empty_table_callback: Option<Rc<dyn Fn(&mut Window, &mut App) -> AnyElement>>,
-    /// The number of columns in the table. Used to assert column numbers in `TableRow` collections
+    /// The number of columns in the table. Used to assert column numbers in `TableRow` collections.
     cols: usize,
     disable_base_cell_style: bool,
     pinned_cols: usize,
@@ -385,10 +385,10 @@ impl Table {
         self
     }
 
-    /// Disables based styling of row cell (paddings, text ellipsis, nowrap, etc), keeping width settings
+    /// Disables based styling of row cell (paddings, text ellipsis, nowrap, etc), keeping width settings.
     ///
     /// Doesn't affect base style of header cell.
-    /// Doesn't remove overflow-hidden
+    /// Doesn't remove overflow-hidden.
     pub const fn disable_base_style(mut self) -> Self {
         self.disable_base_cell_style = true;
         self
@@ -435,7 +435,7 @@ impl Table {
         self
     }
 
-    /// Hides the border lines between rows
+    /// Hides the border lines between rows.
     pub const fn hide_row_borders(mut self) -> Self {
         self.show_row_borders = false;
         self
@@ -573,7 +573,7 @@ pub fn render_table_row(
 ) -> AnyElement {
     let is_striped = table_context.striped;
     let is_last = row_index == table_context.total_row_count - 1;
-    let bg = if row_index % 2 == 1 && is_striped { Some(cx.theme().colors().text.opacity(0.05)) } else { None };
+    let bg = (row_index % 2 == 1 && is_striped).then(|| cx.theme().colors().text.opacity(0.05));
     let cols = items.cols();
     let column_widths = match &table_context.column_widths {
         Some(widths) => widths.clone().map(Some),
@@ -1163,7 +1163,7 @@ mod tests {
     }
 
     #[test]
-    fn test_drag_to_resizes_only_dragged_column() {
+    fn drag_to_resizes_only_dragged_column() {
         let rem_size = px(16.);
         let mut state = ResizableColumnsState::new(
             3,
@@ -1180,7 +1180,7 @@ mod tests {
     }
 
     #[test]
-    fn test_drag_to_clamps_to_min_size() {
+    fn drag_to_clamps_to_min_size() {
         let rem_size = px(16.);
         let mut state = ResizableColumnsState::new(
             2,
@@ -1195,7 +1195,7 @@ mod tests {
     }
 
     #[test]
-    fn test_reset_column_to_initial_width() {
+    fn reset_column_to_initial_width() {
         let rem_size = px(16.);
         let mut state = ResizableColumnsState::new(1, vec![px(150.)], vec![TableResizeBehavior::Resizable]);
 

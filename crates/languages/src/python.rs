@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::fmt::Write;
+use std::fmt::Write as _;
 use std::iter;
 use std::num::NonZeroU32;
 use std::path::PathBuf;
@@ -93,13 +93,13 @@ impl ManifestProvider for PyprojectTomlManifestProvider {
         let mut outermost_workspace_root = None;
 
         for path in path.ancestors().take(depth) {
-            let pyproject_path = path.join(RelPath::from_unix_str("pyproject.toml").unwrap());
+            let pyproject_path = path.join(RelPath::from_unix_str("pyproject.toml").expect("valid relative path"));
             if delegate.exists(&pyproject_path, Some(false)) {
                 if innermost_pyproject.is_none() {
                     innermost_pyproject = Some(Arc::from(path));
                 }
 
-                let lockfile_path = path.join(RelPath::from_unix_str("uv.lock").unwrap());
+                let lockfile_path = path.join(RelPath::from_unix_str("uv.lock").expect("valid relative path"));
                 if delegate.exists(&lockfile_path, Some(false)) {
                     outermost_workspace_root = Some(Arc::from(path));
                 }
@@ -325,7 +325,7 @@ impl PythonContextProvider {
             (None, Some(method_name)) => {
                 format!("{file_path}::{method_name}")
             }
-            (None, None) => file_path.to_string(),
+            (None, None) => file_path.to_owned(),
         };
 
         Some((PYTHON_TEST_TARGET_TASK_VARIABLE.clone(), pytest_target_str))
@@ -350,7 +350,7 @@ fn python_module_name_from_relative_path(relative_path: &str) -> Option<String> 
 /// Settings for Python.
 pub(crate) fn settings() -> LanguageSettings {
     LanguageSettings {
-        tab_size: NonZeroU32::new(4).unwrap(),
+        tab_size: NonZeroU32::new(4).expect("non-zero"),
         hard_tabs: false,
         soft_wrap: false,
         preferred_line_length: 120,

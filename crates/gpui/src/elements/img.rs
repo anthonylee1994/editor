@@ -1,5 +1,5 @@
 use std::fs;
-use std::io::{self};
+use std::io;
 use std::ops::Deref;
 use std::ops::DerefMut;
 use std::path::Path;
@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use anyhow::Result;
 use futures::Future;
-use gpui_util::ResultExt;
+use gpui_util::ResultExt as _;
 use image::ImageError;
 use image::ImageFormat;
 use scheduler::Instant;
@@ -56,25 +56,25 @@ pub const LOADING_DELAY: Duration = Duration::from_millis(200);
 /// A type alias to the resource loader that the `img()` element uses.
 ///
 /// Note: that this is only for Resources, like URLs or file paths.
-/// Custom loaders, or external images will not use this asset loader
+/// Custom loaders, or external images will not use this asset loader.
 pub type ImgResourceLoader = AssetLogger<ImageAssetLoader>;
 
 /// A source of image content.
 #[derive(Clone)]
 pub enum ImageSource {
-    /// The image content will be loaded from some resource location
+    /// The image content will be loaded from some resource location.
     Resource(Resource),
-    /// Cached image data
+    /// Cached image data.
     Render(Arc<RenderImage>),
-    /// Cached image data
+    /// Cached image data.
     Image(Arc<Image>),
-    /// A custom loading function to use
+    /// A custom loading function to use.
     Custom(Arc<dyn Fn(&mut Window, &mut App) -> Option<Result<Arc<RenderImage>, ImageCacheError>>>),
 }
 
 impl<'a> From<&'a str> for ImageSource {
     fn from(s: &'a str) -> Self {
-        Self::Resource(Resource::Embedded(s.to_string().into()))
+        Self::Resource(Resource::Embedded(s.to_owned().into()))
     }
 }
 
@@ -206,7 +206,7 @@ pub fn img(source: impl Into<ImageSource>) -> Img {
 }
 
 impl Img {
-    /// A list of all format extensions currently supported by this img element
+    /// A list of all format extensions currently supported by this img element.
     pub const fn extensions() -> &'static [&'static str] {
         // The `image` crate is built with only these decoders enabled, plus `svg` via resvg
         &["jpg", "jpeg", "png", "gif", "webp", "svg"]
@@ -241,14 +241,14 @@ impl DerefMut for Stateful<Img> {
     }
 }
 
-/// The image state between frames
+/// The image state between frames.
 struct ImgState {
     frame_index: usize,
     last_frame_time: Option<Instant>,
     started_loading: Option<(Instant, Task<()>)>,
 }
 
-/// The image layout state between frames
+/// The image layout state between frames.
 pub struct ImgLayoutState {
     frame_index: usize,
     replacement: Option<AnyElement>,
@@ -302,8 +302,12 @@ impl Element for Img {
                                             state.frame_index = (state.frame_index + 1) % frame_count;
                                             state.last_frame_time = Some(
                                                 current_time
-                                                    .checked_sub(elapsed.checked_sub(frame_duration).unwrap())
-                                                    .unwrap(),
+                                                    .checked_sub(
+                                                        elapsed
+                                                            .checked_sub(frame_duration)
+                                                            .expect("elapsed >= frame duration"),
+                                                    )
+                                                    .expect("overshoot is within elapsed time"),
                                             );
                                         }
                                     } else {
@@ -504,7 +508,7 @@ impl ImageSource {
         }
     }
 
-    /// Remove this image source from the asset system
+    /// Remove this image source from the asset system.
     pub fn remove_asset(&self, cx: &mut App) {
         match self {
             ImageSource::Resource(resource) => {
@@ -529,7 +533,7 @@ impl Asset for ImageDecoder {
     }
 }
 
-/// An image loader for the GPUI asset system
+/// An image loader for the GPUI asset system.
 #[derive(Clone)]
 pub struct ImageAssetLoader(!);
 
@@ -541,7 +545,7 @@ impl Asset for ImageAssetLoader {
         // TODO: Can we make SVGs always rescale?
         // let scale_factor = cx.scale_factor();
         let svg_renderer = cx.svg_renderer();
-        let asset_source = cx.asset_source().clone();
+        let asset_source = Arc::clone(cx.asset_source());
         async move {
             let bytes = match source.clone() {
                 Resource::Path(uri) => fs::read(uri.as_ref())?,
@@ -573,7 +577,7 @@ impl Asset for ImageAssetLoader {
 /// An error that can occur when interacting with the image cache.
 #[derive(Debug, Error, Clone)]
 pub enum ImageCacheError {
-    /// Some other kind of error occurred
+    /// Some other kind of error occurred.
     #[error("error: {0}")]
     Other(#[from] Arc<anyhow::Error>),
     /// An error that occurred while reading the image from disk.

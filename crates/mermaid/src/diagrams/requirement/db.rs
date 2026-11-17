@@ -38,7 +38,8 @@ impl<V> Default for Ordered<V> {
 impl<V> Ordered<V> {
     /// The record for `key`.
     pub(crate) fn get(&self, key: &str) -> Option<&V> {
-        self.index.get(key).and_then(|&at| self.values.get(at))
+        let &at = self.index.get(key)?;
+        self.values.get(at)
     }
 
     /// Whether a record has `key`.

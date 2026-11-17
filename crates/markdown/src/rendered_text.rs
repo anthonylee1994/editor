@@ -22,7 +22,7 @@ use super::Pixels;
 use super::Point;
 use super::Range;
 use super::Rc;
-use super::ResultExt;
+use super::ResultExt as _;
 use super::Rope;
 use super::SharedString;
 use super::SmallVec;
@@ -103,14 +103,14 @@ pub(crate) struct RenderedLine {
     pub(crate) source_end: usize,
     pub(crate) language: Option<Arc<Language>>,
     pub(crate) text_align: TextAlign,
-    /// Highlighted source ranges intersecting this line, in paint order
+    /// Highlighted source ranges intersecting this line, in paint order.
     pub(crate) highlights: SmallVec<[(Range<usize>, Hsla); 1]>,
-    /// Inline code chip ranges intersecting this line, in rendered indices
+    /// Inline code chip ranges intersecting this line, in rendered indices.
     pub(crate) code_chips: SmallVec<[(Range<usize>, Hsla); 1]>,
 }
 
 impl RenderedLine {
-    /// Painted before the glyphs so the text renders on top of the chips
+    /// Painted before the glyphs so the text renders on top of the chips.
     fn paint_code_chips(&self, window: &mut Window) {
         const CHIP_CORNER_RADIUS: Pixels = px(4.);
 
@@ -147,7 +147,7 @@ impl RenderedLine {
     }
 
     /// Painted between the text run backgrounds and the glyphs, so opaque highlight
-    /// colors neither hide the text nor get hidden by run backgrounds
+    /// colors neither hide the text nor get hidden by run backgrounds.
     fn paint_highlights(&self, window: &mut Window) {
         if self.highlights.is_empty() {
             return;
@@ -621,7 +621,8 @@ impl RenderedText {
             if source_index > line.source_end {
                 continue;
             }
-            let line_source_start = line.source_mappings.first().unwrap().source_index;
+            let line_source_start =
+                line.source_mappings.first().expect("rendered lines have source mappings").source_index;
             let source_index = source_index.max(line_source_start);
             let line_height = line.layout.line_height();
             let rendered_index_within_line = line.rendered_index_for_source_index(source_index);
@@ -637,7 +638,8 @@ impl RenderedText {
                 continue;
             }
 
-            let line_rendered_start = line.source_mappings.first().unwrap().rendered_index;
+            let line_rendered_start =
+                line.source_mappings.first().expect("rendered lines have source mappings").rendered_index;
             let rendered_index_in_line = line.rendered_index_for_source_index(source_index) - line_rendered_start;
             let text = line.layout.text();
 
@@ -682,7 +684,8 @@ impl RenderedText {
             if source_index > line.source_end {
                 continue;
             }
-            let line_source_start = line.source_mappings.first().unwrap().source_index;
+            let line_source_start =
+                line.source_mappings.first().expect("rendered lines have source mappings").source_index;
             return line_source_start..line.source_end;
         }
 
@@ -696,7 +699,8 @@ impl RenderedText {
             if range.start > line.source_end {
                 continue;
             }
-            let line_source_start = line.source_mappings.first().unwrap().source_index;
+            let line_source_start =
+                line.source_mappings.first().expect("rendered lines have source mappings").source_index;
             if range.end < line_source_start {
                 break;
             }

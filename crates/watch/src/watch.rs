@@ -57,7 +57,7 @@ pub fn channel<T>(value: T) -> (Sender<T>, Receiver<T>) {
         closed: false,
     }));
 
-    (Sender { state: state.clone() }, Receiver { state, version: 0 })
+    (Sender { state: Arc::clone(&state) }, Receiver { state, version: 0 })
 }
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -86,7 +86,7 @@ pub struct Sender<T> {
 impl<T> Sender<T> {
     pub fn receiver(&self) -> Receiver<T> {
         let version = self.state.read().version;
-        Receiver { state: self.state.clone(), version }
+        Receiver { state: Arc::clone(&self.state), version }
     }
 
     pub fn send(&mut self, value: T) -> Result<(), NoReceiverError> {

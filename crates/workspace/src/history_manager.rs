@@ -2,14 +2,14 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use fs::Fs;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::Entity;
 use gpui::Global;
 use gpui::MenuItem;
 use smallvec::SmallVec;
 use ui::App;
 use ui::Context;
-use util::paths::PathExt;
+use util::paths::PathExt as _;
 
 use crate::NewWindow;
 use crate::ProjectLocation;

@@ -106,14 +106,14 @@ fn create_highlight_endpoints(
 
             let mut iter = ranges_.iter();
             buffer.summaries_for_anchors_cb(ranges_.iter().map(|r| &r.start), |start: MultiBufferOffset| {
-                text_highlights_scratch.push((start, iter.next().unwrap().end));
+                text_highlights_scratch.push((start, iter.next().expect("one summary per range").end));
             });
             text_highlights_scratch.sort_by(|a, b| a.1.cmp(&b.1, buffer));
             let mut iter = text_highlights_scratch.iter();
             buffer.summaries_for_anchors_cb(
                 text_highlights_scratch.iter().map(|(_, end)| end),
                 |end: MultiBufferOffset| {
-                    let start = iter.next().unwrap().0;
+                    let start = iter.next().expect("one summary per range").0;
                     if start == end {
                         return;
                     }
@@ -147,7 +147,7 @@ fn create_highlight_endpoints(
             buffer.summaries_for_anchors_cb(
                 ranges_.iter().map(|token| &token.range.start),
                 |start: MultiBufferOffset| {
-                    semantic_highlights_scratch.push((start, iter.next().unwrap()));
+                    semantic_highlights_scratch.push((start, iter.next().expect("one summary per token")));
                 },
             );
             semantic_highlights_scratch.sort_by(|a, b| a.1.range.end.cmp(&b.1.range.end, buffer));
@@ -155,7 +155,7 @@ fn create_highlight_endpoints(
             buffer.summaries_for_anchors_cb(
                 semantic_highlights_scratch.iter().map(|(_, token)| &token.range.end),
                 |end: MultiBufferOffset| {
-                    let (start, token) = iter.next().unwrap();
+                    let (start, token) = iter.next().expect("one summary per token");
                     if *start == end {
                         return;
                     }
@@ -207,7 +207,7 @@ impl<'a> Iterator for CustomHighlightsChunks<'a> {
         let (prefix, suffix) = chunk.text.split_at(split_idx);
         self.offset += prefix.len();
 
-        let mask = 1u128.unbounded_shl(split_idx as u32).wrapping_sub(1);
+        let mask = 1_u128.unbounded_shl(split_idx as u32).wrapping_sub(1);
         let chars = chunk.chars & mask;
         let tabs = chunk.tabs & mask;
         let newlines = chunk.newlines & mask;

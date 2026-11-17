@@ -4,12 +4,12 @@ use std::sync::Arc;
 
 /// The OpenType features that can be configured for a given font.
 #[derive(Clone, Eq, PartialEq, Hash)]
-pub struct FontFeatures(pub Arc<Vec<(String, u32)>>);
+pub struct FontFeatures(pub Arc<[(String, u32)]>);
 
 impl Default for FontFeatures {
     /// Shares one empty list, since a default `TextStyle` is built many times per frame.
     fn default() -> Self {
-        static EMPTY: std::sync::LazyLock<Arc<Vec<(String, u32)>>> = std::sync::LazyLock::new(|| Arc::new(Vec::new()));
+        static EMPTY: std::sync::LazyLock<Arc<[(String, u32)]>> = std::sync::LazyLock::new(|| Arc::new([]));
         Self(EMPTY.clone())
     }
 }
@@ -17,13 +17,13 @@ impl Default for FontFeatures {
 impl FontFeatures {
     /// Disables `calt`.
     pub fn disable_ligatures() -> Self {
-        Self(Arc::new(vec![("calt".into(), 0)]))
+        Self(Arc::new([("calt".into(), 0)]))
     }
 
     /// Get the tag name list of the font OpenType features
-    /// only enabled or disabled features are returned
+    /// only enabled or disabled features are returned.
     pub fn tag_value_list(&self) -> &[(String, u32)] {
-        self.0.as_slice()
+        &self.0
     }
 }
 
@@ -86,7 +86,7 @@ impl<'de> serde::Deserialize<'de> for FontFeatures {
                             }
                             FeatureValue::Number(value) => {
                                 if value.is_u64() {
-                                    feature_list.push((key, value.as_u64().unwrap() as u32));
+                                    feature_list.push((key, value.as_u64().expect("value is u64") as u32));
                                 } else {
                                     log::error!("Incorrect font feature value {value} for feature tag {key}");
                                 }
@@ -95,7 +95,7 @@ impl<'de> serde::Deserialize<'de> for FontFeatures {
                     }
                 }
 
-                Ok(FontFeatures(Arc::new(feature_list)))
+                Ok(FontFeatures(feature_list.into()))
             }
         }
 
@@ -109,7 +109,7 @@ impl serde::Serialize for FontFeatures {
     where
         S: serde::Serializer,
     {
-        use serde::ser::SerializeMap;
+        use serde::ser::SerializeMap as _;
 
         let mut map = serializer.serialize_map(None)?;
 

@@ -188,7 +188,8 @@ impl Groups {
 
     /// The parent of group `g`, if any.
     fn up(&self, g: Option<usize>) -> Option<usize> {
-        g.and_then(|g| self.parent[g])
+        let g = g?;
+        self.parent[g]
     }
 
     /// How many groups hold `g`, itself included; 0 for none.
@@ -404,7 +405,11 @@ pub(crate) fn layered(nodes: &mut [LNode], edges: &mut [LEdge], opt: &LayeredOpt
 /// place` pairs from its first node to its last along the flow, and the result holds the
 /// crossings of the order found and of the order before it was changed, but no size. Groups
 /// that name no group there is, or hold themselves, are left out.
-#[expect(clippy::many_single_char_names, reason = "names mirror Pele's layered.ts for side-by-side review")]
+#[expect(
+    clippy::too_many_lines,
+    clippy::many_single_char_names,
+    reason = "mirrors Pele's layered.ts for side-by-side review"
+)]
 pub(crate) fn layered_with(
     nodes: &mut [LNode],
     edges: &mut [LEdge],
@@ -461,7 +466,7 @@ pub(crate) fn layered_with(
     let mut w = vec![0.0; n];
     let mut h = vec![0.0; n];
     let mut kind = vec![Kind::Node; n];
-    let mut ranks = vec![0usize; n];
+    let mut ranks = vec![0_usize; n];
     let mut max_rank = 0;
     for (i, node) in nodes.iter().enumerate() {
         w[i] = node.w;
@@ -475,21 +480,21 @@ pub(crate) fn layered_with(
     // An edge whose head ranks above its tail (only around a self-loop) counts bends it never
     // gets, as in Pele, and those slots stay zero.
     let segments: usize = (0..m).filter(|&ei| !direct[ei]).map(|ei| span[ei]).sum();
-    let mut ef = vec![0usize; segments];
-    let mut et = vec![0usize; segments];
+    let mut ef = vec![0_usize; segments];
+    let mut et = vec![0_usize; segments];
     let mut efd = vec![0.0; segments];
     let mut etd = vec![0.0; segments];
     let mut first_dummy: Vec<Option<usize>> = vec![None; m];
     // Which way the edges with a label in each rank head: 1 down, 2 up, 3 both.
-    let mut heads = vec![0u8; max_rank + 1];
+    let mut heads = vec![0_u8; max_rank + 1];
     let mut label_node: Vec<Option<usize>> = vec![None; m];
     let spans = nodes.iter().any(|v| v.span > 0.0 && v.kind == Kind::Node);
     // What each segment's end is to the node it meets, for the ends that may move along a side.
     let ends = if spans { segments } else { 0 };
     let mut efk = vec![End::Held; ends];
     let mut etk = vec![End::Held; ends];
-    let mut first_seg = vec![0usize; m];
-    let mut last_seg = vec![0usize; m];
+    let mut first_seg = vec![0_usize; m];
+    let mut last_seg = vec![0_usize; m];
     let mut key = vec![f64::NAN; n];
     for (i, node) in nodes.iter().enumerate() {
         key[i] = node.key;
@@ -582,8 +587,8 @@ pub(crate) fn layered_with(
         grp
     });
 
-    let mut succ_start = vec![0usize; n + 1];
-    let mut pred_start = vec![0usize; n + 1];
+    let mut succ_start = vec![0_usize; n + 1];
+    let mut pred_start = vec![0_usize; n + 1];
     for e in 0..segments {
         succ_start[ef[e] + 1] += 1;
         pred_start[et[e] + 1] += 1;
@@ -592,8 +597,8 @@ pub(crate) fn layered_with(
         succ_start[i + 1] += succ_start[i];
         pred_start[i + 1] += pred_start[i];
     }
-    let mut succ_e = vec![0usize; segments];
-    let mut pred_e = vec![0usize; segments];
+    let mut succ_e = vec![0_usize; segments];
+    let mut pred_e = vec![0_usize; segments];
     {
         let mut sf = succ_start[..n].to_vec();
         let mut pf = pred_start[..n].to_vec();
@@ -605,18 +610,18 @@ pub(crate) fn layered_with(
         }
     }
 
-    let mut layer_start = vec![0usize; max_rank + 2];
+    let mut layer_start = vec![0_usize; max_rank + 2];
     for &r in &ranks {
         layer_start[r + 1] += 1;
     }
     for r in 0..=max_rank {
         layer_start[r + 1] += layer_start[r];
     }
-    let mut order = vec![0usize; n];
+    let mut order = vec![0_usize; n];
 
     // Initial order: depth-first from the top so that subtrees start out contiguous.
     {
-        let mut by_rank = vec![0usize; n];
+        let mut by_rank = vec![0_usize; n];
         let mut fill = layer_start[..=max_rank].to_vec();
         for i in 0..n {
             by_rank[fill[ranks[i]]] = i;
@@ -775,9 +780,9 @@ pub(crate) fn layered_with(
     // An edge is cut where it passes a rank that holds something, and each piece crosses one
     // gap. With `tracks`, every piece that does not run straight gets a track; otherwise, where
     // edges spread along their nodes, a piece gets one only if it needs a level to turn onto.
-    let mut piece_start = vec![0usize; m + 1];
+    let mut piece_start = vec![0_usize; m + 1];
     let mut pieces = (opt.tracks || (spans && !opt.straight)).then(Pieces::default);
-    let mut track_count = vec![0usize; max_rank + 1];
+    let mut track_count = vec![0_usize; max_rank + 1];
     if let Some(pieces) = pieces.as_mut() {
         for ei in 0..m {
             piece_start[ei] = pieces.from.len();
@@ -871,7 +876,7 @@ pub(crate) fn layered_with(
     let margin = if opt.tracks { TRACK_MARGIN } else { LEVEL_MARGIN };
     let least_pitch = if opt.tracks { TRACK_PITCH } else { LEVEL_PITCH };
     let most_pitch = if opt.tracks { TRACK_SPREAD } else { LEVEL_PITCH };
-    let mut below = vec![0usize; max_rank + 1];
+    let mut below = vec![0_usize; max_rank + 1];
     if let Some(pieces) = pieces.as_mut() {
         let mut room = vec![0.0; max_rank + 1];
         for r in 0..max_rank {
@@ -1125,7 +1130,7 @@ pub(crate) fn orient(nodes: &[LNode], edges: &mut [LEdge]) {
     if !valid(n, edges) {
         return;
     }
-    let mut start = vec![0usize; n + 1];
+    let mut start = vec![0_usize; n + 1];
     for e in edges.iter_mut() {
         e.reversed = nodes[e.head].kind == Kind::StartPort || nodes[e.tail].kind == Kind::EndPort;
         if !e.reversed {
@@ -1135,7 +1140,7 @@ pub(crate) fn orient(nodes: &[LNode], edges: &mut [LEdge]) {
     for i in 0..n {
         start[i + 1] += start[i];
     }
-    let mut out = vec![0usize; start[n]];
+    let mut out = vec![0_usize; start[n]];
     {
         let mut fill = start[..n].to_vec();
         for (i, e) in edges.iter().enumerate() {
@@ -1145,7 +1150,7 @@ pub(crate) fn orient(nodes: &[LNode], edges: &mut [LEdge]) {
             }
         }
     }
-    let mut state = vec![0u8; n];
+    let mut state = vec![0_u8; n];
     let mut cursor = start[..n].to_vec();
     let mut stack = Vec::new();
     for root in 0..n {
@@ -1184,11 +1189,11 @@ pub(crate) fn rank(nodes: &mut [LNode], edges: &[LEdge], step: usize) {
     }
     let m = edges.len();
     let step = i64::from(u32::try_from(step).unwrap_or(u32::MAX));
-    let mut from = vec![0usize; m];
-    let mut to = vec![0usize; m];
-    let mut len = vec![0i64; m];
-    let mut out_start = vec![0usize; n + 1];
-    let mut in_start = vec![0usize; n + 1];
+    let mut from = vec![0_usize; m];
+    let mut to = vec![0_usize; m];
+    let mut len = vec![0_i64; m];
+    let mut out_start = vec![0_usize; n + 1];
+    let mut in_start = vec![0_usize; n + 1];
     for (i, e) in edges.iter().enumerate() {
         let (a, b) = if e.reversed { (e.head, e.tail) } else { (e.tail, e.head) };
         from[i] = a;
@@ -1201,8 +1206,8 @@ pub(crate) fn rank(nodes: &mut [LNode], edges: &[LEdge], step: usize) {
         out_start[i + 1] += out_start[i];
         in_start[i + 1] += in_start[i];
     }
-    let mut out_e = vec![0usize; m];
-    let mut in_e = vec![0usize; m];
+    let mut out_e = vec![0_usize; m];
+    let mut in_e = vec![0_usize; m];
     {
         let mut of = out_start[..n].to_vec();
         let mut inf = in_start[..n].to_vec();
@@ -1214,7 +1219,7 @@ pub(crate) fn rank(nodes: &mut [LNode], edges: &[LEdge], step: usize) {
         }
     }
 
-    let mut r = vec![0i64; n];
+    let mut r = vec![0_i64; n];
     // Start ports go above every node later, so they don't push their targets down a rank.
     for (i, node) in nodes.iter().enumerate() {
         if node.kind == Kind::StartPort {
@@ -1431,7 +1436,7 @@ fn align_ports(g: &Graph, xs: &mut [f64], empty: Option<&[bool]>) {
 /// How many ends that may move along it each node has on the side its edges arrive at, and on
 /// the other.
 fn free_ends(g: &Graph, efk: &[End], etk: &[End]) -> [Vec<u32>; 2] {
-    let mut free = [vec![0u32; g.n], vec![0u32; g.n]];
+    let mut free = [vec![0_u32; g.n], vec![0_u32; g.n]];
     for e in 0..g.ef.len() {
         if etk[e] != End::Held {
             free[0][g.et[e]] += 1;
@@ -2000,7 +2005,7 @@ fn lay(bounds: &Bounds<'_>, track: &mut [isize], levels: &mut [usize], list: &mu
     if weighed {
         // above[j] lists the pieces that should be above list[j]. A piece is placed once all
         // that should be above it are, and when none is free, the one with the fewest waiting.
-        let mut waiting = vec![0usize; count];
+        let mut waiting = vec![0_usize; count];
         let mut after: Vec<Vec<usize>> = vec![Vec::new(); count];
         above = vec![Vec::new(); count];
         for &(i, j) in &pairs {
@@ -2475,7 +2480,7 @@ fn by_offset(list: &mut [usize], dx: &[f64]) -> bool {
 fn count_crossings(g: &Graph, c: &mut Counter) -> u64 {
     let Counter { leaving, mixed, place, place_in, places, targets, tree } = c;
     let ls = &g.layer_start;
-    let mut total = 0u64;
+    let mut total = 0_u64;
     for r in 0..g.max_rank {
         let south_len = if let Some(place) = place.as_mut() {
             let mut next = 0;
@@ -2809,7 +2814,7 @@ fn reduce_crossings(g: &mut Graph, nodes: &[LNode]) -> (u64, u64) {
 
     let declared = count_crossings(g, &mut counter);
     let mut bary = vec![0.0; g.n];
-    let mut moving = vec![0usize; widest];
+    let mut moving = vec![0_usize; widest];
     let mut groups = Arrange::new(g);
     if g.grp.is_some() {
         let mut at = vec![0.0; g.n];
@@ -2914,7 +2919,7 @@ fn position(g: &mut Graph, opt: &LayeredOptions) -> Vec<f64> {
     let gap: Vec<f64> = (0..n).map(|i| half_room(g, opt, i)).collect();
 
     // Neighbours in left-to-right order, so the medians can be read off directly.
-    let mut key = vec![0usize; segments];
+    let mut key = vec![0_usize; segments];
     for e in 0..segments {
         key[e] = g.pos[g.et[e]];
     }
@@ -2969,19 +2974,19 @@ fn position(g: &mut Graph, opt: &LayeredOptions) -> Vec<f64> {
     }
 
     let mut results: Vec<Vec<f64>> = Vec::with_capacity(4);
-    let mut root = vec![0usize; n];
-    let mut align = vec![0usize; n];
+    let mut root = vec![0_usize; n];
+    let mut align = vec![0_usize; n];
     // Offset of each node from its block's root, so that aligned edges meet at their
     // attachment points.
     let mut shift = vec![0.0; n];
-    let mut e_from = vec![0usize; n];
-    let mut e_to = vec![0usize; n];
+    let mut e_from = vec![0_usize; n];
+    let mut e_to = vec![0_usize; n];
     let mut e_w = vec![0.0; n];
-    let mut indeg = vec![0usize; n];
-    let mut out_start = vec![0usize; n + 1];
-    let mut out_e = vec![0usize; n];
-    let mut fill = vec![0usize; n];
-    let mut topo = vec![0usize; n];
+    let mut indeg = vec![0_usize; n];
+    let mut out_start = vec![0_usize; n + 1];
+    let mut out_e = vec![0_usize; n];
+    let mut fill = vec![0_usize; n];
+    let mut topo = vec![0_usize; n];
 
     for variant in 0..4 {
         let up = variant < 2;

@@ -68,14 +68,14 @@ mod tests {
     use super::rems;
 
     #[test]
-    fn test_base_px_matches_variant_name() {
+    fn base_px_matches_variant_name() {
         assert_eq!(DynamicSpacing::Base00.base_px(), 0.0);
         assert_eq!(DynamicSpacing::Base06.base_px(), 6.0);
         assert_eq!(DynamicSpacing::Base48.base_px(), 48.0);
     }
 
     #[test]
-    fn test_rems() {
+    fn rems_works() {
         assert_eq!(DynamicSpacing::Base16.rems(), rems(1.0));
         assert_eq!(DynamicSpacing::Base08.rems(), rems(0.5));
         assert_eq!(DynamicSpacing::Base00.rems(), rems(0.0));

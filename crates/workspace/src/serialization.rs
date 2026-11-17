@@ -11,7 +11,7 @@ use gpui::Context;
 use gpui::Entity;
 use gpui::Task;
 use gpui::WindowHandle;
-use gpui_util::ResultExt;
+use gpui_util::ResultExt as _;
 use project::ProjectPath;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
@@ -186,7 +186,10 @@ impl Workspace {
 
             let opened_items = paths_to_open
                 .into_iter()
-                .map(|path_to_open| path_to_open.and_then(|path_to_open| items_by_project_path.remove(&path_to_open)))
+                .map(|path_to_open| {
+                    let path_to_open = path_to_open?;
+                    items_by_project_path.remove(&path_to_open)
+                })
                 .collect::<Vec<_>>();
 
             // Remove old panes from workspace panes list
@@ -354,7 +357,7 @@ pub async fn restore_workspace(
         .update(|cx| {
             Workspace::new_local(
                 session_workspace.paths.ordered_paths().cloned().collect(),
-                app_state.clone(),
+                Arc::clone(&app_state),
                 None,
                 None,
                 OpenMode::NewWindow,
@@ -398,7 +401,7 @@ fn serialize_pane_handle(
                 let serializable = handle.to_serializable_item_handle(cx).filter(|_| !in_state_dir);
                 let serialized = serializable.and_then(|serializable| {
                     Some(SerializedItem {
-                        kind: serializable.serialized_item_kind().to_string(),
+                        kind: serializable.serialized_item_kind().to_owned(),
                         state: serializable.serialize(workspace, cx)?,
                         active: Some(handle.item_id()) == active_item_id,
                         preview: pane.is_active_preview_item(handle.item_id()),

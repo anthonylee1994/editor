@@ -18,7 +18,7 @@ use gpui::AppContext as _;
 use gpui::Entity;
 use gpui::Subscription;
 use gpui::Task;
-use gpui::TaskExt;
+use gpui::TaskExt as _;
 use gpui::WeakEntity;
 use gpui::actions;
 use language::BinaryStatus;
@@ -43,32 +43,32 @@ use ui::Indicator;
 use ui::PopoverMenu;
 use ui::PopoverMenuHandle;
 use ui::Tooltip;
-use ui::prelude::ActiveTheme;
-use ui::prelude::ButtonCommon;
+use ui::prelude::ActiveTheme as _;
+use ui::prelude::ButtonCommon as _;
 use ui::prelude::Color;
 use ui::prelude::Context;
-use ui::prelude::FluentBuilder;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Icon;
 use ui::prelude::IconButton;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
-use ui::prelude::InteractiveElement;
-use ui::prelude::IntoElement;
+use ui::prelude::InteractiveElement as _;
+use ui::prelude::IntoElement as _;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
-use ui::prelude::ParentElement;
+use ui::prelude::ParentElement as _;
 use ui::prelude::Render;
 use ui::prelude::SharedString;
-use ui::prelude::StatefulInteractiveElement;
-use ui::prelude::Styled;
+use ui::prelude::StatefulInteractiveElement as _;
+use ui::prelude::Styled as _;
 use ui::prelude::Window;
 use ui::prelude::div;
 use ui::prelude::h_flex;
 use ui::prelude::rems_from_px;
 use ui::prelude::v_flex;
-use util::ResultExt;
-use util::paths::PathExt;
+use util::ResultExt as _;
+use util::paths::PathExt as _;
 use util::rel_path::RelPath;
 use workspace::StatusItemView;
 use workspace::Workspace;
@@ -249,7 +249,8 @@ impl LanguageServerHealthStatus {
     }
 
     fn message(&self) -> Option<SharedString> {
-        self.health.as_ref().and_then(|(message, _)| message.clone())
+        let (message, _) = self.health.as_ref()?;
+        message.clone()
     }
 }
 
@@ -279,7 +280,7 @@ impl LanguageServerState {
             })
             .unwrap_or_default();
 
-        let process_memory_cache = self.process_memory_cache.clone();
+        let process_memory_cache = Rc::clone(&self.process_memory_cache);
 
         let mut first_button_encountered = false;
         for item in &self.items {
@@ -357,7 +358,7 @@ impl LanguageServerState {
                 let lsp_store = self.lsp_store.clone();
                 let state = cx.entity().downgrade();
                 let can_stop = submenu_server_info.can_stop();
-                let process_memory_cache = process_memory_cache.clone();
+                let process_memory_cache = Rc::clone(&process_memory_cache);
 
                 move |menu, _window, _cx| {
                     let mut submenu = menu;
@@ -516,7 +517,7 @@ impl LanguageServerState {
                         let binary_display_path = binary_display_path.clone();
                         let server_version = server_version.clone();
                         let server_message = server_message.clone();
-                        let process_memory_cache = process_memory_cache.clone();
+                        let process_memory_cache = Rc::clone(&process_memory_cache);
                         move |_, cx| {
                             let memory_usage =
                                 process_id.map(|pid| process_memory_cache.borrow_mut().get_memory_usage(pid));
@@ -1160,7 +1161,7 @@ impl Render for LspButton {
                     IconButton::new("ed-lsp-tool-button", IconName::BoltOutlined)
                         .when_some(indicator, IconButton::indicator)
                         .icon_size(IconSize::Small)
-                        .tab_index(0isize)
+                        .tab_index(0_isize)
                         .indicator_border_color(Some(cx.theme().colors().status_bar_background)),
                     move |_window, cx| Tooltip::with_meta("Language Servers", Some(&ToggleMenu), description, cx),
                 ),

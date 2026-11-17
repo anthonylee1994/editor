@@ -79,7 +79,8 @@ impl SearchHistory {
     }
 
     pub fn current(&self, cursor: &SearchHistoryCursor) -> Option<&str> {
-        cursor.selection.and_then(|selected_ix| self.history.get(selected_ix).map(String::as_str))
+        let selected_ix = cursor.selection?;
+        self.history.get(selected_ix).map(String::as_str)
     }
 
     /// Get the previous history entry using the given `SearchHistoryCursor`.
@@ -92,7 +93,7 @@ impl SearchHistory {
         let matches_history =
             cursor.selection.and_then(|i| self.history.get(i)).is_some_and(|entry| entry == current_query);
         if !matches_history {
-            cursor.draft = Some(current_query.to_string());
+            cursor.draft = Some(current_query.to_owned());
         }
 
         let prev_index = match cursor.selection {

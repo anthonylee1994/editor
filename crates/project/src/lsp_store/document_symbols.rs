@@ -10,7 +10,7 @@ use gpui::AppContext as _;
 use gpui::Context;
 use gpui::Entity;
 use gpui::Task;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use language::Buffer;
 use language::BufferSnapshot;
 use language::OutlineItem;
@@ -20,7 +20,7 @@ use rustc_hash::FxHashSet;
 use text::Anchor;
 use text::Bias;
 use text::PointUtf16;
-use util::ResultExt;
+use util::ResultExt as _;
 
 use crate::DocumentSymbol;
 use crate::lsp_command::GetDocumentSymbols;
@@ -291,7 +291,7 @@ fn enriched_symbol_text(
     let adjusted_start = start_offset + leading_ws;
 
     Some((
-        trimmed.to_string(),
+        trimmed.to_owned(),
         vec![name_start..trimmed.len()],
         snapshot.anchor_after(adjusted_start)..snapshot.anchor_before(end_offset),
     ))

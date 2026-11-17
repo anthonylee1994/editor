@@ -5,9 +5,9 @@
 
 use std::env;
 use std::fs;
-use std::io::BufRead;
+use std::io::BufRead as _;
 use std::io::BufReader;
-use std::io::Write;
+use std::io::Write as _;
 use std::os::unix::net::UnixStream;
 use std::path::Path;
 use std::path::PathBuf;

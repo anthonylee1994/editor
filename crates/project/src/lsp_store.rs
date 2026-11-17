@@ -33,15 +33,15 @@ use std::cmp::Reverse;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::collections::VecDeque;
-use std::convert::TryInto;
+use std::convert::TryInto as _;
 use std::iter;
 use std::mem;
 use std::ops::Range;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic;
 use std::sync::atomic::AtomicUsize;
-use std::sync::atomic::{self};
 use std::time::Duration;
 use std::time::Instant;
 use std::vec;
@@ -74,13 +74,13 @@ pub use folding_ranges::LspFoldingRange;
 pub use formatting::FormattableBuffer;
 pub use formatting::LspFormatTarget;
 use fs::Fs;
-use futures::FutureExt;
-use futures::StreamExt;
+use futures::FutureExt as _;
+use futures::StreamExt as _;
 use futures::future::Shared;
 use futures::future::join_all;
 use futures::stream::FuturesUnordered;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::AsyncApp;
 use gpui::Context;
 use gpui::Entity;
@@ -102,7 +102,7 @@ use language::Language;
 use language::LanguageName;
 use language::LanguageRegistry;
 use language::LanguageServerStatusUpdate;
-use language::LocalFile;
+use language::LocalFile as _;
 use language::Location;
 use language::ManifestDelegate;
 use language::ManifestName;
@@ -118,7 +118,7 @@ use lsp::LanguageServerBinary;
 use lsp::LanguageServerId;
 use lsp::LanguageServerName;
 use lsp::LanguageServerSelector;
-use lsp::LspRequestFuture;
+use lsp::LspRequestFuture as _;
 use lsp::MessageActionItem;
 use lsp::MessageType;
 use lsp::OneOf;
@@ -127,7 +127,7 @@ pub use lsp_store::inlay_hints::CacheInlayHints;
 pub use lsp_store::inlay_hints::CacheInlayHintsTask;
 pub use lsp_store::inlay_hints::InvalidationStrategy;
 use parking_lot::Mutex;
-use rand::prelude::RngExt;
+use rand::prelude::RngExt as _;
 use rand::prelude::StdRng;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
@@ -141,13 +141,13 @@ use server_lifecycle::LanguageServerStartMode;
 pub use server_lifecycle::LocalLspAdapterDelegate;
 use server_lifecycle::include_text;
 use server_lifecycle::subscribe_to_binary_statuses;
-use sha2::Digest;
+use sha2::Digest as _;
 use sha2::Sha256;
 use snippet::Snippet;
 use sum_tree::Dimensions;
 use text::Anchor;
 use text::BufferId;
-use text::OffsetRangeExt;
+use text::OffsetRangeExt as _;
 use util::ResultExt as _;
 use util::defer;
 use util::rel_path::RelPath;
@@ -185,10 +185,10 @@ use crate::lsp_command::InlayHints;
 use crate::lsp_command::LinkedEditingRange;
 use crate::lsp_command::LspCommand;
 use crate::lsp_command::file_path_to_lsp_url;
+use crate::lsp_store;
 use crate::lsp_store::folding_ranges::FoldingRangeData;
 use crate::lsp_store::semantic_tokens::SemanticTokenConfig;
 use crate::lsp_store::semantic_tokens::SemanticTokensData;
-use crate::lsp_store::{self};
 use crate::manifest_tree::LanguageServerTree;
 use crate::manifest_tree::LanguageServerTreeNode;
 use crate::manifest_tree::ManifestQueryDelegate;
@@ -344,7 +344,7 @@ impl LocalLspStore {
         if let Some((file, language)) = File::from_dyn(buffer.file()).zip(buffer.language()) {
             let worktree_id = file.worktree_id(cx);
 
-            let path: Arc<RelPath> = file.path().parent().map_or_else(|| file.path().clone(), Arc::from);
+            let path: Arc<RelPath> = file.path().parent().map_or_else(|| Arc::clone(file.path()), Arc::from);
             let worktree_path = ProjectPath { worktree_id, path };
             self.language_server_ids_for_project_path(worktree_path, language, cx)
         } else {
@@ -395,7 +395,7 @@ impl LocalLspStore {
         for server_id in self.lsp_tree.get(path, language.name(), language.manifest(), &delegate, cx) {
             let Some((server, adapter)) = self.language_servers.get(&server_id).and_then(|server_state| {
                 if let LanguageServerState::Running { server, adapter, .. } = server_state {
-                    Some((server.clone(), adapter.clone()))
+                    Some((Arc::clone(server), Arc::clone(adapter)))
                 } else {
                     None
                 }
@@ -418,7 +418,7 @@ impl LocalLspStore {
             let Some(language) = buffer.language() else {
                 return;
             };
-            let path = ProjectPath { worktree_id: old_file.worktree_id(cx), path: old_file.path.clone() };
+            let path = ProjectPath { worktree_id: old_file.worktree_id(cx), path: Arc::clone(&old_file.path) };
             for server_id in self.language_server_ids_for_project_path(path, language, cx) {
                 buffer.update_diagnostics(server_id, DiagnosticSet::new([], buffer), cx);
                 buffer.set_completion_triggers(server_id, BTreeSet::default(), cx);
@@ -487,7 +487,7 @@ impl LocalLspStore {
         let Some(language) = buffer.language().cloned() else {
             return;
         };
-        let path: Arc<RelPath> = file.path().parent().map_or_else(|| file.path().clone(), Arc::from);
+        let path: Arc<RelPath> = file.path().parent().map_or_else(|| Arc::clone(file.path()), Arc::from);
         let Some(worktree) = self.worktree_store.read(cx).worktree_for_id(worktree_id, cx) else {
             return;
         };
@@ -530,7 +530,7 @@ impl LocalLspStore {
 
                         let server_id = self.get_or_insert_language_server(
                             &worktree,
-                            delegate.clone(),
+                            Arc::clone(&delegate),
                             disposition,
                             &language_name,
                             start_mode,
@@ -547,7 +547,7 @@ impl LocalLspStore {
                 })?;
                 let server_state = self.language_servers.get(&server_id)?;
                 if let LanguageServerState::Running { server, adapter, .. } = server_state {
-                    Some((server.clone(), adapter.clone()))
+                    Some((Arc::clone(server), Arc::clone(adapter)))
                 } else {
                     // A server that never starts (not installed, failed) is still listed for the buffer.
                     cx.emit(LspStoreEvent::LanguageServerRegisteredForBuffer {
@@ -725,8 +725,9 @@ impl LocalLspStore {
             let found_snapshot = snapshots
                 .binary_search_by_key(&version, |e| e.version)
                 .map(|ix| snapshots[ix].snapshot.clone())
-                .map_err(|_| {
-                    anyhow!("snapshot not found for buffer {buffer_id} server {server_id} at version {version}")
+                .ok()
+                .with_context(|| {
+                    format!("snapshot not found for buffer {buffer_id} server {server_id} at version {version}")
                 })?;
 
             snapshots.retain(|snapshot| snapshot.version + OLD_VERSIONS_TO_RETAIN >= version);
@@ -771,7 +772,7 @@ impl LocalLspStore {
 
     fn language_server_for_id(&self, id: LanguageServerId) -> Option<Arc<LanguageServer>> {
         if let Some(LanguageServerState::Running { server, .. }) = self.language_servers.get(&id) {
-            Some(server.clone())
+            Some(Arc::clone(server))
         } else {
             None
         }
@@ -1076,7 +1077,7 @@ impl LspStore {
                 weak: cx.weak_entity(),
                 worktree_store: worktree_store.clone(),
 
-                languages: languages.clone(),
+                languages: Arc::clone(&languages),
                 language_server_ids: FxHashMap::default(),
                 language_servers: FxHashMap::default(),
                 last_workspace_edits_by_language_server: FxHashMap::default(),
@@ -1095,7 +1096,7 @@ impl LspStore {
                 diagnostics: FxHashMap::default(),
                 _subscription: cx.on_app_quit(|this, _| this.local.shutdown_language_servers_on_quit()),
                 _binary_status_task: binary_status_task,
-                lsp_tree: LanguageServerTree::new(manifest_tree, languages.clone()),
+                lsp_tree: LanguageServerTree::new(manifest_tree, Arc::clone(&languages)),
                 registered_buffers: FxHashMap::default(),
                 buffers_opened_in_servers: FxHashMap::default(),
                 buffer_pull_diagnostics_result_ids: FxHashMap::default(),
@@ -1108,7 +1109,7 @@ impl LspStore {
             last_formatting_failure: None,
             buffer_store,
             worktree_store,
-            languages: languages.clone(),
+            languages: Arc::clone(&languages),
             language_server_statuses: BTreeMap::default(),
             nonce: rand::make_rng::<StdRng>().random(),
             diagnostic_summaries: FxHashMap::default(),
@@ -1213,7 +1214,7 @@ impl LspStore {
     }
 
     fn on_buffer_added(&mut self, buffer: &Entity<Buffer>, cx: &mut Context<Self>) {
-        buffer.read(cx).set_language_registry(self.languages.clone());
+        buffer.read(cx).set_language_registry(Arc::clone(&self.languages));
 
         cx.subscribe(buffer, |this, buffer, event, cx| {
             this.on_buffer_event(buffer, event, cx);
@@ -1455,7 +1456,7 @@ impl LspStore {
         }
         buffer_entity.update(cx, |buffer, cx| {
             if buffer.language().is_none_or(|old_language| !Arc::ptr_eq(old_language, &new_language)) {
-                buffer.set_language_async(Some(new_language.clone()), cx);
+                buffer.set_language_async(Some(Arc::clone(&new_language)), cx);
             }
         });
 
@@ -1600,7 +1601,7 @@ impl LspStore {
             let lsp_request = language_server.request::<R::LspRequest>(lsp_params, request_timeout);
 
             let id = lsp_request.id();
-            let _cleanup = if status.is_some() {
+            let _cleanup = status.is_some().then(|| {
                 cx.update(|cx| {
                     this.update(cx, |this, cx| {
                         this.on_lsp_work_start(
@@ -1620,17 +1621,15 @@ impl LspStore {
                 })
                 .log_err();
 
-                Some(defer(|| {
+                defer(|| {
                     cx.update(|cx| {
                         this.update(cx, |this, cx| {
                             this.on_lsp_work_end(language_server.server_id(), ProgressToken::Number(id), cx);
                         })
                     })
                     .log_err();
-                }))
-            } else {
-                None
-            };
+                })
+            });
 
             let result = lsp_request.await.into_response();
 
@@ -1836,7 +1835,7 @@ impl LspStore {
         known_chunks: Option<(clock::Global, FxHashSet<Range<BufferRow>>)>,
         cx: &mut Context<Self>,
     ) -> FxHashMap<Range<BufferRow>, Task<Result<CacheInlayHints>>> {
-        let next_hint_id = self.next_hint_id.clone();
+        let next_hint_id = Arc::clone(&self.next_hint_id);
         let capability_probe =
             InlayHints { range: text::Anchor::min_max_range_for_buffer(buffer.read(cx).buffer_id()) };
         let current_servers = self.language_server_ids_for_request(&buffer, &capability_probe, cx);
@@ -1897,7 +1896,7 @@ impl LspStore {
                 None => current_servers.clone(),
             };
 
-            let next_hint_id = next_hint_id.clone();
+            let next_hint_id = Arc::clone(&next_hint_id);
             let buffer = buffer.clone();
             let query_version = query_version.clone();
             let range_to_query = chunk.anchor_range();
@@ -2021,7 +2020,7 @@ impl LspStore {
     }
 
     pub fn symbols(&self, query: &str, cx: &mut Context<Self>) -> Task<Result<Vec<Symbol>>> {
-        let language_registry = self.languages.clone();
+        let language_registry = Arc::clone(&self.languages);
 
         {
             let local = &self.local;
@@ -2051,7 +2050,7 @@ impl LspStore {
                 }
 
                 let (lsp_adapter, server) = match local.language_servers.get(&state.id) {
-                    Some(LanguageServerState::Running { adapter, server, .. }) => (adapter.clone(), server),
+                    Some(LanguageServerState::Running { adapter, server, .. }) => (Arc::clone(adapter), server),
 
                     _ => continue,
                 };
@@ -2071,7 +2070,7 @@ impl LspStore {
                 requests.push(
                     server
                         .request::<WorkspaceSymbolRequest>(
-                            lsp::WorkspaceSymbolParams { query: query.to_string(), ..Default::default() },
+                            lsp::WorkspaceSymbolParams { query: query.to_owned(), ..Default::default() },
                             request_timeout,
                         )
                         .map(move |response| {
@@ -2185,7 +2184,7 @@ impl LspStore {
 
     pub fn on_buffer_edited(&mut self, buffer: Entity<Buffer>, cx: &mut Context<Self>) -> Option<()> {
         let language_servers: Vec<_> = buffer.update(cx, |buffer, cx| {
-            Some(self.local.language_servers_for_buffer(buffer, cx).map(|i| i.1.clone()).collect())
+            Some(self.local.language_servers_for_buffer(buffer, cx).map(|i| Arc::clone(i.1)).collect())
         })?;
 
         let buffer = buffer.read(cx);
@@ -2279,7 +2278,7 @@ impl LspStore {
 
         for server in local.language_servers_for_worktree(worktree_id) {
             if let Some(include_text) = include_text(server.as_ref()) {
-                let text = if include_text { Some(buffer.read(cx).text()) } else { None };
+                let text = include_text.then(|| buffer.read(cx).text());
                 server
                     .notify::<DidSaveTextDocument>(lsp::DidSaveTextDocumentParams {
                         text_document: text_document.clone(),
@@ -2537,7 +2536,7 @@ impl LspStore {
         let mut hasher = Sha256::new();
         hasher.update(abs_path.to_string_lossy().as_bytes());
         hasher.update(self.nonce.to_be_bytes());
-        hasher.finalize().as_slice().try_into().unwrap()
+        hasher.finalize().as_slice().try_into().expect("sha256 digest is 32 bytes")
     }
 
     pub fn environment_for_buffer(
@@ -2554,7 +2553,7 @@ impl LspStore {
 
     pub fn language_server_adapter_for_id(&self, id: LanguageServerId) -> Option<Arc<CachedLspAdapter>> {
         match self.local.language_servers.get(&id)? {
-            LanguageServerState::Running { adapter, .. } => Some(adapter.clone()),
+            LanguageServerState::Running { adapter, .. } => Some(Arc::clone(adapter)),
             LanguageServerState::Starting { .. } => None,
         }
     }
@@ -2602,7 +2601,7 @@ async fn find_worktree_for_lsp_path(
     cx: &AsyncApp,
 ) -> Result<Option<(Entity<Worktree>, Arc<RelPath>)>> {
     let (fs, worktree) = lsp_store.read_with(cx, |lsp_store, cx| {
-        (Some(lsp_store.local.fs.clone()), lsp_store.worktree_store.read(cx).find_worktree(abs_path, cx))
+        (Some(Arc::clone(&lsp_store.local.fs)), lsp_store.worktree_store.read(cx).find_worktree(abs_path, cx))
     })?;
     if let Some((worktree, relative_path)) = worktree {
         let relative_path = normalize_lsp_relative_path(&worktree, abs_path, relative_path, cx).await?;
@@ -2659,7 +2658,7 @@ async fn normalize_lsp_relative_path(
         if worktree.fs_is_case_sensitive() {
             return None;
         }
-        Some((worktree.fs().clone(), worktree.snapshot(), worktree.abs_path()))
+        Some((Arc::clone(worktree.fs()), worktree.snapshot(), worktree.abs_path()))
     }) else {
         return Ok(relative_path);
     };

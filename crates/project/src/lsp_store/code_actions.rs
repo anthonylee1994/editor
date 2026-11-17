@@ -7,7 +7,7 @@ use anyhow::Context as _;
 use anyhow::Result;
 use anyhow::anyhow;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::AsyncApp;
 use gpui::Context;
 use gpui::Entity;
@@ -70,7 +70,7 @@ impl LocalLspStore {
                     lsp_store
                         .local
                         .language_servers_for_buffer(buffer, cx)
-                        .map(|(adapter, lsp)| (adapter.clone(), lsp.clone()))
+                        .map(|(adapter, lsp)| (Arc::clone(adapter), Arc::clone(lsp)))
                         .collect::<Vec<_>>()
                 })
             })?;
@@ -185,7 +185,7 @@ impl LocalLspStore {
                     lsp_store.upgrade().context("project dropped")?,
                     edit.clone(),
                     push_to_history,
-                    language_server.clone(),
+                    Arc::clone(language_server),
                     cx,
                 )
                 .await?;
@@ -272,7 +272,7 @@ impl LspStore {
         let Some((_, lang_server, request_timeout)) = buffer_handle.update(cx, |buffer, cx| {
             let request_timeout = LSP_REQUEST_TIMEOUT;
             self.language_server_for_local_buffer(buffer, action.server_id, cx)
-                .map(|(adapter, server)| (adapter.clone(), server.clone(), request_timeout))
+                .map(|(adapter, server)| (Arc::clone(adapter), Arc::clone(server), request_timeout))
         }) else {
             return Task::ready(Ok(ProjectTransaction::default()));
         };
@@ -288,7 +288,7 @@ impl LspStore {
                     this.upgrade().context("no app present")?,
                     edit.clone(),
                     push_to_history,
-                    lang_server.clone(),
+                    Arc::clone(&lang_server),
                     cx,
                 )
                 .await;
@@ -379,7 +379,7 @@ impl LspStore {
         }
         let server_id = action.server_id;
         let Some(lang_server) = buffer.update(cx, |buffer, cx| {
-            self.language_server_for_local_buffer(buffer, server_id, cx).map(|(_, server)| server.clone())
+            self.language_server_for_local_buffer(buffer, server_id, cx).map(|(_, server)| Arc::clone(server))
         }) else {
             return Task::ready(Ok(action));
         };

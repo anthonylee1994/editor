@@ -43,13 +43,13 @@ use gpui::FocusHandle;
 use gpui::Focusable;
 use gpui::Image;
 use gpui::ImageFormat;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::PathPromptOptions;
 use gpui::PlatformDisplay;
 use gpui::SharedString;
 use gpui::Size;
 use gpui::Task;
-use gpui::TaskExt;
+use gpui::TaskExt as _;
 use gpui::TitlebarOptions;
 use gpui::WeakEntity;
 use gpui::Window;
@@ -63,29 +63,29 @@ use gpui::point;
 use gpui::px;
 use image_viewer::ImageInfo;
 use language::Capability;
+use language_tools::lsp_button;
 use language_tools::lsp_button::LspButton;
-use language_tools::lsp_button::{self};
 use language_tools::lsp_log_view::LspLogToolbarItemView;
 use outline_panel::OutlinePanel;
 use project_panel::ProjectPanel;
 use search::project_search::ProjectSearchBar;
+use terminal_view::terminal_panel;
 use terminal_view::terminal_panel::TerminalPanel;
-use terminal_view::terminal_panel::{self};
-use theme::ActiveTheme;
+use theme::ActiveTheme as _;
 use ui::PopoverMenuHandle;
 use ui::prelude::Button;
-use ui::prelude::ButtonCommon;
+use ui::prelude::ButtonCommon as _;
 use ui::prelude::ButtonStyle;
-use ui::prelude::Clickable;
-use ui::prelude::FixedWidth;
+use ui::prelude::Clickable as _;
+use ui::prelude::FixedWidth as _;
 use ui::prelude::Headline;
-use ui::prelude::InteractiveElement;
+use ui::prelude::InteractiveElement as _;
 use ui::prelude::IntoElement;
 use ui::prelude::Render;
-use ui::prelude::Styled;
-use ui::prelude::VisualContext;
+use ui::prelude::Styled as _;
+use ui::prelude::VisualContext as _;
 use ui::prelude::v_flex;
-use util::ResultExt;
+use util::ResultExt as _;
 use uuid::Uuid;
 use workspace::AppState;
 use workspace::CloseIntent;
@@ -265,7 +265,7 @@ pub fn initialize_workspace(app_state: Arc<AppState>, cx: &mut App) {
 
         let panels_task = initialize_panels(window, cx);
         workspace.set_panels_task(panels_task);
-        register_actions(app_state.clone(), workspace, window, cx);
+        register_actions(Arc::clone(&app_state), workspace, window, cx);
 
         if !workspace.has_active_modal(window, cx) {
             workspace.focus_handle(cx).focus(window, cx);
@@ -399,9 +399,9 @@ fn register_actions(app_state: Arc<AppState>, workspace: &mut Workspace, _: &mut
             },
         )
         .register_action({
-            let app_state = app_state.clone();
+            let app_state = Arc::clone(&app_state);
             move |_, _: &NewWindow, _, cx| {
-                open_new(workspace::OpenOptions::default(), app_state.clone(), cx, |_, _, cx| {
+                open_new(workspace::OpenOptions::default(), Arc::clone(&app_state), cx, |_, _, cx| {
                     cx.activate(true);
                 })
                 .detach();
@@ -412,7 +412,7 @@ fn register_actions(app_state: Arc<AppState>, workspace: &mut Workspace, _: &mut
                 let Some(window_handle) = window.window_handle().downcast::<Workspace>() else {
                     return;
                 };
-                let app_state = workspace.app_state().clone();
+                let app_state = Arc::clone(workspace.app_state());
                 cx.spawn_in(window, async move |workspace, cx| {
                     let should_continue = workspace
                         .update_in(cx, |workspace, window, cx| {
@@ -438,7 +438,7 @@ fn register_actions(app_state: Arc<AppState>, workspace: &mut Workspace, _: &mut
             }
         })
         .register_action(move |_, _: &NewFile, _, cx| {
-            open_new(workspace::OpenOptions::default(), app_state.clone(), cx, |workspace, window, cx| {
+            open_new(workspace::OpenOptions::default(), Arc::clone(&app_state), cx, |workspace, window, cx| {
                 Editor::new_file(workspace, &NewFile, window, cx);
             })
             .detach_and_log_err(cx);
@@ -528,7 +528,7 @@ fn open_about_window(cx: &mut App) {
                     v_flex()
                         .gap_2()
                         .items_center()
-                        .child(img(self.app_icon.clone()).size_16().flex_none())
+                        .child(img(Arc::clone(&self.app_icon)).size_16().flex_none())
                         .child(Headline::new(self.message.clone())),
                 )
                 .child(Button::new("ok", "OK").width(px(96.)).style(ButtonStyle::Outlined).on_click(cx.listener(
@@ -610,8 +610,8 @@ fn quit(_: &Quit, cx: &mut App) {
 fn open_log_file(workspace: &Workspace, window: &Window, cx: &Context<Workspace>) {
     const MAX_LINES: usize = 1000;
     let app_state = workspace.app_state();
-    let languages = app_state.languages.clone();
-    let fs = app_state.fs.clone();
+    let languages = Arc::clone(&app_state.languages);
+    let fs = Arc::clone(&app_state.fs);
     cx.spawn_in(window, async move |workspace, cx| {
         let log = {
             let result = futures::join!(

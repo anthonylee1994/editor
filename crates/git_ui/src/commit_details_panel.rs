@@ -20,7 +20,7 @@ use gpui::ClipboardItem;
 use gpui::DismissEvent;
 use gpui::Entity;
 use gpui::EventEmitter;
-use gpui::Focusable;
+use gpui::Focusable as _;
 use gpui::Hsla;
 use gpui::MouseButton;
 use gpui::MouseDownEvent;
@@ -38,13 +38,13 @@ use gpui::Window;
 use gpui::anchored;
 use gpui::deferred;
 use gpui::prelude::Context;
-use gpui::prelude::FluentBuilder;
-use gpui::prelude::InteractiveElement;
+use gpui::prelude::FluentBuilder as _;
+use gpui::prelude::InteractiveElement as _;
 use gpui::prelude::IntoElement;
-use gpui::prelude::ParentElement;
+use gpui::prelude::ParentElement as _;
 use gpui::prelude::Render;
-use gpui::prelude::StatefulInteractiveElement;
-use gpui::prelude::Styled;
+use gpui::prelude::StatefulInteractiveElement as _;
+use gpui::prelude::Styled as _;
 use gpui::px;
 use gpui::uniform_list;
 use language::LanguageRegistry;
@@ -65,11 +65,11 @@ use ui::Disclosure;
 use ui::Divider;
 use ui::IndentGuideColors;
 use ui::Tooltip;
-use ui::WithScrollbar;
-use ui::prelude::ActiveTheme;
+use ui::WithScrollbar as _;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::Button;
-use ui::prelude::ButtonCommon;
-use ui::prelude::Clickable;
+use ui::prelude::ButtonCommon as _;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
 use ui::prelude::Div;
 use ui::prelude::ElementId;
@@ -78,13 +78,13 @@ use ui::prelude::IconButton;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
-use ui::prelude::Toggleable;
+use ui::prelude::Toggleable as _;
 use ui::prelude::div;
 use ui::prelude::h_flex;
 use ui::prelude::v_flex;
-use util::ResultExt;
+use util::ResultExt as _;
 
 use crate::git_graph;
 use crate::git_graph::GitGraph;
@@ -265,7 +265,7 @@ impl CommitDetailsPanel {
 
     /// Highlights `query` matches in the commit message.
     pub fn set_search_highlight(&mut self, query: Option<&str>, case_sensitive: bool, cx: &mut Context<Self>) {
-        self.search_highlight = query.map(|query| (query.to_string(), case_sensitive));
+        self.search_highlight = query.map(|query| (query.to_owned(), case_sensitive));
         self.apply_search_highlight(cx);
     }
 
@@ -344,7 +344,7 @@ impl CommitDetailsPanel {
         let full_sha: SharedString = sha.to_string().into();
         let short_sha: SharedString = full_sha.chars().take(7).collect::<String>().into();
         let head_branch_name: Option<SharedString> = self.repository.upgrade().and_then(|repository| {
-            repository.read(cx).branch.as_ref().map(|branch| SharedString::from(branch.name().to_string()))
+            repository.read(cx).branch.as_ref().map(|branch| SharedString::from(branch.name().to_owned()))
         });
         let background = cx.theme().colors().editor_background;
 
@@ -567,7 +567,7 @@ impl CommitDetailsPanel {
                     .child({
                         let entry_count = if is_tree_view { tree_entries.len() } else { flat_entries.len() };
                         let panel = cx.weak_entity();
-                        let indent_tree_entries = tree_entries.clone();
+                        let indent_tree_entries = Rc::clone(&tree_entries);
 
                         uniform_list("changed-files-list", entry_count, move |range, _window, cx| {
                             let is_revealed =
@@ -760,8 +760,8 @@ struct ChangedFileEntry {
 
 impl ChangedFileEntry {
     fn from_commit_file(file: &CommitFile) -> Self {
-        let file_name: SharedString = file.path.file_name().map_or_default(|n| n.to_string()).into();
-        let dir_path: SharedString = file.path.parent().map_or_default(|p| p.as_unix_str().to_string()).into();
+        let file_name: SharedString = file.path.file_name().map_or_default(|n| n.to_owned()).into();
+        let dir_path: SharedString = file.path.parent().map_or_default(|p| p.as_unix_str().to_owned()).into();
 
         let status_code = match (&file.old_text, &file.new_text) {
             (None, Some(_)) => StatusCode::Added,
@@ -1067,8 +1067,8 @@ mod tests {
     fn commit_file(path: &str, old_text: Option<&str>, new_text: Option<&str>) -> CommitFile {
         CommitFile {
             path: RepoPath::new(path).unwrap(),
-            old_text: old_text.map(str::to_string),
-            new_text: new_text.map(str::to_string),
+            old_text: old_text.map(str::to_owned),
+            new_text: new_text.map(str::to_owned),
             is_binary: false,
         }
     }
@@ -1090,7 +1090,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ancestor_dirs() {
+    fn ancestor_dirs_works() {
         let dirs = ancestor_dirs(&RepoPath::new("crates/git_ui/src/lib.rs").unwrap());
         let expected: Vec<RepoPath> =
             ["crates", "crates/git_ui", "crates/git_ui/src"].iter().map(|dir| RepoPath::new(dir).unwrap()).collect();
@@ -1099,7 +1099,7 @@ mod tests {
     }
 
     #[test]
-    fn test_revealed_entry_index() {
+    fn revealed_entry_index_works() {
         let files = vec![entry("b.rs"), entry("src/a.rs")];
         let path = RepoPath::new("src/a.rs").unwrap();
         assert_eq!(revealed_entry_index(false, &files, &[], &path), Some(1));
@@ -1111,7 +1111,7 @@ mod tests {
     }
 
     #[test]
-    fn test_changed_file_entry_from_commit_file() {
+    fn changed_file_entry_from_commit_file() {
         let added = ChangedFileEntry::from_commit_file(&commit_file("src/new.rs", None, Some("x")));
         assert_eq!(added.file_name.as_ref(), "new.rs");
         assert_eq!(added.dir_path.as_ref(), "src");
@@ -1134,7 +1134,7 @@ mod tests {
     }
 
     #[test]
-    fn test_build_changed_file_tree_entries() {
+    fn build_changed_file_tree_entries_works() {
         let files = vec![entry("src/b.rs"), entry("README.md"), entry("src/a.rs"), entry("crates/ui/src/lib.rs")];
 
         let tree = build_changed_file_tree_entries(files.clone(), &FxHashMap::default());
@@ -1150,7 +1150,7 @@ mod tests {
     }
 
     #[test]
-    fn test_compute_diff_stats() {
+    fn compute_diff_stats_works() {
         let diff = CommitDiff {
             files: vec![
                 commit_file("a.rs", Some("one\ntwo\n"), Some("one\nTWO\nthree\n")),
@@ -1163,7 +1163,7 @@ mod tests {
     }
 
     #[test]
-    fn test_changed_files_view_mode_toggled() {
+    fn changed_files_view_mode_toggled() {
         assert_eq!(ChangedFilesViewMode::default(), ChangedFilesViewMode::Tree);
         assert!(ChangedFilesViewMode::Tree.is_tree());
         assert_eq!(ChangedFilesViewMode::Tree.toggled(), ChangedFilesViewMode::Flat);
@@ -1171,13 +1171,13 @@ mod tests {
     }
 
     #[test]
-    fn test_changed_file_row_indent() {
+    fn changed_file_row_indent_works() {
         assert_eq!(changed_file_row_indent(0), px(0.));
         assert_eq!(changed_file_row_indent(2), px(2. * TREE_INDENT));
     }
 
     #[test]
-    fn test_commit_message_style_keeps_line_breaks() {
+    fn commit_message_style_keeps_line_breaks() {
         assert!(commit_message_style(MarkdownStyle::default()).soft_break_as_hard_break);
     }
 }

@@ -1,8 +1,8 @@
 use gpui::KeyContext;
 use ui::Context;
-use ui::InteractiveElement;
+use ui::InteractiveElement as _;
 use ui::IntoElement;
-use ui::ParentElement;
+use ui::ParentElement as _;
 use ui::Render;
 use ui::Window;
 use ui::v_flex;

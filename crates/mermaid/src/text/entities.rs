@@ -213,11 +213,8 @@ pub(crate) fn decode(text: &str) -> Cow<'_, str> {
 }
 
 fn lookup(name: &str) -> Option<char> {
-    NAMED
-        .binary_search_by(|&(entry, _)| entry.cmp(name))
-        .ok()
-        .and_then(|at| NAMED.get(at))
-        .and_then(|&(_, code)| char::from_u32(code))
+    let &(_, code) = NAMED.binary_search_by(|&(entry, _)| entry.cmp(name)).ok().and_then(|at| NAMED.get(at))?;
+    char::from_u32(code)
 }
 
 fn code_point(value: u64) -> Option<char> {
@@ -320,11 +317,11 @@ fn parse_decimal(digits: &str) -> Option<u64> {
     if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
         return None;
     }
-    Some(digits.bytes().fold(0u64, |n, b| n.saturating_mul(10).saturating_add(u64::from(b - b'0'))))
+    Some(digits.bytes().fold(0_u64, |n, b| n.saturating_mul(10).saturating_add(u64::from(b - b'0'))))
 }
 
 fn parse_hex(digits: &str) -> u64 {
-    digits.bytes().fold(0u64, |n, b| {
+    digits.bytes().fold(0_u64, |n, b| {
         let d = match b {
             b'0'..=b'9' => b - b'0',
             b'a'..=b'f' => b - b'a' + 10,
@@ -342,7 +339,7 @@ mod tests {
 
     #[test]
     fn names_are_sorted_for_binary_search() {
-        assert!(NAMED.windows(2).all(|pair| pair[0].0 < pair[1].0));
+        assert!(NAMED.is_sorted_by(|a, b| a.0 < b.0));
     }
 
     #[test]

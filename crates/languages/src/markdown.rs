@@ -44,7 +44,7 @@ fn shell_block_template(tag: &str, shell: &str) -> TaskTemplate {
 /// Settings for Markdown and Markdown-Inline.
 pub(crate) fn settings() -> LanguageSettings {
     LanguageSettings {
-        tab_size: NonZeroU32::new(2).unwrap(),
+        tab_size: NonZeroU32::new(2).expect("non-zero"),
         hard_tabs: false,
         soft_wrap: true,
         preferred_line_length: 300,
@@ -93,7 +93,7 @@ mod tests {
     use super::shell_block_template;
 
     #[test]
-    fn test_shell_block_template_runs_code_from_env() {
+    fn shell_block_template_runs_code_from_env() {
         let mut variables = TaskVariables::default();
         variables.insert(VariableName::Custom("code".into()), "echo 'a' \"$HOME\"\n".to_owned());
         variables.insert(VariableName::Dirname, "/notes".to_owned());
@@ -107,7 +107,7 @@ mod tests {
     }
 
     #[test]
-    fn test_markdown_task_templates_have_one_per_shell_tag() {
+    fn markdown_task_templates_have_one_per_shell_tag() {
         let templates = markdown_task_templates();
         let tags: Vec<_> =
             templates.0.iter().map(|template| (template.tags[0].as_str(), template.command.as_str())).collect();
@@ -141,7 +141,7 @@ mod tests {
     }
 
     #[test]
-    fn test_markdown_shell_code_blocks_are_runnable() {
+    fn markdown_shell_code_blocks_are_runnable() {
         let markdown = "# t\n\n```sh\necho \"hello\"\n```\n\n```bash\nls\n```\n\n```zsh\npwd\n```\n\n```shell\nid\n```\n\n```fish\nset -l x 1\necho $x\n```\n";
         assert_eq!(
             markdown_runnables(markdown),
@@ -157,7 +157,7 @@ mod tests {
     }
 
     #[test]
-    fn test_markdown_other_code_blocks_are_not_runnable() {
+    fn markdown_other_code_blocks_are_not_runnable() {
         let markdown = "```rust\nfn main() {}\n```\n\n```\necho untagged\n```\n\n```sh\n```\n\n    echo indented\n";
         assert_eq!(markdown_runnables(markdown), []);
     }

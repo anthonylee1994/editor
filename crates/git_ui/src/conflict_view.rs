@@ -31,13 +31,13 @@ use project::ConflictSet;
 use project::ConflictSetUpdate;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
-use ui::prelude::ActiveTheme;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::AnyElement;
 use ui::prelude::Button;
-use ui::prelude::Clickable;
-use ui::prelude::Element;
+use ui::prelude::Clickable as _;
+use ui::prelude::Element as _;
 use ui::prelude::LabelSize;
-use ui::prelude::Styled;
+use ui::prelude::Styled as _;
 use ui::prelude::Window;
 use ui::prelude::h_flex;
 
@@ -179,14 +179,10 @@ fn conflicts_updated(
                 buffer_conflicts.block_ids.len(),
                 event.old_range,
             );
-            if event.old_range.start <= event.old_range.end {
-                Some(
-                    event.old_range.start.min(buffer_conflicts.block_ids.len())
-                        ..event.old_range.end.min(buffer_conflicts.block_ids.len()),
-                )
-            } else {
-                None
-            }
+            (event.old_range.start <= event.old_range.end).then(|| {
+                event.old_range.start.min(buffer_conflicts.block_ids.len())
+                    ..event.old_range.end.min(buffer_conflicts.block_ids.len())
+            })
         }
     };
 

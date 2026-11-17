@@ -4,7 +4,7 @@ use util::rel_path::RelPath;
 use super::App;
 use super::Arc;
 use super::AutoindentMode;
-use super::BorrowAppContext;
+use super::BorrowAppContext as _;
 use super::BufferId;
 use super::ClipboardEntry;
 use super::ClipboardItem;
@@ -32,12 +32,12 @@ use super::Project;
 use super::ProjectPath;
 use super::Range;
 use super::RangeInclusive;
-use super::ResultExt;
+use super::ResultExt as _;
 use super::SelectionEffects;
 use super::SelectionGoal;
 use super::Serialize;
 use super::Snippet;
-use super::ToPoint;
+use super::ToPoint as _;
 use super::Window;
 use super::cmp;
 
@@ -69,7 +69,7 @@ impl ClipboardSelection {
         let file_path = (|| {
             let project = project?.read(cx);
             let file = buffer.file_at(range.start)?;
-            let project_path = ProjectPath { worktree_id: file.worktree_id(cx), path: file.path().clone() };
+            let project_path = ProjectPath { worktree_id: file.worktree_id(cx), path: Arc::clone(file.path()) };
             project.absolute_path(&project_path, cx)
         })();
 
@@ -159,11 +159,7 @@ impl Editor {
 
                     buffer.edit(
                         edits,
-                        if auto_indent_on_paste {
-                            Some(AutoindentMode::Block { original_indent_columns })
-                        } else {
-                            None
-                        },
+                        auto_indent_on_paste.then_some(AutoindentMode::Block { original_indent_columns }),
                         cx,
                     );
                 });
@@ -620,7 +616,7 @@ fn unused_image_path(
     exists: impl Fn(&RelPath) -> bool,
 ) -> Option<(String, Arc<RelPath>)> {
     let mut filename = format!("image.{extension}");
-    let mut counter = 1u32;
+    let mut counter = 1_u32;
     loop {
         let candidate = dir_rel_path.join(RelPath::from_unix_str(&filename).ok()?);
         if !exists(&candidate) {

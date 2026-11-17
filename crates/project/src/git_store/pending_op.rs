@@ -1,4 +1,5 @@
 use std::ops::Add;
+use std::sync::Arc;
 
 use git::repository::RepoPath;
 use sum_tree::ContextLessSummary;
@@ -50,7 +51,7 @@ impl Item for PendingOps {
 
     fn summary(&self, _cx: ()) -> Self::Summary {
         PathSummary {
-            max_path: self.repo_path.as_ref().clone(),
+            max_path: Arc::clone(self.repo_path.as_ref()),
             item_summary: PendingOpsSummary {
                 staged_count: self.staged() as usize,
                 staging_count: self.staging() as usize,
@@ -74,7 +75,7 @@ impl KeyedItem for PendingOps {
     type Key = PathKey;
 
     fn key(&self) -> Self::Key {
-        PathKey(self.repo_path.as_ref().clone())
+        PathKey(Arc::clone(self.repo_path.as_ref()))
     }
 }
 

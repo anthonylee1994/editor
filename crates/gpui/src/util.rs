@@ -95,7 +95,7 @@ pub struct WithTimeout<T> {
 
 #[derive(Debug, thiserror::Error)]
 #[error("Timed out before future resolved")]
-/// Error returned by with_timeout when the timeout duration elapsed before the future resolved
+/// Error returned by with_timeout when the timeout duration elapsed before the future resolved.
 pub struct Timeout;
 
 impl<T: Future> Future for WithTimeout<T> {

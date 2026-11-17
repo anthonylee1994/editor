@@ -5,7 +5,7 @@ use std::vec;
 use anyhow::Context as _;
 use anyhow::Result;
 use anyhow::anyhow;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::AsyncApp;
 use gpui::Context;
 use gpui::Entity;
@@ -15,7 +15,7 @@ use language::Bias;
 use language::Buffer;
 use language::CachedLspAdapter;
 use language::PointUtf16;
-use language::ToOffset;
+use language::ToOffset as _;
 use language::Transaction;
 use language::Unclipped;
 use language::range_from_lsp;
@@ -31,7 +31,7 @@ use util::ResultExt as _;
 use super::LocalLspStore;
 use super::LspStore;
 use super::LspStoreEvent;
-use crate::ProjectItem;
+use crate::ProjectItem as _;
 use crate::ProjectTransaction;
 
 impl LocalLspStore {
@@ -57,15 +57,13 @@ impl LocalLspStore {
                 buffer.edit([(range, text)], None, cx);
             }
 
-            if buffer.end_transaction(cx).is_some() {
-                let transaction = buffer.finalize_last_transaction().unwrap().clone();
+            buffer.end_transaction(cx).is_some().then(|| {
+                let transaction = buffer.finalize_last_transaction().expect("transaction was just ended").clone();
                 if !push_to_history {
                     buffer.forget_transaction(transaction.id);
                 }
-                Some(transaction)
-            } else {
-                None
-            }
+                transaction
+            })
         });
 
         Ok(transaction)
@@ -160,7 +158,7 @@ impl LocalLspStore {
         language_server: Arc<LanguageServer>,
         cx: &mut AsyncApp,
     ) -> Result<ProjectTransaction> {
-        let fs = this.read_with(cx, |this, _| this.local.fs.clone());
+        let fs = this.read_with(cx, |this, _| Arc::clone(&this.local.fs));
 
         let mut operations = Vec::new();
         if let Some(document_changes) = edit.document_changes {
@@ -346,14 +344,13 @@ impl LocalLspStore {
                             buffer.edit([(range, text)], None, cx);
                         }
 
-                        buffer.end_transaction(cx).and_then(|transaction_id| {
-                            if push_to_history {
-                                buffer.finalize_last_transaction();
-                                buffer.get_transaction(transaction_id).cloned()
-                            } else {
-                                buffer.forget_transaction(transaction_id)
-                            }
-                        })
+                        let transaction_id = buffer.end_transaction(cx)?;
+                        if push_to_history {
+                            buffer.finalize_last_transaction();
+                            buffer.get_transaction(transaction_id).cloned()
+                        } else {
+                            buffer.forget_transaction(transaction_id)
+                        }
                     });
                     if let Some(transaction) = transaction {
                         project_transaction.0.insert(buffer_to_edit, transaction);
@@ -376,7 +373,7 @@ impl LocalLspStore {
             .read_with(cx, |this, _| this.language_server_for_id(server_id))
             .context("language server not found")?;
         let transaction =
-            Self::deserialize_workspace_edit(this.clone(), params.edit, true, language_server.clone(), cx)
+            Self::deserialize_workspace_edit(this.clone(), params.edit, true, Arc::clone(&language_server), cx)
                 .await
                 .log_err();
         this.update(cx, |this, cx| {

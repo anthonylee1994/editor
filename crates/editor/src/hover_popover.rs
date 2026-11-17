@@ -19,19 +19,19 @@ use gpui::Entity;
 use gpui::Focusable as _;
 use gpui::FontWeight;
 use gpui::Hsla;
-use gpui::InteractiveElement;
-use gpui::IntoElement;
+use gpui::InteractiveElement as _;
+use gpui::IntoElement as _;
 use gpui::MouseButton;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Pixels;
 use gpui::ScrollHandle;
 use gpui::Size;
-use gpui::StatefulInteractiveElement;
+use gpui::StatefulInteractiveElement as _;
 use gpui::StyleRefinement;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Subscription;
 use gpui::Task;
-use gpui::TaskExt;
+use gpui::TaskExt as _;
 use gpui::TextStyleRefinement;
 use gpui::Window;
 use gpui::canvas;
@@ -47,35 +47,35 @@ use markdown::MarkdownElement;
 use markdown::MarkdownStyle;
 use multi_buffer::MultiBufferOffset;
 use multi_buffer::MultiBufferSnapshot;
-use multi_buffer::ToOffset;
-use multi_buffer::ToPoint;
+use multi_buffer::ToOffset as _;
+use multi_buffer::ToPoint as _;
 use project::HoverBlock;
 use project::HoverBlockKind;
 use project::InlayHintLabelPart;
 use ui::CopyButton;
 use ui::ScrollAxes;
 use ui::Scrollbars;
-use ui::WithScrollbar;
+use ui::WithScrollbar as _;
 use ui::font;
-use ui::prelude::ActiveTheme;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::Color;
-use ui::prelude::FluentBuilder;
-use ui::prelude::Refineable;
+use ui::prelude::FluentBuilder as _;
+use ui::prelude::Refineable as _;
 use ui::prelude::SharedString;
-use ui::prelude::StyledExt;
-use ui::prelude::StyledTypography;
-use ui::prelude::VisualContext;
+use ui::prelude::StyledExt as _;
+use ui::prelude::StyledTypography as _;
+use ui::prelude::VisualContext as _;
 use ui::prelude::h_flex;
 use ui::prelude::rems;
 use ui::theme_is_transparent;
 use url::Url;
-use util::TryFutureExt;
+use util::TryFutureExt as _;
 use workspace::OpenOptions;
 use workspace::OpenVisible;
 use workspace::Workspace;
 
 use crate::Anchor;
-use crate::AnchorRangeExt;
+use crate::AnchorRangeExt as _;
 use crate::DisplayPoint;
 use crate::DisplayRow;
 use crate::Editor;
@@ -84,7 +84,7 @@ use crate::GlobalDiagnosticRenderer;
 use crate::HighlightKey;
 use crate::Hover;
 use crate::code_lens::HoverCodeLens;
-use crate::display_map::ToDisplayPoint;
+use crate::display_map::ToDisplayPoint as _;
 use crate::display_map::is_invisible;
 use crate::hover_links::InlayHighlight;
 use crate::hover_links::RangeInEditor;
@@ -100,7 +100,7 @@ const MAX_HOVER_BYTES: usize = 100_000;
 const HOVER_POPOVER_DELAY: Duration = Duration::from_millis(300);
 const HOVER_POPOVER_HIDING_DELAY: Duration = Duration::from_millis(300);
 
-/// Bindable action which uses the most recent selection head to trigger a hover
+/// Bindable action which uses the most recent selection head to trigger a hover.
 pub fn hover(editor: &mut Editor, _: &Hover, window: &mut Window, cx: &mut Context<Editor>) {
     let head = editor.selections.newest_anchor().head();
     show_hover(editor, head, true, window, cx);
@@ -155,11 +155,8 @@ pub fn show_keyboard_hover(editor: &mut Editor, window: &mut Window, cx: &mut Co
         return true;
     }
 
-    if let Some(anchor) = editor
-        .hover_state
-        .diagnostic_popover
-        .as_ref()
-        .and_then(|d| if *d.keyboard_grace.borrow() { Some(d.anchor) } else { None })
+    if let Some(anchor) =
+        editor.hover_state.diagnostic_popover.as_ref().and_then(|d| (*d.keyboard_grace.borrow()).then_some(d.anchor))
     {
         show_hover(editor, anchor, false, window, cx);
         return true;
@@ -211,7 +208,7 @@ pub fn hover_at_inlay(
 
     Some(cx.spawn_in(window, async move |editor, cx| {
         cx.background_executor().timer(HOVER_POPOVER_DELAY).await;
-        let language_registry = project.read_with(cx, |project, _| project.languages().clone());
+        let language_registry = project.read_with(cx, |project, _| Arc::clone(project.languages()));
         let parsed_content = parse_blocks(&[inlay_hover.tooltip], Some(&language_registry), None, cx);
 
         editor
@@ -264,7 +261,7 @@ fn show_hover(
     let (buffer_position, _) = editor.buffer.read(cx).snapshot(cx).anchor_to_buffer_anchor(anchor)?;
     let buffer = editor.buffer.read(cx).buffer(buffer_position.buffer_id)?;
 
-    let language_registry = editor.project().map(|project| project.read(cx).languages().clone());
+    let language_registry = editor.project().map(|project| Arc::clone(project.read(cx).languages()));
     let provider = editor.semantics_provider.clone()?;
 
     editor.hover_state.hiding_delay_task = None;
@@ -292,7 +289,9 @@ fn show_hover(
                 None
             } else {
                 let lsp_request_early = HOVER_POPOVER_DELAY / 2;
-                cx.background_executor().timer(HOVER_POPOVER_DELAY.checked_sub(lsp_request_early).unwrap()).await;
+                cx.background_executor()
+                    .timer(HOVER_POPOVER_DELAY.checked_sub(lsp_request_early).expect("half delay is less than delay"))
+                    .await;
 
                 // Construct delay task to wait for later
 
@@ -953,7 +952,7 @@ pub fn open_markdown_url(workspace: Option<Entity<Workspace>>, link: SharedStrin
                 let Some(fragment) = fragment else {
                     return anyhow::Ok(());
                 };
-                let mut accum = 0u32;
+                let mut accum = 0_u32;
                 for c in fragment.chars() {
                     if c.is_ascii_digit() && accum < u32::MAX / 2 {
                         accum *= 10;
@@ -1173,7 +1172,7 @@ impl InfoPopover {
         let keyboard_grace = Rc::clone(&self.keyboard_grace);
         let this = cx.entity().downgrade();
         let this2 = this.clone();
-        let bounds_cell = self.last_bounds.clone();
+        let bounds_cell = Rc::clone(&self.last_bounds);
         div()
             .id("info_popover")
             .occlude()
@@ -1307,7 +1306,7 @@ impl DiagnosticPopover {
     pub fn render(&self, max_size: Size<Pixels>, window: &mut Window, cx: &mut Context<Editor>) -> AnyElement {
         let keyboard_grace = Rc::clone(&self.keyboard_grace);
         let this = cx.entity().downgrade();
-        let bounds_cell = self.last_bounds.clone();
+        let bounds_cell = Rc::clone(&self.last_bounds);
         div()
             .id("diagnostic")
             .occlude()

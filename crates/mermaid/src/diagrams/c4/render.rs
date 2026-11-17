@@ -76,7 +76,6 @@ fn unknown(from: &str, to: &str) -> Error {
 /// # Errors
 ///
 /// Returns a semantic error for a relation that names an unknown shape or boundary.
-#[expect(clippy::too_many_lines, reason = "mirrors Pele's draw")]
 pub(crate) fn render(db: &C4Db, options: &Options) -> Result<Rendered, Error> {
     let size = options.font_size;
     let small = js_round(size * 0.8125);
@@ -117,7 +116,7 @@ pub(crate) fn render(db: &C4Db, options: &Options) -> Result<Rendered, Error> {
     let mut nodes: Vec<usize> = Vec::new();
     let mut taken: Vec<f64> = Vec::new();
     for &at in &layout.order {
-        for node in layout.groups.get(at).map_or(&[][..], |g| &g.nodes[..]) {
+        for node in layout.groups.get(at).map_or(&[][..], |g| &*g.nodes) {
             nodes.push(node.id);
             if let Some(b) = layout.boxes.get(node.id) {
                 taken.extend([b.x + EDGE, b.y + EDGE, b.x + b.w - EDGE, b.y + b.h - EDGE]);
@@ -170,7 +169,7 @@ pub(crate) fn render(db: &C4Db, options: &Options) -> Result<Rendered, Error> {
             &layout.boxes,
             (a, b),
             if reverse { PAIR_SHIFT } else { 0.0 },
-            careful.then_some(&nodes[..]),
+            careful.then_some(&*nodes),
             &mut lanes,
             if start_arrow { trim } else { 0.0 },
             if end_arrow { trim } else { 0.0 },

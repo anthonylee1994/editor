@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::LazyLock;
 
-/// Snippet with all of the metadata
+/// Snippet with all of the metadata.
 #[derive(Debug)]
 pub struct SnippetDefinition {
     pub prefix: Vec<String>,
@@ -30,7 +30,7 @@ pub fn snippets_for(language: SnippetKind) -> Vec<Arc<SnippetDefinition>> {
 fn snippets() -> HashMap<SnippetKind, Vec<Arc<SnippetDefinition>>> {
     let mut snippets = HashMap::default();
     snippets.insert(
-        Some("rust".to_string()),
+        Some("rust".to_owned()),
         vec![
             snippet("main function", "main", "Create main function", &["pub fn main() {", "    $0", "}"]),
             snippet(
@@ -54,10 +54,10 @@ fn snippets() -> HashMap<SnippetKind, Vec<Arc<SnippetDefinition>>> {
 
 fn snippet(name: &str, prefix: &str, description: &str, body: &[&str]) -> Arc<SnippetDefinition> {
     Arc::new(SnippetDefinition {
-        prefix: vec![prefix.to_string()],
+        prefix: vec![prefix.to_owned()],
         body: body.join("\n"),
-        description: Some(description.to_string()),
-        name: name.to_string(),
+        description: Some(description.to_owned()),
+        name: name.to_owned(),
     })
 }
 

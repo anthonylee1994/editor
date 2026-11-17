@@ -11,7 +11,7 @@ use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
 use text::Anchor;
 use text::Point;
-use util::RangeExt;
+use util::RangeExt as _;
 
 use crate::BufferRow;
 
@@ -24,7 +24,7 @@ pub type RowChunkId = usize;
 /// Represents an area in a text editor, adjacent to other ones.
 /// Together, chunks form entire document at a particular version [`Global`].
 /// Each chunk is queried for inlays as `(start_row, 0)..(end_exclusive, 0)` via
-/// <https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#inlayHintParams>
+/// <https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#inlayHintParams>.
 ///
 /// Chunk boundaries are derived arithmetically from the buffer's last row.
 /// Each chunk's anchors are computed when the chunk is first queried and memoized:

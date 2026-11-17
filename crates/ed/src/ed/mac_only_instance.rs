@@ -1,6 +1,6 @@
+use std::fs;
 use std::fs::File;
 use std::fs::TryLockError;
-use std::fs::{self};
 use std::sync::OnceLock;
 
 /// Held for the lifetime of the process; the OS releases the lock on exit,

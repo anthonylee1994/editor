@@ -7,8 +7,8 @@ use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic;
 use std::sync::atomic::AtomicBool;
-use std::sync::atomic::{self};
 use std::time::Duration;
 
 use ed_actions::search::ToggleIncludeIgnored;
@@ -17,7 +17,7 @@ use file_icons::FileIcons;
 use futures::future::join_all;
 use fuzzy::PathMatch;
 use fuzzy::PathMatchCandidate;
-use gpui::Action;
+use gpui::Action as _;
 use gpui::AnyElement;
 use gpui::App;
 use gpui::AppContext as _;
@@ -30,9 +30,9 @@ use gpui::Focusable;
 use gpui::KeyContext;
 use gpui::Modifiers;
 use gpui::ModifiersChangedEvent;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Render;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Task;
 use gpui::WeakEntity;
 use gpui::Window;
@@ -56,26 +56,26 @@ use ui::HighlightedLabel;
 use ui::ListItem;
 use ui::ListItemSpacing;
 use ui::Tooltip;
-use ui::prelude::ButtonCommon;
-use ui::prelude::Clickable;
+use ui::prelude::ButtonCommon as _;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
 use ui::prelude::Icon;
 use ui::prelude::IconButton;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
-use ui::prelude::InteractiveElement;
+use ui::prelude::InteractiveElement as _;
 use ui::prelude::IntoElement;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
 use ui::prelude::Pixels;
 use ui::prelude::Rems;
 use ui::prelude::TextSize;
-use ui::prelude::Toggleable;
+use ui::prelude::Toggleable as _;
 use ui::prelude::div;
 use ui::prelude::h_flex;
 use ui::prelude::px;
 use ui::prelude::v_flex;
-use util::ResultExt;
+use util::ResultExt as _;
 use util::paths;
 use util::paths::PathWithPosition;
 use util::post_inc;
@@ -85,7 +85,7 @@ use workspace::ModalView;
 use workspace::OpenOptions;
 use workspace::OpenVisible;
 use workspace::Workspace;
-use workspace::notifications::NotifyResultExt;
+use workspace::notifications::NotifyResultExt as _;
 use workspace::searchable::SeedQuery;
 
 actions!(
@@ -325,7 +325,7 @@ pub struct FileFinderDelegate {
 
 /// Use a custom ordering for file finder: the regular one
 /// defines max element with the highest score and the latest alphanumerical path (in case of a tie on other params), e.g:
-/// `[{score: 0.5, path = "c/d" }, { score: 0.5, path = "/a/b" }]`
+/// `[{score: 0.5, path = "c/d" }, { score: 0.5, path = "/a/b" }]`.
 ///
 /// In the file finder, we would prefer to have the max element with the highest score and the earliest alphanumerical path, e.g:
 /// `[{ score: 0.5, path = "/a/b" }, {score: 0.5, path = "c/d" }]`
@@ -402,7 +402,7 @@ impl Match {
     }
 }
 
-/// Wrapper with Eq comparing the worktree-qualified path of file matches
+/// Wrapper with Eq comparing the worktree-qualified path of file matches.
 #[derive(Clone)]
 struct SelectedMatch(pub Match);
 
@@ -492,7 +492,7 @@ impl Matches {
         let new_search_matches: Vec<Match> = new_search_matches
             .filter(|path_match| {
                 !new_history_matches.contains_key(&ProjectPath {
-                    path: path_match.0.path.clone(),
+                    path: Arc::clone(&path_match.0.path),
                     worktree_id: WorktreeId::from_usize(path_match.0.worktree_id),
                 })
             })
@@ -696,7 +696,7 @@ fn project_path_for_search_match(project: &Entity<Project>, path_match: &PathMat
         {
             RelPath::empty_arc()
         } else {
-            path_match.path.clone()
+            Arc::clone(&path_match.path)
         };
 
     ProjectPath { worktree_id, path }
@@ -718,7 +718,7 @@ impl FoundPath {
         if let Some(entry) = project.entry_for_path(&self.project, cx) {
             return Task::ready(entry.is_file());
         }
-        let fs = project.fs().clone();
+        let fs = Arc::clone(project.fs());
         let path = self.absolute.clone();
         cx.background_spawn(async move { fs.is_file(&path).await })
     }
@@ -980,7 +980,7 @@ impl FileFinderDelegate {
         let search_id = util::post_inc(&mut self.search_count);
         self.cancel_flag.store(true, atomic::Ordering::Release);
         self.cancel_flag = Arc::new(AtomicBool::new(false));
-        let cancel_flag = self.cancel_flag.clone();
+        let cancel_flag = Arc::clone(&self.cancel_flag);
         cx.spawn_in(window, async move |picker, cx| {
             let matches = fuzzy::match_path_sets(
                 candidate_sets.as_slice(),
@@ -1116,7 +1116,7 @@ impl FileFinderDelegate {
                     let mut components = full_path.components();
                     let filename = components.next_back().unwrap_or("");
                     let prefix = components.rest();
-                    (filename.to_string(), Vec::new(), prefix.display().to_string() + "/", Vec::new())
+                    (filename.to_owned(), Vec::new(), prefix.display().to_owned() + "/", Vec::new())
                 } else {
                     let (file_name, parent) = labels_for_absolute_path(&entry_path.absolute);
                     (file_name, Vec::new(), parent, Vec::new())
@@ -1198,13 +1198,14 @@ impl FileFinderDelegate {
         let file_name_start = full_path.as_unix_str().len() - file_name.len();
         let file_name_positions = path_positions
             .iter()
-            .filter_map(|pos| if pos >= &file_name_start { Some(pos - file_name_start) } else { None })
+            .filter(|&pos| pos >= &file_name_start)
+            .map(|pos| pos - file_name_start)
             .collect::<Vec<_>>();
 
-        let full_path = full_path.display().trim_end_matches(&file_name).to_string();
+        let full_path = full_path.display().trim_end_matches(&file_name).to_owned();
         path_positions.retain(|idx| *idx < full_path.len());
 
-        (file_name.to_string(), file_name_positions, full_path, path_positions)
+        (file_name.to_owned(), file_name_positions, full_path, path_positions)
     }
 
     /// Looks the query up as the absolute path of an existing file. One inside a visible
@@ -1417,6 +1418,69 @@ impl FileFinderDelegate {
     fn confirm_without_dismiss(&self, window: &mut Window, cx: &mut Context<Picker<FileFinderDelegate>>) {
         self.open_selected_file(false, false, window, cx);
     }
+
+    fn render_match_impl(
+        &self,
+        ix: usize,
+        selected: bool,
+        checkbox: Option<AnyElement>,
+        window: &Window,
+        cx: &Context<Picker<Self>>,
+    ) -> Option<ListItem> {
+        let path_match = self.matches.get(ix)?;
+
+        let (file_name_label, full_path_label) = self.labels_for_match(path_match, window, cx);
+
+        let start_icon = match path_match {
+            Match::CreateNew(_) => Some(Icon::new(IconName::Plus).size(IconSize::Small)),
+            _ => (|| {
+                let abs_path = path_match.abs_path(&self.project, cx)?;
+                let file_name = abs_path.file_name()?;
+                let icon = FileIcons::get_icon(file_name.as_ref(), cx)?;
+                Some(Icon::from_path(icon).color(Color::Muted))
+            })(),
+        };
+
+        let checkbox = checkbox.map(|checkbox| {
+            if matches!(path_match, Match::CreateNew(_)) {
+                div().flex_none().size(Checkbox::container_size()).into_any_element()
+            } else {
+                checkbox
+            }
+        });
+
+        let start_slot: Option<AnyElement> = match (checkbox, start_icon) {
+            (Some(checkbox), icon) => Some(h_flex().gap_1p5().child(checkbox).children(icon).into_any_element()),
+            (None, icon) => icon.map(IntoElement::into_any_element),
+        };
+
+        let end_slot: Option<AnyElement> = match path_match {
+            Match::History { .. } => {
+                Some(Icon::new(IconName::HistoryRerun).color(Color::Muted).size(IconSize::Small).into_any_element())
+            }
+            Match::Search(_) | Match::Absolute(_) => {
+                Some(div().flex_none().size(IconSize::Small.rems()).into_any_element())
+            }
+            Match::CreateNew(_) => None,
+        };
+
+        Some(
+            ListItem::new(ix)
+                .spacing(ListItemSpacing::Sparse)
+                .inset(true)
+                .toggle_state(selected)
+                .start_slot::<AnyElement>(start_slot)
+                .child(
+                    h_flex()
+                        .w_full()
+                        .min_w_0()
+                        .gap_1p5()
+                        .child(file_name_label.flex_none().truncate_middle())
+                        .child(full_path_label.flex_1().truncate_start()),
+                )
+                .end_slot::<AnyElement>(end_slot),
+        )
+    }
 }
 
 fn full_path_budget(file_name: &str, normal_em: Pixels, small_em: Pixels, max_width: Pixels) -> usize {
@@ -1499,7 +1563,9 @@ impl PickerDelegate for FileFinderDelegate {
                     |worktree| {
                         worktree
                             .read(cx)
-                            .entry_for_path(RelPath::from_unix_str(prefix.split_at(1).0).unwrap())
+                            .entry_for_path(
+                                RelPath::from_unix_str(prefix.split_at(1).0).expect("single char is a valid path"),
+                            )
                             .is_none_or(|entry| !entry.is_dir())
                     },
                 ) {
@@ -1543,7 +1609,7 @@ impl PickerDelegate for FileFinderDelegate {
             let query = parse_file_search_query(raw_query);
             let path = query.path_position.path.clone();
 
-            let search_in_flight = self.search_in_flight.clone();
+            let search_in_flight = Arc::clone(&self.search_in_flight);
             let was_in_flight = search_in_flight.swap(true, atomic::Ordering::Relaxed);
 
             cx.spawn_in(window, async move |this, cx| {
@@ -1552,7 +1618,7 @@ impl PickerDelegate for FileFinderDelegate {
                 } else if was_in_flight {
                     cx.background_executor().timer(SEARCH_DEBOUNCE).await;
                 }
-                let _ = async move {
+                let _: anyhow::Result<()> = async move {
                     let is_absolute_path = path.is_absolute();
                     let did_resolve_abs_path = is_absolute_path
                         && this
@@ -1645,71 +1711,6 @@ impl PickerDelegate for FileFinderDelegate {
         cx: &mut Context<Picker<Self>>,
     ) -> Option<Self::ListItem> {
         self.render_match_impl(ix, selected, Some(checkbox), window, cx)
-    }
-}
-
-impl FileFinderDelegate {
-    fn render_match_impl(
-        &self,
-        ix: usize,
-        selected: bool,
-        checkbox: Option<AnyElement>,
-        window: &Window,
-        cx: &Context<Picker<Self>>,
-    ) -> Option<ListItem> {
-        let path_match = self.matches.get(ix)?;
-
-        let (file_name_label, full_path_label) = self.labels_for_match(path_match, window, cx);
-
-        let start_icon = match path_match {
-            Match::CreateNew(_) => Some(Icon::new(IconName::Plus).size(IconSize::Small)),
-            _ => (|| {
-                let abs_path = path_match.abs_path(&self.project, cx)?;
-                let file_name = abs_path.file_name()?;
-                let icon = FileIcons::get_icon(file_name.as_ref(), cx)?;
-                Some(Icon::from_path(icon).color(Color::Muted))
-            })(),
-        };
-
-        let checkbox = checkbox.map(|checkbox| {
-            if matches!(path_match, Match::CreateNew(_)) {
-                div().flex_none().size(Checkbox::container_size()).into_any_element()
-            } else {
-                checkbox
-            }
-        });
-
-        let start_slot: Option<AnyElement> = match (checkbox, start_icon) {
-            (Some(checkbox), icon) => Some(h_flex().gap_1p5().child(checkbox).children(icon).into_any_element()),
-            (None, icon) => icon.map(IntoElement::into_any_element),
-        };
-
-        let end_slot: Option<AnyElement> = match path_match {
-            Match::History { .. } => {
-                Some(Icon::new(IconName::HistoryRerun).color(Color::Muted).size(IconSize::Small).into_any_element())
-            }
-            Match::Search(_) | Match::Absolute(_) => {
-                Some(div().flex_none().size(IconSize::Small.rems()).into_any_element())
-            }
-            Match::CreateNew(_) => None,
-        };
-
-        Some(
-            ListItem::new(ix)
-                .spacing(ListItemSpacing::Sparse)
-                .inset(true)
-                .toggle_state(selected)
-                .start_slot::<AnyElement>(start_slot)
-                .child(
-                    h_flex()
-                        .w_full()
-                        .min_w_0()
-                        .gap_1p5()
-                        .child(file_name_label.flex_none().truncate_middle())
-                        .child(full_path_label.flex_1().truncate_start()),
-                )
-                .end_slot::<AnyElement>(end_slot),
-        )
     }
 }
 
@@ -1838,10 +1839,7 @@ mod tests {
 
     #[test]
     fn absolute_path_is_listed_by_file_name_and_parent() {
-        assert_eq!(
-            labels_for_absolute_path(Path::new("/tmp/dir/a.txt")),
-            ("a.txt".to_string(), "/tmp/dir/".to_string())
-        );
+        assert_eq!(labels_for_absolute_path(Path::new("/tmp/dir/a.txt")), ("a.txt".to_owned(), "/tmp/dir/".to_owned()));
         assert_eq!(labels_for_absolute_path(Path::new("/")), (String::new(), String::new()));
     }
 

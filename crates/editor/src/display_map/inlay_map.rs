@@ -30,7 +30,7 @@ use multi_buffer::MultiBufferRow;
 use multi_buffer::MultiBufferRows;
 use multi_buffer::MultiBufferSnapshot;
 use multi_buffer::RowInfo;
-use multi_buffer::ToOffset;
+use multi_buffer::ToOffset as _;
 use project::InlayId;
 use smallvec::SmallVec;
 use sum_tree::Bias;
@@ -39,7 +39,7 @@ use sum_tree::Dimensions;
 use sum_tree::SumTree;
 use text::ChunkBitmaps;
 use text::Patch;
-use ui::ActiveTheme;
+use ui::ActiveTheme as _;
 use ui::IntoElement as _;
 use ui::ParentElement as _;
 use ui::Styled as _;
@@ -249,7 +249,7 @@ pub struct InlayChunks<'a> {
     buffer_chunks: CustomHighlightsChunks<'a>,
     buffer_chunk: Option<Chunk<'a>>,
     inlay_chunks: Option<text::ChunkWithBitmaps<'a>>,
-    /// text, char bitmap, tabs bitmap
+    /// text, char bitmap, tabs bitmap.
     inlay_chunk: Option<ChunkBitmaps<'a>>,
     output_offset: InlayOffset,
     max_output_offset: InlayOffset,
@@ -293,9 +293,11 @@ impl<'a> Iterator for InlayChunks<'a> {
 
         let chunk = match self.transforms.item()? {
             Transform::Isomorphic(_) => {
-                let chunk = self.buffer_chunk.get_or_insert_with(|| self.buffer_chunks.next().unwrap());
+                let chunk = self
+                    .buffer_chunk
+                    .get_or_insert_with(|| self.buffer_chunks.next().expect("buffer chunks outlast transforms"));
                 if chunk.text.is_empty() {
-                    *chunk = self.buffer_chunks.next().unwrap();
+                    *chunk = self.buffer_chunks.next().expect("buffer chunks outlast transforms");
                 }
 
                 let desired_bytes = self.transforms.end().0.0 - self.output_offset.0;
@@ -317,7 +319,7 @@ impl<'a> Iterator for InlayChunks<'a> {
                 let (prefix, suffix) = chunk.text.split_at(split_index);
                 self.output_offset.0 += prefix.len();
 
-                let mask = 1u128.unbounded_shl(split_index as u32).wrapping_sub(1);
+                let mask = 1_u128.unbounded_shl(split_index as u32).wrapping_sub(1);
                 let chars = chunk.chars & mask;
                 let tabs = chunk.tabs & mask;
                 let newlines = chunk.newlines & mask;
@@ -396,8 +398,9 @@ impl<'a> Iterator for InlayChunks<'a> {
                     let chunks = inlay.text().chunks_in_range(start..end);
                     text::ChunkWithBitmaps(chunks)
                 });
-                let ChunkBitmaps { text: inlay_chunk, chars, tabs, newlines } =
-                    self.inlay_chunk.get_or_insert_with(|| inlay_chunks.next().unwrap());
+                let ChunkBitmaps { text: inlay_chunk, chars, tabs, newlines } = self
+                    .inlay_chunk
+                    .get_or_insert_with(|| inlay_chunks.next().expect("inlay chunks outlast transforms"));
 
                 // Determine split index handling edge cases
                 let split_index = if next_inlay_highlight_endpoint >= inlay_chunk.len() {
@@ -412,7 +415,7 @@ impl<'a> Iterator for InlayChunks<'a> {
                 let (chunk, remainder) = inlay_chunk.split_at(split_index);
                 *inlay_chunk = remainder;
 
-                let mask = 1u128.unbounded_shl(split_index as u32).wrapping_sub(1);
+                let mask = 1_u128.unbounded_shl(split_index as u32).wrapping_sub(1);
                 let new_chars = *chars & mask;
                 let new_tabs = *tabs & mask;
                 let new_newlines = *newlines & mask;
@@ -478,11 +481,11 @@ impl Iterator for InlayBufferRows<'_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let buffer_row = if self.inlay_row == 0 {
-            self.buffer_rows.next().unwrap()
+            self.buffer_rows.next().expect("buffer rows outlast transforms")
         } else {
             match self.transforms.item()? {
                 Transform::Inlay(_) => RowInfo::default(),
-                Transform::Isomorphic(_) => self.buffer_rows.next().unwrap(),
+                Transform::Isomorphic(_) => self.buffer_rows.next().expect("buffer rows outlast transforms"),
             }
         };
 
@@ -1176,7 +1179,7 @@ fn push_isomorphic(sum_tree: &mut SumTree<Transform>, summary: MBTextSummary) {
     sum_tree.update_last(
         |transform| {
             if let Transform::Isomorphic(transform) = transform {
-                *transform += summary.take().unwrap();
+                *transform += summary.take().expect("update_last calls closure at most once");
             }
         },
         (),

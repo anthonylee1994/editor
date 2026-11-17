@@ -13,10 +13,10 @@ use gpui::Context;
 use gpui::DismissEvent;
 use gpui::Entity;
 use gpui::HighlightStyle;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::StyledText;
 use gpui::Task;
-use gpui::TaskExt;
+use gpui::TaskExt as _;
 use gpui::TextStyle;
 use gpui::WeakEntity;
 use gpui::Window;
@@ -27,18 +27,18 @@ use picker::PickerDelegate;
 use project::Project;
 use project::Symbol;
 use project::lsp_store::SymbolLocation;
-use theme::ActiveTheme;
+use theme::ActiveTheme as _;
 use ui::font;
-use util::ResultExt;
+use util::ResultExt as _;
 use workspace::Workspace;
 use workspace::ui::LabelLike;
 use workspace::ui::ListItem;
 use workspace::ui::ListItemSpacing;
 use workspace::ui::prelude::Color;
 use workspace::ui::prelude::Label;
-use workspace::ui::prelude::LabelCommon;
+use workspace::ui::prelude::LabelCommon as _;
 use workspace::ui::prelude::LabelSize;
-use workspace::ui::prelude::Toggleable;
+use workspace::ui::prelude::Toggleable as _;
 use workspace::ui::prelude::h_flex;
 use workspace::ui::prelude::v_flex;
 
@@ -249,7 +249,7 @@ impl PickerDelegate for ProjectSymbolsDelegate {
                 {
                     path = worktree.read(cx).root_name().join(&path);
                 }
-                path.display().to_string().into()
+                path.display().to_owned().into()
             }
             SymbolLocation::OutsideProject { abs_path, signature: _ } => abs_path.to_string_lossy(),
         };

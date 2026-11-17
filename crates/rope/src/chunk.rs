@@ -53,7 +53,7 @@ impl Chunk {
     pub fn new(text: &str) -> Self {
         let text = {
             let mut buf = ArrayString::new();
-            buf.push_str(text).unwrap();
+            buf.push_str(text).expect("text fits in chunk");
             buf
         };
 
@@ -126,7 +126,7 @@ impl Chunk {
         self.chars_utf16 |= slice.chars_utf16 << base_ix;
         self.newlines |= slice.newlines << base_ix;
         self.tabs |= slice.tabs << base_ix;
-        self.text.push_str(slice.text).unwrap();
+        self.text.push_str(slice.text).expect("slice fits in chunk");
     }
 
     #[inline(always)]
@@ -146,8 +146,8 @@ impl Chunk {
         self.tabs = slice.tabs | (self.tabs << shift);
 
         let mut new_text = ArrayString::<MAX_BASE, u8>::new();
-        new_text.push_str(slice.text).unwrap();
-        new_text.push_str(&self.text).unwrap();
+        new_text.push_str(slice.text).expect("slice fits in chunk");
+        new_text.push_str(&self.text).expect("slice fits in chunk");
         self.text = new_text;
     }
 
@@ -233,7 +233,7 @@ impl From<ChunkSlice<'_>> for Chunk {
             chars_utf16: val.chars_utf16,
             newlines: val.newlines,
             tabs: val.tabs,
-            text: val.text.try_into().unwrap(),
+            text: val.text.try_into().expect("slice fits in chunk"),
         }
     }
 }
@@ -316,19 +316,19 @@ impl<'a> ChunkSlice<'a> {
         }
     }
 
-    /// Get length in bytes
+    /// Get length in bytes.
     #[inline(always)]
     pub const fn len(&self) -> usize {
         self.text.len()
     }
 
-    /// Get length in UTF-16 code units
+    /// Get length in UTF-16 code units.
     #[inline(always)]
     pub const fn len_utf16(&self) -> OffsetUtf16 {
         OffsetUtf16(self.chars_utf16.count_ones() as usize)
     }
 
-    /// Get point representing number of lines and length of last line
+    /// Get point representing number of lines and length of last line.
     #[inline(always)]
     pub const fn lines(&self) -> Point {
         let row = self.newlines.count_ones();
@@ -336,19 +336,19 @@ impl<'a> ChunkSlice<'a> {
         Point::new(row, column)
     }
 
-    /// Get number of chars in first line
+    /// Get number of chars in first line.
     #[inline(always)]
     pub const fn first_line_chars(&self) -> u32 {
         (self.chars & saturating_shl_mask(self.newlines.trailing_zeros())).count_ones()
     }
 
-    /// Get number of chars in last line
+    /// Get number of chars in last line.
     #[inline(always)]
     pub const fn last_line_chars(&self) -> u32 {
         (self.chars & saturating_shr_mask(self.newlines.leading_zeros())).count_ones()
     }
 
-    /// Get number of UTF-16 code units in last line
+    /// Get number of UTF-16 code units in last line.
     #[inline(always)]
     pub const fn last_line_len_utf16(&self) -> u32 {
         (self.chars_utf16 & saturating_shr_mask(self.newlines.leading_zeros())).count_ones()
@@ -674,7 +674,12 @@ fn panic_char_boundary(text: &str, offset: usize) -> ! {
     // find the character
     let char_start = text.floor_char_boundary(offset);
     // `char_start` must be less than len and a char boundary
-    let ch = text.get(char_start..).unwrap().chars().next().unwrap();
+    let ch = text
+        .get(char_start..)
+        .expect("char_start is a char boundary")
+        .chars()
+        .next()
+        .expect("char_start is a char boundary");
     let char_range = char_start..char_start + ch.len_utf8();
     panic!("byte index {offset} is not a char boundary; it is inside {ch:?} (bytes {char_range:?})");
 }
@@ -690,7 +695,12 @@ fn log_err_char_boundary(text: &str, offset: usize) {
     // find the character
     let char_start = text.floor_char_boundary(offset);
     // `char_start` must be less than len and a char boundary
-    let ch = text.get(char_start..).unwrap().chars().next().unwrap();
+    let ch = text
+        .get(char_start..)
+        .expect("char_start is a char boundary")
+        .chars()
+        .next()
+        .expect("char_start is a char boundary");
     let char_range = char_start..char_start + ch.len_utf8();
     log::error!("byte index {offset} is not a char boundary; it is inside {ch:?} (bytes {char_range:?})");
 }

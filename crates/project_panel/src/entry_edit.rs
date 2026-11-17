@@ -4,6 +4,7 @@ use std::collections::HashSet;
 use std::collections::hash_map;
 use std::iter;
 use std::ops::Range;
+use std::sync::Arc;
 
 use anyhow::Result;
 use editor::MultiBufferOffset;
@@ -22,7 +23,7 @@ use ui::prelude::Color;
 use ui::prelude::Icon;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
-use util::ResultExt;
+use util::ResultExt as _;
 use util::markdown::MarkdownInlineCode;
 use util::paths::compare_paths;
 use util::rel_path::RelPath;
@@ -55,7 +56,7 @@ impl ProjectPanel {
         if !filename.is_empty() {
             if filename.is_empty() {
                 edit_state.validation_state =
-                    ValidationState::Error("File or directory name cannot be empty.".to_string());
+                    ValidationState::Error("File or directory name cannot be empty.".to_owned());
                 cx.notify();
                 return;
             }
@@ -63,7 +64,7 @@ impl ProjectPanel {
             let trimmed_filename = filename.trim();
             if trimmed_filename != filename {
                 edit_state.validation_state = ValidationState::Warning(
-                    "File or directory name contains leading or trailing whitespace.".to_string(),
+                    "File or directory name contains leading or trailing whitespace.".to_owned(),
                 );
                 cx.notify();
                 return;
@@ -72,7 +73,7 @@ impl ProjectPanel {
 
             let Ok(filename) = RelPath::from_unix_str(trimmed_filename) else {
                 edit_state.validation_state = ValidationState::Warning(
-                    "File or directory name contains leading or trailing whitespace.".to_string(),
+                    "File or directory name contains leading or trailing whitespace.".to_owned(),
                 );
                 cx.notify();
                 return;
@@ -89,7 +90,7 @@ impl ProjectPanel {
                         already_exists = true;
                     }
                 } else {
-                    let new_path = match entry.path.clone().parent() {
+                    let new_path = match Arc::clone(&entry.path).parent() {
                         Some(parent) => parent.join(filename),
                         None => filename.to_owned(),
                     };
@@ -157,7 +158,7 @@ impl ProjectPanel {
         } else {
             let new_path = match entry.path.parent() {
                 Some(parent) => parent.join(&filename).into(),
-                None => filename.clone(),
+                None => Arc::clone(&filename),
             };
 
             // We skip the collision check for worktree roots as the lookup
@@ -217,7 +218,7 @@ impl ProjectPanel {
                             project_panel.update_visible_entries(None, false, false, window, cx);
                         })
                         .ok();
-                    Err(e)?;
+                    return Err(e);
                 }
                 Ok(CreatedEntry::Included(new_entry)) => {
                     project_panel.update_in(cx, |project_panel, window, cx| {
@@ -285,7 +286,7 @@ impl ProjectPanel {
                         .ok()
                         .flatten()
                     {
-                        let _ = open_task.await?;
+                        open_task.await?;
                     }
                 }
             }
@@ -427,7 +428,7 @@ impl ProjectPanel {
                     validation_state: ValidationState::None,
                     temporarily_unfolded: None,
                 });
-                let file_name = entry.path.file_name().unwrap_or_default().to_string();
+                let file_name = entry.path.file_name().unwrap_or_default().to_owned();
                 let selection = selection.unwrap_or_else(|| {
                     // Folders have no extension, so select the whole name. Only
                     // files keep their extension unselected for quick renames.
@@ -519,7 +520,7 @@ impl ProjectPanel {
                     let project_path = project.path_for_entry(selection.entry_id, cx)?;
                     dirty_buffers += project.dirty_buffers(cx).any(|path| path == project_path) as usize;
 
-                    Some((selection.entry_id, selection.worktree_id, project_path.path.file_name()?.to_string()))
+                    Some((selection.entry_id, selection.worktree_id, project_path.path.file_name()?.to_owned()))
                 })
                 .collect::<Vec<_>>();
             if file_paths.is_empty() {

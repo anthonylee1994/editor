@@ -6,10 +6,10 @@ use anyhow::Context as _;
 use workspace::searchable::Direction;
 
 use super::Anchor;
-use super::AnchorRangeExt;
+use super::AnchorRangeExt as _;
 use super::Any;
 use super::App;
-use super::AppContext;
+use super::AppContext as _;
 use super::Arc;
 use super::Autoscroll;
 use super::Bias;
@@ -28,7 +28,7 @@ use super::ExpandExcerpts;
 use super::ExpandExcerptsDown;
 use super::ExpandExcerptsUp;
 use super::FindAllReferences;
-use super::FromAnchor;
+use super::FromAnchor as _;
 use super::GoToDeclaration;
 use super::GoToDeclarationSplit;
 use super::GoToDefinition;
@@ -48,9 +48,9 @@ use super::GoToTypeDefinitionSplit;
 use super::GotoDefinitionKind;
 use super::HighlightKey;
 use super::HoverLink;
-use super::ItemHandle;
+use super::ItemHandle as _;
 use super::ItemNavHistory;
-use super::Itertools;
+use super::Itertools as _;
 use super::LanguageServerId;
 use super::Location;
 use super::LocationLink;
@@ -85,7 +85,7 @@ use super::MultibufferSelectionMode;
 use super::Navigated;
 use super::NavigationData;
 use super::NavigationEntry;
-use super::OffsetRangeExt;
+use super::OffsetRangeExt as _;
 use super::OpenSelectedFilename;
 use super::OpenUrl;
 use super::OutlineItem;
@@ -93,9 +93,9 @@ use super::Pane;
 use super::PathKey;
 use super::Point;
 use super::Range;
-use super::RangeExt;
+use super::RangeExt as _;
 use super::Result;
-use super::ResultExt;
+use super::ResultExt as _;
 use super::Reverse;
 use super::SaveLocation;
 use super::ScrollOffset;
@@ -123,9 +123,9 @@ use super::SelectUpByLines;
 use super::SelectionEffects;
 use super::SelectionGoal;
 use super::Task;
-use super::ToDisplayPoint;
+use super::ToDisplayPoint as _;
 use super::ToOffset;
-use super::ToPoint;
+use super::ToPoint as _;
 use super::Window;
 use super::Workspace;
 use super::cmp;
@@ -1146,7 +1146,7 @@ impl Editor {
 
     /// Runs an LSP "find all references" query for the symbol under the cursor
     /// and returns the raw [`Location`]s. Unlike [`Self::find_all_references`],
-    /// this does not group the results or open any UI
+    /// this does not group the results or open any UI.
     pub fn find_all_references_locations(&mut self, cx: &mut Context<Self>) -> Option<Task<Result<Vec<Location>>>> {
         let provider = self.semantics_provider.clone()?;
         let selection = self.selections.newest_anchor();

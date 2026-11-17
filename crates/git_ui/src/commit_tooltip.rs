@@ -7,22 +7,22 @@ use git::repository::RepoPath;
 use git_ui_core::notifications::show_error_toast;
 use gpui::App;
 use gpui::AppContext as _;
-use gpui::Element;
+use gpui::Element as _;
 use gpui::Entity;
 use gpui::MouseButton;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Render;
 use gpui::ScrollHandle;
-use gpui::StatefulInteractiveElement;
+use gpui::StatefulInteractiveElement as _;
 use gpui::Task;
 use gpui::TaskExt as _;
 use gpui::WeakEntity;
 use gpui::Window;
 use gpui::prelude::Context;
-use gpui::prelude::FluentBuilder;
-use gpui::prelude::InteractiveElement;
+use gpui::prelude::FluentBuilder as _;
+use gpui::prelude::InteractiveElement as _;
 use gpui::prelude::IntoElement;
-use gpui::prelude::Styled;
+use gpui::prelude::Styled as _;
 use markdown::Markdown;
 use markdown::MarkdownElement;
 use notifications::status_toast::StatusToast;
@@ -35,18 +35,18 @@ use ui::CopyButton;
 use ui::Divider;
 use ui::Tooltip;
 use ui::font;
-use ui::prelude::ActiveTheme;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::Button;
-use ui::prelude::ButtonCommon;
+use ui::prelude::ButtonCommon as _;
 use ui::prelude::ButtonStyle;
-use ui::prelude::Clickable;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
-use ui::prelude::Disableable;
+use ui::prelude::Disableable as _;
 use ui::prelude::Icon;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
 use ui::prelude::LineHeightStyle;
 use ui::prelude::SharedString;
@@ -143,7 +143,7 @@ impl CommitTooltip {
             CommitDetails {
                 sha: blame.sha.to_string().into(),
                 commit_time,
-                author_name: blame.author.clone().unwrap_or_else(|| "<no name>".to_string()).into(),
+                author_name: blame.author.clone().unwrap_or_else(|| "<no name>".to_owned()).into(),
                 author_email: blame.author_mail.clone().unwrap_or_default().into(),
                 message: details,
                 tag_names,
@@ -180,7 +180,7 @@ impl Render for CommitTooltip {
             .commit
             .sha
             .get(0..git::SHORT_SHA_LENGTH)
-            .map_or_else(|| self.commit.sha.clone(), |sha| sha.to_string().into());
+            .map_or_else(|| self.commit.sha.clone(), |sha| sha.to_owned().into());
         let full_sha = self.commit.sha.to_string();
         let local_offset = UtcOffset::current_local_offset().unwrap_or(UtcOffset::UTC);
         let absolute_timestamp = time_format::format_localized_timestamp(
@@ -210,7 +210,7 @@ impl Render for CommitTooltip {
         let commit_summary = CommitSummary {
             sha: self.commit.sha.clone(),
             subject: self.commit.message.as_ref().map_or_else(SharedString::default, |message| {
-                message.message.split('\n').next().unwrap().trim_end().to_string().into()
+                message.message.split('\n').next().expect("split yields at least one item").trim_end().to_owned().into()
             }),
             commit_timestamp: self.commit.commit_time.unix_timestamp(),
             author_name: self.commit.author_name.clone(),
@@ -433,13 +433,13 @@ mod tests {
             committer_tz: None,
             summary: None,
             previous: None,
-            filename: filename.to_string(),
+            filename: filename.to_owned(),
             boundary: false,
         }
     }
 
     #[test]
-    fn test_blamed_repo_path() {
+    fn blamed_repo_path_works() {
         assert_eq!(blamed_repo_path(&blame_entry("src/main.rs")), Some(RepoPath::new("src/main.rs").unwrap()));
         assert_eq!(blamed_repo_path(&blame_entry("/abs/main.rs")), None);
     }

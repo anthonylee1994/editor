@@ -138,28 +138,28 @@ impl ObjectFit {
     }
 }
 
-/// The minimum size of a column or row in a grid layout
+/// The minimum size of a column or row in a grid layout.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Serialize, Deserialize)]
 pub enum GridTemplateMinSize {
-    /// The column or row size may be 0
+    /// The column or row size may be 0.
     #[default]
     Zero,
-    /// The column or row size can be determined by the min content
+    /// The column or row size can be determined by the min content.
     MinContent,
-    /// The column or row size can be determined by the max content
+    /// The column or row size can be determined by the max content.
     MaxContent,
 }
 
-/// A simplified representation of the grid-template-* value
+/// A simplified representation of the grid-template-* value.
 #[derive(Copy, Clone, Refineable, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Serialize, Deserialize)]
 pub struct GridTemplate {
-    /// How this template directive should be repeated
+    /// How this template directive should be repeated.
     pub repeat: u16,
-    /// The minimum size in the repeat(<>, minmax(_, 1fr)) equation
+    /// The minimum size in the repeat(<>, minmax(_, 1fr)) equation.
     pub min_size: GridTemplateMinSize,
 }
 
-/// The CSS styling that can be applied to an element via the `Styled` trait
+/// The CSS styling that can be applied to an element via the `Styled` trait.
 #[derive(Clone, Refineable, Debug)]
 #[refineable(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Style {
@@ -170,7 +170,7 @@ pub struct Style {
     pub visibility: Visibility,
 
     // Overflow properties
-    /// How children overflowing their container should affect layout
+    /// How children overflowing their container should affect layout.
     #[refineable]
     pub overflow: Point<Overflow>,
     /// How much space (in points) should be reserved for the scrollbars of `Overflow::Scroll` and `Overflow::Auto` nodes.
@@ -212,13 +212,13 @@ pub struct Style {
     pub inset: Edges<Length>,
 
     // Size properties
-    /// Sets the initial size of the item
+    /// Sets the initial size of the item.
     #[refineable]
     pub size: Size<Length>,
-    /// Controls the minimum size of the item
+    /// Controls the minimum size of the item.
     #[refineable]
     pub min_size: Size<Length>,
-    /// Controls the maximum size of the item
+    /// Controls the maximum size of the item.
     #[refineable]
     pub max_size: Size<Length>,
     /// Sets the preferred aspect ratio for the item. The ratio is calculated as width divided by height.
@@ -238,11 +238,11 @@ pub struct Style {
     // Alignment properties
     /// How this node's children aligned in the cross/block axis?
     pub align_items: Option<AlignItems>,
-    /// How this node should be aligned in the cross/block axis. Falls back to the parents [`AlignItems`] if not set
+    /// How this node should be aligned in the cross/block axis. Falls back to the parents [`AlignItems`] if not set.
     pub align_self: Option<AlignSelf>,
-    /// How should content contained within this item be aligned in the cross/block axis
+    /// How should content contained within this item be aligned in the cross/block axis.
     pub align_content: Option<AlignContent>,
-    /// How should contained within this item be aligned in the main/inline axis
+    /// How should contained within this item be aligned in the main/inline axis.
     pub justify_content: Option<JustifyContent>,
     /// How large should the gaps between items in a flex container be?
     #[refineable]
@@ -253,48 +253,48 @@ pub struct Style {
     pub flex_direction: FlexDirection,
     /// Should elements wrap, or stay in a single line?
     pub flex_wrap: FlexWrap,
-    /// Sets the initial main axis size of the item
+    /// Sets the initial main axis size of the item.
     pub flex_basis: Length,
     /// The relative rate at which this item grows when it is expanding to fill space, 0.0 is the default value, and this value must be positive.
     pub flex_grow: f32,
     /// The relative rate at which this item shrinks when it is contracting to fit into space, 1.0 is the default value, and this value must be positive.
     pub flex_shrink: f32,
 
-    /// The fill color of this element
+    /// The fill color of this element.
     pub background: Option<Fill>,
 
-    /// The border color of this element
+    /// The border color of this element.
     pub border_color: Option<Hsla>,
 
-    /// The border style of this element
+    /// The border style of this element.
     pub border_style: BorderStyle,
 
-    /// The radius of the corners of this element
+    /// The radius of the corners of this element.
     #[refineable]
     pub corner_radii: Corners<AbsoluteLength>,
 
-    /// Box shadow of the element
+    /// Box shadow of the element.
     pub box_shadow: Vec<BoxShadow>,
 
-    /// The text style of this element
+    /// The text style of this element.
     #[refineable]
     pub text: TextStyleRefinement,
 
     /// The mouse cursor style shown when the mouse pointer is over an element.
     pub mouse_cursor: Option<CursorStyle>,
 
-    /// The opacity of this element
+    /// The opacity of this element.
     pub opacity: Option<f32>,
 
     /// The grid columns of this element
-    /// Roughly equivalent to the Tailwind `grid-cols-<number>`
+    /// Roughly equivalent to the Tailwind `grid-cols-<number>`.
     pub grid_cols: Option<GridTemplate>,
 
     /// The row span of this element
-    /// Equivalent to the Tailwind `grid-rows-<number>`
+    /// Equivalent to the Tailwind `grid-rows-<number>`.
     pub grid_rows: Option<GridTemplate>,
 
-    /// The grid location of this element
+    /// The grid location of this element.
     pub grid_location: Option<GridLocation>,
 }
 
@@ -305,13 +305,13 @@ impl Styled for StyleRefinement {
 }
 
 impl StyleRefinement {
-    /// The grid location of this element
+    /// The grid location of this element.
     pub fn grid_location_mut(&mut self) -> &mut GridLocation {
         self.grid_location.get_or_insert_default()
     }
 }
 
-/// The value of the visibility property, similar to the CSS property `visibility`
+/// The value of the visibility property, similar to the CSS property `visibility`.
 #[derive(Default, Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Visibility {
     /// The element should be drawn as normal.
@@ -321,7 +321,7 @@ pub enum Visibility {
     Hidden,
 }
 
-/// The possible values of the box-shadow property
+/// The possible values of the box-shadow property.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BoxShadow {
     /// What color should the shadow have?
@@ -363,17 +363,17 @@ impl BoxShadow {
     }
 }
 
-/// How to handle whitespace in text
+/// How to handle whitespace in text.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WhiteSpace {
-    /// Normal line wrapping when text overflows the width of the element
+    /// Normal line wrapping when text overflows the width of the element.
     #[default]
     Normal,
-    /// No line wrapping, text will overflow the width of the element
+    /// No line wrapping, text will overflow the width of the element.
     Nowrap,
 }
 
-/// How to truncate text that overflows the width of the element
+/// How to truncate text that overflows the width of the element.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TextOverflow {
     /// Truncate the text at the end when it doesn't fit, and represent this truncation by
@@ -389,67 +389,67 @@ pub enum TextOverflow {
     TruncateMiddle(SharedString),
 }
 
-/// How to align text within the element
+/// How to align text within the element.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TextAlign {
-    /// Align the text to the left of the element
+    /// Align the text to the left of the element.
     #[default]
     Left,
 
-    /// Center the text within the element
+    /// Center the text within the element.
     Center,
 
-    /// Align the text to the right of the element
+    /// Align the text to the right of the element.
     Right,
 }
 
-/// The properties that can be used to style text in GPUI
+/// The properties that can be used to style text in GPUI.
 #[derive(Refineable, Clone, Debug, PartialEq)]
 #[refineable(Debug, PartialEq, Serialize, Deserialize)]
 pub struct TextStyle {
-    /// The color of the text
+    /// The color of the text.
     pub color: Hsla,
 
-    /// The font family to use
+    /// The font family to use.
     pub font_family: SharedString,
 
-    /// The font features to use
+    /// The font features to use.
     pub font_features: FontFeatures,
 
-    /// The fallback fonts to use
+    /// The fallback fonts to use.
     pub font_fallbacks: Option<FontFallbacks>,
 
     /// The font size to use, in pixels or rems.
     pub font_size: AbsoluteLength,
 
-    /// The line height to use, in pixels or fractions
+    /// The line height to use, in pixels or fractions.
     pub line_height: DefiniteLength,
 
-    /// The font weight, e.g. bold
+    /// The font weight, e.g. bold.
     pub font_weight: FontWeight,
 
-    /// The font style, e.g. italic
+    /// The font style, e.g. italic.
     pub font_style: FontStyle,
 
-    /// The background color of the text
+    /// The background color of the text.
     pub background_color: Option<Hsla>,
 
-    /// The underline style of the text
+    /// The underline style of the text.
     pub underline: Option<UnderlineStyle>,
 
-    /// The strikethrough style of the text
+    /// The strikethrough style of the text.
     pub strikethrough: Option<StrikethroughStyle>,
 
-    /// How to handle whitespace in the text
+    /// How to handle whitespace in the text.
     pub white_space: WhiteSpace,
 
-    /// The text should be truncated if it overflows the width of the element
+    /// The text should be truncated if it overflows the width of the element.
     pub text_overflow: Option<TextOverflow>,
 
-    /// How the text should be aligned within the element
+    /// How the text should be aligned within the element.
     pub text_align: TextAlign,
 
-    /// The number of lines to display before truncating the text
+    /// The number of lines to display before truncating the text.
     pub line_clamp: Option<usize>,
 }
 
@@ -548,22 +548,22 @@ impl TextStyle {
 /// for a single font, uniformly sized and spaced text.
 #[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub struct HighlightStyle {
-    /// The color of the text
+    /// The color of the text.
     pub color: Option<Hsla>,
 
-    /// The font weight, e.g. bold
+    /// The font weight, e.g. bold.
     pub font_weight: Option<FontWeight>,
 
-    /// The font style, e.g. italic
+    /// The font style, e.g. italic.
     pub font_style: Option<FontStyle>,
 
-    /// The background color of the text
+    /// The background color of the text.
     pub background_color: Option<Hsla>,
 
-    /// The underline style of the text
+    /// The underline style of the text.
     pub underline: Option<UnderlineStyle>,
 
-    /// The underline style of the text
+    /// The underline style of the text.
     pub strikethrough: Option<StrikethroughStyle>,
 
     /// Similar to the CSS `opacity` property, this will cause the text to be less vibrant.
@@ -587,7 +587,7 @@ impl Hash for HighlightStyle {
 impl Style {
     /// Get the text style in this element style.
     pub fn text_style(&self) -> Option<&TextStyleRefinement> {
-        if self.text.is_some() { Some(&self.text) } else { None }
+        self.text.is_some().then_some(&self.text)
     }
 
     /// Get the content mask for this element style, based on the given bounds.
@@ -815,7 +815,7 @@ impl From<&TextStyle> for HighlightStyle {
 }
 
 impl HighlightStyle {
-    /// Create a highlight style with just a color
+    /// Create a highlight style with just a color.
     pub fn color(color: Hsla) -> Self {
         Self { color: Some(color), ..Default::default() }
     }
@@ -910,15 +910,15 @@ pub fn combine_highlights(
 
 /// Used to control how child nodes are aligned.
 /// For Flexbox it controls alignment in the cross axis
-/// For Grid it controls alignment in the block axis
+/// For Grid it controls alignment in the block axis.
 ///
-/// [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/align-items)
+/// [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/align-items).
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 // Copy of taffy::style type of the same name, to derive serde traits.
 pub enum AlignItems {
-    /// Items are packed toward the start of the axis
+    /// Items are packed toward the start of the axis.
     Start,
-    /// Items are packed toward the end of the axis
+    /// Items are packed toward the end of the axis.
     End,
     /// Items are packed towards the flex-relative start of the axis.
     ///
@@ -930,32 +930,32 @@ pub enum AlignItems {
     /// For flex containers with flex_direction RowReverse or ColumnReverse this is equivalent
     /// to Start. In all other cases it is equivalent to End.
     FlexEnd,
-    /// Items are packed along the center of the cross axis
+    /// Items are packed along the center of the cross axis.
     Center,
-    /// Items are aligned such as their baselines align
+    /// Items are aligned such as their baselines align.
     Baseline,
-    /// Stretch to fill the container
+    /// Stretch to fill the container.
     Stretch,
 }
 /// Used to control how the specified nodes is aligned.
 /// Overrides the parent Node's `AlignItems` property.
 /// For Flexbox it controls alignment in the cross axis
-/// For Grid it controls alignment in the block axis
+/// For Grid it controls alignment in the block axis.
 ///
-/// [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/align-self)
+/// [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/align-self).
 pub type AlignSelf = AlignItems;
 
 /// Sets the distribution of space between and around content items
 /// For Flexbox it controls alignment in the cross axis
-/// For Grid it controls alignment in the block axis
+/// For Grid it controls alignment in the block axis.
 ///
-/// [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/align-content)
+/// [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/align-content).
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 // Copy of taffy::style type of the same name, to derive serde traits.
 pub enum AlignContent {
-    /// Items are packed toward the start of the axis
+    /// Items are packed toward the start of the axis.
     Start,
-    /// Items are packed toward the end of the axis
+    /// Items are packed toward the end of the axis.
     End,
     /// Items are packed towards the flex-relative start of the axis.
     ///
@@ -967,15 +967,15 @@ pub enum AlignContent {
     /// For flex containers with flex_direction RowReverse or ColumnReverse this is equivalent
     /// to Start. In all other cases it is equivalent to End.
     FlexEnd,
-    /// Items are centered around the middle of the axis
+    /// Items are centered around the middle of the axis.
     Center,
-    /// Items are stretched to fill the container
+    /// Items are stretched to fill the container.
     Stretch,
     /// The first and last items are aligned flush with the edges of the container (no gap)
     /// The gap between items is distributed evenly.
     SpaceBetween,
     /// The gap between the first and last items is exactly THE SAME as the gap between items.
-    /// The gaps are distributed evenly
+    /// The gaps are distributed evenly.
     SpaceEvenly,
     /// The gap between the first and last items is exactly HALF the gap between items.
     /// The gaps are distributed evenly in proportion to these ratios.
@@ -984,42 +984,42 @@ pub enum AlignContent {
 
 /// Sets the distribution of space between and around content items
 /// For Flexbox it controls alignment in the main axis
-/// For Grid it controls alignment in the inline axis
+/// For Grid it controls alignment in the inline axis.
 ///
-/// [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/justify-content)
+/// [MDN](https://developer.mozilla.org/en-US/docs/Web/CSS/justify-content).
 pub type JustifyContent = AlignContent;
 
-/// Sets the layout used for the children of this node
+/// Sets the layout used for the children of this node.
 ///
 /// The default values depends on on which feature flags are enabled. The order of precedence is: Flex, Grid, Block, None.
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
 // Copy of taffy::style type of the same name, to derive serde traits.
 pub enum Display {
-    /// The children will follow the block layout algorithm
+    /// The children will follow the block layout algorithm.
     Block,
-    /// The children will follow the flexbox layout algorithm
+    /// The children will follow the flexbox layout algorithm.
     #[default]
     Flex,
-    /// The children will follow the CSS Grid layout algorithm
+    /// The children will follow the CSS Grid layout algorithm.
     Grid,
-    /// The children will not be laid out, and will follow absolute positioning
+    /// The children will not be laid out, and will follow absolute positioning.
     None,
 }
 
 /// Controls whether flex items are forced onto one line or can wrap onto multiple lines.
 ///
-/// Defaults to [`FlexWrap::NoWrap`]
+/// Defaults to [`FlexWrap::NoWrap`].
 ///
-/// [Specification](https://www.w3.org/TR/css-flexbox-1/#flex-wrap-property)
+/// [Specification](https://www.w3.org/TR/css-flexbox-1/#flex-wrap-property).
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
 // Copy of taffy::style type of the same name, to derive serde traits.
 pub enum FlexWrap {
-    /// Items will not wrap and stay on a single line
+    /// Items will not wrap and stay on a single line.
     #[default]
     NoWrap,
-    /// Items will wrap according to this item's [`FlexDirection`]
+    /// Items will wrap according to this item's [`FlexDirection`].
     Wrap,
-    /// Items will wrap in the opposite direction to this item's [`FlexDirection`]
+    /// Items will wrap in the opposite direction to this item's [`FlexDirection`].
     WrapReverse,
 }
 
@@ -1033,30 +1033,30 @@ pub enum FlexWrap {
 ///
 /// The default behavior is [`FlexDirection::Row`].
 ///
-/// [Specification](https://www.w3.org/TR/css-flexbox-1/#flex-direction-property)
+/// [Specification](https://www.w3.org/TR/css-flexbox-1/#flex-direction-property).
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
 // Copy of taffy::style type of the same name, to derive serde traits.
 pub enum FlexDirection {
-    /// Defines +x as the main axis
+    /// Defines +x as the main axis.
     ///
     /// Items will be added from left to right in a row.
     #[default]
     Row,
-    /// Defines +y as the main axis
+    /// Defines +y as the main axis.
     ///
     /// Items will be added from top to bottom in a column.
     Column,
-    /// Defines -x as the main axis
+    /// Defines -x as the main axis.
     ///
     /// Items will be added from right to left in a row.
     RowReverse,
-    /// Defines -y as the main axis
+    /// Defines -y as the main axis.
     ///
     /// Items will be added from bottom to top in a column.
     ColumnReverse,
 }
 
-/// How children overflowing their container should affect layout
+/// How children overflowing their container should affect layout.
 ///
 /// In CSS the primary effect of this property is to control whether contents of a parent container that overflow that container should
 /// be displayed anyway, be clipped, or trigger the container to become a scroll container. However it also has secondary effects on layout,
@@ -1068,7 +1068,7 @@ pub enum FlexDirection {
 /// In Taffy, we only implement the layout related secondary effects as we are not concerned with drawing/painting. The amount of space reserved for
 /// a scrollbar is controlled by the `scrollbar_width` property. If this is `0` then `Scroll` behaves identically to `Hidden`.
 ///
-/// <https://developer.mozilla.org/en-US/docs/Web/CSS/overflow>
+/// <https://developer.mozilla.org/en-US/docs/Web/CSS/overflow>.
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
 // Copy of taffy::style type of the same name, to derive serde traits.
 pub enum Overflow {

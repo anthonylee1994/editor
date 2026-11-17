@@ -12,18 +12,18 @@ use gpui::ManagedView;
 use gpui::MouseButton;
 use gpui::Subscription;
 use gpui::Task;
-use ui::animation::DefaultAnimations;
+use ui::animation::DefaultAnimations as _;
 use ui::prelude::AnimationDirection;
 use ui::prelude::App;
 use ui::prelude::Context;
 use ui::prelude::ElementId;
-use ui::prelude::InteractiveElement;
+use ui::prelude::InteractiveElement as _;
 use ui::prelude::IntoElement;
-use ui::prelude::ParentElement;
+use ui::prelude::ParentElement as _;
 use ui::prelude::Render;
 use ui::prelude::SharedString;
-use ui::prelude::StatefulInteractiveElement;
-use ui::prelude::Styled;
+use ui::prelude::StatefulInteractiveElement as _;
+use ui::prelude::Styled as _;
 use ui::prelude::Window;
 use ui::prelude::div;
 use ui::prelude::h_flex;
@@ -184,7 +184,7 @@ impl ToastLayer {
         }
     }
 
-    /// Starts a timer to automatically dismiss the toast after the specified duration
+    /// Starts a timer to automatically dismiss the toast after the specified duration.
     pub fn start_dismiss_timer(&mut self, duration: Duration, cx: &mut Context<Self>) {
         self.clear_dismiss_timer(cx);
 
@@ -202,7 +202,7 @@ impl ToastLayer {
         cx.notify();
     }
 
-    /// Restarts the dismiss timer with a new duration
+    /// Restarts the dismiss timer with a new duration.
     pub fn restart_dismiss_timer(&mut self, cx: &mut Context<Self>) {
         let Some(duration) = self.duration_remaining else {
             return;
@@ -211,7 +211,7 @@ impl ToastLayer {
         cx.notify();
     }
 
-    /// Clears the dismiss timer if one exists
+    /// Clears the dismiss timer if one exists.
     pub fn clear_dismiss_timer(&mut self, cx: &mut Context<Self>) {
         self.dismiss_timer.take();
         cx.notify();

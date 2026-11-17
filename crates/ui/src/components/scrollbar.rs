@@ -1,11 +1,11 @@
 use std::any::Any;
 use std::fmt::Debug;
-use std::ops::Not;
+use std::ops::Not as _;
 use std::ops::Range;
 use std::time::Duration;
 use std::time::Instant;
 
-use gpui::Along;
+use gpui::Along as _;
 use gpui::Anchor;
 use gpui::AnyElement;
 use gpui::App;
@@ -28,16 +28,16 @@ use gpui::GlobalElementId;
 use gpui::Hitbox;
 use gpui::HitboxBehavior;
 use gpui::Hsla;
-use gpui::InteractiveElement;
+use gpui::InteractiveElement as _;
 use gpui::IntoElement;
-use gpui::IsZero;
+use gpui::IsZero as _;
 use gpui::LayoutId;
 use gpui::ListState;
 use gpui::MouseButton;
 use gpui::MouseDownEvent;
 use gpui::MouseMoveEvent;
 use gpui::MouseUpEvent;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Pixels;
 use gpui::Point;
 use gpui::Position;
@@ -46,10 +46,10 @@ use gpui::ScrollHandle;
 use gpui::ScrollWheelEvent;
 use gpui::Size;
 use gpui::Stateful;
-use gpui::StatefulInteractiveElement;
+use gpui::StatefulInteractiveElement as _;
 use gpui::Style;
 use gpui::StyleRefinement;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Task;
 use gpui::UniformListDecoration;
 use gpui::UniformListScrollHandle;
@@ -61,7 +61,7 @@ use gpui::px;
 use gpui::quad;
 use gpui::relative;
 use gpui::size;
-use gpui_util::ResultExt;
+use gpui_util::ResultExt as _;
 use smallvec::SmallVec;
 use theme::ActiveTheme as _;
 
@@ -86,7 +86,7 @@ pub mod scrollbars {
 
     /// When to show the scrollbar in the editor.
     ///
-    /// Default: auto
+    /// Default: auto.
     #[derive(Copy, Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
     #[serde(rename_all = "snake_case")]
     pub enum ShowScrollbar {
@@ -440,9 +440,7 @@ impl Scrollbars {
     pub fn always_visible(show_along: ScrollAxes) -> Self {
         Self::new_with_setting(show_along, |_| ShowScrollbar::Always)
     }
-}
 
-impl Scrollbars {
     fn new_with_setting(show_along: ScrollAxes, get_visibility: fn(&App) -> ShowScrollbar) -> Self {
         Self {
             id: None,
@@ -471,7 +469,7 @@ impl<ScrollHandle: ScrollableHandle> Scrollbars<ScrollHandle> {
         self
     }
 
-    /// Notify the current context whenever this scrollbar gets a scroll event
+    /// Notify the current context whenever this scrollbar gets a scroll event.
     pub const fn notify_content(mut self) -> Self {
         self.tracked_entity = Some(NotifyTarget::Parent);
         self
@@ -809,11 +807,13 @@ impl<T: ScrollableHandle> ScrollbarState<T> {
     }
 
     fn hit_for_position(&self, position: Point<Pixels>) -> Option<&ScrollbarLayout> {
-        self.last_prepaint_state.as_ref().and_then(|state| state.hit_for_position(position))
+        let state = self.last_prepaint_state.as_ref()?;
+        state.hit_for_position(position)
     }
 
     fn thumb_for_axis(&self, axis: ScrollbarAxis) -> Option<&ScrollbarLayout> {
-        self.last_prepaint_state.as_ref().and_then(|state| state.thumbs.iter().find(|thumb| thumb.axis == axis))
+        let state = self.last_prepaint_state.as_ref()?;
+        state.thumbs.iter().find(|thumb| thumb.axis == axis)
     }
 
     fn thumb_ranges(&self) -> impl Iterator<Item = (ScrollbarAxis, Range<f32>, ReservedSpace)> + '_ {
@@ -1225,7 +1225,7 @@ impl<T: ScrollableHandle> Element for ScrollbarElement<T> {
                     current_delta,
                     animation_duration: delta_duration,
                     showing: should_invert,
-                } => window.with_element_state(id.unwrap(), |state, window| {
+                } => window.with_element_state(id.expect("scrollbar has an id"), |state, window| {
                     let state = state.unwrap_or_else(Instant::now);
                     let current = Instant::now();
 

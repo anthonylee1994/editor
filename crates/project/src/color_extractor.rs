@@ -32,12 +32,15 @@ static STRICT_RGB_OR_HSL_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 
 /// Extracts a color from an LSP [`CompletionItem`].
 ///
-/// Adapted from https://github.com/microsoft/vscode/blob/a6870fcb6d79093738c17e8319b760cf1c41764a/src/vs/editor/contrib/suggest/browser/suggestWidgetRenderer.ts#L34-L61
+/// Adapted from https://github.com/microsoft/vscode/blob/a6870fcb6d79093738c17e8319b760cf1c41764a/src/vs/editor/contrib/suggest/browser/suggestWidgetRenderer.ts#L34-L61.
 pub fn extract_color(item: &CompletionItem) -> Option<Hsla> {
     // Try to extract from entire `label` field.
     parse(&item.label, ParseMode::Strict)
         // Try to extract from entire `detail` field.
-        .or_else(|| item.detail.as_ref().and_then(|detail| parse(detail, ParseMode::Strict)))
+        .or_else(|| {
+            let detail = item.detail.as_ref()?;
+            parse(detail, ParseMode::Strict)
+        })
         // Try to extract from beginning or end of `documentation` field.
         .or_else(|| match item.documentation {
             Some(Documentation::String(ref str)) => parse(str, ParseMode::Relaxed),

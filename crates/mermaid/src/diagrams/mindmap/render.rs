@@ -101,7 +101,7 @@ pub(crate) fn render(
 
     let nodes = &model.nodes;
     let n = nodes.len();
-    let mut parent = vec![0usize; n];
+    let mut parent = vec![0_usize; n];
     for (i, node) in nodes.iter().enumerate() {
         for &child in &node.children {
             if let Some(slot) = parent.get_mut(child) {

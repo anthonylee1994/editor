@@ -50,7 +50,7 @@ use gpui::Entity;
 use gpui::EventEmitter;
 use gpui::FocusHandle;
 use gpui::Focusable;
-use gpui::InteractiveElement;
+use gpui::InteractiveElement as _;
 use gpui::KeyContext;
 use gpui::Modifiers;
 use gpui::Pixels;
@@ -92,14 +92,14 @@ use serde::Deserialize;
 use svg_preview::svg_preview_view::SvgPreviewView;
 use ui::ContextMenu;
 use ui::IconDecorationKind;
-use ui::ScrollableHandle;
+use ui::ScrollableHandle as _;
 use ui::prelude::Color;
-use ui::prelude::FluentBuilder;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Icon;
 use ui::prelude::IconName;
 use ui::prelude::IconSize;
 use ui::prelude::SharedString;
-use util::ResultExt;
+use util::ResultExt as _;
 use util::markdown::MarkdownInlineCode;
 use util::rel_path::RelPath;
 use workspace::OpenInTerminal;
@@ -110,8 +110,8 @@ use workspace::dock::DockPosition;
 use workspace::dock::Panel;
 use workspace::dock::PanelEvent;
 use workspace::dock::SIDEBAR_MIN_WIDTH;
-use workspace::notifications::DetachAndPromptErr;
-use workspace::notifications::NotifyTaskExt;
+use workspace::notifications::DetachAndPromptErr as _;
+use workspace::notifications::NotifyTaskExt as _;
 
 use crate::undo::Change;
 use crate::undo::UndoManager;
@@ -254,14 +254,14 @@ struct DeployedContextMenu {
 }
 
 enum DragTarget {
-    /// Dragging on an entry
+    /// Dragging on an entry.
     Entry {
-        /// The entry currently under the mouse cursor during a drag operation
+        /// The entry currently under the mouse cursor during a drag operation.
         entry_id: ProjectEntryId,
-        /// Highlight this entry along with all of its children
+        /// Highlight this entry along with all of its children.
         highlight_entry_id: ProjectEntryId,
     },
-    /// Dragging on background
+    /// Dragging on background.
     Background,
 }
 
@@ -327,7 +327,7 @@ impl DiagnosticCount {
     }
 
     fn capped_count(count: usize) -> String {
-        if count > 99 { "99+".to_string() } else { count.to_string() }
+        if count > 99 { "99+".to_owned() } else { count.to_string() }
     }
 }
 
@@ -495,7 +495,7 @@ impl FoldedAncestors {
         self.ancestors.len()
     }
 
-    /// Note: This returns None for last item in ancestors list
+    /// Note: This returns None for last item in ancestors list.
     fn active_ancestor(&self) -> Option<ProjectEntryId> {
         if self.current_ancestor_depth == 0 {
             return None;
@@ -833,7 +833,7 @@ impl ProjectPanel {
                     if let Some(worktree) = project.read(cx).worktree_for_entry(entry_id, cx)
                         && let Some(entry) = worktree.read(cx).entry_for_id(entry_id)
                     {
-                        let file_path = entry.path.clone();
+                        let file_path = Arc::clone(&entry.path);
                         let worktree_id = worktree.read(cx).id();
                         let entry_id = entry.id;
 
@@ -874,7 +874,7 @@ impl ProjectPanel {
                     {
                         workspace
                             .split_path_preview(
-                                ProjectPath { worktree_id: worktree.read(cx).id(), path: entry.path.clone() },
+                                ProjectPath { worktree_id: worktree.read(cx).id(), path: Arc::clone(&entry.path) },
                                 allow_preview,
                                 split_direction,
                                 window,
@@ -898,7 +898,8 @@ impl ProjectPanel {
         let mut diagnostics: FxHashMap<(WorktreeId, Arc<RelPath>), DiagnosticSeverity> = FxHashMap::default();
         let mut diagnostic_counts: FxHashMap<(WorktreeId, Arc<RelPath>), DiagnosticCount> = FxHashMap::default();
         for (project_path, _, summary) in self.project.read(cx).diagnostic_summaries(false, cx) {
-            let count = diagnostic_counts.entry((project_path.worktree_id, project_path.path.clone())).or_default();
+            let count =
+                diagnostic_counts.entry((project_path.worktree_id, Arc::clone(&project_path.path))).or_default();
             count.error_count += summary.error_count;
             count.warning_count += summary.warning_count;
             if let Some(severity) = strongest_diagnostic_severity(summary.error_count, summary.warning_count) {
@@ -933,7 +934,7 @@ impl ProjectPanel {
     ///
     /// TODO: We really really should fix context menu focus to not have to deal with
     /// this everywhere as this is not a proper fix here but a mere workaround. Yet
-    /// a fix would require some more time and thought to not break other users of this
+    /// a fix would require some more time and thought to not break other users of this.
     fn contains_focus(&self, window: &Window, cx: &App) -> bool {
         self.focus_handle.contains_focused(window, cx)
             || self
@@ -971,7 +972,7 @@ impl ProjectPanel {
             let should_show_compare = !is_dir && self.file_abs_paths_to_diff(cx).is_some();
 
             let (has_git_repo, has_history) = {
-                let project_path = project::ProjectPath { worktree_id, path: entry.path.clone() };
+                let project_path = project::ProjectPath { worktree_id, path: Arc::clone(&entry.path) };
                 let git_store = project.git_store().read(cx);
                 let has_git_repo = git_store.repository_and_path_for_project_path(&project_path, cx).is_some();
                 let has_history = has_git_repo
@@ -1455,7 +1456,7 @@ impl ProjectPanel {
         let entry = libraries_header_entry();
         let selection = SelectedEntry { worktree_id: LIBRARIES_WORKTREE_ID, entry_id: LIBRARIES_ENTRY_ID };
         EntryDetails {
-            filename: "External Libraries".to_string(),
+            filename: "External Libraries".to_owned(),
             icon: Some(IconName::Library.path().into()),
             path: entry.entry.path,
             depth: 0,
@@ -1776,7 +1777,7 @@ impl ProjectPanel {
                 return None;
             }
 
-            let file_name = entry.path.file_name()?.to_string();
+            let file_name = entry.path.file_name()?.to_owned();
 
             let answer = if action.skip_prompt {
                 None
@@ -2043,7 +2044,7 @@ impl ProjectPanel {
                 }) && entry.is_file()
                     && self
                         .diagnostics
-                        .get(&(worktree_id, entry.path.clone()))
+                        .get(&(worktree_id, Arc::clone(&entry.path)))
                         .is_some_and(|severity| action.severity.matches(*severity))
             },
             cx,
@@ -2067,7 +2068,7 @@ impl ProjectPanel {
                 }) && entry.is_file()
                     && self
                         .diagnostics
-                        .get(&(worktree_id, entry.path.clone()))
+                        .get(&(worktree_id, Arc::clone(&entry.path)))
                         .is_some_and(|severity| action.severity.matches(*severity))
             },
             cx,
@@ -2245,7 +2246,7 @@ impl ProjectPanel {
             let project = self.project.read(cx);
             self.effective_entries()
                 .into_iter()
-                .filter_map(|entry| Some(project.path_for_entry(entry.entry_id, cx)?.path.display().to_string()))
+                .filter_map(|entry| Some(project.path_for_entry(entry.entry_id, cx)?.path.display().to_owned()))
                 .collect::<Vec<_>>()
         };
         if !file_paths.is_empty() {
@@ -2259,7 +2260,7 @@ impl ProjectPanel {
             return None;
         }
         let worktree = worktree.read(cx);
-        let project_path = ProjectPath { worktree_id: worktree.id(), path: entry.path.clone() };
+        let project_path = ProjectPath { worktree_id: worktree.id(), path: Arc::clone(&entry.path) };
         Some((project_path, entry_file_name(entry, worktree.root_name())))
     }
 
@@ -2333,7 +2334,7 @@ impl ProjectPanel {
     pub fn new_search_in_directory(&mut self, _: &NewSearchInDirectory, window: &mut Window, cx: &mut Context<Self>) {
         if let Some((worktree, entry)) = self.selected_sub_entry(cx) {
             let dir_path = if entry.is_dir() {
-                entry.path.clone()
+                Arc::clone(&entry.path)
             } else {
                 // entry is a file, use its parent directory
                 if let Some(parent) = entry.path.parent() {
@@ -2349,7 +2350,7 @@ impl ProjectPanel {
             let dir_path =
                 if include_root { worktree.read(cx).root_name().join(&dir_path) } else { dir_path.to_rel_path_buf() };
 
-            let directory = dir_path.display().to_string();
+            let directory = dir_path.display().to_owned();
             window.dispatch_action(Box::new(search_actions::NewSearchInDirectory { directory }), cx);
         }
     }
@@ -2383,9 +2384,8 @@ impl ProjectPanel {
                 let dir_paths = worktree_entries
                     .iter()
                     .filter_map(|entry| {
-                        worktree
-                            .entry_for_id(entry.entry_id)
-                            .and_then(|entry| if entry.is_dir() { Some(entry.path.as_ref()) } else { None })
+                        let entry = worktree.entry_for_id(entry.entry_id)?;
+                        entry.is_dir().then(|| entry.path.as_ref())
                     })
                     .collect::<BTreeSet<_>>();
 
@@ -2443,7 +2443,7 @@ impl ProjectPanel {
 
     pub fn selected_entry_project_path(&self, cx: &App) -> Option<ProjectPath> {
         let (worktree, entry) = self.selected_sub_entry(cx)?;
-        Some(ProjectPath { worktree_id: worktree.read(cx).id(), path: entry.path.clone() })
+        Some(ProjectPath { worktree_id: worktree.read(cx).id(), path: Arc::clone(&entry.path) })
     }
 
     /// Compared to selected_entry, this function resolves to the currently
@@ -2756,7 +2756,7 @@ mod tests {
     use super::strongest_diagnostic_severity;
 
     #[test]
-    fn test_last_entry_in_subtree() {
+    fn last_entry_in_subtree_works() {
         let paths = ["", "a", "a/b", "a/b/c", "a/d", "ab", "e"].map(|path| RelPath::new_test(path).into_owned());
         let entries = || paths.iter().enumerate().map(|(ix, path)| (ProjectEntryId::from_usize(ix), path.as_ref()));
         let id = ProjectEntryId::from_usize;
@@ -2771,7 +2771,7 @@ mod tests {
     }
 
     #[test]
-    fn test_strongest_diagnostic_severity() {
+    fn strongest_diagnostic_severity_works() {
         assert_eq!(strongest_diagnostic_severity(0, 0), None);
         assert_eq!(strongest_diagnostic_severity(0, 2), Some(DiagnosticSeverity::WARNING));
         assert_eq!(strongest_diagnostic_severity(1, 0), Some(DiagnosticSeverity::ERROR));
@@ -2779,7 +2779,7 @@ mod tests {
     }
 
     #[test]
-    fn test_context_menu_placement() {
+    fn context_menu_placement_works() {
         let viewport = size(px(800.), px(600.));
         let upper = Bounds::new(point(px(10.), px(100.)), size(px(200.), px(20.)));
         assert_eq!(context_menu_placement(upper, viewport), (upper.bottom_left(), Anchor::TopLeft));
@@ -2789,7 +2789,7 @@ mod tests {
     }
 
     #[test]
-    fn test_sort_worktree_entries_lists_directories_first() {
+    fn sort_worktree_entries_lists_directories_first() {
         let entry = |id: usize, path: &str, kind: EntryKind| GitEntry {
             entry: Entry {
                 id: ProjectEntryId::from_usize(id),

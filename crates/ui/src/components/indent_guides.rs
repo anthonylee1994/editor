@@ -19,7 +19,7 @@ use gpui::point;
 use gpui::size;
 use smallvec::SmallVec;
 
-use crate::prelude::ActiveTheme;
+use crate::prelude::ActiveTheme as _;
 use crate::prelude::Context;
 use crate::prelude::Element;
 use crate::prelude::ElementId;
@@ -337,9 +337,9 @@ impl Element for IndentGuidesElement {
             }
             IndentGuidesElementPrepaintState::Interactive { hitboxes, on_hovered_indent_guide_click } => {
                 window.on_mouse_event({
-                    let hitboxes = hitboxes.clone();
-                    let indent_guides = self.indent_guides.clone();
-                    let on_hovered_indent_guide_click = on_hovered_indent_guide_click.clone();
+                    let hitboxes = Rc::clone(hitboxes);
+                    let indent_guides = Rc::clone(&self.indent_guides);
+                    let on_hovered_indent_guide_click = Rc::clone(on_hovered_indent_guide_click);
                     move |event: &MouseDownEvent, phase, window, cx| {
                         if phase == DispatchPhase::Bubble && event.button == MouseButton::Left {
                             let mut active_hitbox_ix = None;
@@ -380,7 +380,7 @@ impl Element for IndentGuidesElement {
 
                 window.on_mouse_event({
                     let prev_hovered_hitbox_id = hovered_hitbox_id;
-                    let hitboxes = hitboxes.clone();
+                    let hitboxes = Rc::clone(hitboxes);
                     move |_: &MouseMoveEvent, phase, window, cx| {
                         let mut hovered_hitbox_id = None;
                         for hitbox in hitboxes.as_ref() {

@@ -38,12 +38,12 @@ use gpui::EventEmitter;
 use gpui::FocusHandle;
 use gpui::FocusOutEvent;
 use gpui::Focusable;
-use gpui::InteractiveElement;
+use gpui::InteractiveElement as _;
 use gpui::IntoElement;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Render;
 use gpui::SharedString;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Subscription;
 use gpui::Task;
 use gpui::WeakEntity;
@@ -58,7 +58,7 @@ use language::BufferSnapshot;
 use language::DiagnosticEntry;
 use language::DiagnosticEntryRef;
 use language::Point;
-use language::ToTreeSitterPoint;
+use language::ToTreeSitterPoint as _;
 use project::DiagnosticSummary;
 use project::Project;
 use project::ProjectPath;
@@ -66,22 +66,22 @@ use project::project_settings::DiagnosticSeverity;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use text::BufferId;
-use text::OffsetRangeExt;
-use theme::ActiveTheme;
+use text::OffsetRangeExt as _;
+use theme::ActiveTheme as _;
 use ui::Icon;
 use ui::IconName;
 use ui::Label;
 use ui::h_flex;
 use ui::prelude::Color;
-use ui::prelude::FluentBuilder;
-use ui::prelude::LabelCommon;
+use ui::prelude::FluentBuilder as _;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::v_flex;
-use util::ResultExt;
+use util::ResultExt as _;
 use workspace::ItemNavHistory;
 use workspace::Workspace;
 use workspace::item::Item;
 use workspace::item::ItemEvent;
-use workspace::item::ItemHandle;
+use workspace::item::ItemHandle as _;
 use workspace::item::SaveOptions;
 use workspace::item::TabContentParams;
 use workspace::searchable::SearchableItemHandle;
@@ -409,12 +409,12 @@ impl ProjectDiagnosticsEditor {
                 if group_severity.is_none_or(|s| s > max_severity) {
                     continue;
                 }
-                let languages = this.read_with(cx, |t, cx| t.project.read(cx).languages().clone()).ok();
+                let languages = this.read_with(cx, |t, cx| Arc::clone(t.project.read(cx).languages())).ok();
                 let more = cx.update(|_, cx| {
                     DiagnosticRenderer::diagnostic_blocks_for_group(
                         group,
                         buffer_snapshot.buffer_id(),
-                        Some(diagnostics_toolbar_editor.clone()),
+                        Some(Arc::<WeakEntity<ProjectDiagnosticsEditor>>::clone(&diagnostics_toolbar_editor)),
                         languages,
                         cx,
                     )

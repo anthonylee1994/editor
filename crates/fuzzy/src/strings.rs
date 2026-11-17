@@ -2,8 +2,8 @@ use std::borrow::Borrow;
 use std::cmp::Ordering;
 use std::iter;
 use std::ops::Range;
+use std::sync::atomic;
 use std::sync::atomic::AtomicBool;
-use std::sync::atomic::{self};
 
 use gpui::BackgroundExecutor;
 use gpui::SharedString;
@@ -16,8 +16,8 @@ use crate::LengthPenalty;
 use crate::Query;
 use crate::case_penalty;
 use crate::count_case_mismatches;
+use crate::matcher;
 use crate::matcher::LENGTH_PENALTY;
-use crate::matcher::{self};
 use crate::positions_from_sorted;
 
 #[derive(Clone, Debug)]
@@ -69,7 +69,8 @@ impl StringMatch {
     }
 
     fn char_len_at_index(&self, ix: usize) -> Option<usize> {
-        self.string.get(ix..).and_then(|slice| slice.chars().next().map(char::len_utf8))
+        let slice = self.string.get(ix..)?;
+        slice.chars().next().map(char::len_utf8)
     }
 }
 
@@ -116,8 +117,9 @@ where
     let num_cpus = executor.num_cpus().min(candidates.len());
     let base_size = candidates.len() / num_cpus;
     let remainder = candidates.len() % num_cpus;
-    let mut segment_results =
-        (0..num_cpus).map(|_| Vec::with_capacity(max_results.min(candidates.len()))).collect::<Vec<_>>();
+    let mut segment_results = std::iter::repeat_with(|| Vec::with_capacity(max_results.min(candidates.len())))
+        .take(num_cpus)
+        .collect::<Vec<_>>();
 
     let config = nucleo::Config::DEFAULT;
     let mut matchers = matcher::get_matchers(num_cpus, config);

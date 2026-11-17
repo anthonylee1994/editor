@@ -3,10 +3,10 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::Context;
 use gpui::Entity;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use language::Buffer;
 use language::BufferSnapshot;
 use rope::Point;
@@ -16,7 +16,7 @@ use sum_tree::SumTree;
 use text::Bias;
 use text::BufferId;
 use text::Edit;
-use text::OffsetRangeExt;
+use text::OffsetRangeExt as _;
 use text::Patch;
 use util::rel_path::RelPath;
 
@@ -58,11 +58,13 @@ impl PathKey {
     pub fn for_buffer(buffer: &Entity<Buffer>, cx: &App) -> Self {
         let buffer = buffer.read(cx);
         if let Some(file) = buffer.file() {
-            Self::with_sort_prefix(file.worktree_id(cx).to_usize() as u64, file.path().clone())
+            Self::with_sort_prefix(file.worktree_id(cx).to_usize() as u64, Arc::clone(file.path()))
         } else {
             Self {
                 sort_prefix: None,
-                path: RelPath::from_unix_str(&buffer.buffer_id().to_string()).unwrap().into_arc(),
+                path: RelPath::from_unix_str(&buffer.buffer_id().to_string())
+                    .expect("buffer id is a valid path")
+                    .into_arc(),
             }
         }
     }
@@ -468,7 +470,7 @@ impl MultiBuffer {
                     .push(Edit { old: before..after, new: new_excerpts.summary().len()..new_excerpts.summary().len() });
             } else {
                 // insert new excerpt
-                let next_excerpt = to_insert.next().unwrap();
+                let next_excerpt = to_insert.next().expect("excerpts left to insert");
                 added_new_excerpt = true;
                 let before = new_excerpts.summary().len();
                 new_excerpts.update_last(

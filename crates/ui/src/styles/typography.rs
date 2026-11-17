@@ -1,6 +1,6 @@
 use gpui::App;
 use gpui::IntoElement;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Rems;
 use gpui::RenderOnce;
 use gpui::SharedString;
@@ -8,7 +8,7 @@ use gpui::Styled;
 use gpui::Window;
 use gpui::div;
 use gpui::rems;
-use theme::ActiveTheme;
+use theme::ActiveTheme as _;
 
 use crate::Color;
 use crate::font;
@@ -150,21 +150,21 @@ impl TextSize {
     }
 }
 
-/// The size of a [`Headline`] element
+/// The size of a [`Headline`] element.
 ///
 /// Defaults to a Major Second scale.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy, Default)]
 pub enum HeadlineSize {
-    /// An extra small headline - `~14px` @16px/rem
+    /// An extra small headline - `~14px` @16px/rem.
     XSmall,
-    /// A small headline - `16px` @16px/rem
+    /// A small headline - `16px` @16px/rem.
     Small,
     #[default]
-    /// A medium headline - `~18px` @16px/rem
+    /// A medium headline - `~18px` @16px/rem.
     Medium,
-    /// A large headline - `~20px` @16px/rem
+    /// A large headline - `~20px` @16px/rem.
     Large,
-    /// An extra large headline - `~22px` @16px/rem
+    /// An extra large headline - `~22px` @16px/rem.
     XLarge,
 }
 

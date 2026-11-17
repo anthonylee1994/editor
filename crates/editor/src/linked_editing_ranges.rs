@@ -3,26 +3,26 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use futures::future;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::Context;
 use gpui::Entity;
 use gpui::Window;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use language::Buffer;
 use rustc_hash::FxHashMap;
 use text::Anchor;
-use text::AnchorRangeExt;
+use text::AnchorRangeExt as _;
 use text::Bias;
 use text::BufferId;
-use text::ToOffset;
-use text::ToPoint;
-use util::ResultExt;
+use text::ToOffset as _;
+use text::ToPoint as _;
+use util::ResultExt as _;
 
 use crate::Editor;
 
 #[derive(Clone, Default)]
 pub(super) struct LinkedEditingRanges(
-    /// Ranges are non-overlapping and sorted by .0 (thus, [x + 1].start > [x].end must hold)
+    /// Ranges are non-overlapping and sorted by .0 (thus, [x + 1].start > [x].end must hold).
     #[allow(clippy::type_complexity)]
     pub FxHashMap<BufferId, Vec<(Range<Anchor>, Vec<Range<Anchor>>)>>,
 );
@@ -174,7 +174,7 @@ impl LinkedEdits {
     pub(crate) fn push(&mut self, editor: &Editor, anchor_range: Range<Anchor>, text: Arc<str>, cx: &gpui::App) {
         if let Some(editing_ranges) = editor.linked_editing_ranges_for(anchor_range, cx) {
             for (buffer, ranges) in editing_ranges {
-                self.0.entry(buffer).or_default().extend(ranges.into_iter().map(|range| (range, text.clone())));
+                self.0.entry(buffer).or_default().extend(ranges.into_iter().map(|range| (range, Arc::clone(&text))));
             }
         }
     }

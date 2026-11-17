@@ -22,7 +22,7 @@ use crate::TextEdit;
 use crate::WorkDoneProgressOptions;
 use crate::WorkDoneProgressParams;
 
-/// Defines how to interpret the insert text in a completion item
+/// Defines how to interpret the insert text in a completion item.
 #[derive(Eq, PartialEq, Clone, Copy, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct InsertTextFormat(i32);
@@ -106,7 +106,7 @@ pub struct CompletionItemCapability {
     /// Client support insert replace edit to control different behavior if a
     /// completion item is inserted in the text or should replace text.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub insert_replace_support: Option<bool>,
 
@@ -114,7 +114,7 @@ pub struct CompletionItemCapability {
     /// item. Before version 3.16.0 only the predefined properties `documentation`
     /// and `details` could be resolved lazily.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resolve_support: Option<CompletionItemCapabilityResolveSupport>,
 
@@ -122,14 +122,14 @@ pub struct CompletionItemCapability {
     /// a completion item to override the whitespace handling mode
     /// as defined by the client.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub insert_text_mode_support: Option<InsertTextModeSupport>,
 
     /// The client has support for completion item label
     /// details (see also `CompletionItemLabelDetails`).
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub label_details_support: Option<bool>,
 }
@@ -150,7 +150,7 @@ pub struct InsertTextModeSupport {
 /// How whitespace and indentation is handled during completion
 /// item insertion.
 ///
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Eq, PartialEq, Clone, Copy, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct InsertTextMode(i32);
@@ -208,7 +208,7 @@ pub struct CompletionListCapability {
     /// `CompletionList.itemDefaults` object. If omitted
     /// no properties are supported.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub item_defaults: Option<Vec<String>>,
 }
@@ -236,28 +236,28 @@ pub struct CompletionClientCapabilities {
     /// The client's default when the completion item doesn't provide a
     /// `insertTextMode` property.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub insert_text_mode: Option<InsertTextMode>,
 
     /// The client supports the following `CompletionList` specific
     /// capabilities.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub completion_list: Option<CompletionListCapability>,
 }
 
 /// A special text edit to provide an insert and a replace operation.
 ///
-/// @since 3.16.0
+/// @since 3.16.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InsertReplaceEdit {
     /// The string to be inserted.
     pub new_text: String,
 
-    /// The range if the insert is requested
+    /// The range if the insert is requested.
     pub insert: Range,
 
     /// The range if the replace is requested.
@@ -384,7 +384,7 @@ pub struct CompletionOptions {
     /// If a server provides both `allCommitCharacters` and commit characters on
     /// an individual completion item the ones on the completion item win.
     ///
-    /// @since 3.2.0
+    /// @since 3.2.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub all_commit_characters: Option<Vec<String>>,
 
@@ -394,7 +394,7 @@ pub struct CompletionOptions {
     /// The server supports the following `CompletionItem` specific
     /// capabilities.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub completion_item: Option<CompletionOptionsCompletionItem>,
 }
@@ -406,7 +406,7 @@ pub struct CompletionOptionsCompletionItem {
     /// details (see also `CompletionItemLabelDetails`) when receiving
     /// a completion item in a resolve call.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub label_details_support: Option<bool>,
 }
@@ -499,7 +499,7 @@ pub struct CompletionContext {
     pub trigger_kind: CompletionTriggerKind,
 
     /// The trigger character (a single character) that has trigger code complete.
-    /// Is undefined if `triggerKind !== CompletionTriggerKind.TriggerCharacter`
+    /// Is undefined if `triggerKind !== CompletionTriggerKind.TriggerCharacter`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub trigger_character: Option<String>,
 }
@@ -537,7 +537,7 @@ pub struct CompletionList {
     /// signals support for this via the `completionList.itemDefaults`
     /// capability.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     pub item_defaults: Option<CompletionListItemDefaults>,
 
     /// The completion items.
@@ -552,9 +552,9 @@ pub struct CompletionItem {
     /// this completion.
     pub label: String,
 
-    /// Additional details for the label
+    /// Additional details for the label.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub label_details: Option<CompletionItemLabelDetails>,
 
@@ -609,7 +609,7 @@ pub struct CompletionItem {
     /// The format of the insert text. The format applies to both the `insertText` property
     /// and the `newText` property of a provided `textEdit`. If omitted defaults to `InsertTextFormat.PlainText`.
     ///
-    /// @since 3.16.0
+    /// @since 3.16.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub insert_text_format: Option<InsertTextFormat>,
 
@@ -618,7 +618,7 @@ pub struct CompletionItem {
     /// the `textDocument.completion.insertTextMode` client capability.
     ///
     /// @since 3.16.0
-    /// @since 3.17.0 - support for `textDocument.completion.insertTextMode`
+    /// @since 3.17.0 - support for `textDocument.completion.insertTextMode`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub insert_text_mode: Option<InsertTextMode>,
 
@@ -638,7 +638,7 @@ pub struct CompletionItem {
     /// *Note 2:* If an `InsertReplaceEdit` is returned the edit's insert range must be a prefix of
     /// the edit's replace range, that means it must be contained and starting at the same position.
     ///
-    /// @since 3.16.0 additional type `InsertReplaceEdit`
+    /// @since 3.16.0 additional type `InsertReplaceEdit`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text_edit: Option<CompletionTextEdit>,
 
@@ -649,7 +649,7 @@ pub struct CompletionItem {
     /// If not provided and a list's default range is provided the label
     /// property is used as a text.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text_edit_text: Option<String>,
 
@@ -685,40 +685,40 @@ pub struct CompletionItem {
 #[derive(Debug, PartialEq, Eq, Default, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CompletionListItemDefaults {
-    /// A default commit character set
+    /// A default commit character set.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub commit_characters: Option<Vec<String>>,
 
-    /// A default edit range
+    /// A default edit range.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub edit_range: Option<CompletionListItemDefaultsEditRange>,
 
-    /// A default insert text format
+    /// A default insert text format.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub insert_text_format: Option<InsertTextFormat>,
 
-    /// A default insert text mode
+    /// A default insert text mode.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub insert_text_mode: Option<InsertTextMode>,
 
-    /// A default data value
+    /// A default data value.
     ///
-    /// @since 3.17.0
+    /// @since 3.17.0.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<Value>,
 }
 
 /// Additional details for a completion item label.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, PartialEq, Eq, Default, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct CompletionItemLabelDetails {
@@ -745,10 +745,10 @@ mod tests {
     use crate::tests::test_deserialization;
 
     #[test]
-    fn test_tag_support_deserialization() {
+    fn tag_support_deserialization() {
         let empty = CompletionItemCapability { tag_support: None, ..Default::default() };
 
-        test_deserialization(r"{}", &empty);
+        test_deserialization("{}", &empty);
         test_deserialization(r#"{"tagSupport": false}"#, &empty);
 
         let t = CompletionItemCapability { tag_support: Some(TagSupport { value_set: vec![] }), ..Default::default() };
@@ -762,14 +762,14 @@ mod tests {
     }
 
     #[test]
-    fn test_debug_enum() {
+    fn debug_enum() {
         assert_eq!(format!("{:?}", CompletionItemKind::TEXT), "Text");
         assert_eq!(format!("{:?}", CompletionItemKind::TYPE_PARAMETER), "TypeParameter");
     }
 
     #[test]
-    fn test_try_from_enum() {
-        use std::convert::TryInto;
+    fn try_from_enum() {
+        use std::convert::TryInto as _;
         assert_eq!("Text".try_into(), Ok(CompletionItemKind::TEXT));
         assert_eq!("TypeParameter".try_into(), Ok(CompletionItemKind::TYPE_PARAMETER));
     }

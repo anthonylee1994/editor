@@ -2,7 +2,7 @@ use gpui::Hsla;
 
 /// APCA (Accessible Perceptual Contrast Algorithm) constants
 /// Based on APCA 0.0.98G-4g W3 compatible constants
-/// https://github.com/Myndex/apca-w3
+/// https://github.com/Myndex/apca-w3.
 struct APCAConstants {
     // Main TRC exponent for monitor perception
     main_trc: f32,
@@ -72,7 +72,7 @@ impl Default for APCAConstants {
 ///
 /// Most terminal themes use colors with APCA values of 40-70.
 ///
-/// https://github.com/Myndex/apca-w3
+/// https://github.com/Myndex/apca-w3.
 pub fn apca_contrast(text_color: Hsla, background_color: Hsla) -> f32 {
     let constants = APCAConstants::default();
 
@@ -113,7 +113,7 @@ pub fn apca_contrast(text_color: Hsla, background_color: Hsla) -> f32 {
     output_contrast * 100.0
 }
 
-/// Converts sRGB color to Y (luminance) for APCA calculation
+/// Converts sRGB color to Y (luminance) for APCA calculation.
 fn srgb_to_y(color: Hsla, constants: &APCAConstants) -> f32 {
     let rgba = color.to_rgb();
 
@@ -168,7 +168,7 @@ pub fn ensure_minimum_contrast(foreground: Hsla, background: Hsla, minimum_apca_
     if white_contrast > black_contrast { white } else { black }
 }
 
-/// Adjusts only the lightness to meet the minimum contrast, preserving hue and saturation
+/// Adjusts only the lightness to meet the minimum contrast, preserving hue and saturation.
 fn adjust_lightness_for_contrast(foreground: Hsla, background: Hsla, minimum_apca_contrast: f32) -> Hsla {
     // Determine if we need to go lighter or darker
     let bg_luminance = srgb_to_y(background, &APCAConstants::default());
@@ -209,7 +209,7 @@ fn adjust_lightness_for_contrast(foreground: Hsla, background: Hsla, minimum_apc
     Hsla { h: foreground.h, s: foreground.s, l: best_l, a: foreground.a }
 }
 
-/// Adjusts both lightness and saturation to meet the minimum contrast
+/// Adjusts both lightness and saturation to meet the minimum contrast.
 fn adjust_lightness_and_saturation_for_contrast(
     foreground: Hsla,
     background: Hsla,

@@ -7,7 +7,7 @@ mod manifest_store;
 pub mod path_trie;
 mod server_tree;
 
-use std::borrow::Borrow;
+use std::borrow::Borrow as _;
 use std::collections::hash_map::Entry;
 use std::ops::ControlFlow;
 use std::sync::Arc;
@@ -111,7 +111,7 @@ impl ManifestTree {
             this.roots.walk(&key, &mut |path, labels| {
                 for (label, presence) in labels {
                     if label == manifest_name {
-                        marked_path = Some(ProjectPath { worktree_id: *worktree_id, path: path.clone() });
+                        marked_path = Some(ProjectPath { worktree_id: *worktree_id, path: Arc::clone(path) });
                         current_presence = *presence;
                     }
                 }
@@ -123,13 +123,19 @@ impl ManifestTree {
             // Some part of the path is unexplored.
             let depth = marked_path.as_ref().map_or_else(
                 || path.components().count() + 1,
-                |root_path| path.strip_prefix(&root_path.path).unwrap().components().count(),
+                |root_path| {
+                    path.strip_prefix(&root_path.path)
+                        .expect("manifest root is an ancestor of path")
+                        .components()
+                        .count()
+                },
             );
 
             if depth > 0
                 && let Some(provider) = ManifestProvidersStore::global(cx).get(manifest_name.borrow())
             {
-                let root = provider.search(ManifestQuery { path: path.clone(), depth, delegate: delegate.clone() });
+                let root =
+                    provider.search(ManifestQuery { path: Arc::clone(path), depth, delegate: Arc::clone(delegate) });
                 match root {
                     Some(known_root) => worktree_roots.update(cx, |this, _| {
                         let root = TriePath::from(&*known_root);

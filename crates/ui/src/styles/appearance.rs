@@ -1,7 +1,7 @@
 use gpui::App;
 use gpui::WindowBackgroundAppearance;
 
-use crate::prelude::ActiveTheme;
+use crate::prelude::ActiveTheme as _;
 
 /// Returns the [WindowBackgroundAppearance].
 fn window_appearance(cx: &App) -> WindowBackgroundAppearance {

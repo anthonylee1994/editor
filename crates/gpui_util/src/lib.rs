@@ -96,6 +96,7 @@ fn log_error_with_caller(caller: panic::Location<'_>, arguments: fmt::Arguments<
 struct DebugAsDisplay<'a, E>(&'a E);
 
 impl<E: fmt::Debug> fmt::Display for DebugAsDisplay<'_, E> {
+    #[expect(clippy::use_debug, reason = "intentionally renders Debug output")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", self.0)
     }
@@ -264,11 +265,8 @@ impl Hasher for TypeIdHasher {
     #[inline]
     fn write(&mut self, bytes: &[u8]) {
         // TypeId should only hash its first 8 bytes
-        if let Some(bytes) = bytes.get(..8) {
-            bytes.as_array().map_or_else(
-                || unreachable!("slice was sliced to 8 bytes"),
-                |&array| self.value = u64::from_ne_bytes(array),
-            );
+        if let Some(&array) = bytes.first_chunk::<8>() {
+            self.value = u64::from_le_bytes(array);
         } else {
             log::error!("expected a 64-bit value, did you use this hasher with something other than a TypeId?");
         }

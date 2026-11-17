@@ -15,13 +15,13 @@ use gpui::Focusable as _;
 use gpui::GlobalElementId;
 use gpui::HitboxBehavior;
 use gpui::HitboxId;
-use gpui::InteractiveElement;
+use gpui::InteractiveElement as _;
 use gpui::IntoElement;
 use gpui::LayoutId;
 use gpui::Length;
 use gpui::ManagedView;
 use gpui::MouseDownEvent;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Pixels;
 use gpui::Point;
 use gpui::Style;
@@ -30,7 +30,7 @@ use gpui::anchored;
 use gpui::deferred;
 use gpui::div;
 use gpui::point;
-use gpui::prelude::FluentBuilder;
+use gpui::prelude::FluentBuilder as _;
 use gpui::px;
 use gpui::size;
 
@@ -70,7 +70,7 @@ pub struct PopoverMenuHandle<M>(Rc<RefCell<Option<PopoverMenuHandleState<M>>>>);
 
 impl<M> Clone for PopoverMenuHandle<M> {
     fn clone(&self) -> Self {
-        Self(self.0.clone())
+        Self(Rc::clone(&self.0))
     }
 }
 
@@ -295,7 +295,7 @@ fn show_menu<M: ManagedView>(
     let Some(new_menu) = (builder)(window, cx) else {
         return;
     };
-    let menu2 = menu.clone();
+    let menu2 = Rc::clone(menu);
 
     window
         .subscribe(&new_menu, cx, move |modal, _: &DismissEvent, window, cx| {
@@ -367,60 +367,64 @@ impl<M: ManagedView> Element for PopoverMenu<M> {
         window: &mut Window,
         cx: &mut App,
     ) -> (gpui::LayoutId, Self::RequestLayoutState) {
-        window.with_element_state(global_id.unwrap(), |element_state: Option<PopoverMenuElementState<M>>, window| {
-            let element_state = element_state.unwrap_or_default();
-            let mut menu_layout_id = None;
+        window.with_element_state(
+            global_id.expect("popover menu has an id"),
+            |element_state: Option<PopoverMenuElementState<M>>, window| {
+                let element_state = element_state.unwrap_or_default();
+                let mut menu_layout_id = None;
 
-            let menu_element = element_state.menu.borrow_mut().as_mut().map(|menu| {
-                let offset = self.resolved_offset(window);
-                let mut anchored = anchored().snap_to_window_with_margin(px(8.)).anchor(self.anchor).offset(offset);
-                if let Some(child_bounds) = element_state.child_bounds {
-                    anchored = anchored.position(child_bounds.corner(self.resolved_attach()) + offset);
-                }
-                let mut element =
-                    deferred(anchored.child(div().occlude().child(menu.clone()))).with_priority(1).into_any();
+                let menu_element = element_state.menu.borrow_mut().as_mut().map(|menu| {
+                    let offset = self.resolved_offset(window);
+                    let mut anchored = anchored().snap_to_window_with_margin(px(8.)).anchor(self.anchor).offset(offset);
+                    if let Some(child_bounds) = element_state.child_bounds {
+                        anchored = anchored.position(child_bounds.corner(self.resolved_attach()) + offset);
+                    }
+                    let mut element =
+                        deferred(anchored.child(div().occlude().child(menu.clone()))).with_priority(1).into_any();
 
-                menu_layout_id = Some(element.request_layout(window, cx));
-                element
-            });
-
-            let mut child_element = self
-                .child_builder
-                .take()
-                .map(|child_builder| (child_builder)(element_state.menu.clone(), self.menu_builder.clone()));
-
-            if let Some(trigger_handle) = self.trigger_handle.take()
-                && let Some(menu_builder) = self.menu_builder.clone()
-            {
-                *trigger_handle.0.borrow_mut() = Some(PopoverMenuHandleState {
-                    menu_builder,
-                    menu: element_state.menu.clone(),
-                    on_open: self.on_open.clone(),
+                    menu_layout_id = Some(element.request_layout(window, cx));
+                    element
                 });
-            }
 
-            let child_layout_id = child_element.as_mut().map(|child_element| child_element.request_layout(window, cx));
+                let mut child_element = self
+                    .child_builder
+                    .take()
+                    .map(|child_builder| (child_builder)(Rc::clone(&element_state.menu), self.menu_builder.clone()));
 
-            let mut style = Style::default();
-            if self.full_width {
-                style.size = size(relative(1.).into(), Length::Auto);
-            }
+                if let Some(trigger_handle) = self.trigger_handle.take()
+                    && let Some(menu_builder) = self.menu_builder.clone()
+                {
+                    *trigger_handle.0.borrow_mut() = Some(PopoverMenuHandleState {
+                        menu_builder,
+                        menu: Rc::clone(&element_state.menu),
+                        on_open: self.on_open.clone(),
+                    });
+                }
 
-            let layout_id = window.request_layout(style, menu_layout_id.into_iter().chain(child_layout_id), cx);
+                let child_layout_id =
+                    child_element.as_mut().map(|child_element| child_element.request_layout(window, cx));
 
-            (
+                let mut style = Style::default();
+                if self.full_width {
+                    style.size = size(relative(1.).into(), Length::Auto);
+                }
+
+                let layout_id = window.request_layout(style, menu_layout_id.into_iter().chain(child_layout_id), cx);
+
                 (
-                    layout_id,
-                    PopoverMenuFrameState {
-                        child_element,
-                        child_layout_id,
-                        menu_element,
-                        menu_handle: element_state.menu.clone(),
-                    },
-                ),
-                element_state,
-            )
-        })
+                    (
+                        layout_id,
+                        PopoverMenuFrameState {
+                            child_element,
+                            child_layout_id,
+                            menu_element,
+                            menu_handle: Rc::clone(&element_state.menu),
+                        },
+                    ),
+                    element_state,
+                )
+            },
+        )
     }
 
     fn prepaint(
@@ -441,8 +445,9 @@ impl<M: ManagedView> Element for PopoverMenu<M> {
 
         request_layout.child_layout_id.map(|layout_id| {
             let bounds = window.layout_bounds(layout_id);
-            window.with_element_state(global_id.unwrap(), |element_state, _cx| {
-                let mut element_state: PopoverMenuElementState<M> = element_state.unwrap();
+            window.with_element_state(global_id.expect("popover menu has an id"), |element_state, _cx| {
+                let mut element_state: PopoverMenuElementState<M> =
+                    element_state.expect("state is set in request_layout");
                 element_state.child_bounds = Some(bounds);
                 ((), element_state)
             });
@@ -468,7 +473,7 @@ impl<M: ManagedView> Element for PopoverMenu<M> {
             menu.paint(window, cx);
 
             if let Some(child_hitbox) = *child_hitbox {
-                let menu_handle = request_layout.menu_handle.clone();
+                let menu_handle = Rc::clone(&request_layout.menu_handle);
                 // Mouse-downing outside the menu dismisses it, so we don't
                 // want a click on the toggle to re-open it.
                 window.on_mouse_event(move |_: &MouseDownEvent, phase, window, cx| {

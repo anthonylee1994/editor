@@ -373,7 +373,8 @@ impl Iterator for BatchIterator<'_> {
                 Some(PrimitiveBatch::Underlines(underlines_start..underlines_end))
             }
             PrimitiveKind::MonochromeSprite => {
-                let texture_id = self.monochrome_sprites_iter.peek().unwrap().tile.texture_id;
+                let texture_id =
+                    self.monochrome_sprites_iter.peek().expect("batch kind came from a peeked sprite").tile.texture_id;
                 let sprites_start = self.monochrome_sprites_start;
                 let mut sprites_end = sprites_start + 1;
                 self.monochrome_sprites_iter.next();
@@ -390,7 +391,8 @@ impl Iterator for BatchIterator<'_> {
                 Some(PrimitiveBatch::MonochromeSprites { texture_id, range: sprites_start..sprites_end })
             }
             PrimitiveKind::SubpixelSprite => {
-                let texture_id = self.subpixel_sprites_iter.peek().unwrap().tile.texture_id;
+                let texture_id =
+                    self.subpixel_sprites_iter.peek().expect("batch kind came from a peeked sprite").tile.texture_id;
                 let sprites_start = self.subpixel_sprites_start;
                 let mut sprites_end = sprites_start + 1;
                 self.subpixel_sprites_iter.next();
@@ -407,7 +409,8 @@ impl Iterator for BatchIterator<'_> {
                 Some(PrimitiveBatch::SubpixelSprites { texture_id, range: sprites_start..sprites_end })
             }
             PrimitiveKind::PolychromeSprite => {
-                let texture_id = self.polychrome_sprites_iter.peek().unwrap().tile.texture_id;
+                let texture_id =
+                    self.polychrome_sprites_iter.peek().expect("batch kind came from a peeked sprite").tile.texture_id;
                 let sprites_start = self.polychrome_sprites_start;
                 let mut sprites_end = sprites_start + 1;
                 self.polychrome_sprites_iter.next();
@@ -548,9 +551,9 @@ pub enum BorderStyle {
 #[repr(C)]
 pub struct TransformationMatrix {
     /// 2x2 matrix containing rotation and scale,
-    /// stored row-major
+    /// stored row-major.
     pub rotation_scale: [[f32; 2]; 2],
-    /// translation vector
+    /// translation vector.
     pub translation: [f32; 2],
 }
 
@@ -562,12 +565,12 @@ impl TransformationMatrix {
         Self { rotation_scale: [[1.0, 0.0], [0.0, 1.0]], translation: [0.0, 0.0] }
     }
 
-    /// Move the origin by a given point
+    /// Move the origin by a given point.
     pub fn translate(self, point: Point<ScaledPixels>) -> Self {
         self.compose(Self { rotation_scale: [[1.0, 0.0], [0.0, 1.0]], translation: [point.x.0, point.y.0] })
     }
 
-    /// Clockwise rotation in radians around the origin
+    /// Clockwise rotation in radians around the origin.
     pub fn rotate(self, angle: Radians) -> Self {
         self.compose(Self {
             rotation_scale: [[angle.0.cos(), -angle.0.sin()], [angle.0.sin(), angle.0.cos()]],
@@ -575,7 +578,7 @@ impl TransformationMatrix {
         })
     }
 
-    /// Scale around the origin
+    /// Scale around the origin.
     pub fn scale(self, size: Size<f32>) -> Self {
         self.compose(Self { rotation_scale: [[size.width, 0.0], [0.0, size.height]], translation: [0.0, 0.0] })
     }
@@ -615,7 +618,7 @@ impl TransformationMatrix {
         }
     }
 
-    /// Apply transformation to a point, mainly useful for debugging
+    /// Apply transformation to a point, mainly useful for debugging.
     pub fn apply(&self, point: Point<Pixels>) -> Point<Pixels> {
         let input = [point.x.0, point.y.0];
         let mut output = self.translation;
@@ -855,7 +858,7 @@ fn sort_in_place<T: Copy>(primitives: &mut [T], keys: &mut Vec<(u64, u32)>, key:
     keys.clear();
     keys.extend(primitives.iter().enumerate().map(|(index, primitive)| {
         let (major, minor) = key(primitive);
-        (u64::from(major) << 32 | u64::from(minor), index as u32)
+        ((u64::from(major) << 32) | u64::from(minor), index as u32)
     }));
     keys.sort_unstable();
 

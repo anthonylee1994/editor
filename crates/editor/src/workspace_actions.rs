@@ -1,15 +1,16 @@
 use std::ops::Range;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
 use ed_actions::editor::RevealInFileManager;
 use ed_actions::workspace::CopyPath;
 use ed_actions::workspace::CopyRelativePath;
-use gpui::Action;
+use gpui::Action as _;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::AsyncWindowContext;
 use gpui::ClipboardItem;
 use gpui::Context;
@@ -17,25 +18,25 @@ use gpui::Entity;
 use gpui::Task;
 use gpui::WeakEntity;
 use gpui::Window;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use language::Capability;
-use language::OffsetRangeExt;
+use language::OffsetRangeExt as _;
 use language::Point;
 use multi_buffer::BufferOffset;
 use multi_buffer::EXCERPT_CONTEXT_LINES;
 use multi_buffer::MultiBuffer;
 use multi_buffer::MultiBufferPoint;
 use multi_buffer::PathKey;
-use project::ProjectItem;
+use project::ProjectItem as _;
 use project::ProjectTransaction;
 use rustc_hash::FxHashMap;
 use text::Bias;
-use workspace::Item as WorkspaceItem;
+use workspace::Item as _;
 use workspace::OpenInTerminal;
 use workspace::OpenTerminal;
 use workspace::SplitDirection;
 use workspace::Workspace;
-use workspace::notifications::DetachAndPromptErr;
+use workspace::notifications::DetachAndPromptErr as _;
 
 use super::Editor;
 use super::EditorEvent;
@@ -65,15 +66,15 @@ impl Editor {
     }
 
     pub fn target_file_abs_path(&self, cx: &mut Context<Self>) -> Option<PathBuf> {
-        self.active_buffer(cx).and_then(|buffer| {
-            let buffer = buffer.read(cx);
-            if let Some(project_path) = buffer.project_path(cx) {
-                let project = self.project()?.read(cx);
-                project.absolute_path(&project_path, cx)
-            } else {
-                buffer.file().and_then(|file| file.as_local().map(|file| file.abs_path(cx)))
-            }
-        })
+        let buffer = self.active_buffer(cx)?;
+        let buffer = buffer.read(cx);
+        if let Some(project_path) = buffer.project_path(cx) {
+            let project = self.project()?.read(cx);
+            project.absolute_path(&project_path, cx)
+        } else {
+            let file = buffer.file()?;
+            file.as_local().map(|file| file.abs_path(cx))
+        }
     }
 
     pub fn new_file(
@@ -210,7 +211,7 @@ impl Editor {
     ) -> Result<()> {
         let mut entries = transaction.0.into_iter().collect::<Vec<_>>();
         cx.update(|_, cx| {
-            entries.sort_unstable_by_key(|(buffer, _)| buffer.read(cx).file().map(|f| f.path().clone()));
+            entries.sort_unstable_by_key(|(buffer, _)| buffer.read(cx).file().map(|f| Arc::clone(f.path())));
         })?;
         if entries.is_empty() {
             return Ok(());
@@ -330,15 +331,15 @@ impl Editor {
         if let Some(path) = self.target_file_abs_path(cx)
             && let Some(path) = path.to_str()
         {
-            cx.write_to_clipboard(ClipboardItem::new_string(path.to_string()));
+            cx.write_to_clipboard(ClipboardItem::new_string(path.to_owned()));
         } else {
             cx.propagate();
         }
     }
 
     pub(super) fn copy_relative_path(&mut self, _: &CopyRelativePath, _window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(path) = self.active_buffer(cx).and_then(|buffer| Some(buffer.read(cx).file()?.path().clone())) {
-            cx.write_to_clipboard(ClipboardItem::new_string(path.display().to_string()));
+        if let Some(path) = self.active_buffer(cx).and_then(|buffer| Some(Arc::clone(buffer.read(cx).file()?.path()))) {
+            cx.write_to_clipboard(ClipboardItem::new_string(path.display().to_owned()));
         } else {
             cx.propagate();
         }
@@ -354,7 +355,7 @@ impl Editor {
             let file = buffer.read(cx).file()?;
             Path::new(file.file_name(cx)).file_stem()?.to_str()
         }) {
-            cx.write_to_clipboard(ClipboardItem::new_string(file_stem.to_string()));
+            cx.write_to_clipboard(ClipboardItem::new_string(file_stem.to_owned()));
         }
     }
 
@@ -363,7 +364,7 @@ impl Editor {
             let file = buffer.read(cx).file()?;
             Some(file.file_name(cx))
         }) {
-            cx.write_to_clipboard(ClipboardItem::new_string(file_name.to_string()));
+            cx.write_to_clipboard(ClipboardItem::new_string(file_name.to_owned()));
         }
     }
 
@@ -602,7 +603,7 @@ impl Editor {
                                     pane.read(cx).items().enumerate().find_map(|(i, item)| {
                                         let editor = item.downcast::<Editor>()?;
                                         let singleton_buffer = editor.read(cx).buffer().read(cx).as_singleton()?;
-                                        if singleton_buffer == buffer { Some((editor, i)) } else { None }
+                                        (singleton_buffer == buffer).then_some((editor, i))
                                     })?;
                                 pane.update(cx, |pane, cx| pane.activate_item(pane_item_index, true, true, window, cx));
                                 Some(editor)
@@ -638,7 +639,9 @@ impl Editor {
                                 s.select_ranges(ranges.into_iter().map(|range| {
                                     let range = buffer_snapshot.anchor_before(range.start)
                                         ..buffer_snapshot.anchor_after(range.end);
-                                    multibuffer_snapshot.buffer_anchor_range_to_anchor_range(range).unwrap()
+                                    multibuffer_snapshot
+                                        .buffer_anchor_range_to_anchor_range(range)
+                                        .expect("range is within singleton buffer")
                                 }));
                             });
                             editor.nav_history = nav_history;

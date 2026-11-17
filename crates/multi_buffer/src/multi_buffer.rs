@@ -1,8 +1,8 @@
 use std::hash::Hash;
 use std::hash::Hasher;
 
-use itertools::Itertools;
-use language::OffsetRangeExt;
+use itertools::Itertools as _;
+use language::OffsetRangeExt as _;
 
 mod anchor;
 mod anchor_resolve;
@@ -20,18 +20,18 @@ use std::cell::Cell;
 use std::cell::OnceCell;
 use std::cell::Ref;
 use std::cell::RefCell;
+use std::cmp;
 use std::cmp::Ordering;
-use std::cmp::{self};
 use std::collections::BTreeMap;
 use std::collections::Bound;
 use std::fmt;
-use std::iter::{self};
+use std::iter;
 use std::mem;
+use std::ops;
 use std::ops::AddAssign;
 use std::ops::Range;
 use std::ops::RangeBounds;
 use std::ops::Sub;
-use std::ops::{self};
 use std::rc::Rc;
 use std::str;
 use std::sync::Arc;
@@ -118,17 +118,17 @@ pub const EXCERPT_CONTEXT_LINES: u32 = 5;
 
 /// One or more [`Buffers`](Buffer) being edited in a single view.
 ///
-/// See <https://zed.dev/features#multi-buffers>
+/// See <https://zed.dev/features#multi-buffers>.
 pub struct MultiBuffer {
     /// A snapshot of the [`Excerpt`]s in the MultiBuffer.
     /// Use [`MultiBuffer::snapshot`] to get a up-to-date snapshot.
     snapshot: RefCell<MultiBufferSnapshot>,
-    /// Contains the state of the buffers being edited
+    /// Contains the state of the buffers being edited.
     buffers: BTreeMap<BufferId, BufferState>,
-    /// Mapping from buffer IDs to their diff states
+    /// Mapping from buffer IDs to their diff states.
     diffs: FxHashMap<BufferId, DiffState>,
     subscriptions: Topic<MultiBufferOffset>,
-    /// If true, the multi-buffer only contains a single [`Buffer`] and a single [`Excerpt`]
+    /// If true, the multi-buffer only contains a single [`Buffer`] and a single [`Excerpt`].
     singleton: bool,
     /// The history of the multi-buffer.
     history: History,
@@ -213,6 +213,58 @@ impl DiffState {
             main_buffer: self.main_buffer.as_ref().map(|b| b.read(cx).snapshot()),
         }
     }
+
+    fn new(diff: Entity<BufferDiff>, cx: &mut Context<MultiBuffer>) -> Self {
+        DiffState {
+            _subscription: cx.subscribe(&diff, |this, diff, event, cx| match event {
+                BufferDiffEvent::DiffChanged(DiffChanged {
+                    changed_range,
+                    base_text_changed_range: _,
+                    extended_range,
+                    base_text_changed: _,
+                }) => {
+                    let use_extended = this.snapshot.borrow().use_extended_diff_range;
+                    let range = if use_extended { extended_range.clone() } else { changed_range.clone() };
+                    this.buffer_diff_changed(diff, range, cx);
+                    cx.emit(Event::BufferDiffChanged);
+                }
+                BufferDiffEvent::BaseTextChanged => {}
+            }),
+            diff,
+            main_buffer: None,
+        }
+    }
+
+    fn new_inverted(
+        diff: Entity<BufferDiff>,
+        main_buffer: Entity<language::Buffer>,
+        cx: &mut Context<MultiBuffer>,
+    ) -> Self {
+        let weak_main_buffer = main_buffer.downgrade();
+        DiffState {
+            _subscription: cx.subscribe(&diff, {
+                move |this, diff, event, cx| {
+                    let Some(main_buffer) = weak_main_buffer.upgrade() else {
+                        return;
+                    };
+                    match event {
+                        BufferDiffEvent::DiffChanged(DiffChanged {
+                            changed_range: _,
+                            base_text_changed_range,
+                            extended_range: _,
+                            base_text_changed: _,
+                        }) => {
+                            this.inverted_buffer_diff_changed(diff, main_buffer, base_text_changed_range.clone(), cx);
+                            cx.emit(Event::BufferDiffChanged);
+                        }
+                        BufferDiffEvent::BaseTextChanged => {}
+                    }
+                }
+            }),
+            diff,
+            main_buffer: Some(main_buffer),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -292,60 +344,6 @@ fn remove_diff_state(diffs: &mut SumTree<DiffStateSnapshot>, buffer_id: BufferId
     new_tree.append(cursor.suffix(), ());
     drop(cursor);
     *diffs = new_tree;
-}
-
-impl DiffState {
-    fn new(diff: Entity<BufferDiff>, cx: &mut Context<MultiBuffer>) -> Self {
-        DiffState {
-            _subscription: cx.subscribe(&diff, |this, diff, event, cx| match event {
-                BufferDiffEvent::DiffChanged(DiffChanged {
-                    changed_range,
-                    base_text_changed_range: _,
-                    extended_range,
-                    base_text_changed: _,
-                }) => {
-                    let use_extended = this.snapshot.borrow().use_extended_diff_range;
-                    let range = if use_extended { extended_range.clone() } else { changed_range.clone() };
-                    this.buffer_diff_changed(diff, range, cx);
-                    cx.emit(Event::BufferDiffChanged);
-                }
-                BufferDiffEvent::BaseTextChanged => {}
-            }),
-            diff,
-            main_buffer: None,
-        }
-    }
-
-    fn new_inverted(
-        diff: Entity<BufferDiff>,
-        main_buffer: Entity<language::Buffer>,
-        cx: &mut Context<MultiBuffer>,
-    ) -> Self {
-        let weak_main_buffer = main_buffer.downgrade();
-        DiffState {
-            _subscription: cx.subscribe(&diff, {
-                move |this, diff, event, cx| {
-                    let Some(main_buffer) = weak_main_buffer.upgrade() else {
-                        return;
-                    };
-                    match event {
-                        BufferDiffEvent::DiffChanged(DiffChanged {
-                            changed_range: _,
-                            base_text_changed_range,
-                            extended_range: _,
-                            base_text_changed: _,
-                        }) => {
-                            this.inverted_buffer_diff_changed(diff, main_buffer, base_text_changed_range.clone(), cx);
-                            cx.emit(Event::BufferDiffChanged);
-                        }
-                        BufferDiffEvent::BaseTextChanged => {}
-                    }
-                }
-            }),
-            diff,
-            main_buffer: Some(main_buffer),
-        }
-    }
 }
 
 #[derive(Clone)]
@@ -483,12 +481,12 @@ impl PartialEq for ExcerptBoundaryInfo {
 
 impl Eq for ExcerptBoundaryInfo {}
 
-/// A boundary between `Excerpt`s in a [`MultiBuffer`]
+/// A boundary between `Excerpt`s in a [`MultiBuffer`].
 #[derive(Debug)]
 pub struct ExcerptBoundary {
     pub prev: Option<ExcerptBoundaryInfo>,
     pub next: ExcerptBoundaryInfo,
-    /// The row in the `MultiBuffer` where the boundary is located
+    /// The row in the `MultiBuffer` where the boundary is located.
     pub row: MultiBufferRow,
 }
 
@@ -520,28 +518,28 @@ pub struct RowInfo {
 /// A slice into a [`Buffer`] that is being edited in a [`MultiBuffer`].
 #[derive(Clone, Debug)]
 pub(crate) struct Excerpt {
-    /// The location of the excerpt in the [`MultiBuffer`]
+    /// The location of the excerpt in the [`MultiBuffer`].
     pub(crate) path_key: PathKey,
     pub(crate) path_key_index: PathKeyIndex,
     pub(crate) buffer_id: BufferId,
-    /// The range of the buffer to be shown in the excerpt
+    /// The range of the buffer to be shown in the excerpt.
     pub(crate) range: ExcerptRange<text::Anchor>,
 
-    /// The last row in the excerpted slice of the buffer
+    /// The last row in the excerpted slice of the buffer.
     pub(crate) max_buffer_row: BufferRow,
-    /// A summary of the text in the excerpt
+    /// A summary of the text in the excerpt.
     pub(crate) text_summary: TextSummary,
     pub(crate) has_trailing_newline: bool,
 }
 
 /// A range of text from a single [`Buffer`], to be shown as an `Excerpt`.
-/// These ranges are relative to the buffer itself
+/// These ranges are relative to the buffer itself.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct ExcerptRange<T> {
     /// The full range of text to be shown in the excerpt.
     pub context: Range<T>,
     /// The primary range of text to be highlighted in the excerpt.
-    /// In a multi-buffer search, this would be the text that matched the search
+    /// In a multi-buffer search, this would be the text that matched the search.
     pub primary: Range<T>,
 }
 
@@ -742,7 +740,7 @@ impl MultiBuffer {
     }
 
     pub fn as_singleton(&self) -> Option<Entity<Buffer>> {
-        if self.singleton { Some(self.buffers.values().next().unwrap().buffer.clone()) } else { None }
+        self.singleton.then(|| self.buffers.values().next().expect("singleton has one buffer").buffer.clone())
     }
 
     pub const fn is_singleton(&self) -> bool {
@@ -896,7 +894,7 @@ impl MultiBuffer {
                         } else if !range.is_empty() {
                             deletions.push((
                                 buffer.anchor_before(range.start)..buffer.anchor_before(range.end),
-                                empty_str.clone(),
+                                Arc::clone(&empty_str),
                             ));
                         }
                     }
@@ -997,7 +995,7 @@ impl MultiBuffer {
                 if start_region.buffer.capability == Capability::ReadWrite && start_region.is_main_buffer {
                     buffer_edits.entry(start_region.buffer.buffer_id()).or_default().push(BufferEdit {
                         range: start_excerpt_range,
-                        new_text: new_text.clone(),
+                        new_text: Arc::clone(&new_text),
                         is_insertion: true,
                         original_indent_column,
                     });
@@ -1005,7 +1003,7 @@ impl MultiBuffer {
                 if end_region.buffer.capability == Capability::ReadWrite && end_region.is_main_buffer {
                     buffer_edits.entry(end_region.buffer.buffer_id()).or_default().push(BufferEdit {
                         range: end_excerpt_range,
-                        new_text: new_text.clone(),
+                        new_text: Arc::clone(&new_text),
                         is_insertion: false,
                         original_indent_column,
                     });
@@ -1021,7 +1019,7 @@ impl MultiBuffer {
                     if region.buffer.capability == Capability::ReadWrite && region.is_main_buffer {
                         buffer_edits.entry(region.buffer.buffer_id()).or_default().push(BufferEdit {
                             range: region.buffer_range.clone(),
-                            new_text: new_text.clone(),
+                            new_text: Arc::clone(&new_text),
                             is_insertion: false,
                             original_indent_column,
                         });
@@ -1051,7 +1049,7 @@ impl MultiBuffer {
                 if range.start > range.end {
                     mem::swap(&mut range.start, &mut range.end);
                 }
-                (range, empty.clone())
+                (range, Arc::clone(&empty))
             })
             .collect::<Vec<_>>();
 
@@ -1326,7 +1324,8 @@ impl MultiBuffer {
     }
 
     pub fn language_at<T: ToOffset>(&self, point: T, cx: &App) -> Option<Arc<Language>> {
-        self.point_to_buffer_offset(point, cx).and_then(|(buffer, offset)| buffer.read(cx).language_at(offset))
+        let (buffer, offset) = self.point_to_buffer_offset(point, cx)?;
+        buffer.read(cx).language_at(offset)
     }
 
     pub fn language_settings(&self, cx: &App) -> Arc<LanguageSettings> {
@@ -1341,7 +1340,7 @@ impl MultiBuffer {
         if let Some((buffer, offset)) = self.point_to_buffer_offset(point, cx) {
             LanguageSettings::for_buffer_at(buffer.read(cx), offset, cx)
         } else {
-            AllLanguageSettings::get_global(cx).fallback.clone()
+            Arc::clone(&AllLanguageSettings::get_global(cx).fallback)
         }
     }
 
@@ -1402,7 +1401,7 @@ impl MultiBuffer {
             }
         }
 
-        let title = title.trim_end().to_string();
+        let title = title.trim_end().to_owned();
 
         if title.is_empty() {
             return None;
@@ -1482,7 +1481,7 @@ impl MultiBuffer {
         let old_len = self.snapshot.borrow().len();
 
         let ranges = iter::once((Point::zero()..Point::MAX, None));
-        let _ = self.expand_or_collapse_diff_hunks_inner(ranges, true, cx);
+        self.expand_or_collapse_diff_hunks_inner(ranges, true, cx);
 
         let new_len = self.snapshot.borrow().len();
 
@@ -1524,7 +1523,7 @@ impl MultiBuffer {
         for range in ranges {
             let range = range.to_point(&snapshot);
             let start = snapshot.point_to_offset(Point::new(range.start.row, 0));
-            let end = (snapshot.point_to_offset(Point::new(range.end.row + 1, 0)) + 1usize).min(snapshot.len());
+            let end = (snapshot.point_to_offset(Point::new(range.end.row + 1, 0)) + 1_usize).min(snapshot.len());
             cursor.seek(&start, Bias::Right);
             while let Some(item) = cursor.item() {
                 if *cursor.start() >= end {
@@ -1886,7 +1885,7 @@ impl MultiBufferSnapshot {
         result
     }
 
-    /// Callers should not provide a range where `end < start`
+    /// Callers should not provide a range where `end < start`.
     pub fn range_to_buffer_ranges<T: ToOffset>(
         &self,
         range: Range<T>,
@@ -2458,12 +2457,12 @@ impl MultiBufferSnapshot {
         cursor.seek(&DimensionPair { key, value: None });
         if let Some(region) = cursor.region() {
             if key >= region.range.end.key {
-                return region.range.end.value.unwrap();
+                return region.range.end.value.expect("seeked region has a value");
             }
             let start_key = region.range.start.key;
-            let start_value = region.range.start.value.unwrap();
+            let start_value = region.range.start.value.expect("seeked region has a value");
             let buffer_start_key = region.buffer_range.start.key;
-            let buffer_start_value = region.buffer_range.start.value.unwrap();
+            let buffer_start_value = region.buffer_range.start.value.expect("seeked region has a value");
             let mut buffer_key = buffer_start_key;
             buffer_key += key - start_key;
             let buffer_value = convert_buffer_dimension(region.buffer, buffer_key);
@@ -2749,9 +2748,9 @@ impl MultiBufferSnapshot {
                     continue;
                 }
 
-                let next_region_start = next_range.start.value.unwrap();
+                let next_region_start = next_range.start.value.expect("fetched region has a value");
                 let next_region_end = if let Some((_, range)) = cursor.fetch_excerpt_with_range() {
-                    range.start.value.unwrap()
+                    range.start.value.expect("fetched region has a value")
                 } else {
                     self.max_point()
                 };
@@ -2862,7 +2861,8 @@ impl MultiBufferSnapshot {
     }
 
     pub fn file_at<T: ToOffset>(&self, point: T) -> Option<&Arc<dyn File>> {
-        self.point_to_buffer_offset(point).and_then(|(buffer, _)| buffer.file())
+        let (buffer, _) = self.point_to_buffer_offset(point)?;
+        buffer.file()
     }
 
     pub const fn is_dirty(&self) -> bool {
@@ -2904,7 +2904,7 @@ impl MultiBufferSnapshot {
         self.path_keys.get_index(anchor.path.0 as usize)
     }
 
-    /// Returns the excerpt containing range and its offset start within the multibuffer or none if `range` spans multiple excerpts
+    /// Returns the excerpt containing range and its offset start within the multibuffer or none if `range` spans multiple excerpts.
     pub fn excerpt_containing<T: ToOffset>(
         &self,
         range: Range<T>,

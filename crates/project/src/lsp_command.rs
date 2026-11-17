@@ -12,7 +12,7 @@ use gpui::App;
 use gpui::AsyncApp;
 use gpui::Entity;
 use gpui::SharedString;
-use gpui::prelude::FluentBuilder;
+use gpui::prelude::FluentBuilder as _;
 use language::Anchor;
 use language::Bias;
 use language::Buffer;
@@ -20,10 +20,10 @@ use language::BufferSnapshot;
 use language::CachedLspAdapter;
 use language::CharKind;
 use language::CharScopeContext;
-use language::OffsetRangeExt;
+use language::OffsetRangeExt as _;
 use language::PointUtf16;
-use language::ToOffset;
-use language::ToPointUtf16;
+use language::ToOffset as _;
+use language::ToPointUtf16 as _;
 use language::Transaction;
 use language::Unclipped;
 use language::language_settings::InlayHintKind;
@@ -595,7 +595,7 @@ fn language_server_for_buffer(
             buffer.update(cx, |buffer, cx| {
                 lsp_store
                     .language_server_for_local_buffer(buffer, server_id, cx)
-                    .map(|(adapter, server)| (adapter.clone(), server.clone()))
+                    .map(|(adapter, server)| (Arc::clone(adapter), Arc::clone(server)))
             })
         })
         .context("no language server found for buffer")
@@ -1385,11 +1385,12 @@ impl LspCommand for OnTypeFormatting {
 
 impl InlayHints {
     fn project_hint_kind(kind: Option<lsp::InlayHintKind>) -> Option<InlayHintKind> {
-        kind.and_then(|kind| match kind {
+        let kind = kind?;
+        match kind {
             lsp::InlayHintKind::TYPE => Some(InlayHintKind::Type),
             lsp::InlayHintKind::PARAMETER => Some(InlayHintKind::Parameter),
             _ => None,
-        })
+        }
     }
 
     /// Returns the clipped position and the bias to use for this hint in isolation.
@@ -1449,7 +1450,7 @@ impl InlayHints {
                     .collect::<Result<Vec<_>>>()?;
                 edits.sort_by_key(|(range, _)| (range.start, range.end));
                 anyhow::ensure!(
-                    edits.windows(2).all(|edits| edits[0].0.end <= edits[1].0.start),
+                    edits.iter().zip(edits.iter().skip(1)).all(|(a, b)| a.0.end <= b.0.start),
                     "overlapping inlay hint text edits"
                 );
                 edits.dedup_by(|(range, new_text), (previous_range, previous_text)| {

@@ -170,7 +170,7 @@ impl AvailableLanguages {
         self.find_best_match(move |language_name, matcher, current_best_match| {
             let path_matches_default_suffix = || {
                 let len = matcher.path_suffixes.iter().fold(0, |acc: usize, path_suffix: &SharedString| {
-                    let ext = ".".to_string() + path_suffix;
+                    let ext = ".".to_owned() + path_suffix;
                     let matched_suffix_len = path_suffixes
                         .iter()
                         .find(|(suffix, _)| suffix.ends_with(&ext) || *suffix == path_suffix.as_str())
@@ -182,12 +182,11 @@ impl AvailableLanguages {
             };
 
             let path_matches_custom_suffix = || {
-                user_file_types.and_then(|types| types.get(language_name.as_ref())).and_then(|(custom_suffixes, _)| {
-                    path_suffixes
-                        .iter()
-                        .find(|(_, candidate)| custom_suffixes.is_match_candidate(candidate))
-                        .map(|(suffix, _)| suffix.len())
-                })
+                let (custom_suffixes, _) = user_file_types.and_then(|types| types.get(language_name.as_ref()))?;
+                path_suffixes
+                    .iter()
+                    .find(|(_, candidate)| custom_suffixes.is_match_candidate(candidate))
+                    .map(|(suffix, _)| suffix.len())
             };
 
             let content_matches = || {

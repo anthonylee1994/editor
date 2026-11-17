@@ -1,21 +1,21 @@
 use gpui::IntoElement;
 use gpui::Window;
-use gpui::prelude::FluentBuilder;
-use gpui::prelude::ParentElement;
+use gpui::prelude::FluentBuilder as _;
+use gpui::prelude::ParentElement as _;
 use gpui::prelude::RenderOnce;
-use gpui::prelude::Styled;
+use gpui::prelude::Styled as _;
 
 use crate::ButtonLike;
 use crate::prelude::App;
-use crate::prelude::ButtonCommon;
+use crate::prelude::ButtonCommon as _;
 use crate::prelude::ButtonSize;
-use crate::prelude::Clickable;
+use crate::prelude::Clickable as _;
 use crate::prelude::Color;
 use crate::prelude::Icon;
 use crate::prelude::IconName;
 use crate::prelude::IconSize;
 use crate::prelude::Label;
-use crate::prelude::LabelCommon;
+use crate::prelude::LabelCommon as _;
 use crate::prelude::LabelSize;
 use crate::prelude::SharedString;
 use crate::prelude::h_flex;

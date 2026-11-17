@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-/// The mappings defined in this file where created from reading the alacritty source
+/// The mappings defined in this file where created from reading the alacritty source.
 use gpui::Keystroke;
 
 use crate::Modes;
@@ -203,7 +203,7 @@ pub(crate) fn to_esc_str(keystroke: &Keystroke, mode: Modes, option_as_meta: boo
 
     // Handling alt keys. These work for single ASCII characters.
     if option_as_meta && keystroke.modifiers.alt && keystroke.key.is_ascii() && keystroke.key.len() == 1 {
-        let key = keystroke.key.chars().next().unwrap();
+        let key = keystroke.key.chars().next().expect("key has exactly one char");
 
         if modifiers == TerminalModifiers::Alt {
             return Some(Cow::Owned(format!("\x1b{key}")));
@@ -227,7 +227,7 @@ pub(crate) fn to_esc_str(keystroke: &Keystroke, mode: Modes, option_as_meta: boo
 ///    7     | Alt + Control
 ///    8     | Shift + Alt + Control
 /// ---------+---------------------------
-/// from: https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-PC-Style-Function-Keys
+/// from: https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-PC-Style-Function-Keys.
 const fn modifier_code(keystroke: &Keystroke) -> u32 {
     let mut modifier_code = 0;
     if keystroke.modifiers.shift {

@@ -1,4 +1,4 @@
-use std::cmp::{self};
+use std::cmp;
 use std::ops::Range;
 
 use gpui::AnyElement;
@@ -7,18 +7,18 @@ use gpui::AvailableSpace;
 use gpui::Bounds;
 use gpui::Edges;
 use gpui::Hitbox;
-use gpui::InteractiveElement;
-use gpui::IntoElement;
+use gpui::InteractiveElement as _;
+use gpui::IntoElement as _;
 use gpui::Pixels;
 use gpui::Size;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::TextStyleRefinement;
 use gpui::Window;
 use gpui::div;
 use gpui::point;
 use gpui::px;
 use gpui::size;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use theme::built_in::BUFFER_LINE_HEIGHT;
 use ui::POPOVER_Y_PADDING;
 use ui::prelude::DefiniteLength;
@@ -32,7 +32,7 @@ use crate::DisplayRow;
 use crate::EditorSnapshot;
 use crate::EditorStyle;
 use crate::Point;
-use crate::RowExt;
+use crate::RowExt as _;
 use crate::code_context_menus::MENU_ASIDE_MAX_WIDTH;
 use crate::code_context_menus::MENU_ASIDE_MIN_WIDTH;
 use crate::code_context_menus::MENU_GAP;
@@ -123,16 +123,14 @@ impl EditorElement {
             cx,
             |height, max_width_for_stable_x, y_flipped, window, cx| {
                 // First layout the menu to get its size - others can be at least this wide.
-                let context_menu = if context_menu_visible {
+                let context_menu = context_menu_visible.then(|| {
                     let menu_height = if y_flipped { height - height_below_menu } else { height - height_above_menu };
                     let mut element = self
                         .render_context_menu(line_height, menu_height, window, cx)
                         .expect("Visible context menu should always render.");
                     let size = element.layout_as_root(AvailableSpace::min_size(), window, cx);
-                    Some((CursorPopoverType::CodeContextMenu, element, size))
-                } else {
-                    None
-                };
+                    (CursorPopoverType::CodeContextMenu, element, size)
+                });
                 let _min_width = context_menu.as_ref().map_or(px(0.), |(_, _, size)| size.width);
                 let _max_width =
                     max_width_for_stable_x.max(context_menu.as_ref().map_or(px(0.), |(_, _, size)| size.width));
@@ -193,7 +191,7 @@ impl EditorElement {
         );
 
         if let Some(menu_bounds) = laid_out_popovers.iter().find_map(|(popover_type, bounds)| {
-            if matches!(popover_type, CursorPopoverType::CodeContextMenu) { Some(*bounds) } else { None }
+            matches!(popover_type, CursorPopoverType::CodeContextMenu).then_some(*bounds)
         }) {
             let bounds =
                 if let Some(aside_bounds) = aside_bounds { menu_bounds.union(&aside_bounds) } else { menu_bounds };

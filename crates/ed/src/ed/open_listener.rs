@@ -14,7 +14,7 @@ use git_ui_core::file_diff_view::FileDiffView;
 use gpui::AsyncApp;
 use gpui::Global;
 use gpui::WindowHandle;
-use util::ResultExt;
+use util::ResultExt as _;
 use util::paths::PathWithPosition;
 use workspace::AppState;
 use workspace::OpenResult;
@@ -84,7 +84,7 @@ pub async fn open_paths_with_positions(
     let paths = path_positions.iter().map(|path_with_position| path_with_position.path.clone()).collect::<Vec<_>>();
 
     let OpenResult { window, opened_items: mut items, .. } =
-        cx.update(|cx| workspace::open_paths(&paths, app_state.clone(), open_options, cx)).await?;
+        cx.update(|cx| workspace::open_paths(&paths, Arc::clone(&app_state), open_options, cx)).await?;
 
     if diff_all && !diff_paths.is_empty() {
         let mut diff_pairs = Vec::with_capacity(diff_paths.len());

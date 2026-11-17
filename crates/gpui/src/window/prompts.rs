@@ -11,14 +11,14 @@ use crate::Entity;
 use crate::EventEmitter;
 use crate::FocusHandle;
 use crate::Focusable;
-use crate::InteractiveElement;
+use crate::InteractiveElement as _;
 use crate::IntoElement;
-use crate::ParentElement;
+use crate::ParentElement as _;
 use crate::PromptButton;
 use crate::PromptLevel;
 use crate::Render;
-use crate::StatefulInteractiveElement;
-use crate::Styled;
+use crate::StatefulInteractiveElement as _;
+use crate::Styled as _;
 use crate::div;
 use crate::opaque_grey;
 use crate::white;
@@ -43,7 +43,7 @@ impl PromptHandle {
         Self { sender }
     }
 
-    /// Construct a new prompt handle from a view of the appropriate types
+    /// Construct a new prompt handle from a view of the appropriate types.
     pub fn with_view<V: Prompt + Render>(
         self,
         view: Entity<V>,
@@ -92,8 +92,8 @@ pub fn fallback_prompt_renderer(
 ) -> RenderablePromptHandle {
     let renderer = cx.new(|cx| FallbackPromptRenderer {
         _level: level,
-        message: message.to_string(),
-        detail: detail.map(ToString::to_string),
+        message: message.to_owned(),
+        detail: detail.map(str::to_owned),
         actions: actions.to_vec(),
         focus: cx.focus_handle(),
     });

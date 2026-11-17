@@ -11,7 +11,7 @@ use anyhow::Context as _;
 use anyhow::Result;
 use futures::channel::oneshot;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::AsyncApp;
 use gpui::Context;
 use gpui::Entity;
@@ -21,14 +21,14 @@ use gpui::Subscription;
 use gpui::Task;
 use gpui::WeakEntity;
 use image::ExtendedColorType;
-use image::GenericImageView;
+use image::GenericImageView as _;
 pub use image::ImageFormat as RasterImageFormat;
 use image::ImageReader;
 use language::DiskState;
-use language::File;
+use language::File as _;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
-use util::ResultExt;
+use util::ResultExt as _;
 use util::rel_path::RelPath;
 use worktree::LoadedBinaryFile;
 use worktree::PathChange;
@@ -161,7 +161,7 @@ impl ImageItem {
         cx: &mut AsyncApp,
     ) -> Result<ImageMetadata> {
         let (fs, image_path) = cx.update(|cx| {
-            let fs = project.read(cx).fs().clone();
+            let fs = Arc::clone(project.read(cx).fs());
             let image_path = image.read(cx).abs_path(cx).context("absolutizing image file path")?;
             anyhow::Ok((fs, image_path))
         })?;
@@ -171,7 +171,7 @@ impl ImageItem {
     }
 
     pub fn project_path(&self, cx: &App) -> ProjectPath {
-        ProjectPath { worktree_id: self.file.worktree_id(cx), path: self.file.path().clone() }
+        ProjectPath { worktree_id: self.file.worktree_id(cx), path: Arc::clone(self.file.path()) }
     }
 
     pub fn abs_path(&self, cx: &App) -> Option<PathBuf> {
@@ -241,15 +241,13 @@ impl ProjectItem for ImageItem {
         path: &ProjectPath,
         cx: &mut App,
     ) -> Option<Task<anyhow::Result<Entity<Self>>>> {
-        if is_image_file(project, path, cx) {
-            Some(cx.spawn({
+        is_image_file(project, path, cx).then(|| {
+            cx.spawn({
                 let path = path.clone();
                 let project = project.clone();
                 async move |cx| project.update(cx, |project, cx| project.open_image(path, cx)).await
-            }))
-        } else {
-            None
-        }
+            })
+        })
     }
 
     fn entry_id(&self, _: &App) -> Option<ProjectEntryId> {
@@ -337,7 +335,7 @@ impl ImageStore {
                 let (mut tx, rx) = watch::channel(None);
                 entry.insert(rx.clone());
 
-                let load_image = LocalImageStore::open_image(&self.state, project_path.path.clone(), worktree, cx);
+                let load_image = LocalImageStore::open_image(&self.state, Arc::clone(&project_path.path), worktree, cx);
 
                 cx.spawn(async move |this, cx| {
                     let load_result = load_image.await;
@@ -419,7 +417,7 @@ impl LocalImageStore {
 
             let entity = cx.new(|cx| ImageItem {
                 id: cx.entity_id().as_non_zero_u64().into(),
-                file: file.clone(),
+                file: Arc::clone(&file),
                 image,
                 image_metadata: None,
                 reload_task: None,
@@ -430,7 +428,7 @@ impl LocalImageStore {
             this.update(cx, |this, cx| {
                 image_store.update(cx, |image_store, cx| image_store.add_image(entity.clone(), cx))?;
                 this.local_image_ids_by_path
-                    .insert(ProjectPath { worktree_id: file.worktree_id(cx), path: file.path.clone() }, image_id);
+                    .insert(ProjectPath { worktree_id: file.worktree_id(cx), path: Arc::clone(&file.path) }, image_id);
 
                 if let Some(entry_id) = file.entry_id {
                     this.local_image_ids_by_entry_id.insert(entry_id, image_id);
@@ -453,8 +451,7 @@ impl LocalImageStore {
             Ok(())
         })
     }
-}
-impl LocalImageStore {
+
     fn subscribe_to_worktree(&self, worktree: &Entity<Worktree>, cx: &mut Context<Self>) {
         cx.subscribe(worktree, |this, worktree, event, cx| {
             if let worktree::Event::UpdatedEntries(changes) = event {
@@ -484,7 +481,7 @@ impl LocalImageStore {
         snapshot: &worktree::Snapshot,
         cx: &mut Context<Self>,
     ) -> Option<()> {
-        let project_path = ProjectPath { worktree_id: snapshot.id(), path: path.clone() };
+        let project_path = ProjectPath { worktree_id: snapshot.id(), path: Arc::clone(path) };
         let image_id = match self.local_image_ids_by_entry_id.get(&entry_id) {
             Some(&image_id) => image_id,
             None => self.local_image_ids_by_path.get(&project_path).copied()?,
@@ -526,14 +523,14 @@ impl LocalImageStore {
                         None => old_file.disk_state,
                     },
                     entry_id: Some(entry.id),
-                    path: entry.path.clone(),
+                    path: Arc::clone(&entry.path),
                     worktree: worktree.clone(),
                 }
             } else {
                 worktree::File {
                     disk_state: DiskState::Deleted,
                     entry_id: old_file.entry_id,
-                    path: old_file.path.clone(),
+                    path: Arc::clone(&old_file.path),
                     worktree: worktree.clone(),
                 }
             };
@@ -544,9 +541,9 @@ impl LocalImageStore {
 
             if new_file.path != old_file.path {
                 self.local_image_ids_by_path
-                    .remove(&ProjectPath { path: old_file.path.clone(), worktree_id: old_file.worktree_id(cx) });
+                    .remove(&ProjectPath { path: Arc::clone(&old_file.path), worktree_id: old_file.worktree_id(cx) });
                 self.local_image_ids_by_path.insert(
-                    ProjectPath { worktree_id: new_file.worktree_id(cx), path: new_file.path.clone() },
+                    ProjectPath { worktree_id: new_file.worktree_id(cx), path: Arc::clone(&new_file.path) },
                     image_id,
                 );
             }
@@ -581,7 +578,7 @@ impl LocalImageStore {
             }
         }
         self.local_image_ids_by_path
-            .insert(ProjectPath { worktree_id: file.worktree_id(cx), path: file.path.clone() }, image_id);
+            .insert(ProjectPath { worktree_id: file.worktree_id(cx), path: Arc::clone(&file.path) }, image_id);
 
         Some(())
     }

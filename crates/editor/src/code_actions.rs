@@ -1,14 +1,14 @@
 use anyhow::Context as _;
-use gpui::IntoElement;
-use gpui::prelude::FluentBuilder;
-use ui::prelude::ButtonCommon;
-use ui::prelude::Clickable;
-use ui::prelude::Toggleable;
+use gpui::IntoElement as _;
+use gpui::prelude::FluentBuilder as _;
+use ui::prelude::ButtonCommon as _;
+use ui::prelude::Clickable as _;
+use ui::prelude::Toggleable as _;
 
 use super::ActionFetchReady;
 use super::AnyElement;
 use super::App;
-use super::AppContext;
+use super::AppContext as _;
 use super::Arc;
 use super::AvailableCodeAction;
 use super::Buffer;
@@ -28,13 +28,13 @@ use super::DisplayPoint;
 use super::DisplayRow;
 use super::Editor;
 use super::Entity;
-use super::Focusable;
-use super::FutureExt;
+use super::Focusable as _;
+use super::FutureExt as _;
 use super::IconButton;
 use super::Location;
 use super::MultiBufferRow;
-use super::NotifyResultExt;
-use super::OffsetRangeExt;
+use super::NotifyResultExt as _;
+use super::OffsetRangeExt as _;
 use super::Point;
 use super::Project;
 use super::ProjectTransaction;
@@ -43,7 +43,7 @@ use super::Rc;
 use super::RefCell;
 use super::ResolvedTasks;
 use super::Result;
-use super::ResultExt;
+use super::ResultExt as _;
 use super::RunnableTaskStatus;
 use super::Task;
 use super::Tooltip;
@@ -368,7 +368,7 @@ impl Editor {
                         actions.extend(
                             provider_actions
                                 .into_iter()
-                                .map(|action| AvailableCodeAction { action, provider: provider.clone() }),
+                                .map(|action| AvailableCodeAction { action, provider: Rc::clone(&provider) }),
                         );
                     }
                 }

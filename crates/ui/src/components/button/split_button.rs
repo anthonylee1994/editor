@@ -1,16 +1,16 @@
 use gpui::AnyElement;
 use gpui::App;
 use gpui::BoxShadow;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::RenderOnce;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Window;
 use gpui::div;
 use gpui::hsla;
-use gpui::prelude::FluentBuilder;
+use gpui::prelude::FluentBuilder as _;
 use gpui::prelude::IntoElement;
 use gpui::px;
-use theme::ActiveTheme;
+use theme::ActiveTheme as _;
 
 use super::ButtonLike;
 use crate::Divider;

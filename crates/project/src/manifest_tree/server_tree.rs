@@ -150,7 +150,7 @@ impl LanguageServerTree {
                 .entry(root_path.worktree_id)
                 .or_default()
                 .roots
-                .entry(root_path.path.clone())
+                .entry(Arc::clone(&root_path.path))
                 .or_default()
                 .entry(adapter.name());
             let new_node = || Arc::new(InnerTreeNode::new(adapter.name(), root_path.clone()));
@@ -234,7 +234,7 @@ impl LanguageServerTree {
             .entry(node.disposition.server_name.clone())
             .and_modify(|(existing, _)| {
                 if existing.id().is_none() {
-                    *existing = node.clone();
+                    *existing = Arc::clone(&node);
                 }
             })
             .or_insert_with(|| (node, BTreeSet::new()))
@@ -263,7 +263,7 @@ impl ServerTreeRebase {
                 })
             })
             .collect();
-        let new_tree = LanguageServerTree::new(old_tree.manifest_tree.clone(), old_tree.languages.clone());
+        let new_tree = LanguageServerTree::new(old_tree.manifest_tree.clone(), Arc::clone(&old_tree.languages));
         Self { old_contents, new_tree, all_server_ids }
     }
 

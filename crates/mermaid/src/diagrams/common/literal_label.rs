@@ -124,7 +124,7 @@ pub(crate) fn break_label(label: &Label, room: f64) -> Label {
                 continue;
             }
 
-            let mut buf = [0u8; 4];
+            let mut buf = [0_u8; 4];
             for c in span.text.chars() {
                 let ch: &str = c.encode_utf8(&mut buf);
                 let joins =

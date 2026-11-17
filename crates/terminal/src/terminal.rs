@@ -15,12 +15,12 @@ mod pty_info;
 pub mod terminal_settings;
 
 use std::borrow::Cow;
+use std::cmp;
 use std::cmp::min;
-use std::cmp::{self};
 use std::collections::VecDeque;
+use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
-use std::fmt::{self};
 use std::ops::BitOr;
 use std::ops::BitOrAssign;
 use std::ops::Deref;
@@ -41,8 +41,8 @@ use anyhow::bail;
 use async_channel::Receiver;
 use async_channel::Sender;
 use async_macos::yield_now;
-use futures::FutureExt;
-use futures::StreamExt;
+use futures::FutureExt as _;
+use futures::StreamExt as _;
 use futures::channel::mpsc::UnboundedReceiver;
 use futures::channel::mpsc::unbounded;
 use gpui::App;
@@ -87,7 +87,7 @@ use task::Shell;
 use task::SpawnInTerminal;
 use terminal_settings::CursorShape as SettingsCursorShape;
 use terminal_settings::TerminalSettings;
-use theme::ActiveTheme;
+use theme::ActiveTheme as _;
 use theme::Theme;
 use thiserror::Error;
 use util::ResultExt as _;
@@ -566,13 +566,13 @@ const DEBUG_LINE_HEIGHT: Pixels = px(5.);
 /// Inserts ed-specific environment variables for terminal sessions.
 /// Used by both local terminals and remote terminals (via SSH).
 pub fn insert_ed_terminal_env(env: &mut FxHashMap<String, String>) {
-    env.insert("ED_TERM".to_string(), "true".to_string());
-    env.insert("TERM_PROGRAM".to_string(), "ed".to_string());
-    env.insert("TERM".to_string(), "xterm-256color".to_string());
-    env.insert("COLORTERM".to_string(), "truecolor".to_string());
+    env.insert("ED_TERM".to_owned(), "true".to_owned());
+    env.insert("TERM_PROGRAM".to_owned(), "ed".to_owned());
+    env.insert("TERM".to_owned(), "xterm-256color".to_owned());
+    env.insert("COLORTERM".to_owned(), "truecolor".to_owned());
 }
 
-///Upward flowing events, for changing the title and such
+///Upward flowing events, for changing the title and such.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Event {
     TitleChanged,
@@ -588,9 +588,9 @@ pub enum Event {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PathLikeTarget {
     /// File system path, absolute or relative, existing or not.
-    /// Might have line and column number(s) attached as `file.rs:1:23`
+    /// Might have line and column number(s) attached as `file.rs:1:23`.
     pub maybe_path: String,
-    /// Current working directory of the terminal
+    /// Current working directory of the terminal.
     pub working_directory: Option<PathBuf>,
 }
 
@@ -600,7 +600,7 @@ pub enum MaybeNavigationTarget {
     /// HTTP, git, etc. string determined by the `URL_REGEX` regex.
     Url(String),
     /// File system path, absolute or relative, existing or not.
-    /// Might have line and column number(s) attached as `file.rs:1:23`
+    /// Might have line and column number(s) attached as `file.rs:1:23`.
     PathLike(PathLikeTarget),
 }
 
@@ -741,7 +741,7 @@ pub struct TerminalError {
 impl TerminalError {
     fn fmt_directory(&self) -> String {
         self.directory.clone().map_or_else(
-            || "<none specified>".to_string(),
+            || "<none specified>".to_owned(),
             |path| match path
                 .into_os_string()
                 .into_string()
@@ -773,7 +773,7 @@ impl TerminalError {
 
 impl Display for TerminalError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let dir_string: String = self.fmt_directory();
+        let dir_string = self.fmt_directory();
         let shell = self.fmt_shell();
 
         write!(f, "Working directory: {} Shell command: `{}`, IOError: {}", dir_string, shell, self.source)
@@ -871,7 +871,7 @@ impl TerminalBuilder {
             // and the Project doesn't have a locale set, then
             // set a fallback for our child environment to use.
             if env::var("LANG").is_err() {
-                env.entry("LANG".to_string()).or_insert_with(|| "en_US.UTF-8".to_string());
+                env.entry("LANG".to_owned()).or_insert_with(|| "en_US.UTF-8".to_owned());
             }
 
             insert_ed_terminal_env(&mut env);
@@ -928,7 +928,7 @@ impl TerminalBuilder {
                     args,
                     env.clone(),
                     working_directory.clone(),
-                    term.clone(),
+                    Arc::clone(&term),
                     events_tx,
                     &background_executor,
                 ) {
@@ -969,7 +969,7 @@ impl TerminalBuilder {
                 let pty_info = PtyProcessInfo::new(ProcessIdGetter::from(&pty));
 
                 //And connect them together
-                let pty_tx = spawn_event_loop(term.clone(), events_tx, pty, pty_options.drain_on_exit)?;
+                let pty_tx = spawn_event_loop(Arc::clone(&term), events_tx, pty, pty_options.drain_on_exit)?;
 
                 (TerminalType::Pty { resources: PtyResources::Active(pty_tx), info: Arc::new(pty_info) }, None)
             };
@@ -1113,7 +1113,7 @@ pub struct Terminal {
     output_events_tx: Option<UnboundedSender<PtyEvent>>,
     output_generation: u64,
     events: VecDeque<InternalEvent>,
-    /// This is only used for mouse mode cell change detection
+    /// This is only used for mouse mode cell change detection.
     last_mouse: Option<(Point, SelectionSide)>,
     /// Window-relative position of the most recent left mouse-down. Used to
     /// apply a drag threshold before starting a selection (see #58970).
@@ -1901,7 +1901,7 @@ impl Terminal {
         self.schedule_find_hyperlink(*modifiers, window.mouse_position(), cx);
     }
 
-    ///Paste text into the terminal
+    ///Paste text into the terminal.
     pub fn paste(&mut self, text: &str) {
         let paste_text = if self.last_content.mode.contains(Modes::BRACKETED_PASTE) {
             format!("{}{}{}", "\x1b[200~", text.replace('\x1b', ""), "\x1b[201~")
@@ -1913,7 +1913,7 @@ impl Terminal {
     }
 
     pub fn sync(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let term = self.term.clone();
+        let term = Arc::clone(&self.term);
         let mut terminal = term.lock_unfair();
         //Note that the ordering of events matters for event processing
         while let Some(e) = self.events.pop_front() {
@@ -2206,7 +2206,7 @@ impl Terminal {
         self.mouse_down_position = None;
     }
 
-    ///Scroll the terminal
+    ///Scroll the terminal.
     pub fn scroll_wheel(&mut self, e: &ScrollWheelEvent, scroll_multiplier: f32) {
         let mouse_mode = self.mouse_mode(e.shift);
         let scroll_multiplier = if mouse_mode { 1. } else { scroll_multiplier };
@@ -2266,7 +2266,7 @@ impl Terminal {
     }
 
     pub fn find_matches(&self, searcher: Search, cx: &Context<Self>) -> Task<Vec<Range>> {
-        let term = self.term.clone();
+        let term = Arc::clone(&self.term);
         cx.background_spawn(async move {
             let term = term.lock();
             search_matches(&term, searcher)
@@ -2338,7 +2338,7 @@ impl Terminal {
             }
             None => self.title_override.clone().unwrap_or_else(|| match &self.terminal_type {
                 TerminalType::Pty { info, .. } => info.current.read().as_ref().map_or_else(
-                    || "Terminal".to_string(),
+                    || "Terminal".to_owned(),
                     |fpi| {
                         let process_file =
                             fpi.cwd.file_name().map_or_default(|name| name.to_string_lossy().into_owned());
@@ -2360,7 +2360,7 @@ impl Terminal {
                         format!("{process_file} — {process_name}")
                     },
                 ),
-                TerminalType::DisplayOnly => "Terminal".to_string(),
+                TerminalType::DisplayOnly => "Terminal".to_owned(),
             }),
         }
     }
@@ -2404,7 +2404,7 @@ impl Terminal {
         let PtyResources::Active(pty_tx) = mem::replace(resources, PtyResources::Released) else {
             return;
         };
-        let info = info.clone();
+        let info = Arc::clone(info);
 
         // The terminal is retained past the command, so drop the parse buffer's
         // reservation; `write_output` builds a new one if it is called again.
@@ -2570,19 +2570,19 @@ fn spawn_task_subprocess(
     let child = Arc::new(parking_lot::Mutex::new(Some(child)));
 
     let reader = executor.spawn({
-        let child = child.clone();
+        let child = Arc::clone(&child);
         let executor = executor.clone();
         async move {
             // stdout and stderr are pumped concurrently, each through its own
             // parser; the shared term mutex serializes grid mutation.
             type BoxedReader = Box<dyn AsyncRead + Unpin + Send>;
             let pump = |reader: Option<BoxedReader>| {
-                let term = term.clone();
+                let term = Arc::clone(&term);
                 let events_tx = events_tx.clone();
                 async move {
                     let Some(mut reader) = reader else { return };
                     let mut processor = Processor::<StdSyncHandler>::new();
-                    let mut buffer = [0u8; 8192];
+                    let mut buffer = [0_u8; 8192];
                     let mut previous_byte_was_cr = false;
                     loop {
                         match reader.read(&mut buffer).await {
@@ -2715,7 +2715,7 @@ fn content_index_for_mouse(pos: GpuiPoint<Pixels>, terminal_bounds: &TerminalBou
 
 /// Converts an 8 bit ANSI color to its GPUI equivalent.
 /// Accepts `usize` for compatibility with the `alacritty::Colors` interface,
-/// Other than that use case, should only be called with values in the `[0,255]` range
+/// Other than that use case, should only be called with values in the `[0,255]` range.
 pub fn get_color_at_index(index: usize, theme: &Theme) -> Hsla {
     let colors = theme.colors();
 

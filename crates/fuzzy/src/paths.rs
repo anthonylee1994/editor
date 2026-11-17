@@ -1,8 +1,8 @@
 use std::cmp::Ordering;
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::atomic;
 use std::sync::atomic::AtomicBool;
-use std::sync::atomic::{self};
 
 use gpui::BackgroundExecutor;
 use nucleo::Utf32Str;
@@ -15,8 +15,8 @@ use crate::CharBag;
 use crate::Query;
 use crate::case_penalty;
 use crate::count_case_mismatches;
+use crate::matcher;
 use crate::matcher::LENGTH_PENALTY;
-use crate::matcher::{self};
 use crate::positions_from_sorted;
 
 #[derive(Clone, Debug)]
@@ -50,7 +50,7 @@ pub struct PathMatch {
     pub path_prefix: Arc<RelPath>,
     pub is_dir: bool,
     /// Number of steps removed from a shared parent with the relative path
-    /// Used to order closer paths first in the search list
+    /// Used to order closer paths first in the search list.
     pub distance_to_relative_ancestor: usize,
 }
 
@@ -136,7 +136,7 @@ fn path_match_helper<'a>(
     cancel_flag: &AtomicBool,
 ) -> Result<(), Cancelled> {
     let mut candidate_buf = if !path_prefix.is_empty() && !root_is_file {
-        let mut s = path_prefix.display().to_string();
+        let mut s = path_prefix.display().to_owned();
         s.push('/');
         s
     } else {
@@ -258,7 +258,8 @@ pub async fn match_path_sets<'a, Set: PathMatchCandidateSet<'a>>(
 
     let num_cpus = executor.num_cpus().min(path_count);
     let segment_size = path_count.div_ceil(num_cpus);
-    let mut segment_results = (0..num_cpus).map(|_| Vec::with_capacity(max_results)).collect::<Vec<_>>();
+    let mut segment_results =
+        std::iter::repeat_with(|| Vec::with_capacity(max_results)).take(num_cpus).collect::<Vec<_>>();
     let mut config = nucleo::Config::DEFAULT;
     config.set_match_paths();
     let mut matchers = matcher::get_matchers(num_cpus, config);

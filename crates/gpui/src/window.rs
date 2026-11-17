@@ -19,15 +19,15 @@ use std::time::Duration;
 
 use anyhow::Result;
 use futures::channel::oneshot;
-use gpui_util::ResultExt;
+use gpui_util::ResultExt as _;
 use gpui_util::post_inc;
 use itertools::FoldWhile::Continue;
 use itertools::FoldWhile::Done;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use raw_window_handle::HandleError;
 use raw_window_handle::HasDisplayHandle;
 use raw_window_handle::HasWindowHandle;
-use refineable::Refineable;
+use refineable::Refineable as _;
 use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use scheduler::Instant;
@@ -39,7 +39,7 @@ use crate::AnyImageCache;
 use crate::AnyTooltip;
 use crate::AnyView;
 use crate::App;
-use crate::AppContext;
+use crate::AppContext as _;
 use crate::Arena;
 use crate::Asset;
 use crate::AsyncWindowContext;
@@ -61,7 +61,7 @@ use crate::GlobalElementId;
 use crate::GpuSpecs;
 use crate::InputHandler;
 use crate::InputPreference;
-use crate::IsZero;
+use crate::IsZero as _;
 use crate::KeyContext;
 use crate::KeyEvent;
 use crate::Keystroke;
@@ -104,7 +104,7 @@ use crate::WindowParams;
 use crate::WindowTextSystem;
 use crate::WindowVisibility;
 use crate::point;
-use crate::prelude::IntoElement;
+use crate::prelude::IntoElement as _;
 use crate::px;
 use crate::size;
 
@@ -876,7 +876,7 @@ impl Window {
         let content_size = platform_window.content_size();
         let scale_factor = platform_window.scale_factor();
         let appearance = platform_window.appearance();
-        let text_system = Rc::new(WindowTextSystem::new(cx.text_system().clone()));
+        let text_system = Rc::new(WindowTextSystem::new(Arc::clone(cx.text_system())));
         let invalidator = WindowInvalidator::new();
         let active = Rc::new(Cell::new(platform_window.is_active()));
         let visibility = platform_window.visibility();
@@ -912,10 +912,10 @@ impl Window {
         platform_window.on_request_frame(Box::new({
             let mut cx = cx.to_async();
             let invalidator = invalidator.clone();
-            let active = active.clone();
-            let needs_present = needs_present.clone();
-            let next_frame_callbacks = next_frame_callbacks.clone();
-            let input_rate_tracker = input_rate_tracker.clone();
+            let active = Rc::clone(&active);
+            let needs_present = Rc::clone(&needs_present);
+            let next_frame_callbacks = Rc::clone(&next_frame_callbacks);
+            let input_rate_tracker = Rc::clone(&input_rate_tracker);
             let mut deferred_force_render = false;
             move |request_frame_options| {
                 // This must be checked before accessing App: if this request
@@ -1129,7 +1129,7 @@ impl Window {
             is_minimizable,
             sprite_atlas,
             text_system,
-            text_rendering_mode: cx.text_rendering_mode.clone(),
+            text_rendering_mode: Rc::clone(&cx.text_rendering_mode),
             rem_size: px(16.),
             rem_size_override_stack: SmallVec::new(),
             viewport_size: content_size,
@@ -1142,8 +1142,8 @@ impl Window {
             content_mask_stack: Vec::new(),
             element_opacity: 1.0,
             requested_autoscroll: None,
-            rendered_frame: Frame::new(DispatchTree::new(cx.keymap.clone(), cx.actions.clone())),
-            next_frame: Frame::new(DispatchTree::new(cx.keymap.clone(), cx.actions.clone())),
+            rendered_frame: Frame::new(DispatchTree::new(Rc::clone(&cx.keymap), Rc::clone(&cx.actions))),
+            next_frame: Frame::new(DispatchTree::new(Rc::clone(&cx.keymap), Rc::clone(&cx.actions))),
             next_frame_callbacks,
             next_hitbox_id: HitboxId(0),
             next_tooltip_id: TooltipId::default(),
@@ -1185,32 +1185,7 @@ impl Window {
     pub(crate) fn new_focus_listener(&self, value: AnyWindowFocusListener) -> (Subscription, impl FnOnce() + use<>) {
         self.focus_listeners.insert_pending(value)
     }
-}
 
-/// Indicates which region of the window is visible. Content falling outside of this mask will not be
-/// rendered. Currently, only rectangular content masks are supported, but we give the mask its own type
-/// to leave room to support more complex shapes in the future.
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
-#[repr(C)]
-pub struct ContentMask<P: Clone + Debug + Default + PartialEq> {
-    /// The bounds
-    pub bounds: Bounds<P>,
-}
-
-impl ContentMask<Pixels> {
-    /// Scale the content mask's pixel units by the given scaling factor.
-    pub fn scale(&self, factor: f32) -> ContentMask<ScaledPixels> {
-        ContentMask { bounds: self.bounds.scale(factor) }
-    }
-
-    /// Intersect the content mask with the given content mask.
-    pub fn intersect(&self, other: &Self) -> Self {
-        let bounds = self.bounds.intersect(&other.bounds);
-        ContentMask { bounds }
-    }
-}
-
-impl Window {
     fn mark_view_dirty(&mut self, view_id: EntityId) {
         // Mark ancestor views as dirty. If already in the `dirty_views` set, then all its ancestors
         // should already be dirty.
@@ -1306,7 +1281,8 @@ impl Window {
 
     /// Obtain the currently focused [`FocusHandle`]. If no elements are focused, returns `None`.
     pub fn focused(&self, cx: &App) -> Option<FocusHandle> {
-        self.focus.and_then(|id| FocusHandle::for_id(id, &cx.focus_handles))
+        let id = self.focus?;
+        FocusHandle::for_id(id, &cx.focus_handles)
     }
 
     /// While focus-lost listeners are being dispatched, returns the closest ancestor of the
@@ -1378,7 +1354,7 @@ impl Window {
     }
 
     /// Return the `WindowBounds` to indicate that how a window should be opened
-    /// after it has been closed
+    /// after it has been closed.
     pub fn window_bounds(&self) -> WindowBounds {
         self.platform_window.window_bounds()
     }
@@ -1544,7 +1520,7 @@ impl Window {
             entity_id,
             Box::new(move |entity, cx| {
                 let entity = entity.downcast_mut().expect("invalid entity type");
-                let _ = window_handle.update(cx, |_, window, cx| on_release(entity, window, cx));
+                window_handle.update(cx, |_, window, cx| on_release(entity, window, cx)).ok();
             }),
         )
     }
@@ -1679,7 +1655,7 @@ impl Window {
         self.platform_window.resize(size);
     }
 
-    /// Returns whether or not the window is currently fullscreen
+    /// Returns whether or not the window is currently fullscreen.
     pub fn is_fullscreen(&self) -> bool {
         self.platform_window.is_fullscreen()
     }
@@ -1855,7 +1831,7 @@ impl Window {
         self.mouse_position
     }
 
-    /// The current state of the keyboard's modifiers
+    /// The current state of the keyboard's modifiers.
     pub const fn modifiers(&self) -> Modifiers {
         self.modifiers
     }
@@ -1866,7 +1842,7 @@ impl Window {
         self.last_input_modality == InputModality::Keyboard
     }
 
-    /// The current state of the keyboard's capslock
+    /// The current state of the keyboard's capslock.
     pub const fn capslock(&self) -> Capslock {
         self.capslock
     }
@@ -1913,7 +1889,7 @@ impl Window {
             self.platform_window.set_input_handler(input_handler);
         }
 
-        self.layout_engine.as_mut().unwrap().clear();
+        self.layout_engine.as_mut().expect("layout engine is present outside compute_layout").clear();
         self.text_system().finish_frame();
         self.next_frame.finish(&mut self.rendered_frame);
 
@@ -1999,7 +1975,7 @@ impl Window {
         if self.animation_frame_pending.replace(true) {
             return;
         }
-        let pending = self.animation_frame_pending.clone();
+        let pending = Rc::clone(&self.animation_frame_pending);
         self.spawn(cx, async move |cx| {
             cx.background_executor().timer(SPRITE_ANIMATION_FRAME_INTERVAL).await;
             pending.set(false);
@@ -2033,13 +2009,12 @@ impl Window {
         // stretches to fill the viewport unless explicitly sized, window roots
         // fill the window when their size is `auto`.
         let scale_factor = self.scale_factor();
-        let mut root_element = self.root.as_ref().unwrap().clone().into_any_element();
+        let mut root_element = self.root.as_ref().expect("window has a root view").clone().into_any_element();
         let root_layout_id = root_element.request_layout(self, cx);
-        self.layout_engine.as_mut().unwrap().stretch_auto_size_to_fill(
-            root_layout_id,
-            self.viewport_size,
-            scale_factor,
-        );
+        self.layout_engine
+            .as_mut()
+            .expect("layout engine is present outside compute_layout")
+            .stretch_auto_size_to_fill(root_layout_id, self.viewport_size, scale_factor);
         root_element.prepaint_as_root(Point::default(), self.viewport_size.into(), self, cx);
 
         self.prepaint_deferred_draws(cx);
@@ -2050,11 +2025,10 @@ impl Window {
         if let Some(prompt) = self.prompt.take() {
             let mut element = prompt.view.any_view().into_any_element();
             let prompt_layout_id = element.request_layout(self, cx);
-            self.layout_engine.as_mut().unwrap().stretch_auto_size_to_fill(
-                prompt_layout_id,
-                self.viewport_size,
-                scale_factor,
-            );
+            self.layout_engine
+                .as_mut()
+                .expect("layout engine is present outside compute_layout")
+                .stretch_auto_size_to_fill(prompt_layout_id, self.viewport_size, scale_factor);
             element.prepaint_as_root(Point::default(), self.viewport_size.into(), self, cx);
             prompt_element = Some(element);
             self.prompt = Some(prompt);
@@ -2563,7 +2537,7 @@ impl Window {
         })
     }
 
-    /// Use a piece of state that exists as long this element is being rendered in consecutive frames, without needing to specify a key
+    /// Use a piece of state that exists as long this element is being rendered in consecutive frames, without needing to specify a key.
     ///
     /// NOTE: This method uses the location of the caller to generate an ID for this state.
     ///       If this is not sufficient to identify your state (e.g. you're rendering a list item),
@@ -2595,12 +2569,9 @@ impl Window {
         if let Some(any) = state {
             let ElementStateBox { inner } = any;
             // Using the extra inner option to avoid needing to reallocate a new box.
-            let mut state_box = inner
-                .downcast::<Option<S>>()
-                .map_err(|_| {
-                    anyhow::anyhow!("invalid element state type for id, requested {:?}", any::type_name::<S>())
-                })
-                .unwrap();
+            let Ok(mut state_box) = inner.downcast::<Option<S>>() else {
+                panic!("invalid element state type for id, requested {}", any::type_name::<S>());
+            };
 
             let state =
                 state_box.take().expect("reentrant call to with_element_state for the same state type and element id");
@@ -2620,7 +2591,7 @@ impl Window {
     /// when the element is guaranteed to have an id.
     ///
     /// The first option means 'no ID provided'
-    /// The second option means 'not yet initialized'
+    /// The second option means 'not yet initialized'.
     pub fn with_optional_element_state<S, R>(
         &mut self,
         global_id: Option<&GlobalElementId>,
@@ -2668,7 +2639,7 @@ impl Window {
         priority: usize,
         content_mask: Option<ContentMask<Pixels>>,
     ) {
-        let parent_node = self.next_frame.dispatch_tree.active_node_id().unwrap();
+        let parent_node = self.next_frame.dispatch_tree.active_node_id().expect("dispatch tree has an active node");
         self.next_frame.deferred_draws.push(DeferredDraw {
             current_view: self.current_view(),
             parent_node,
@@ -2702,7 +2673,12 @@ impl Window {
         let rem_size = self.rem_size();
         let scale_factor = self.scale_factor();
 
-        self.layout_engine.as_mut().unwrap().request_layout(style, rem_size, scale_factor, &cx.layout_id_buffer)
+        self.layout_engine.as_mut().expect("layout engine is present outside compute_layout").request_layout(
+            style,
+            rem_size,
+            scale_factor,
+            &cx.layout_id_buffer,
+        )
     }
 
     /// Add a node to the layout tree for the current frame. Instead of taking a `Style` and children,
@@ -2719,7 +2695,12 @@ impl Window {
     {
         let rem_size = self.rem_size();
         let scale_factor = self.scale_factor();
-        self.layout_engine.as_mut().unwrap().request_measured_layout(style, rem_size, scale_factor, measure)
+        self.layout_engine.as_mut().expect("layout engine is present outside compute_layout").request_measured_layout(
+            style,
+            rem_size,
+            scale_factor,
+            measure,
+        )
     }
 
     /// Compute the layout for the given id within the given available space.
@@ -2728,7 +2709,7 @@ impl Window {
     ///
     /// This method should only be called as part of the prepaint phase of element drawing.
     pub fn compute_layout(&mut self, layout_id: LayoutId, available_space: Size<AvailableSpace>, cx: &mut App) {
-        let mut layout_engine = self.layout_engine.take().unwrap();
+        let mut layout_engine = self.layout_engine.take().expect("compute_layout is not reentrant");
         layout_engine.compute_layout(layout_id, available_space, self, cx);
         self.layout_engine = Some(layout_engine);
     }
@@ -2739,7 +2720,12 @@ impl Window {
     /// This method should only be called as part of element drawing.
     pub fn layout_bounds(&mut self, layout_id: LayoutId) -> Bounds<Pixels> {
         let scale_factor = self.scale_factor();
-        let mut bounds = self.layout_engine.as_mut().unwrap().layout_bounds(layout_id, scale_factor).map(Into::into);
+        let mut bounds = self
+            .layout_engine
+            .as_mut()
+            .expect("layout engine is present outside compute_layout")
+            .layout_bounds(layout_id, scale_factor)
+            .map(Into::into);
         let snapped_offset = self.pixel_snap_point(self.element_offset());
         bounds.origin += snapped_offset;
         bounds
@@ -2794,9 +2780,9 @@ impl Window {
         self.next_frame.dispatch_tree.set_view_id(view_id);
     }
 
-    /// Get the entity ID for the currently rendering view
+    /// Get the entity ID for the currently rendering view.
     pub fn current_view(&self) -> EntityId {
-        self.rendered_entity_stack.last().copied().unwrap()
+        self.rendered_entity_stack.last().copied().expect("called while rendering a view")
     }
 
     #[inline]
@@ -3176,6 +3162,29 @@ impl Window {
             cx.notify(current_view);
         })
         .detach();
+    }
+}
+
+/// Indicates which region of the window is visible. Content falling outside of this mask will not be
+/// rendered. Currently, only rectangular content masks are supported, but we give the mask its own type
+/// to leave room to support more complex shapes in the future.
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub struct ContentMask<P: Clone + Debug + Default + PartialEq> {
+    /// The bounds.
+    pub bounds: Bounds<P>,
+}
+
+impl ContentMask<Pixels> {
+    /// Scale the content mask's pixel units by the given scaling factor.
+    pub fn scale(&self, factor: f32) -> ContentMask<ScaledPixels> {
+        ContentMask { bounds: self.bounds.scale(factor) }
+    }
+
+    /// Intersect the content mask with the given content mask.
+    pub fn intersect(&self, other: &Self) -> Self {
+        let bounds = self.bounds.intersect(&other.bounds);
+        ContentMask { bounds }
     }
 }
 

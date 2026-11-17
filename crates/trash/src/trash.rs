@@ -36,7 +36,7 @@ impl TrashItem {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum Error {
+pub enum TrashError {
     #[error("cannot trash a filesystem root")]
     TargetedRoot,
     #[error("could not canonicalize {}", original.display())]
@@ -53,48 +53,49 @@ pub enum Error {
 
 /// Moves `path` to the trash. Symlinks are trashed themselves, not their
 /// targets.
-pub fn delete_with_info(path: impl AsRef<Path>) -> Result<TrashItem, Error> {
+pub fn delete_with_info(path: impl AsRef<Path>) -> Result<TrashItem, TrashError> {
     platform::delete(canonicalize_parent(path.as_ref())?)
 }
 
 /// Moves `item` back to its original path, failing with
-/// [`Error::RestoreCollision`] if something exists there.
-pub fn restore(item: TrashItem) -> Result<(), Error> {
+/// [`TrashError::RestoreCollision`] if something exists there.
+pub fn restore(item: TrashItem) -> Result<(), TrashError> {
     platform::restore(item)
 }
 
 type FsError = (PathBuf, io::Error);
 
 /// Makes `path` absolute and resolves symlinks in its parent only.
-fn canonicalize_parent(path: &Path) -> Result<PathBuf, Error> {
-    let path = path::absolute(path).map_err(|source| Error::FileSystem { path: path.to_owned(), source })?;
-    let parent = path.parent().ok_or(Error::TargetedRoot)?;
-    let name = path.file_name().ok_or_else(|| Error::CanonicalizePath { original: path.clone() })?;
-    let parent = parent.canonicalize().map_err(|_| Error::CanonicalizePath { original: parent.to_owned() })?;
+fn canonicalize_parent(path: &Path) -> Result<PathBuf, TrashError> {
+    let path = path::absolute(path).map_err(|source| TrashError::FileSystem { path: path.to_owned(), source })?;
+    let parent = path.parent().ok_or(TrashError::TargetedRoot)?;
+    let name = path.file_name().ok_or_else(|| TrashError::CanonicalizePath { original: path.clone() })?;
+    #[expect(clippy::map_err_ignore, reason = "CanonicalizePath carries only the path")]
+    let parent = parent.canonicalize().map_err(|_| TrashError::CanonicalizePath { original: parent.to_owned() })?;
     Ok(parent.join(name))
 }
 
 /// Like `try_exists`, but a broken symlink counts as existing.
-fn virtually_exists(path: &Path) -> Result<bool, Error> {
+fn virtually_exists(path: &Path) -> Result<bool, TrashError> {
     match fs::symlink_metadata(path) {
         Ok(_) => Ok(true),
         Err(error) if error.kind() == ErrorKind::NotFound => Ok(false),
-        Err(source) => Err(Error::FileSystem { path: path.to_owned(), source }),
+        Err(source) => Err(TrashError::FileSystem { path: path.to_owned(), source }),
     }
 }
 
-fn restore_from(file_in_trash: &Path, item: &TrashItem) -> Result<(), Error> {
+fn restore_from(file_in_trash: &Path, item: &TrashItem) -> Result<(), TrashError> {
     if !virtually_exists(file_in_trash)? {
-        return Err(Error::NoLongerInTrash { path: file_in_trash.to_owned() });
+        return Err(TrashError::NoLongerInTrash { path: file_in_trash.to_owned() });
     }
     let original_path = item.original_path();
     fs::create_dir_all(&item.original_parent)
-        .map_err(|source| Error::FileSystem { path: item.original_parent.clone(), source })?;
+        .map_err(|source| TrashError::FileSystem { path: item.original_parent.clone(), source })?;
     move_no_replace(file_in_trash, &original_path).map_err(|(path, source)| {
         if source.kind() == ErrorKind::AlreadyExists && path == original_path {
-            Error::RestoreCollision { path }
+            TrashError::RestoreCollision { path }
         } else {
-            Error::FileSystem { path, source }
+            TrashError::FileSystem { path, source }
         }
     })
 }
@@ -106,6 +107,7 @@ fn restore_from(file_in_trash: &Path, item: &TrashItem) -> Result<(), Error> {
 /// back to copy + remove across filesystems.
 fn move_no_replace(src: &Path, dst: &Path) -> Result<(), FsError> {
     let is_dir = fs::symlink_metadata(src).map_err(|error| (src.to_owned(), error))?.is_dir();
+    #[expect(clippy::create_dir, reason = "must fail when dst exists")]
     let placeholder =
         if is_dir { fs::create_dir(dst) } else { OpenOptions::new().create_new(true).write(true).open(dst).map(drop) };
     placeholder.map_err(|error| (dst.to_owned(), error))?;
@@ -119,7 +121,7 @@ fn move_no_replace(src: &Path, dst: &Path) -> Result<(), FsError> {
             removed.map_err(|error| (src.to_owned(), error))
         }
         Err(error) => {
-            let _ = if is_dir { fs::remove_dir(dst) } else { fs::remove_file(dst) };
+            if is_dir { fs::remove_dir(dst) } else { fs::remove_file(dst) }.ok();
             Err((src.to_owned(), error))
         }
     }
@@ -137,7 +139,7 @@ fn copy_recursive(src: &Path, dst: &Path) -> Result<(), FsError> {
         }
     } else if file_type.is_symlink() {
         let target = fs::read_link(src).map_err(|error| (src.to_owned(), error))?;
-        let _ = fs::remove_file(dst);
+        fs::remove_file(dst).ok();
         unix::fs::symlink(target, dst).map_err(|error| (dst.to_owned(), error))?;
     } else {
         fs::copy(src, dst).map_err(|error| (src.to_owned(), error))?;
@@ -152,7 +154,7 @@ mod tests {
     use std::os::unix;
     use std::path::PathBuf;
 
-    use crate::Error;
+    use crate::TrashError;
     use crate::delete_with_info;
     use crate::move_no_replace;
     use crate::restore;
@@ -160,7 +162,7 @@ mod tests {
     /// Fresh canonical scratch dir, unique per test name; tests remove it on success.
     pub(crate) fn test_dir(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("trash-test-{name}-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&dir);
+        fs::remove_dir_all(&dir).ok();
         fs::create_dir_all(&dir).unwrap();
         dir.canonicalize().unwrap()
     }
@@ -185,7 +187,7 @@ mod tests {
     fn move_no_replace_moves_directories_and_symlinks() {
         let dir = test_dir("move_no_replace_moves");
         let src = dir.join("src");
-        fs::create_dir(&src).unwrap();
+        fs::create_dir_all(&src).unwrap();
         fs::write(src.join("file"), "content").unwrap();
         unix::fs::symlink("missing", src.join("link")).unwrap();
         let dst = dir.join("dst");
@@ -204,7 +206,7 @@ mod tests {
         let file = dir.join("trash-roundtrip.txt");
         fs::write(&file, "content").unwrap();
         let folder = dir.join("trash-roundtrip-dir");
-        fs::create_dir(&folder).unwrap();
+        fs::create_dir_all(&folder).unwrap();
         fs::write(folder.join("nested"), "nested").unwrap();
         let link = dir.join("trash-roundtrip-link");
         unix::fs::symlink(&file, &link).unwrap();
@@ -221,13 +223,13 @@ mod tests {
 
         fs::write(&file, "replacement").unwrap();
         let error = restore(file_item.clone()).unwrap_err();
-        assert!(matches!(error, Error::RestoreCollision { ref path } if *path == file), "{error:?}");
+        assert!(matches!(error, TrashError::RestoreCollision { ref path } if *path == file), "{error:?}");
         assert_eq!(fs::read_to_string(&file).unwrap(), "replacement");
 
         fs::remove_file(&file).unwrap();
         restore(file_item.clone()).unwrap();
         assert_eq!(fs::read_to_string(&file).unwrap(), "content");
-        assert!(matches!(restore(file_item), Err(Error::NoLongerInTrash { .. })));
+        assert!(matches!(restore(file_item), Err(TrashError::NoLongerInTrash { .. })));
         fs::remove_dir_all(dir).unwrap();
     }
 }

@@ -1,5 +1,5 @@
 use std::iter;
-use std::str::FromStr;
+use std::str::FromStr as _;
 
 use anyhow::Context as _;
 use anyhow::Result;
@@ -64,7 +64,7 @@ fn parse_tag_names(output: &str, shas: &[Oid]) -> FxHashMap<Oid, Vec<String>> {
         let Some(tag_name) = fields.next().filter(|tag_name| !tag_name.is_empty()) else {
             continue;
         };
-        result.entry(sha).or_default().push(tag_name.to_string());
+        result.entry(sha).or_default().push(tag_name.to_owned());
     }
 
     result.retain(|sha, _| shas.contains(sha));

@@ -1,4 +1,4 @@
-use std::fmt::Write;
+use std::fmt::Write as _;
 use std::iter;
 use std::ops::Range;
 use std::sync::Arc;
@@ -87,7 +87,7 @@ impl<'a> OffsetUnifiedDiffBuilder<'a> {
 
     fn print_tokens(&mut self, tokens: &[Token], prefix: char) {
         for &token in tokens {
-            writeln!(&mut self.buffer, "{prefix}{}", self.interner[token]).unwrap();
+            writeln!(&mut self.buffer, "{prefix}{}", self.interner[token]).expect("writing to a String can't fail");
         }
     }
 
@@ -107,8 +107,8 @@ impl<'a> OffsetUnifiedDiffBuilder<'a> {
             self.after_hunk_start + 1 + self.new_line_offset,
             self.after_hunk_len,
         )
-        .unwrap();
-        write!(&mut self.dst, "{}", self.buffer).unwrap();
+        .expect("writing to a String can't fail");
+        write!(&mut self.dst, "{}", self.buffer).expect("writing to a String can't fail");
         self.buffer.clear();
         self.before_hunk_len = 0;
         self.after_hunk_len = 0;
@@ -242,12 +242,12 @@ pub fn text_diff_with_options(old_text: &str, new_text: &str, options: DiffOptio
                 let old_byte_range = old_offset + old_byte_range.start..old_offset + old_byte_range.end;
                 let new_byte_range = new_offset + new_byte_range.start..new_offset + new_byte_range.end;
                 let replacement_text =
-                    if new_byte_range.is_empty() { empty.clone() } else { new_text[new_byte_range].into() };
+                    if new_byte_range.is_empty() { Arc::clone(&empty) } else { new_text[new_byte_range].into() };
                 edits.push((old_byte_range, replacement_text));
             });
         } else {
             let replacement_text =
-                if new_byte_range.is_empty() { empty.clone() } else { new_text[new_byte_range].into() };
+                if new_byte_range.is_empty() { Arc::clone(&empty) } else { new_text[new_byte_range].into() };
             edits.push((old_byte_range, replacement_text));
         }
     });

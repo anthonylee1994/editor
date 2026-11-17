@@ -8,11 +8,11 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
-use futures::FutureExt;
-use futures::StreamExt;
+use futures::FutureExt as _;
+use futures::StreamExt as _;
 use futures::channel::mpsc;
-use gpui_util::TryFutureExt;
-use gpui_util::TryFutureExtBacktrace;
+use gpui_util::TryFutureExt as _;
+use gpui_util::TryFutureExtBacktrace as _;
 pub use scheduler::DedicatedExecutor;
 pub use scheduler::FallibleTask;
 use scheduler::Instant;
@@ -75,7 +75,7 @@ where
 impl BackgroundExecutor {
     /// Creates a new BackgroundExecutor from the given PlatformDispatcher.
     pub fn new(dispatcher: Arc<dyn PlatformDispatcher>) -> Self {
-        let scheduler: Arc<dyn Scheduler> = Arc::new(PlatformScheduler::new(dispatcher.clone()));
+        let scheduler: Arc<dyn Scheduler> = Arc::new(PlatformScheduler::new(Arc::clone(&dispatcher)));
 
         Self { inner: scheduler::BackgroundExecutor::new(scheduler), dispatcher }
     }
@@ -193,7 +193,7 @@ impl BackgroundExecutor {
 impl ForegroundExecutor {
     /// Creates a new ForegroundExecutor from the given PlatformDispatcher.
     pub fn new(dispatcher: Arc<dyn PlatformDispatcher>) -> Self {
-        let platform_scheduler = Arc::new(PlatformScheduler::new(dispatcher.clone()));
+        let platform_scheduler = Arc::new(PlatformScheduler::new(Arc::clone(&dispatcher)));
         let inner = platform_scheduler.foreground_executor();
 
         Self { inner, dispatcher, not_send: PhantomData }
@@ -266,7 +266,7 @@ impl<'a> Scope<'a> {
     where
         F: Future<Output = ()> + Send + 'a,
     {
-        let tx = self.tx.clone().unwrap();
+        let tx = self.tx.clone().expect("scope is not dropped");
 
         // SAFETY: The 'a lifetime is guaranteed to outlive any of these futures because
         // dropping this `Scope` blocks until all of the futures have resolved.
@@ -285,7 +285,7 @@ impl<'a> Scope<'a> {
 
 impl Drop for Scope<'_> {
     fn drop(&mut self) {
-        self.tx.take().unwrap();
+        self.tx.take().expect("scope is dropped once");
 
         // Wait until the channel is closed, which means that all of the spawned
         // futures have resolved.

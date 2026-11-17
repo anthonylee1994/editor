@@ -18,9 +18,9 @@ use gpui::Entity;
 use gpui::EventEmitter;
 use gpui::FocusHandle;
 use gpui::Focusable;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Render;
-use gpui::TaskExt;
+use gpui::TaskExt as _;
 use gpui::WeakEntity;
 use gpui::Window;
 use gpui::actions;
@@ -36,11 +36,11 @@ use ui::ListItem;
 use ui::ListItemSpacing;
 use ui::prelude::Color;
 use ui::prelude::Icon;
-use ui::prelude::InteractiveElement;
+use ui::prelude::InteractiveElement as _;
 use ui::prelude::IntoElement;
-use ui::prelude::Toggleable;
+use ui::prelude::Toggleable as _;
 use ui::prelude::v_flex;
-use util::ResultExt;
+use util::ResultExt as _;
 use workspace::ModalView;
 use workspace::Workspace;
 
@@ -68,7 +68,7 @@ impl LanguageSelector {
     }
 
     fn toggle(workspace: &mut Workspace, window: &mut Window, cx: &mut Context<Workspace>) -> Option<()> {
-        let registry = workspace.app_state().languages.clone();
+        let registry = Arc::clone(&workspace.app_state().languages);
         let buffer = workspace.shown_pane().read(cx).active_item()?.act_as::<Editor>(cx)?.read(cx).active_buffer(cx)?;
         let project = workspace.project().clone();
 
@@ -84,7 +84,7 @@ impl LanguageSelector {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
-        let current_language_name = buffer.read(cx).language().map(|language| language.name().as_ref().to_string());
+        let current_language_name = buffer.read(cx).language().map(|language| language.name().as_ref().to_owned());
         let delegate = LanguageSelectorDelegate::new(
             cx.entity().downgrade(),
             buffer,

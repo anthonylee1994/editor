@@ -24,24 +24,24 @@ use project::Project;
 use project::git_store::GitStoreEvent;
 use ui::Tab;
 use ui::Tooltip;
-use ui::prelude::ActiveTheme;
-use ui::prelude::ButtonCommon;
+use ui::prelude::ActiveTheme as _;
+use ui::prelude::ButtonCommon as _;
 use ui::prelude::ButtonSize;
 use ui::prelude::ButtonStyle;
-use ui::prelude::Clickable;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
-use ui::prelude::Disableable;
+use ui::prelude::Disableable as _;
 use ui::prelude::DynamicSpacing;
-use ui::prelude::FluentBuilder;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::IconName;
-use ui::prelude::InteractiveElement;
-use ui::prelude::ParentElement;
-use ui::prelude::Styled;
+use ui::prelude::InteractiveElement as _;
+use ui::prelude::ParentElement as _;
+use ui::prelude::Styled as _;
 use ui::prelude::h_flex;
 use ui::prelude::px;
 use ui::utils::TRAFFIC_LIGHT_PADDING;
 use ui::utils::window_drag_area;
-use util::ResultExt;
+use util::ResultExt as _;
 
 use crate::CARD_GAP;
 use crate::GoBack;
@@ -146,6 +146,27 @@ impl WindowHeader {
             cx.notify();
         }
     }
+
+    /// Records the header's width above a sidebar, redrawing the workspace when
+    /// it changes so the top-left tab bar keeps room for any overhang.
+    fn measure_sidebar_width(&self, cx: &Context<WindowHeader>) -> impl IntoElement {
+        let header = cx.entity().downgrade();
+        canvas(
+            move |bounds, _, cx| {
+                header
+                    .update(cx, |header, cx| {
+                        if header.sidebar_width != bounds.size.width {
+                            header.sidebar_width = bounds.size.width;
+                            header.workspace.update(cx, |_, cx| cx.notify()).ok();
+                        }
+                    })
+                    .ok();
+            },
+            |_, (), _, _| {},
+        )
+        .absolute()
+        .size_full()
+    }
 }
 
 impl Render for WindowHeader {
@@ -177,29 +198,6 @@ impl Render for WindowHeader {
                     .child(render_nav_buttons(&self.workspace, self.shown)),
             )
             .into_any_element()
-    }
-}
-
-impl WindowHeader {
-    /// Records the header's width above a sidebar, redrawing the workspace when
-    /// it changes so the top-left tab bar keeps room for any overhang.
-    fn measure_sidebar_width(&self, cx: &Context<WindowHeader>) -> impl IntoElement {
-        let header = cx.entity().downgrade();
-        canvas(
-            move |bounds, _, cx| {
-                header
-                    .update(cx, |header, cx| {
-                        if header.sidebar_width != bounds.size.width {
-                            header.sidebar_width = bounds.size.width;
-                            header.workspace.update(cx, |_, cx| cx.notify()).ok();
-                        }
-                    })
-                    .ok();
-            },
-            |_, (), _, _| {},
-        )
-        .absolute()
-        .size_full()
     }
 }
 
@@ -454,7 +452,7 @@ mod tests {
     use super::traffic_light_room;
 
     #[test]
-    fn test_tab_bars_are_titlebar() {
+    fn tab_bars_are_titlebar_works() {
         use crate::WorkspaceMode;
         assert!(tab_bars_are_titlebar(WorkspaceMode::Editor));
         assert!(tab_bars_are_titlebar(WorkspaceMode::GitHistory));
@@ -462,7 +460,7 @@ mod tests {
     }
 
     #[test]
-    fn test_switchable_modes() {
+    fn switchable_modes_works() {
         use crate::WorkspaceMode;
         assert_eq!(switchable_modes(false, false), [WorkspaceMode::Editor]);
         assert_eq!(switchable_modes(true, false), [WorkspaceMode::Editor, WorkspaceMode::GitHistory]);
@@ -474,7 +472,7 @@ mod tests {
     }
 
     #[test]
-    fn test_mode_switch_track_clears_top_row() {
+    fn mode_switch_track_clears_top_row() {
         use crate::pane::TOP_ROW_BUTTON_SIZE;
         let track = MODE_SWITCH_BUTTON_SIZE.rems().to_pixels(px(16.)) + MODE_SWITCH_PADDING * 2.;
         // Shorter than a 32px track of top-row buttons, leaving at least 4px
@@ -485,7 +483,7 @@ mod tests {
     }
 
     #[test]
-    fn test_traffic_light_room() {
+    fn traffic_light_room_works() {
         assert_eq!(traffic_light_room(px(0.), false), px(TRAFFIC_LIGHT_PADDING));
         assert_eq!(traffic_light_room(TAB_BAR_START_OFFSET, false), px(TRAFFIC_LIGHT_PADDING) - TAB_BAR_START_OFFSET);
         assert_eq!(traffic_light_room(px(500.), false), px(0.));
@@ -493,7 +491,7 @@ mod tests {
     }
 
     #[test]
-    fn test_sidebar_header_overhang() {
+    fn sidebar_header_overhang_works() {
         // A sidebar wide enough that its tabs already clear the header leaves no room.
         assert_eq!(sidebar_header_overhang(px(300.), px(400.), px(6.)), px(0.));
         assert_eq!(sidebar_header_overhang(px(300.), px(296.), px(6.)), px(0.));

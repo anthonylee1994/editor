@@ -170,11 +170,10 @@ fn parse_choices<'a>(mut source: &'a str, text: &mut String) -> Result<(&'a str,
                 return Ok((source, Some(choices)));
             }
             Some(_) => {
-                let chunk_end = source.find([',', '|', '\\']);
-
-                anyhow::ensure!(chunk_end.is_some(), "Placeholder choice doesn't contain closing pipe-character '|'");
-
-                let (chunk, rest) = source.split_at(chunk_end.unwrap());
+                let chunk_end = source
+                    .find([',', '|', '\\'])
+                    .context("Placeholder choice doesn't contain closing pipe-character '|'")?;
+                let (chunk, rest) = source.split_at(chunk_end);
 
                 if !found_default_choice {
                     text.push_str(chunk);

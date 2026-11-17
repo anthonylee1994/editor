@@ -126,8 +126,8 @@ impl LanguageRegistry {
         let mut state = self.state.write();
 
         let cached = CachedLspAdapter::new(adapter);
-        state.lsp_adapters.entry(language_name).or_default().push(cached.clone());
-        state.all_lsp_adapters.insert(cached.name.clone(), cached.clone());
+        state.lsp_adapters.entry(language_name).or_default().push(Arc::clone(&cached));
+        state.all_lsp_adapters.insert(cached.name.clone(), Arc::clone(&cached));
         state.version += 1;
         state.subscription.send(()).ok();
     }
@@ -167,7 +167,7 @@ impl LanguageRegistry {
         state.available_languages.add(AvailableLanguage {
             id: language.id,
             name: language.name(),
-            matcher: language.config.matcher.clone(),
+            matcher: Arc::clone(&language.config.matcher),
             hidden: language.config.hidden,
             manifest_name: None,
             load: Arc::new(|| async { Err(anyhow!("already loaded")) }.boxed()),
@@ -243,7 +243,7 @@ impl LanguageRegistry {
     ) -> impl Future<Output = Result<Arc<Language>>> + 'a {
         let language = self.language_for_file_path(path);
 
-        let this = self.clone();
+        let this = Arc::clone(self);
         async move {
             if let Some(language_id) = language {
                 this.load_language(language_id).await?
@@ -272,7 +272,7 @@ impl LanguageRegistry {
         // If the language is already loaded, resolve with it immediately.
         for loaded_language in &state.languages {
             if loaded_language.id == language_id {
-                tx.send(Ok(loaded_language.clone())).unwrap();
+                tx.send(Ok(Arc::clone(loaded_language))).expect("receiver is held locally");
                 return rx;
             }
         }
@@ -282,7 +282,7 @@ impl LanguageRegistry {
             return rx;
         };
 
-        let (language_name, language_load) = (available_language.name.clone(), available_language.load.clone());
+        let (language_name, language_load) = (available_language.name.clone(), Arc::clone(&available_language.load));
 
         match state.loading_languages.entry(language_id) {
             // If the language is already being loaded, then add this
@@ -291,7 +291,7 @@ impl LanguageRegistry {
 
             // Otherwise, start loading the language.
             hash_map::Entry::Vacant(entry) => {
-                let this = self.clone();
+                let this = Arc::clone(self);
 
                 self.executor
                     .spawn(async move {
@@ -315,17 +315,18 @@ impl LanguageRegistry {
                             let is_current = state.available_languages.get_language(language_id).is_some();
                             if is_current {
                                 if let Ok(language) = &language {
-                                    state.add(language.clone());
+                                    state.add(Arc::clone(language));
                                 }
                                 state.mark_language_loaded(language_id);
                                 if let Some(txs) = state.loading_languages.remove(&language_id) {
                                     for tx in txs {
-                                        let _ = tx.send(match &language {
-                                            Ok(language) => Ok(language.clone()),
+                                        tx.send(match &language {
+                                            Ok(language) => Ok(Arc::clone(language)),
                                             Err(error) => {
                                                 Err(anyhow!("failed to load language {language_name}: {error}"))
                                             }
-                                        });
+                                        })
+                                        .ok();
                                     }
                                 }
                                 None
@@ -350,22 +351,23 @@ impl LanguageRegistry {
                                     match result {
                                         Ok(replacement_language) => {
                                             for tx in txs {
-                                                let _ = tx.send(Ok(replacement_language.clone()));
+                                                tx.send(Ok(Arc::clone(&replacement_language))).ok();
                                             }
                                         }
                                         Err(error) => {
                                             let message = format!("{error:#}");
                                             for tx in txs {
-                                                let _ = tx.send(Err(anyhow!(
+                                                tx.send(Err(anyhow!(
                                                     "failed to load language {language_name}: {message}"
-                                                )));
+                                                )))
+                                                .ok();
                                             }
                                         }
                                     }
                                 }
                                 None => {
                                     for tx in txs {
-                                        let _ = tx.send(Err(anyhow!(LanguageNotFound)));
+                                        tx.send(Err(anyhow!(LanguageNotFound))).ok();
                                     }
                                 }
                             }
@@ -387,7 +389,7 @@ impl LanguageRegistry {
     ) -> oneshot::Receiver<Result<Arc<Language>>> {
         let Some(language_id) = language_id else {
             let (tx, rx) = oneshot::channel();
-            let _ = tx.send(Err(anyhow!(LanguageNotFound)));
+            tx.send(Err(anyhow!(LanguageNotFound))).ok();
             return rx;
         };
 
@@ -474,7 +476,7 @@ impl ServerStatusSender {
             state.txs.insert(subscription_id, tx);
             subscription_id
         };
-        let state = self.state.clone();
+        let state = Arc::clone(&self.state);
         let subscription = Subscription::new(move || {
             state.lock().txs.remove(&subscription_id);
         });

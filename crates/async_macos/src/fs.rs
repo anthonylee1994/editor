@@ -76,7 +76,7 @@ mod tests {
             assert_eq!(read_link(&link).await.unwrap(), file);
             assert_eq!(canonicalize(&link).await.unwrap(), canonicalize(&file).await.unwrap());
 
-            use std::os::unix::fs::PermissionsExt;
+            use std::os::unix::fs::PermissionsExt as _;
             set_permissions(&file, fs::Permissions::from_mode(0o755)).await.unwrap();
             assert_eq!(metadata(&file).await.unwrap().permissions().mode() & 0o777, 0o755);
 

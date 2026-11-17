@@ -45,12 +45,12 @@ struct TabStopPath(smallvec::SmallVec<[TabIndex; 6]>);
 struct TabStopNode {
     /// Path to access the node in the tree
     /// The final node in the list is a leaf node corresponding to an actual focus handle,
-    /// all other nodes are group nodes
+    /// all other nodes are group nodes.
     path: TabStopPath,
-    /// index into the backing array of nodes. Corresponds to insertion order
+    /// index into the backing array of nodes. Corresponds to insertion order.
     node_insertion_index: usize,
 
-    /// Whether this node is a tab stop
+    /// Whether this node is a tab stop.
     tab_stop: bool,
 }
 
@@ -168,7 +168,7 @@ mod tests {
     use crate::TabStopMap;
 
     #[test]
-    fn test_tab_handles() {
+    fn tab_handles() {
         let focus_map = Arc::new(RwLock::new(FocusMap::default()));
         let mut tab_index_map = TabStopMap::default();
 
@@ -224,7 +224,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tab_non_stop_filtering() {
+    fn tab_non_stop_filtering() {
         let focus_map = Arc::new(RwLock::new(FocusMap::default()));
         let mut tab_index_map = TabStopMap::default();
 
@@ -317,7 +317,7 @@ mod tests {
     }
 
     #[test]
-    fn test_insert_after_sorting() {
+    fn insert_after_sorting() {
         let focus_map = Arc::new(RwLock::new(FocusMap::default()));
         let mut tab_index_map = TabStopMap::default();
         let second = FocusHandle::new(&focus_map).tab_stop(true).tab_index(1);
@@ -333,17 +333,17 @@ mod tests {
     }
 
     #[test]
-    fn test_with_disabled_tab_stop() {
+    fn with_disabled_tab_stop() {
         TabStopMapTest::new().tab_stop(0, 0).tab_non_stop(1).tab_stop(2, 1).tab_stop(3, 2).assert();
     }
 
     #[test]
-    fn test_with_multiple_disabled_tab_stops() {
+    fn with_multiple_disabled_tab_stops() {
         TabStopMapTest::new().tab_non_stop(0).tab_stop(1, 0).tab_non_stop(3).tab_stop(3, 1).tab_non_stop(4).assert();
     }
 
     #[test]
-    fn test_tab_group_functionality() {
+    fn tab_group_functionality() {
         TabStopMapTest::new()
             .tab_stop(0, 0)
             .tab_stop(0, 1)
@@ -354,7 +354,7 @@ mod tests {
     }
 
     #[test]
-    fn test_sibling_groups() {
+    fn sibling_groups() {
         TabStopMapTest::new()
             .tab_stop(0, 0)
             .tab_stop(1, 1)
@@ -368,7 +368,7 @@ mod tests {
     }
 
     #[test]
-    fn test_nested_group() {
+    fn nested_group() {
         TabStopMapTest::new()
             .tab_stop(0, 0)
             .tab_stop(1, 1)
@@ -379,7 +379,7 @@ mod tests {
     }
 
     #[test]
-    fn test_sibling_nested_groups() {
+    fn sibling_nested_groups() {
         TabStopMapTest::new()
             .tab_stop(0, 0)
             .tab_stop(1, 1)
@@ -396,7 +396,7 @@ mod tests {
     }
 
     #[test]
-    fn test_sibling_nested_groups_out_of_order() {
+    fn sibling_nested_groups_out_of_order() {
         TabStopMapTest::new()
             .tab_stop(9, 9)
             .tab_stop(8, 8)

@@ -64,7 +64,7 @@ impl NSStringExt for id {
         }
         unsafe {
             let cstr: *const c_char = msg_send![*self, UTF8String];
-            if cstr.is_null() { "" } else { CStr::from_ptr(cstr).to_str().unwrap() }
+            if cstr.is_null() { "" } else { CStr::from_ptr(cstr).to_str().expect("NSString is valid utf-8") }
         }
     }
 }

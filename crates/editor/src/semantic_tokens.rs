@@ -11,7 +11,7 @@ use gpui::HighlightStyle;
 use gpui::StrikethroughStyle;
 use gpui::Task;
 use gpui::UnderlineStyle;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use language::LanguageName;
 use language::LanguageRegistry;
 use language::language_settings::AllLanguageSettings;
@@ -115,11 +115,8 @@ impl Editor {
                 let has_rules = buffer.language().is_some_and(|language| {
                     AllLanguageSettings::get_global(cx).semantic_token_rules(&language.name()).is_some()
                 });
-                if has_rules && self.registered_buffers.contains_key(&editor_buffer_id) {
-                    Some((editor_buffer_id, editor_buffer))
-                } else {
-                    None
-                }
+                (has_rules && self.registered_buffers.contains_key(&editor_buffer_id))
+                    .then_some((editor_buffer_id, editor_buffer))
             })
             .collect::<FxHashMap<_, _>>();
 

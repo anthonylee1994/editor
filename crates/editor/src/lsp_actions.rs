@@ -4,37 +4,37 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use anyhow::Result;
-use futures::FutureExt;
+use futures::FutureExt as _;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::Context;
 use gpui::Entity;
-use gpui::Focusable;
+use gpui::Focusable as _;
 use gpui::FontWeight;
 use gpui::HighlightStyle;
-use gpui::ParentElement;
-use gpui::Styled;
+use gpui::ParentElement as _;
+use gpui::Styled as _;
 use gpui::Task;
 use gpui::Window;
 use gpui::div;
-use gpui::prelude::InteractiveElement;
-use gpui::prelude::IntoElement;
-use itertools::Itertools;
+use gpui::prelude::InteractiveElement as _;
+use gpui::prelude::IntoElement as _;
+use itertools::Itertools as _;
 use language::LanguageAwareStyling;
-use language::OffsetRangeExt;
+use language::OffsetRangeExt as _;
 use language::Selection;
 use lsp::CodeActionKind;
 use multi_buffer::Anchor;
-use multi_buffer::AnchorRangeExt;
+use multi_buffer::AnchorRangeExt as _;
 use multi_buffer::MultiBufferOffset;
-use multi_buffer::ToOffset;
+use multi_buffer::ToOffset as _;
 use project::Project;
 use project::lsp_store::LspFormatTarget;
 use rustc_hash::FxHashSet;
 use text::Bias;
 use text::BufferId;
-use theme::ActiveTheme;
-use util::TryFutureExt;
+use theme::ActiveTheme as _;
+use util::TryFutureExt as _;
 use workspace::Workspace;
 
 use super::CODE_ACTION_TIMEOUT;
@@ -61,7 +61,7 @@ use crate::display_map::BlockPlacement;
 use crate::display_map::BlockProperties;
 use crate::display_map::BlockStyle;
 use crate::display_map::HighlightKey;
-use crate::display_map::ToDisplayPoint;
+use crate::display_map::ToDisplayPoint as _;
 use crate::element::EditorElement;
 use crate::movement;
 use crate::scroll::Autoscroll;
@@ -151,7 +151,11 @@ impl Editor {
                     let rename_editor = cx.new(|cx| {
                         let mut editor = Editor::single_line(window, cx);
                         editor.buffer.update(cx, |buffer, cx| {
-                            buffer.edit([(MultiBufferOffset(0)..MultiBufferOffset(0), old_name.clone())], None, cx);
+                            buffer.edit(
+                                [(MultiBufferOffset(0)..MultiBufferOffset(0), Arc::clone(&old_name))],
+                                None,
+                                cx,
+                            );
                         });
                         let head_offset_in_rename_range = MultiBufferOffset(head_offset_in_rename_range);
                         let tail_offset_in_rename_range = MultiBufferOffset(tail_offset_in_rename_range);
@@ -414,7 +418,7 @@ impl Editor {
                         let buffer_id = buffer_snapshot.buffer_id();
                         let start = buffer_snapshot.anchor_before(buffer_range.start);
                         let end = buffer_snapshot.anchor_after(buffer_range.end);
-                        buffers.insert(multi_buffer.buffer(buffer_id).unwrap());
+                        buffers.insert(multi_buffer.buffer(buffer_id).expect("buffer is in multibuffer"));
                         buffer_id_to_ranges
                             .entry(buffer_id)
                             .and_modify(|buffer_ranges| buffer_ranges.push(start..end))
@@ -436,7 +440,7 @@ impl Editor {
                 // will take you back to where you made the last edit, instead of staying where you scrolled
                 self.selection_history
                     .transaction(transaction_id_prev)
-                    .map(|transaction| (transaction.undo.clone(), transaction.undo_add_selections_state.clone()))
+                    .map(|transaction| (Arc::clone(&transaction.undo), transaction.undo_add_selections_state.clone()))
             })
             .unwrap_or_else(|| (self.selections.disjoint_anchors_arc(), self.add_selections_state.clone()));
 

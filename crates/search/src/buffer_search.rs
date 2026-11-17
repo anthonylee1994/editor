@@ -29,16 +29,16 @@ use gpui::Context;
 use gpui::Entity;
 use gpui::EventEmitter;
 use gpui::Focusable;
-use gpui::InteractiveElement;
+use gpui::InteractiveElement as _;
 use gpui::IntoElement;
 use gpui::KeyContext;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Render;
 use gpui::ScrollHandle;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Subscription;
 use gpui::Task;
-use gpui::TaskExt;
+use gpui::TaskExt as _;
 use gpui::WeakEntity;
 use gpui::Window;
 use gpui::div;
@@ -53,24 +53,24 @@ use rustc_hash::FxHashMap;
 use ui::BASE_REM_SIZE_IN_PX;
 use ui::IconButtonShape;
 use ui::Tooltip;
-use ui::prelude::ActiveTheme;
-use ui::prelude::ButtonCommon;
+use ui::prelude::ActiveTheme as _;
+use ui::prelude::ButtonCommon as _;
 use ui::prelude::ButtonStyle;
-use ui::prelude::Clickable;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
-use ui::prelude::FluentBuilder;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::IconButton;
 use ui::prelude::IconName;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
-use ui::prelude::StatefulInteractiveElement;
-use ui::prelude::Toggleable;
+use ui::prelude::StatefulInteractiveElement as _;
+use ui::prelude::Toggleable as _;
 use ui::prelude::h_flex;
 use ui::prelude::rems_from_px;
 use ui::prelude::v_flex;
 use ui::utils::SearchInputWidth;
-use util::ResultExt;
+use util::ResultExt as _;
 use util::paths::PathMatcher;
 use workspace::ToolbarItemEvent;
 use workspace::ToolbarItemLocation;
@@ -202,7 +202,7 @@ impl Render for BufferSearchBar {
                     None
                 }
             })
-            .unwrap_or_else(|| "0/0".to_string());
+            .unwrap_or_else(|| "0/0".to_owned());
         let should_show_replace_input = self.replace_enabled && replacement;
         let in_replace = self.replacement_editor.focus_handle(cx).is_focused(window);
 
@@ -724,8 +724,7 @@ impl BufferSearchBar {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
-        let filtered_search_range =
-            if deploy.selection_search_enabled { Some(FilteredSearchRange::Default) } else { None };
+        let filtered_search_range = deploy.selection_search_enabled.then_some(FilteredSearchRange::Default);
         if self.show(window, cx) {
             if let Some(active_item) = self.active_searchable_item.as_mut() {
                 active_item.toggle_filtered_search_ranges(filtered_search_range, window, cx);
@@ -733,11 +732,9 @@ impl BufferSearchBar {
             self.search_suggested(seed_query_override, window, cx);
             let replace_enabled = deploy.replace_enabled && self.supported_options(cx).replacement;
             self.replace_enabled |= replace_enabled;
-            self.selection_search_enabled = self.selection_search_enabled.or(if deploy.selection_search_enabled {
-                Some(FilteredSearchRange::Default)
-            } else {
-                None
-            });
+            self.selection_search_enabled = self
+                .selection_search_enabled
+                .or_else(|| deploy.selection_search_enabled.then_some(FilteredSearchRange::Default));
             if deploy.focus {
                 let mut handle = self.query_editor.focus_handle(cx);
                 let mut select_query = true;
@@ -919,15 +916,15 @@ impl BufferSearchBar {
     }
 
     pub fn set_replacement(&mut self, replacement: Option<&str>, cx: &mut Context<Self>) {
-        if replacement.is_none() {
+        let Some(replacement) = replacement else {
             self.replace_enabled = false;
             return;
-        }
+        };
         self.replace_enabled = true;
         self.replacement_editor.update(cx, |replacement_editor, cx| {
             replacement_editor.buffer().update(cx, |replacement_buffer, cx| {
                 let len = replacement_buffer.len(cx);
-                replacement_buffer.edit([(MultiBufferOffset(0)..len, replacement.unwrap())], None, cx);
+                replacement_buffer.edit([(MultiBufferOffset(0)..len, replacement)], None, cx);
             });
         });
     }
@@ -1219,7 +1216,7 @@ impl BufferSearchBar {
             self.query_error = None;
             if query.is_empty() {
                 self.clear_active_searchable_item_matches(window, cx);
-                let _ = done_tx.send(());
+                done_tx.send(()).ok();
                 cx.notify();
             } else {
                 let query: Arc<_> = if let Some(search) = self.active_search.take().filter(|_| reuse_existing_query) {
@@ -1270,8 +1267,8 @@ impl BufferSearchBar {
                     .into()
                 };
 
-                self.active_search = Some(query.clone());
-                let query_text = query.as_str().to_string();
+                self.active_search = Some(Arc::clone(&query));
+                let query_text = query.as_str().to_owned();
 
                 let matches_with_token = active_searchable_item.find_matches_with_token(query, window, cx);
 
@@ -1292,10 +1289,8 @@ impl BufferSearchBar {
                                 this.search_history.add(&mut this.search_history_cursor, query_text);
                             }
                             if !this.dismissed {
-                                let (matches, token) = this
-                                    .searchable_items_with_matches
-                                    .get(&active_searchable_item.downgrade())
-                                    .unwrap();
+                                let (matches, token) =
+                                    &this.searchable_items_with_matches[&active_searchable_item.downgrade()];
                                 if matches.is_empty() {
                                     active_searchable_item.clear_matches(window, cx);
                                 } else {
@@ -1308,7 +1303,7 @@ impl BufferSearchBar {
                                     );
                                 }
                             }
-                            let _ = done_tx.send(());
+                            done_tx.send(()).ok();
                             cx.notify();
                         }
                     })
@@ -1377,7 +1372,7 @@ impl BufferSearchBar {
             return;
         }
 
-        if let Some(new_query) = self.search_history.next(&mut self.search_history_cursor).map(str::to_string) {
+        if let Some(new_query) = self.search_history.next(&mut self.search_history_cursor).map(str::to_owned) {
             drop(self.search(&new_query, Some(self.search_options), false, window, cx));
         } else if let Some(draft) = self.search_history_cursor.take_draft() {
             drop(self.search(&draft, Some(self.search_options), false, window, cx));
@@ -1391,7 +1386,7 @@ impl BufferSearchBar {
         }
 
         if self.query(cx).is_empty()
-            && let Some(new_query) = self.search_history.current(&self.search_history_cursor).map(str::to_string)
+            && let Some(new_query) = self.search_history.current(&self.search_history_cursor).map(str::to_owned)
         {
             drop(self.search(&new_query, Some(self.search_options), false, window, cx));
             return;
@@ -1399,7 +1394,7 @@ impl BufferSearchBar {
 
         let current_query = self.query(cx);
         if let Some(new_query) =
-            self.search_history.previous(&mut self.search_history_cursor, &current_query).map(str::to_string)
+            self.search_history.previous(&mut self.search_history_cursor, &current_query).map(str::to_owned)
         {
             drop(self.search(&new_query, Some(self.search_options), false, window, cx));
         }

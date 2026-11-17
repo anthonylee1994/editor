@@ -81,7 +81,7 @@ pub fn build_branch_picker(
     window: &mut Window,
     cx: &mut App,
 ) -> Option<Entity<GitPickerPopover>> {
-    let builder = cx.try_global::<BranchPickerBuilderGlobal>()?.0.clone();
+    let builder = Rc::clone(&cx.try_global::<BranchPickerBuilderGlobal>()?.0);
     Some(builder(workspace, repository, window, cx))
 }
 
@@ -106,7 +106,7 @@ pub fn open_file_history(
     window: &mut Window,
     cx: &mut Context<Workspace>,
 ) {
-    let Some(opener) = cx.try_global::<FileHistoryOpenerGlobal>().map(|opener| opener.0.clone()) else {
+    let Some(opener) = cx.try_global::<FileHistoryOpenerGlobal>().map(|opener| Rc::clone(&opener.0)) else {
         return;
     };
     opener(workspace, path, window, cx);

@@ -1,11 +1,12 @@
 //! Backend for the `log` facade. The level is fixed at `info`: the log is kept for error review,
 //! while debugging goes through edctl automation.
+#![expect(clippy::print_stderr, reason = "the logger reports its own failures on stderr")]
 
 use std::fmt;
 use std::fs;
 use std::fs::File;
 use std::io;
-use std::io::Write;
+use std::io::Write as _;
 use std::path::Path;
 use std::sync::Mutex;
 use std::sync::MutexGuard;
@@ -177,6 +178,7 @@ impl fmt::Display for LocalTimestamp {
         let format = format_description!(
             "[year]-[month]-[day]T[hour]:[minute]:[second][offset_hour sign:mandatory]:[offset_minute]"
         );
+        #[expect(clippy::map_err_ignore, reason = "fmt::Error carries no details")]
         let formatted = now.format(format).map_err(|_| fmt::Error)?;
         f.write_str(&formatted)
     }

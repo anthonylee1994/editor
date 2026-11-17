@@ -2,6 +2,7 @@ use std::collections::hash_map;
 use std::mem;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::Context as _;
 use anyhow::Result;
@@ -10,7 +11,7 @@ use gpui::Context;
 use gpui::Entity;
 use gpui::EntityId;
 use gpui::Task;
-use itertools::Itertools;
+use itertools::Itertools as _;
 use project::PathChange;
 use project::ProjectPath;
 use project::UpdatedEntriesSet;
@@ -195,7 +196,7 @@ impl Workspace {
                     && worktree.entry_for_id(*entry_id).is_none()
                     && Workspace::history_path_is_removed(worktree, path)
             })
-            .map(|(path, _, _)| path.clone())
+            .map(|(path, _, _)| Arc::clone(path))
             .collect::<FxHashSet<_>>();
         if removed_paths.is_empty() {
             return;

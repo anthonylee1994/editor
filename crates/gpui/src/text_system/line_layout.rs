@@ -26,29 +26,29 @@ use crate::Size;
 use crate::point;
 use crate::px;
 
-/// A laid out and styled line of text
+/// A laid out and styled line of text.
 #[derive(Default, Debug)]
 pub struct LineLayout {
-    /// The font size for this line
+    /// The font size for this line.
     pub font_size: Pixels,
-    /// The width of the line
+    /// The width of the line.
     pub width: Pixels,
-    /// The ascent of the line
+    /// The ascent of the line.
     pub ascent: Pixels,
-    /// The descent of the line
+    /// The descent of the line.
     pub descent: Pixels,
-    /// The shaped runs that make up this line
+    /// The shaped runs that make up this line.
     pub runs: Vec<ShapedRun>,
-    /// The length of the line in utf-8 bytes
+    /// The length of the line in utf-8 bytes.
     pub len: usize,
 }
 
 /// A run of text that has been shaped .
 #[derive(Debug, Clone)]
 pub struct ShapedRun {
-    /// The font id for this run
+    /// The font id for this run.
     pub font_id: FontId,
-    /// The glyphs that make up this run
+    /// The glyphs that make up this run.
     pub glyphs: Vec<ShapedGlyph>,
 }
 
@@ -64,12 +64,12 @@ pub struct ShapedGlyph {
     /// The index of this glyph in the original text.
     pub index: usize,
 
-    /// Whether this glyph is an emoji
+    /// Whether this glyph is an emoji.
     pub is_emoji: bool,
 }
 
 impl LineLayout {
-    /// The index for the character at the given x coordinate
+    /// The index for the character at the given x coordinate.
     pub fn index_for_x(&self, x: Pixels) -> Option<usize> {
         if x >= self.width {
             None
@@ -86,7 +86,7 @@ impl LineLayout {
     }
 
     /// closest_index_for_x returns the character boundary closest to the given x coordinate
-    /// (e.g. to handle aligning up/down arrow keys)
+    /// (e.g. to handle aligning up/down arrow keys).
     pub fn closest_index_for_x(&self, x: Pixels) -> usize {
         let mut prev_index = 0;
         let mut prev_x = px(0.);
@@ -114,7 +114,7 @@ impl LineLayout {
         self.len
     }
 
-    /// The x position of the character at the given index
+    /// The x position of the character at the given index.
     pub fn x_for_index(&self, index: usize) -> Pixels {
         for run in &self.runs {
             for glyph in &run.glyphs {
@@ -126,7 +126,7 @@ impl LineLayout {
         self.width
     }
 
-    /// The corresponding Font at the given index
+    /// The corresponding Font at the given index.
     pub fn font_id_for_index(&self, index: usize) -> Option<FontId> {
         for run in &self.runs {
             for glyph in &run.glyphs {
@@ -213,7 +213,7 @@ impl LineLayout {
             .enumerate()
             .flat_map(move |(run_ix, run)| {
                 run.glyphs.iter().enumerate().map(move |(glyph_ix, glyph)| {
-                    let character = text[glyph.index..].chars().next().unwrap();
+                    let character = text[glyph.index..].chars().next().expect("glyph index is a char boundary in text");
                     (WrapBoundary { run_ix, glyph_ix }, character, glyph.position.x)
                 })
             })
@@ -267,25 +267,25 @@ impl LineLayout {
     }
 }
 
-/// A line of text that has been wrapped to fit a given width
+/// A line of text that has been wrapped to fit a given width.
 #[derive(Default, Debug)]
 pub struct WrappedLineLayout {
     /// The line layout, pre-wrapping.
     pub unwrapped_layout: Arc<LineLayout>,
 
-    /// The boundaries at which the line was wrapped
+    /// The boundaries at which the line was wrapped.
     pub wrap_boundaries: SmallVec<[WrapBoundary; 1]>,
 
-    /// The width of the line, if it was wrapped
+    /// The width of the line, if it was wrapped.
     pub wrap_width: Option<Pixels>,
 }
 
-/// A boundary at which a line was wrapped
+/// A boundary at which a line was wrapped.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct WrapBoundary {
-    /// The index in the run just before the line was wrapped
+    /// The index in the run just before the line was wrapped.
     pub run_ix: usize,
-    /// The index of the glyph just before the line was wrapped
+    /// The index of the glyph just before the line was wrapped.
     pub glyph_ix: usize,
 }
 
@@ -307,27 +307,27 @@ impl WrappedLineLayout {
         Size { width: self.width(), height: line_height * (self.wrap_boundaries.len() + 1) }
     }
 
-    /// The ascent of a line in this layout
+    /// The ascent of a line in this layout.
     pub fn ascent(&self) -> Pixels {
         self.unwrapped_layout.ascent
     }
 
-    /// The descent of a line in this layout
+    /// The descent of a line in this layout.
     pub fn descent(&self) -> Pixels {
         self.unwrapped_layout.descent
     }
 
-    /// The wrap boundaries in this layout
+    /// The wrap boundaries in this layout.
     pub fn wrap_boundaries(&self) -> &[WrapBoundary] {
         &self.wrap_boundaries
     }
 
-    /// The font size of this layout
+    /// The font size of this layout.
     pub fn font_size(&self) -> Pixels {
         self.unwrapped_layout.font_size
     }
 
-    /// The runs in this layout, sans wrapping
+    /// The runs in this layout, sans wrapping.
     pub fn runs(&self) -> &[ShapedRun] {
         &self.unwrapped_layout.runs
     }
@@ -498,14 +498,14 @@ impl LineLayoutCache {
             if let Some((key, line)) = previous_frame.lines.remove_entry(key) {
                 current_frame.lines.insert(key, line);
             }
-            current_frame.used_lines.push(key.clone());
+            current_frame.used_lines.push(Arc::clone(key));
         }
 
         for key in &previous_frame.used_wrapped_lines[range.start.wrapped_lines_index..range.end.wrapped_lines_index] {
             if let Some((key, line)) = previous_frame.wrapped_lines.remove_entry(key) {
                 current_frame.wrapped_lines.insert(key, line);
             }
-            current_frame.used_wrapped_lines.push(key.clone());
+            current_frame.used_wrapped_lines.push(Arc::clone(key));
         }
     }
 
@@ -552,7 +552,7 @@ impl LineLayoutCache {
                 force_width: None,
                 max_lines: None,
             });
-            recent_lines.put(unwrapped_key, layout.unwrapped_layout.clone());
+            recent_lines.put(unwrapped_key, Arc::clone(&layout.unwrapped_layout));
         }
         for (key, layout) in previous_frame.lines.drain() {
             recent_lines.put(key, layout);
@@ -583,10 +583,10 @@ impl LineLayoutCache {
         {
             let LineLayoutCacheState { previous_frame, current_frame, .. } = &mut *self.state.borrow_mut();
             if let Some(layout) = current_frame.wrapped_lines.get(key) {
-                return layout.clone();
+                return Arc::clone(layout);
             }
             if let Some((key, layout)) = previous_frame.wrapped_lines.remove_entry(key) {
-                current_frame.wrapped_lines.insert(key.clone(), layout.clone());
+                current_frame.wrapped_lines.insert(Arc::clone(&key), Arc::clone(&layout));
                 current_frame.used_wrapped_lines.push(key);
                 return layout;
             }
@@ -611,7 +611,7 @@ impl LineLayoutCache {
         });
 
         let current_frame = &mut self.state.borrow_mut().current_frame;
-        current_frame.wrapped_lines.insert(key.clone(), layout.clone());
+        current_frame.wrapped_lines.insert(Arc::clone(&key), Arc::clone(&layout));
         current_frame.used_wrapped_lines.push(key);
         layout
     }
@@ -633,10 +633,10 @@ impl LineLayoutCache {
 
         let LineLayoutCacheState { previous_frame, current_frame, recent_lines } = &mut *self.state.borrow_mut();
         if let Some(layout) = current_frame.lines.get(key) {
-            return layout.clone();
+            return Arc::clone(layout);
         }
         if let Some((key, layout)) = previous_frame.lines.remove_entry(key).or_else(|| recent_lines.pop_entry(key)) {
-            current_frame.lines.insert(key.clone(), layout.clone());
+            current_frame.lines.insert(Arc::clone(&key), Arc::clone(&layout));
             current_frame.used_lines.push(key);
             return layout;
         }
@@ -658,7 +658,7 @@ impl LineLayoutCache {
             max_lines: None,
         });
         let layout = Arc::new(layout);
-        current_frame.lines.insert(key.clone(), layout.clone());
+        current_frame.lines.insert(Arc::clone(&key), Arc::clone(&layout));
         current_frame.used_lines.push(key);
         layout
     }
@@ -802,7 +802,7 @@ mod tests {
 
     fn cache() -> (LineLayoutCache, Arc<AtomicUsize>) {
         let font_generation = Arc::new(AtomicUsize::new(0));
-        (LineLayoutCache::new(Arc::new(NoopTextSystem::new()), font_generation.clone()), font_generation)
+        (LineLayoutCache::new(Arc::new(NoopTextSystem::new()), Arc::clone(&font_generation)), font_generation)
     }
 
     fn layout(cache: &LineLayoutCache, text: &'static str) -> Arc<LineLayout> {

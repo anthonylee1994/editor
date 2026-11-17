@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::cmp::{self};
+use std::cmp;
 use std::iter::Peekable;
 use std::num::NonZeroU32;
 use std::ops::Range;
@@ -21,17 +21,17 @@ use multi_buffer::MultiBufferPoint;
 use multi_buffer::MultiBufferRow;
 use multi_buffer::MultiBufferSnapshot;
 use multi_buffer::ToOffset;
-use multi_buffer::ToPoint;
-use rand::seq::SliceRandom;
+use multi_buffer::ToPoint as _;
+use rand::seq::SliceRandom as _;
 use rustc_hash::FxHashSet;
 use text::Bias;
 
 use super::Editor;
 use super::MAX_LINE_LEN;
-use super::RowExt;
-use super::RowRangeExt;
+use super::RowExt as _;
+use super::RowRangeExt as _;
 use super::SelectionEffects;
-use super::SelectionExt;
+use super::SelectionExt as _;
 use crate::actions::AutoIndent;
 use crate::actions::Backspace;
 use crate::actions::Backtab;
@@ -60,7 +60,7 @@ use crate::actions::UniqueLinesCaseSensitive;
 use crate::display_map::Crease;
 use crate::display_map::DisplayPoint;
 use crate::display_map::DisplaySnapshot;
-use crate::display_map::ToDisplayPoint;
+use crate::display_map::ToDisplayPoint as _;
 use crate::input;
 use crate::linked_editing_ranges::refresh_linked_ranges;
 use crate::movement;
@@ -96,7 +96,7 @@ impl Editor {
                         let indent_size = buffer.indent_size_for_line(line_buffer_range.start.row);
                         let indent_len = match indent_size.kind {
                             IndentKind::Space => buffer.settings_at(line_buffer_range.start, cx).tab_size,
-                            IndentKind::Tab => NonZeroU32::new(1).unwrap(),
+                            IndentKind::Tab => NonZeroU32::new(1).expect("1 is non-zero"),
                         };
                         if old_head.column <= indent_size.len && old_head.column > 0 {
                             let indent_len = indent_len.get();
@@ -427,7 +427,7 @@ impl Editor {
         self.transact(window, cx, |this, window, cx| {
             this.buffer.update(cx, |buffer, cx| {
                 let empty_str: Arc<str> = Arc::default();
-                buffer.edit(deletion_ranges.into_iter().map(|range| (range, empty_str.clone())), None, cx);
+                buffer.edit(deletion_ranges.into_iter().map(|range| (range, Arc::clone(&empty_str))), None, cx);
             });
             let selections = this.selections.all::<MultiBufferOffset>(&this.display_snapshot(cx));
             this.change_selections(SelectionEffects::default(), window, cx, |s| s.select(selections));
@@ -473,7 +473,7 @@ impl Editor {
                 let next_rows = next_selection.spanned_rows(false, &display_map);
                 if next_rows.start <= rows.end {
                     rows.end = next_rows.end;
-                    selections.next().unwrap();
+                    selections.next();
                 } else {
                     break;
                 }
@@ -508,7 +508,7 @@ impl Editor {
         self.transact(window, cx, |this, window, cx| {
             let buffer = this.buffer.update(cx, |buffer, cx| {
                 let empty_str: Arc<str> = Arc::default();
-                buffer.edit(edit_ranges.into_iter().map(|range| (range, empty_str.clone())), None, cx);
+                buffer.edit(edit_ranges.into_iter().map(|range| (range, Arc::clone(&empty_str))), None, cx);
                 buffer.snapshot(cx)
             });
             let new_selections = new_cursors
@@ -948,7 +948,7 @@ impl Editor {
                     let next_rows = next_selection.spanned_rows(false, &display_map);
                     if next_rows.start < rows.end {
                         rows.end = next_rows.end;
-                        selections_iter.next().unwrap();
+                        selections_iter.next();
                     } else {
                         break;
                     }
@@ -1012,7 +1012,7 @@ impl Editor {
                             let next_rows = next_selection.spanned_rows(false, &display_map);
                             if next_rows.start < rows.end {
                                 rows.end = next_rows.end;
-                                group_selections.push(selections_iter.next().unwrap());
+                                group_selections.push(selections_iter.next().expect("peeked selection"));
                             } else {
                                 break;
                             }
@@ -1258,7 +1258,7 @@ impl Editor {
                         display_map.buffer_snapshot().clip_offset(transpose_offset.saturating_sub_usize(1), Bias::Left);
                     if edits.last().is_none_or(|e| e.0.end <= transpose_start) {
                         let transpose_end =
-                            display_map.buffer_snapshot().clip_offset(transpose_offset + 1usize, Bias::Right);
+                            display_map.buffer_snapshot().clip_offset(transpose_offset + 1_usize, Bias::Right);
                         if let Some(ch) = display_map.buffer_snapshot().chars_at(transpose_start).next() {
                             edits.push((transpose_start..transpose_offset, String::new()));
                             edits.push((transpose_end..transpose_end, ch.to_string()));
@@ -1289,7 +1289,7 @@ pub(super) fn consume_contiguous_rows(
     while let Some(next_selection) = selections.peek() {
         if next_selection.start.row <= end_row.0 {
             end_row = ending_row(next_selection, display_map);
-            contiguous_row_selections.push(*selections.next().unwrap());
+            contiguous_row_selections.push(*selections.next().expect("peeked selection"));
         } else {
             break;
         }

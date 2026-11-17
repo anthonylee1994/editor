@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::any::TypeId;
+use std::cmp;
 use std::cmp::Ordering;
-use std::cmp::{self};
 use std::ops::Range;
 use std::sync::Arc;
 
@@ -18,22 +18,22 @@ use editor::display_map::BlockStyle;
 use editor::display_map::CustomBlockId;
 use gpui::AnyElement;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::Context;
 use gpui::Entity;
 use gpui::EntityId;
 use gpui::EventEmitter;
 use gpui::FocusHandle;
 use gpui::Focusable;
-use gpui::InteractiveElement;
+use gpui::InteractiveElement as _;
 use gpui::IntoElement;
-use gpui::ParentElement;
+use gpui::ParentElement as _;
 use gpui::Render;
 use gpui::SharedString;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Subscription;
 use gpui::Task;
-use gpui::TaskExt;
+use gpui::TaskExt as _;
 use gpui::WeakEntity;
 use gpui::Window;
 use gpui::actions;
@@ -52,7 +52,7 @@ use project::project_settings::DiagnosticSeverity;
 use rustc_hash::FxHashMap;
 use text::Anchor;
 use text::BufferSnapshot;
-use text::OffsetRangeExt;
+use text::OffsetRangeExt as _;
 use ui::Button;
 use ui::ButtonStyle;
 use ui::Icon;
@@ -60,15 +60,15 @@ use ui::IconName;
 use ui::Label;
 use ui::Tooltip;
 use ui::h_flex;
-use ui::prelude::ActiveTheme;
-use ui::prelude::ButtonCommon;
-use ui::prelude::Clickable;
+use ui::prelude::ActiveTheme as _;
+use ui::prelude::ButtonCommon as _;
+use ui::prelude::Clickable as _;
 use ui::prelude::Color;
-use ui::prelude::FluentBuilder;
-use ui::prelude::LabelCommon;
-use ui::prelude::StyledExt;
+use ui::prelude::FluentBuilder as _;
+use ui::prelude::LabelCommon as _;
+use ui::prelude::StyledExt as _;
 use ui::prelude::v_flex;
-use workspace::ItemHandle;
+use workspace::ItemHandle as _;
 use workspace::ItemNavHistory;
 use workspace::Workspace;
 use workspace::item::Item;
@@ -296,10 +296,12 @@ impl BufferDiagnosticsEditor {
                 editor.update_in(cx, |editor, window, cx| editor.update_excerpts(buffer, window, cx))?.await?;
             }
 
-            let _ = editor.update(cx, |editor, cx| {
-                editor.update_excerpts_task = None;
-                cx.notify();
-            });
+            editor
+                .update(cx, |editor, cx| {
+                    editor.update_excerpts_task = None;
+                    cx.notify();
+                })
+                .ok();
 
             Ok(())
         }));
@@ -355,7 +357,7 @@ impl BufferDiagnosticsEditor {
                 }
 
                 let languages =
-                    buffer_diagnostics_editor.read_with(cx, |b, cx| b.project.read(cx).languages().clone()).ok();
+                    buffer_diagnostics_editor.read_with(cx, |b, cx| Arc::clone(b.project.read(cx).languages())).ok();
 
                 let diagnostic_blocks = cx.update(|_window, cx| {
                     DiagnosticRenderer::diagnostic_blocks_for_group(
@@ -646,7 +648,7 @@ impl Item for BufferDiagnosticsEditor {
             self.project_path
                 .path
                 .file_name()
-                .map_or_else(|| self.project_path.path.display().to_string(), ToString::to_string),
+                .map_or_else(|| self.project_path.path.display().to_owned(), str::to_owned),
         );
 
         h_flex()
@@ -689,7 +691,7 @@ impl Item for BufferDiagnosticsEditor {
 
 impl Render for BufferDiagnosticsEditor {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let filename = self.project_path.path.display().to_string();
+        let filename = self.project_path.path.display().to_owned();
         let error_count = self.summary.error_count;
         let warning_count = self.summary.warning_count;
 

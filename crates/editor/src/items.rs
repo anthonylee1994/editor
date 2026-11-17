@@ -24,11 +24,11 @@ use gpui::Context;
 use gpui::Entity;
 use gpui::EntityId;
 use gpui::EventEmitter;
-use gpui::IntoElement;
-use gpui::ParentElement;
+use gpui::IntoElement as _;
+use gpui::ParentElement as _;
 use gpui::Pixels;
 use gpui::SharedString;
-use gpui::Styled;
+use gpui::Styled as _;
 use gpui::Task;
 use gpui::WeakEntity;
 use gpui::Window;
@@ -37,7 +37,7 @@ use language::Buffer;
 use language::BufferRow;
 use language::CharKind;
 use language::CharScopeContext;
-use language::LocalFile;
+use language::LocalFile as _;
 use language::PLAIN_TEXT;
 use language::Point;
 use lsp::DiagnosticSeverity;
@@ -53,20 +53,20 @@ use project::search::SearchQuery;
 use rope::TextSummary;
 use rustc_hash::FxHashMap;
 use text::BufferSnapshot;
-use text::OffsetRangeExt;
+use text::OffsetRangeExt as _;
 use ui::IconDecorationKind;
 use ui::prelude::Color;
-use ui::prelude::FluentBuilder;
+use ui::prelude::FluentBuilder as _;
 use ui::prelude::Icon;
 use ui::prelude::IconName;
-use ui::prelude::InteractiveElement;
+use ui::prelude::InteractiveElement as _;
 use ui::prelude::Label;
-use ui::prelude::LabelCommon;
+use ui::prelude::LabelCommon as _;
 use ui::prelude::LabelSize;
 use ui::prelude::h_flex;
-use util::ResultExt;
-use util::TryFutureExt;
-use util::paths::PathExt;
+use util::ResultExt as _;
+use util::TryFutureExt as _;
+use util::paths::PathExt as _;
 use workspace::ItemNavHistory;
 use workspace::OpenOptions;
 use workspace::OpenVisible;
@@ -605,7 +605,7 @@ impl Editor {
     pub fn tab_description(&self, detail: usize, cx: &App) -> Option<SharedString> {
         let path = path_for_buffer(&self.buffer, detail, false, cx)?;
         let description = path.trim();
-        if description.is_empty() { None } else { Some(description.to_string().into()) }
+        if description.is_empty() { None } else { Some(description.to_owned().into()) }
     }
 
     pub fn update_restoration_data(
@@ -882,7 +882,7 @@ impl SearchableItem for Editor {
                 })
                 .collect();
         } else if let Some(replacement) = query.replacement().map(Arc::<str>::from) {
-            edits = matches.map(|m| (m.clone(), replacement.clone())).collect();
+            edits = matches.map(|m| (m.clone(), Arc::clone(&replacement))).collect();
         }
 
         if !edits.is_empty() {
@@ -933,6 +933,7 @@ impl SearchableItem for Editor {
             Direction::Next => count.cast_signed(),
         };
 
+        #[expect(clippy::modulo_arithmetic, reason = "negative remainder is handled below")]
         let new_idx = (new_idx + count) % matches.len().cast_signed();
         let new_idx = if new_idx.is_negative() {
             // We need a `matches.len() - 1` here in case `next_idx` has now been
@@ -972,7 +973,7 @@ impl SearchableItem for Editor {
                 for (search_buffer, search_range, deleted_hunk_anchor) in
                     buffer.range_to_buffer_ranges_with_deleted_hunks(range)
                 {
-                    let query = query.clone();
+                    let query = Arc::clone(&query);
 
                     let mut results = Vec::new();
                     executor
@@ -980,7 +981,7 @@ impl SearchableItem for Editor {
                             for search_range in
                                 chunk_search_range(search_buffer.text.clone(), &query, num_cpus as u32, search_range)
                             {
-                                let query = query.clone();
+                                let query = Arc::clone(&query);
                                 let buffer = buffer.clone();
 
                                 let (tx, rx) = oneshot::channel();

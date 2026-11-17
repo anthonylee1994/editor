@@ -1,3 +1,5 @@
+#![expect(clippy::print_stdout, clippy::print_stderr, reason = "command line tool")]
+
 use std::env;
 use std::fmt::Write as _;
 use std::fs;
@@ -227,7 +229,10 @@ impl From<ModifierArgs> for Modifiers {
 
 fn parse_point(value: &str) -> Result<(f32, f32), String> {
     let (x, y) = value.split_once(',').ok_or("expected X,Y")?;
-    Ok((x.trim().parse().map_err(|_| "invalid X")?, y.trim().parse().map_err(|_| "invalid Y")?))
+    Ok((
+        x.trim().parse().map_err(|err| format!("invalid X: {err}"))?,
+        y.trim().parse().map_err(|err| format!("invalid Y: {err}"))?,
+    ))
 }
 
 fn main() {
@@ -250,6 +255,7 @@ fn run(cli: Cli) -> Result<()> {
             if json {
                 print_json(&windows)?;
             } else {
+                #[expect(clippy::use_debug, reason = "quotes and escapes the title")]
                 for window in windows {
                     println!(
                         "{}{} {:?} {} scale {}",
@@ -470,6 +476,7 @@ fn format_rect(rect: &Rect) -> String {
     format!("[{},{} {}x{}]", rect.x.round(), rect.y.round(), rect.width.round(), rect.height.round())
 }
 
+#[expect(clippy::use_debug, reason = "quotes and escapes the text")]
 fn print_tree(tree: &Tree) {
     println!("window {} focused: {}", tree.window, tree.focused.as_deref().unwrap_or("-"));
     for element in &tree.elements {

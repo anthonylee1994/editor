@@ -9,7 +9,7 @@ use crate::WorkDoneProgressParams;
 
 /// Workspace client capabilities specific to diagnostic pull requests.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiagnosticWorkspaceClientCapabilities {
@@ -26,7 +26,7 @@ pub struct DiagnosticWorkspaceClientCapabilities {
 
 /// A previous result ID in a workspace pull request.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct PreviousResultId {
     /// The URI for which the client knows a result ID.
@@ -38,7 +38,7 @@ pub struct PreviousResultId {
 
 /// Parameters of the workspace diagnostic request.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceDiagnosticParams {
@@ -59,7 +59,7 @@ pub struct WorkspaceDiagnosticParams {
 
 /// A full document diagnostic report for a workspace diagnostic result.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceFullDocumentDiagnosticReport {
@@ -77,7 +77,7 @@ pub struct WorkspaceFullDocumentDiagnosticReport {
 
 /// An unchanged document diagnostic report for a workspace diagnostic result.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceUnchangedDocumentDiagnosticReport {
@@ -95,7 +95,7 @@ pub struct WorkspaceUnchangedDocumentDiagnosticReport {
 
 /// A workspace diagnostic document report.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize, Clone)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum WorkspaceDocumentDiagnosticReport {
@@ -117,7 +117,7 @@ impl From<WorkspaceUnchangedDocumentDiagnosticReport> for WorkspaceDocumentDiagn
 
 /// A workspace diagnostic report.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, PartialEq, Eq, Default, Deserialize, Serialize, Clone)]
 pub struct WorkspaceDiagnosticReport {
     pub items: Vec<WorkspaceDocumentDiagnosticReport>,
@@ -125,7 +125,7 @@ pub struct WorkspaceDiagnosticReport {
 
 /// A partial result for a workspace diagnostic report.
 ///
-/// @since 3.17.0
+/// @since 3.17.0.
 #[derive(Debug, PartialEq, Eq, Default, Deserialize, Serialize, Clone)]
 pub struct WorkspaceDiagnosticReportPartialResult {
     pub items: Vec<WorkspaceDocumentDiagnosticReport>,

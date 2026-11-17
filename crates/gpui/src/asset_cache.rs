@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::fmt::Debug;
-use std::hash::BuildHasher;
+use std::hash::BuildHasher as _;
 use std::hash::Hash;
 use std::marker::PhantomData;
 use std::mem;
@@ -10,7 +10,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use futures::Future;
-use futures::TryFutureExt;
+use futures::TryFutureExt as _;
 use rustc_hash::FxHashSet;
 
 use crate::App;
@@ -73,12 +73,12 @@ impl<T: Clone + Send + 'static> CachedLoad<T> {
     }
 }
 
-/// An enum representing
+/// An enum representing.
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum Resource {
-    /// This resource is at a given path in the file system
+    /// This resource is at a given path in the file system.
     Path(Arc<Path>),
-    /// This resource is embedded in the application binary
+    /// This resource is embedded in the application binary.
     Embedded(SharedString),
 }
 
@@ -99,14 +99,14 @@ pub trait Asset: 'static {
     /// The source of the asset.
     type Source: Clone + Hash + Send;
 
-    /// The loaded asset
+    /// The loaded asset.
     type Output: Clone + Send;
 
-    /// Load the asset asynchronously
+    /// Load the asset asynchronously.
     fn load(source: Self::Source, cx: &mut App) -> impl Future<Output = Self::Output> + Send + 'static;
 }
 
-/// An asset Loader which logs the [`Err`] variant of a [`Result`] during loading
+/// An asset Loader which logs the [`Err`] variant of a [`Result`] during loading.
 pub enum AssetLogger<T> {
     #[doc(hidden)]
     _Phantom(PhantomData<T>, &'static dyn Sealed),
@@ -128,7 +128,7 @@ where
     }
 }
 
-/// Use a quick, non-cryptographically secure hash function to get an identifier from data
+/// Use a quick, non-cryptographically secure hash function to get an identifier from data.
 pub fn hash<T: Hash>(data: &T) -> u64 {
     rustc_hash::FxBuildHasher.hash_one(data)
 }

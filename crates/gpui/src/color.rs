@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
+use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
-use std::fmt::{self};
 use std::hash::Hash;
 use std::hash::Hasher;
 
@@ -11,22 +11,22 @@ use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
 use serde::Serializer;
+use serde::de;
 use serde::de::Visitor;
-use serde::de::{self};
 
-/// Convert an RGB hex color code number to a color type
+/// Convert an RGB hex color code number to a color type.
 pub fn rgb(hex: u32) -> Rgba {
     let [_, r, g, b] = hex.to_be_bytes().map(|b| (b as f32) / 255.0);
     Rgba { r, g, b, a: 1.0 }
 }
 
-/// Convert an RGBA hex color code number to [`Rgba`]
+/// Convert an RGBA hex color code number to [`Rgba`].
 pub fn rgba(hex: u32) -> Rgba {
     let [r, g, b, a] = hex.to_be_bytes().map(|b| (b as f32) / 255.0);
     Rgba { r, g, b, a }
 }
 
-/// Swap from RGBA with premultiplied alpha to BGRA
+/// Swap from RGBA with premultiplied alpha to BGRA.
 pub fn swap_rgba_pa_to_bgra(color: &mut [u8]) {
     color.swap(0, 2);
     if color[3] > 0 {
@@ -37,17 +37,17 @@ pub fn swap_rgba_pa_to_bgra(color: &mut [u8]) {
     }
 }
 
-/// An RGBA color
+/// An RGBA color.
 #[derive(PartialEq, Clone, Copy, Default)]
 #[repr(C)]
 pub struct Rgba {
-    /// The red component of the color, in the range 0.0 to 1.0
+    /// The red component of the color, in the range 0.0 to 1.0.
     pub r: f32,
-    /// The green component of the color, in the range 0.0 to 1.0
+    /// The green component of the color, in the range 0.0 to 1.0.
     pub g: f32,
-    /// The blue component of the color, in the range 0.0 to 1.0
+    /// The blue component of the color, in the range 0.0 to 1.0.
     pub b: f32,
-    /// The alpha component of the color, in the range 0.0 to 1.0
+    /// The alpha component of the color, in the range 0.0 to 1.0.
     pub a: f32,
 }
 
@@ -58,7 +58,7 @@ impl fmt::Debug for Rgba {
 }
 
 impl Rgba {
-    /// Create a new [`Rgba`] color by blending this and another color together
+    /// Create a new [`Rgba`] color by blending this and another color together.
     pub fn blend(&self, other: Rgba) -> Self {
         if other.a >= 1.0 {
             other
@@ -139,6 +139,7 @@ impl From<Hsla> for Rgba {
         let l = color.l;
 
         let c = (1.0 - (2.0 * l - 1.0).abs()) * s;
+        #[expect(clippy::modulo_arithmetic, reason = "hue is non-negative")]
         let x = c * (1.0 - ((h * 6.0) % 2.0 - 1.0).abs());
         let m = l - c / 2.0;
         let cm = c + m;
@@ -249,20 +250,20 @@ impl TryFrom<&'_ str> for Rgba {
     }
 }
 
-/// An HSLA color
+/// An HSLA color.
 #[derive(Default, Copy, Clone, Debug)]
 #[repr(C)]
 pub struct Hsla {
-    /// Hue, in a range from 0 to 1
+    /// Hue, in a range from 0 to 1.
     pub h: f32,
 
-    /// Saturation, in a range from 0 to 1
+    /// Saturation, in a range from 0 to 1.
     pub s: f32,
 
-    /// Lightness, in a range from 0 to 1
+    /// Lightness, in a range from 0 to 1.
     pub l: f32,
 
-    /// Alpha, in a range from 0 to 1
+    /// Alpha, in a range from 0 to 1.
     pub a: f32,
 }
 
@@ -308,52 +309,52 @@ impl Display for Hsla {
     }
 }
 
-/// Construct an [`Hsla`] object from plain values
+/// Construct an [`Hsla`] object from plain values.
 pub const fn hsla(h: f32, s: f32, l: f32, a: f32) -> Hsla {
     Hsla { h: h.clamp(0., 1.), s: s.clamp(0., 1.), l: l.clamp(0., 1.), a: a.clamp(0., 1.) }
 }
 
-/// Pure black in [`Hsla`]
+/// Pure black in [`Hsla`].
 pub const fn black() -> Hsla {
     Hsla { h: 0., s: 0., l: 0., a: 1. }
 }
 
-/// Transparent black in [`Hsla`]
+/// Transparent black in [`Hsla`].
 pub const fn transparent_black() -> Hsla {
     Hsla { h: 0., s: 0., l: 0., a: 0. }
 }
 
-/// Transparent white in [`Hsla`]
+/// Transparent white in [`Hsla`].
 pub const fn transparent_white() -> Hsla {
     Hsla { h: 0., s: 0., l: 1., a: 0. }
 }
 
-/// Opaque grey in [`Hsla`], values will be clamped to the range [0, 1]
+/// Opaque grey in [`Hsla`], values will be clamped to the range [0, 1].
 pub const fn opaque_grey(lightness: f32, opacity: f32) -> Hsla {
     Hsla { h: 0., s: 0., l: lightness.clamp(0., 1.), a: opacity.clamp(0., 1.) }
 }
 
-/// Pure white in [`Hsla`]
+/// Pure white in [`Hsla`].
 pub const fn white() -> Hsla {
     Hsla { h: 0., s: 0., l: 1., a: 1. }
 }
 
-/// The color red in [`Hsla`]
+/// The color red in [`Hsla`].
 pub const fn red() -> Hsla {
     Hsla { h: 0., s: 1., l: 0.5, a: 1. }
 }
 
-/// The color blue in [`Hsla`]
+/// The color blue in [`Hsla`].
 pub const fn blue() -> Hsla {
     Hsla { h: 0.666_666_7, s: 1., l: 0.5, a: 1. }
 }
 
-/// The color green in [`Hsla`]
+/// The color green in [`Hsla`].
 pub const fn green() -> Hsla {
     Hsla { h: 0.333_333_34, s: 1., l: 0.25, a: 1. }
 }
 
-/// The color yellow in [`Hsla`]
+/// The color yellow in [`Hsla`].
 pub const fn yellow() -> Hsla {
     Hsla { h: 0.166_666_67, s: 1., l: 0.5, a: 1. }
 }
@@ -364,32 +365,32 @@ impl Hsla {
         self.into()
     }
 
-    /// The color red
+    /// The color red.
     pub const fn red() -> Self {
         red()
     }
 
-    /// The color green
+    /// The color green.
     pub const fn green() -> Self {
         green()
     }
 
-    /// The color blue
+    /// The color blue.
     pub const fn blue() -> Self {
         blue()
     }
 
-    /// The color black
+    /// The color black.
     pub const fn black() -> Self {
         black()
     }
 
-    /// The color white
+    /// The color white.
     pub const fn white() -> Self {
         white()
     }
 
-    /// The color transparent black
+    /// The color transparent black.
     pub const fn transparent_black() -> Self {
         transparent_black()
     }
@@ -587,7 +588,7 @@ impl Default for Background {
     }
 }
 
-/// Creates a hash pattern background
+/// Creates a hash pattern background.
 pub fn pattern_slash(color: impl Into<Hsla>, width: f32, interval: f32) -> Background {
     let width_scaled = (width * 255.0) as u32;
     let interval_scaled = (interval * 255.0) as u32;
@@ -601,7 +602,7 @@ pub fn pattern_slash(color: impl Into<Hsla>, width: f32, interval: f32) -> Backg
     }
 }
 
-/// Creates a checkerboard pattern background
+/// Creates a checkerboard pattern background.
 pub fn checkerboard(color: impl Into<Hsla>, size: f32) -> Background {
     Background {
         tag: BackgroundTag::Checkerboard,
@@ -622,7 +623,7 @@ pub fn solid_background(color: impl Into<Hsla>) -> Background {
 ///
 /// The `angle` is in degrees value in the range 0.0 to 360.0.
 ///
-/// <https://developer.mozilla.org/en-US/docs/Web/CSS/gradient/linear-gradient>
+/// <https://developer.mozilla.org/en-US/docs/Web/CSS/gradient/linear-gradient>.
 pub fn linear_gradient(angle: f32, from: impl Into<LinearColorStop>, to: impl Into<LinearColorStop>) -> Background {
     Background {
         tag: BackgroundTag::LinearGradient,
@@ -634,7 +635,7 @@ pub fn linear_gradient(angle: f32, from: impl Into<LinearColorStop>, to: impl In
 
 /// A color stop in a linear gradient.
 ///
-/// <https://developer.mozilla.org/en-US/docs/Web/CSS/gradient/linear-gradient#linear-color-stop>
+/// <https://developer.mozilla.org/en-US/docs/Web/CSS/gradient/linear-gradient#linear-color-stop>.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
 #[repr(C)]
 pub struct LinearColorStop {
@@ -661,7 +662,7 @@ impl LinearColorStop {
 impl Background {
     /// Use specified color space for color interpolation.
     ///
-    /// <https://developer.mozilla.org/en-US/docs/Web/CSS/color-interpolation-method>
+    /// <https://developer.mozilla.org/en-US/docs/Web/CSS/color-interpolation-method>.
     pub const fn color_space(mut self, color_space: ColorSpace) -> Self {
         self.color_space = color_space;
         self

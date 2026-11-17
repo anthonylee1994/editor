@@ -18,21 +18,21 @@ use crate::prelude::Clickable;
 use crate::prelude::Disableable;
 use crate::prelude::ElementId;
 use crate::prelude::FixedWidth;
-use crate::prelude::FluentBuilder;
+use crate::prelude::FluentBuilder as _;
 use crate::prelude::IconName;
 use crate::prelude::IconSize;
 use crate::prelude::IntoElement;
-use crate::prelude::LabelCommon;
+use crate::prelude::LabelCommon as _;
 use crate::prelude::LabelSize;
-use crate::prelude::ParentElement;
+use crate::prelude::ParentElement as _;
 use crate::prelude::RenderOnce;
 use crate::prelude::SelectableButton;
 use crate::prelude::SharedString;
-use crate::prelude::Styled;
+use crate::prelude::Styled as _;
 use crate::prelude::Toggleable;
 use crate::prelude::Window;
 use crate::prelude::h_flex;
-use crate::traits::animation_ext::CommonAnimationExt;
+use crate::traits::animation_ext::CommonAnimationExt as _;
 
 /// An element that creates a button with a label and optional icons.
 ///

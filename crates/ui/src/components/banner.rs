@@ -1,12 +1,12 @@
 use gpui::AnyElement;
 use gpui::IntoElement;
 use gpui::ParentElement;
-use gpui::Styled;
+use gpui::Styled as _;
 
-use crate::prelude::ActiveTheme;
+use crate::prelude::ActiveTheme as _;
 use crate::prelude::App;
 use crate::prelude::Color;
-use crate::prelude::FluentBuilder;
+use crate::prelude::FluentBuilder as _;
 use crate::prelude::Icon;
 use crate::prelude::IconName;
 use crate::prelude::IconSize;

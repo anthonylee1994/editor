@@ -10,14 +10,14 @@ use anyhow::Result;
 use async_lock::RwLock;
 use futures::future::join_all;
 use gpui::App;
-use gpui::AppContext;
+use gpui::AppContext as _;
 use gpui::Entity;
 use gpui::Task;
 use itertools::Itertools as _;
 use language::Buffer;
 use language::ContextLocation;
 use language::ContextProvider;
-use language::File;
+use language::File as _;
 use language::LspAdapter;
 use language::language_settings::Formatter;
 use language::language_settings::LanguageSettings;
@@ -29,7 +29,7 @@ use rustc_hash::FxHashMap;
 use task::TaskTemplate;
 use task::TaskTemplates;
 use task::VariableName;
-use util::ResultExt;
+use util::ResultExt as _;
 use util::rel_path::RelPath;
 
 use crate::LanguageDef;
@@ -283,7 +283,9 @@ impl TypeScriptContextProvider {
         let new_json_data = file_relative_path
             .ancestors()
             .map(|path| worktree_root.join(path.as_std_path()))
-            .map(|parent_path| self.package_json_data(&parent_path, self.last_package_json.clone(), fs.clone(), cx))
+            .map(|parent_path| {
+                self.package_json_data(&parent_path, self.last_package_json.clone(), Arc::clone(&fs), cx)
+            })
             .collect::<Vec<_>>();
 
         cx.background_spawn(async move {
@@ -303,7 +305,7 @@ impl TypeScriptContextProvider {
         cx: &App,
     ) -> Task<anyhow::Result<PackageJsonData>> {
         let package_json_path = directory_path.join("package.json");
-        let metadata_check_fs = fs.clone();
+        let metadata_check_fs = Arc::clone(&fs);
         cx.background_spawn(async move {
             let metadata = metadata_check_fs
                 .metadata(&package_json_path)
@@ -366,9 +368,9 @@ impl ContextProvider for TypeScriptContextProvider {
         let Some(worktree_root) = file.worktree.read(cx).root_dir() else {
             return Task::ready(None);
         };
-        let file_relative_path = file.path().clone();
+        let file_relative_path = Arc::clone(file.path());
         let package_json_data =
-            self.combined_package_json_data(self.fs.clone(), &worktree_root, &file_relative_path, cx);
+            self.combined_package_json_data(Arc::clone(&self.fs), &worktree_root, &file_relative_path, cx);
 
         cx.background_spawn(async move {
             let mut task_templates = TaskTemplates(Vec::new());
@@ -410,7 +412,7 @@ impl ContextProvider for TypeScriptContextProvider {
 
         let fs = location.fs;
         let args = location.worktree_root.zip(file_path).map(|(worktree_root, file_path)| {
-            (self.combined_package_json_data(fs.clone(), &worktree_root, file_path, cx), worktree_root, fs)
+            (self.combined_package_json_data(Arc::clone(&fs), &worktree_root, file_path, cx), worktree_root, fs)
         });
         cx.background_spawn(async move {
             if let Some((task, worktree_root, fs)) = args {
@@ -471,14 +473,14 @@ impl ContextProvider for TypeScriptContextProvider {
 
 fn replace_test_name_parameters(test_name: &str) -> String {
     static PATTERN: LazyLock<regex::Regex> =
-        LazyLock::new(|| regex::Regex::new(r"(\$([A-Za-z0-9_\.]+|[\#])|%[psdifjo#\$%])").unwrap());
+        LazyLock::new(|| regex::Regex::new(r"(\$([A-Za-z0-9_\.]+|[\#])|%[psdifjo#\$%])").expect("valid regex"));
     PATTERN.split(test_name).map(regex::escape).join("(.+?)")
 }
 
 /// Settings for TypeScript, TSX and JavaScript.
 pub(crate) fn settings() -> LanguageSettings {
     LanguageSettings {
-        tab_size: NonZeroU32::new(2).unwrap(),
+        tab_size: NonZeroU32::new(2).expect("non-zero"),
         hard_tabs: false,
         soft_wrap: false,
         preferred_line_length: 120,
@@ -513,14 +515,14 @@ fn semantic_token_rules() -> SemanticTokenRules {
 
 pub(crate) fn languages(fs: Arc<dyn Fs>, biome: Arc<dyn LspAdapter>) -> Vec<LanguageDef> {
     let rules = semantic_token_rules();
-    let tsgo: Arc<dyn LspAdapter> = Arc::new(TsgoLspAdapter::new(fs.clone()));
+    let tsgo: Arc<dyn LspAdapter> = Arc::new(TsgoLspAdapter::new(Arc::clone(&fs)));
     let context: Arc<dyn ContextProvider> = Arc::new(TypeScriptContextProvider::new(fs));
     grammars()
         .into_iter()
         .map(|(dir, grammar)| LanguageDef {
             grammar: Some(grammar),
-            adapters: vec![tsgo.clone(), biome.clone()],
-            context: Some(context.clone()),
+            adapters: vec![Arc::clone(&tsgo), Arc::clone(&biome)],
+            context: Some(Arc::clone(&context)),
             semantic_token_rules: Some(rules.clone()),
             ..LanguageDef::new(dir, settings())
         })
@@ -535,9 +537,9 @@ mod tests {
         let style = |token_type: &str| {
             rules.iter().find(|rule| rule.token_type.as_deref() == Some(token_type)).map(|rule| rule.style.clone())
         };
-        assert_eq!(style("class"), Some(vec!["type".to_string()]));
-        assert_eq!(style("enum"), Some(vec!["enum".to_string(), "type".to_string()]));
-        assert_eq!(style("enumMember"), Some(vec!["type".to_string()]));
+        assert_eq!(style("class"), Some(vec!["type".to_owned()]));
+        assert_eq!(style("enum"), Some(vec!["enum".to_owned(), "type".to_owned()]));
+        assert_eq!(style("enumMember"), Some(vec!["type".to_owned()]));
         // Same colour as tree-sitter in the built-in theme, so left without rules.
         for token_type in ["variable", "parameter", "property", "function", "method", "namespace"] {
             assert_eq!(style(token_type), None, "{token_type}");

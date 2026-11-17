@@ -6,7 +6,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use anyhow::Result;
-use gpui::Along;
+use gpui::Along as _;
 use gpui::AnyView;
 use gpui::AnyWeakView;
 use gpui::Axis;
@@ -21,13 +21,13 @@ use gpui::Window;
 use gpui::px;
 use parking_lot::Mutex;
 use serde::Deserialize;
-use ui::prelude::ActiveTheme;
+use ui::prelude::ActiveTheme as _;
 use ui::prelude::App;
-use ui::prelude::Element;
-use ui::prelude::FluentBuilder;
-use ui::prelude::ParentElement;
-use ui::prelude::Styled;
-use ui::prelude::StyledExt;
+use ui::prelude::Element as _;
+use ui::prelude::FluentBuilder as _;
+use ui::prelude::ParentElement as _;
+use ui::prelude::Styled as _;
+use ui::prelude::StyledExt as _;
 use ui::prelude::div;
 
 use crate::Pane;
@@ -110,7 +110,7 @@ impl PaneGroup {
                     self.root = Member::new_axis(first_pane, new_pane.clone(), direction);
                 }
                 Member::Axis(axis) => {
-                    let _ = axis.split(&first_pane, new_pane, direction);
+                    axis.split(&first_pane, new_pane, direction);
                 }
             }
         }
@@ -216,7 +216,7 @@ impl PaneGroup {
         match &mut self.root {
             Member::Pane(_) => {}
             Member::Axis(axis) => {
-                let _ = axis.resize(pane, direction, amount, bounds);
+                axis.resize(pane, direction, amount, bounds);
             }
         }
         self.mark_positions(cx);
@@ -254,11 +254,11 @@ impl PaneGroup {
             .size_full()
             .child(pane.clone())
             .child(pane_motion::record_bounds(
-                self.motion.clone(),
+                Rc::clone(&self.motion),
                 pane.entity_id(),
                 pane.read(cx).tab_strip_height(cx),
             ))
-            .child(pane_motion::render_overlay(self.motion.clone(), self.backdrop_color(cx), true, cx))
+            .child(pane_motion::render_overlay(Rc::clone(&self.motion), self.backdrop_color(cx), true, cx))
     }
 
     fn backdrop_color(&self, cx: &App) -> gpui::Hsla {
@@ -283,7 +283,7 @@ impl PaneGroup {
             .flex_1()
             .size_full()
             .child(self.root.render(0, zoomed, maximized, render_cx, &self.motion, window, cx).element)
-            .child(pane_motion::render_overlay(self.motion.clone(), backdrop, false, cx))
+            .child(pane_motion::render_overlay(Rc::clone(&self.motion), backdrop, false, cx))
     }
 
     pub fn panes(&self) -> Vec<&Entity<Pane>> {
@@ -361,16 +361,7 @@ impl Member {
             }),
         }
     }
-}
 
-/// What rendering a pane tree needs from its workspace.
-#[derive(Clone, Copy)]
-pub struct PaneRenderContext<'a> {
-    pub active_pane: &'a Entity<Pane>,
-    pub workspace: &'a WeakEntity<Workspace>,
-}
-
-impl Member {
     fn new_axis(old_pane: Entity<Pane>, new_pane: Entity<Pane>, direction: SplitDirection) -> Self {
         use Axis::Horizontal;
         use Axis::Vertical;
@@ -401,7 +392,7 @@ impl Member {
 
     fn last_pane(&self) -> Entity<Pane> {
         match self {
-            Member::Axis(axis) => axis.members.last().unwrap().last_pane(),
+            Member::Axis(axis) => axis.members.last().expect("pane axis is never empty").last_pane(),
             Member::Pane(pane) => pane.clone(),
         }
     }
@@ -445,7 +436,7 @@ impl Member {
                     })
                     .child(AnyView::from(pane.clone()).cached(StyleRefinement::default().v_flex().size_full()))
                     .child(pane_motion::record_bounds(
-                        motion.clone(),
+                        Rc::clone(motion),
                         pane.entity_id(),
                         pane.read(cx).tab_strip_height(cx),
                     ));
@@ -495,6 +486,13 @@ impl Member {
             Member::Pane(pane) => panes.push(pane),
         }
     }
+}
+
+/// What rendering a pane tree needs from its workspace.
+#[derive(Clone, Copy)]
+pub struct PaneRenderContext<'a> {
+    pub active_pane: &'a Entity<Pane>,
+    pub workspace: &'a WeakEntity<Workspace>,
 }
 
 #[derive(Debug, Clone)]
@@ -559,10 +557,11 @@ impl PaneAxis {
             return None;
         }
         let member = if direction.increasing() { self.members.last() } else { self.members.first() };
-        member.and_then(|e| match e {
+        let e = member?;
+        match e {
             Member::Pane(pane) => Some(pane),
             Member::Axis(_) => None,
-        })
+        }
     }
 
     fn remove(&mut self, pane_to_remove: &Entity<Pane>) -> Result<Option<Member>> {
@@ -792,12 +791,17 @@ impl PaneAxis {
             })
             .collect::<Vec<_>>();
 
-        let element =
-            pane_axis(self.axis, basis, self.flexes.clone(), self.bounding_boxes.clone(), render_cx.workspace.clone())
-                .with_leaf_panes(leaf_panes)
-                .children(rendered_children)
-                .with_active_pane(active_pane_ix)
-                .into_any_element();
+        let element = pane_axis(
+            self.axis,
+            basis,
+            Arc::clone(&self.flexes),
+            Arc::clone(&self.bounding_boxes),
+            render_cx.workspace.clone(),
+        )
+        .with_leaf_panes(leaf_panes)
+        .children(rendered_children)
+        .with_active_pane(active_pane_ix)
+        .into_any_element();
 
         PaneRenderResult { element, contains_active_pane }
     }
@@ -868,7 +872,7 @@ mod element {
     use std::rc::Rc;
     use std::sync::Arc;
 
-    use gpui::Along;
+    use gpui::Along as _;
     use gpui::AnyElement;
     use gpui::App;
     use gpui::Axis;
@@ -896,9 +900,9 @@ mod element {
     use parking_lot::Mutex;
     use smallvec::SmallVec;
     use ui::prelude;
-    use ui::prelude::ActiveTheme;
+    use ui::prelude::ActiveTheme as _;
     use ui::prelude::ElementId;
-    use util::ResultExt;
+    use util::ResultExt as _;
 
     use super::HANDLE_HITBOX_SIZE;
     use super::HORIZONTAL_MIN_SIZE;
@@ -940,7 +944,7 @@ mod element {
         axis: Axis,
         basis: usize,
         /// Equivalent to ColumnWidths (but in terms of flexes instead of percentages)
-        /// For example, flexes "1.33, 1, 1", instead of "40%, 30%, 30%"
+        /// For example, flexes "1.33, 1, 1", instead of "40%, 30%, 30%".
         flexes: Arc<Mutex<Vec<f32>>>,
         bounding_boxes: Arc<Mutex<Vec<Option<Bounds<Pixels>>>>>,
         children: SmallVec<[AnyElement; 2]>,
@@ -1126,11 +1130,13 @@ mod element {
             window: &mut Window,
             cx: &mut App,
         ) -> PaneAxisLayout {
-            let dragged_handle =
-                window.with_element_state::<Rc<RefCell<Option<usize>>>, _>(global_id.unwrap(), |state, _cx| {
+            let dragged_handle = window.with_element_state::<Rc<RefCell<Option<usize>>>, _>(
+                global_id.expect("pane axis element has an id"),
+                |state, _cx| {
                     let state = state.unwrap_or_else(|| Rc::new(RefCell::new(None)));
-                    (state.clone(), state)
-                });
+                    (Rc::clone(&state), state)
+                },
+            );
             let flexes = self.flexes.lock().clone();
             let len = self.children.len();
 
@@ -1220,8 +1226,8 @@ mod element {
                     }
 
                     window.on_mouse_event({
-                        let dragged_handle = layout.dragged_handle.clone();
-                        let flexes = self.flexes.clone();
+                        let dragged_handle = Rc::clone(&layout.dragged_handle);
+                        let flexes = Arc::clone(&self.flexes);
                         let workspace = self.workspace.clone();
                         let handle_hitbox = handle.hitbox.clone();
                         move |e: &MouseDownEvent, phase, window, cx| {
@@ -1240,8 +1246,8 @@ mod element {
                     });
                     window.on_mouse_event({
                         let workspace = self.workspace.clone();
-                        let dragged_handle = layout.dragged_handle.clone();
-                        let flexes = self.flexes.clone();
+                        let dragged_handle = Rc::clone(&layout.dragged_handle);
+                        let flexes = Arc::clone(&self.flexes);
                         let child_bounds = child.bounds;
                         let axis = self.axis;
                         move |e: &MouseMoveEvent, phase, window, cx| {
@@ -1265,7 +1271,7 @@ mod element {
             }
 
             window.on_mouse_event({
-                let dragged_handle = layout.dragged_handle.clone();
+                let dragged_handle = Rc::clone(&layout.dragged_handle);
                 move |_: &MouseUpEvent, phase, _window, _cx| {
                     if phase.bubble() {
                         dragged_handle.replace(None);
@@ -1294,7 +1300,7 @@ mod neighbor_probe_tests {
     use crate::CARD_GAP;
 
     #[test]
-    fn test_neighbor_probe_lands_in_adjacent_card() {
+    fn neighbor_probe_lands_in_adjacent_card() {
         let bounds = Bounds::new(point(px(100.), px(100.)), size(px(200.), px(200.)));
         let center = point(px(150.), px(120.));
         let next_card = |direction: SplitDirection| match direction {
@@ -1320,7 +1326,7 @@ mod top_row_tests {
     use super::member_reaches_top;
 
     #[test]
-    fn test_member_reaches_top() {
+    fn member_reaches_top_works() {
         assert!(member_reaches_top(Axis::Horizontal, 0));
         assert!(member_reaches_top(Axis::Horizontal, 2));
         assert!(member_reaches_top(Axis::Vertical, 0));

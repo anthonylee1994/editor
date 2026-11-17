@@ -114,12 +114,14 @@ impl StateDb {
 
     /// The root document's state named `id`.
     pub(crate) fn state(&self, id: &str) -> Option<&StateStmt> {
-        self.state_index.get(id).and_then(|&at| self.states.get(at))
+        let &at = self.state_index.get(id)?;
+        self.states.get(at)
     }
 
     /// The class definition named `id`.
     pub(crate) fn class(&self, id: &str) -> Option<&StateClassDef> {
-        self.class_index.get(id).and_then(|&at| self.classes.get(at))
+        let &at = self.class_index.get(id)?;
+        self.classes.get(at)
     }
 
     /// Only the root document's statements become states, relations, and classes here. The

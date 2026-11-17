@@ -4,7 +4,7 @@ use std::fmt;
 use std::ops::Range;
 
 use anyhow::Result;
-use refineable::Refineable;
+use refineable::Refineable as _;
 use rustc_hash::FxHashSet;
 
 use crate::AnyElement;
@@ -165,12 +165,12 @@ mod any_view {
     use crate::AnyElement;
     use crate::AnyView;
     use crate::App;
-    use crate::IntoElement;
+    use crate::IntoElement as _;
     use crate::Render;
     use crate::Window;
 
     pub(crate) fn render<V: 'static + Render>(view: &AnyView, window: &mut Window, cx: &mut App) -> AnyElement {
-        let view = view.clone().downcast::<V>().unwrap();
+        let view = view.clone().downcast::<V>().expect("view type matches its render fn");
         view.update(cx, |view, cx| view.render(window, cx).into_any_element())
     }
 }
@@ -315,12 +315,12 @@ impl<V: View> Element for ViewElement<V> {
             let view = &mut self.view;
 
             request_layout_view(entity_id, self.cached_style.as_ref(), window, cx, &mut |window, cx| {
-                view.take().unwrap().render(window, cx).into_any_element()
+                view.take().expect("view is rendered once").render(window, cx).into_any_element()
             })
         } else {
             // Stateless path: isolate subtree via type name (no entity identity).
             request_layout_component(type_name::<V>(), window, cx, &mut |window, cx| {
-                self.view.take().unwrap().render(window, cx).into_any_element()
+                self.view.take().expect("view is rendered once").render(window, cx).into_any_element()
             })
         }
     }
@@ -337,7 +337,7 @@ impl<V: View> Element for ViewElement<V> {
             // Stateful path.
 
             prepaint_view(entity_id, global_id, bounds, element, window, cx, &mut |window, cx| {
-                self.view.take().unwrap().render(window, cx).into_any_element()
+                self.view.take().expect("view is rendered once").render(window, cx).into_any_element()
             })
         } else {
             // Stateless path: just prepaint the element.
@@ -364,7 +364,7 @@ impl<V: View> Element for ViewElement<V> {
     }
 }
 
-/// A view that renders nothing
+/// A view that renders nothing.
 pub struct EmptyView;
 
 impl Render for EmptyView {
@@ -426,53 +426,56 @@ fn prepaint_view(
             return Some(element);
         }
 
-        window.with_element_state::<ViewElementState, _>(global_id.unwrap(), |element_state, window| {
-            let content_mask = window.content_mask();
-            let text_style = window.text_style();
-            let opacity = window.element_opacity();
+        window.with_element_state::<ViewElementState, _>(
+            global_id.expect("views always have an id"),
+            |element_state, window| {
+                let content_mask = window.content_mask();
+                let text_style = window.text_style();
+                let opacity = window.element_opacity();
 
-            // Opacity is compared by bits so that a NaN opacity still matches itself
-            // and the view keeps using its cache.
-            if let Some(mut element_state) = element_state
-                && element_state.cache_key.bounds == bounds
-                && element_state.cache_key.content_mask == content_mask
-                && element_state.cache_key.text_style == text_style
-                && element_state.cache_key.opacity.to_bits() == opacity.to_bits()
-                && !window.dirty_views.contains(&entity_id)
-                && !window.refreshing
-                && ranges_are_current(element_state.frame_number, window.frame_number)
-            {
+                // Opacity is compared by bits so that a NaN opacity still matches itself
+                // and the view keeps using its cache.
+                if let Some(mut element_state) = element_state
+                    && element_state.cache_key.bounds == bounds
+                    && element_state.cache_key.content_mask == content_mask
+                    && element_state.cache_key.text_style == text_style
+                    && element_state.cache_key.opacity.to_bits() == opacity.to_bits()
+                    && !window.dirty_views.contains(&entity_id)
+                    && !window.refreshing
+                    && ranges_are_current(element_state.frame_number, window.frame_number)
+                {
+                    let prepaint_start = window.prepaint_index();
+                    window.reuse_prepaint(element_state.prepaint_range.clone());
+                    cx.entities.extend_accessed(element_state.accessed_entities.iter().copied());
+                    let prepaint_end = window.prepaint_index();
+                    element_state.prepaint_range = prepaint_start..prepaint_end;
+                    element_state.frame_number = window.frame_number;
+
+                    return (None, element_state);
+                }
+
                 let prepaint_start = window.prepaint_index();
-                window.reuse_prepaint(element_state.prepaint_range.clone());
-                cx.entities.extend_accessed(element_state.accessed_entities.iter().copied());
+                let (element, accessed_entities) = cx.detect_accessed_entities(|cx| {
+                    let mut element = render(window, cx);
+                    element.layout_as_root(Size::<AvailableSpace>::from(bounds.size), window, cx);
+                    element.prepaint_at(bounds.origin, window, cx);
+                    element
+                });
+
                 let prepaint_end = window.prepaint_index();
-                element_state.prepaint_range = prepaint_start..prepaint_end;
-                element_state.frame_number = window.frame_number;
 
-                return (None, element_state);
-            }
-
-            let prepaint_start = window.prepaint_index();
-            let (element, accessed_entities) = cx.detect_accessed_entities(|cx| {
-                let mut element = render(window, cx);
-                element.layout_as_root(Size::<AvailableSpace>::from(bounds.size), window, cx);
-                element.prepaint_at(bounds.origin, window, cx);
-                element
-            });
-
-            let prepaint_end = window.prepaint_index();
-
-            (
-                Some(element),
-                ViewElementState {
-                    accessed_entities,
-                    prepaint_range: prepaint_start..prepaint_end,
-                    paint_range: PaintIndex::default()..PaintIndex::default(),
-                    cache_key: ViewElementCacheKey { bounds, content_mask, text_style, opacity },
-                    frame_number: window.frame_number,
-                },
-            )
-        })
+                (
+                    Some(element),
+                    ViewElementState {
+                        accessed_entities,
+                        prepaint_range: prepaint_start..prepaint_end,
+                        paint_range: PaintIndex::default()..PaintIndex::default(),
+                        cache_key: ViewElementCacheKey { bounds, content_mask, text_style, opacity },
+                        frame_number: window.frame_number,
+                    },
+                )
+            },
+        )
     })
 }
 
@@ -489,9 +492,9 @@ fn prepaint_component(
     cx: &mut App,
 ) -> AnyElement {
     window.with_id(ElementId::from(name), |window| {
-        element.as_mut().unwrap().prepaint(window, cx);
+        element.as_mut().expect("element was rendered").prepaint(window, cx);
     });
-    element.take().unwrap()
+    element.take().expect("element was rendered")
 }
 
 #[inline(never)]
@@ -505,35 +508,38 @@ fn paint_view(
 ) {
     window.with_rendered_view(entity_id, |window| {
         if cached {
-            window.with_element_state::<ViewElementState, _>(global_id.unwrap(), |element_state, window| {
-                let mut element_state = element_state.unwrap();
+            window.with_element_state::<ViewElementState, _>(
+                global_id.expect("views always have an id"),
+                |element_state, window| {
+                    let mut element_state = element_state.expect("cached view has element state");
 
-                let paint_start = window.paint_index();
-                let opacity = window.element_opacity();
+                    let paint_start = window.paint_index();
+                    let opacity = window.element_opacity();
 
-                // Prepaint can only predict the opacity paint applies: an ancestor's
-                // hover or drag-over style depends on this frame's hit test, which
-                // isn't known until prepaint finishes. The key records what was
-                // actually painted, and output replayed under a different opacity is
-                // redrawn on the next frame.
-                if let Some(element) = element {
-                    let ((), accessed_entities) = cx.detect_accessed_entities(|cx| element.paint(window, cx));
-                    element_state.accessed_entities.extend(accessed_entities);
-                    element_state.cache_key.opacity = opacity;
-                } else {
-                    window.reuse_paint(element_state.paint_range.clone());
-                    if element_state.cache_key.opacity.to_bits() != opacity.to_bits() {
-                        window.request_animation_frame();
+                    // Prepaint can only predict the opacity paint applies: an ancestor's
+                    // hover or drag-over style depends on this frame's hit test, which
+                    // isn't known until prepaint finishes. The key records what was
+                    // actually painted, and output replayed under a different opacity is
+                    // redrawn on the next frame.
+                    if let Some(element) = element {
+                        let ((), accessed_entities) = cx.detect_accessed_entities(|cx| element.paint(window, cx));
+                        element_state.accessed_entities.extend(accessed_entities);
+                        element_state.cache_key.opacity = opacity;
+                    } else {
+                        window.reuse_paint(element_state.paint_range.clone());
+                        if element_state.cache_key.opacity.to_bits() != opacity.to_bits() {
+                            window.request_animation_frame();
+                        }
                     }
-                }
 
-                let paint_end = window.paint_index();
-                element_state.paint_range = paint_start..paint_end;
+                    let paint_end = window.paint_index();
+                    element_state.paint_range = paint_start..paint_end;
 
-                ((), element_state)
-            });
+                    ((), element_state)
+                },
+            );
         } else {
-            element.as_mut().unwrap().paint(window, cx);
+            element.as_mut().expect("element was rendered").paint(window, cx);
         }
     });
 }
@@ -541,7 +547,7 @@ fn paint_view(
 #[inline(never)]
 fn paint_component(name: &'static str, element: &mut Option<AnyElement>, window: &mut Window, cx: &mut App) {
     window.with_id(ElementId::Name(name.into()), |window| {
-        element.as_mut().unwrap().paint(window, cx);
+        element.as_mut().expect("element was rendered").paint(window, cx);
     });
 }
 
@@ -550,7 +556,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_ranges_are_current_only_in_the_next_frame() {
+    fn ranges_are_current_only_in_the_next_frame() {
         assert!(ranges_are_current(4, 5));
         // Drawn again in the same frame (a discarded prepaint).
         assert!(!ranges_are_current(5, 5));

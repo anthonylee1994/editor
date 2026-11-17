@@ -1,5 +1,5 @@
 use rand::Rng;
-use rand::RngExt;
+use rand::RngExt as _;
 use rustc_hash::FxHashSet;
 
 const ADJECTIVES: &[&str] = &[

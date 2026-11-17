@@ -173,7 +173,7 @@ pub(crate) const SINGLE_LINE_COMMENT: TokenType = TokenType {
 pub(crate) fn tokenize<'a>(src: &'a str, types: &[TokenType], diagram: &'static str) -> Result<Tokens<'a>, Error> {
     let n = src.len();
     let mut dead = vec![false; types.len()];
-    let mut memos = vec![[0usize; 4]; types.len()];
+    let mut memos = vec![[0_usize; 4]; types.len()];
     let mut tokens = Vec::new();
 
     let mut p = 0;
@@ -539,8 +539,10 @@ pub(crate) fn acc_descr_value(text: &str) -> String {
         if text.as_bytes().get(brace) != Some(&b'{') {
             continue;
         }
-        let Some(body) = text.get(brace + 1..).and_then(|rest| rest.find('}').and_then(|close| rest.get(..close)))
-        else {
+        let Some(body) = text.get(brace + 1..).and_then(|rest| {
+            let close = rest.find('}')?;
+            rest.get(..close)
+        }) else {
             continue;
         };
         let body = strip_line_ends(&strip_line_starts(body));

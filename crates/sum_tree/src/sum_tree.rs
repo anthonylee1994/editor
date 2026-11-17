@@ -3,7 +3,7 @@ mod tree_map;
 
 use std::cmp::Ordering;
 use std::fmt;
-use std::iter::FromIterator;
+use std::iter::FromIterator as _;
 use std::marker::PhantomData;
 use std::mem;
 use std::sync::Arc;
@@ -28,26 +28,26 @@ impl<T> CapacityResultExt for Result<(), T> {
     }
 }
 
-/// An item that can be stored in a [`SumTree`]
+/// An item that can be stored in a [`SumTree`].
 ///
-/// Must be summarized by a type that implements [`Summary`]
+/// Must be summarized by a type that implements [`Summary`].
 pub trait Item: Clone {
     type Summary: Summary;
 
     fn summary(&self, cx: <Self::Summary as Summary>::Context<'_>) -> Self::Summary;
 }
 
-/// An [`Item`] whose summary has a specific key that can be used to identify it
+/// An [`Item`] whose summary has a specific key that can be used to identify it.
 pub trait KeyedItem: Item {
     type Key: for<'a> Dimension<'a, Self::Summary> + Ord;
 
     fn key(&self) -> Self::Key;
 }
 
-/// A type that describes the Sum of all [`Item`]s in a subtree of the [`SumTree`]
+/// A type that describes the Sum of all [`Item`]s in a subtree of the [`SumTree`].
 ///
 /// Each Summary type can have multiple [`Dimension`]s that it measures,
-/// which can be used to navigate the tree
+/// which can be used to navigate the tree.
 pub trait Summary: Clone {
     type Context<'a>: Copy;
     fn zero(cx: Self::Context<'_>) -> Self;
@@ -76,7 +76,7 @@ pub struct NoSummary;
 
 /// Catch-all implementation for when you need something that implements [`Summary`] without a specific type.
 /// We implement it on a `NoSummary` instead of re-using `()`, as that avoids blanket impl collisions with `impl<T: Summary> Dimension for T`
-/// (as we also need unit type to be a fill-in dimension)
+/// (as we also need unit type to be a fill-in dimension).
 impl ContextLessSummary for NoSummary {
     fn zero() -> Self {
         NoSummary
@@ -87,11 +87,11 @@ impl ContextLessSummary for NoSummary {
 
 /// Each [`Summary`] type can have more than one [`Dimension`] type that it measures.
 ///
-/// You can use dimensions to seek to a specific location in the [`SumTree`]
+/// You can use dimensions to seek to a specific location in the [`SumTree`].
 ///
 /// # Example:
 /// ed's rope has a `TextSummary` type that summarizes lines, characters, and bytes.
-/// Each of these are different dimensions we may want to seek to
+/// Each of these are different dimensions we may want to seek to.
 pub trait Dimension<'a, S: Summary>: Clone {
     fn zero(cx: S::Context<'_>) -> Self;
 
@@ -187,10 +187,10 @@ where
 ///   and the buffer offset would be the offset of the first character of the folded region
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Hash, Default)]
 pub enum Bias {
-    /// Attach to the character on the left
+    /// Attach to the character on the left.
     #[default]
     Left,
-    /// Attach to the character on the right
+    /// Attach to the character on the right.
     Right,
 }
 
@@ -279,7 +279,7 @@ impl<T: Item> SumTree<T> {
                     }))
                 });
                 let Node::Internal { summary, child_summaries, child_trees, .. } =
-                    Arc::get_mut(&mut parent_node.0).unwrap()
+                    Arc::get_mut(&mut parent_node.0).expect("parent node is uniquely owned")
                 else {
                     unreachable!()
                 };
@@ -296,7 +296,7 @@ impl<T: Item> SumTree<T> {
             mem::swap(&mut nodes, &mut parent_nodes);
         }
 
-        if nodes.is_empty() { Self::new(cx) } else { nodes.pop().unwrap() }
+        if nodes.is_empty() { Self::new(cx) } else { nodes.pop().expect("checked non-empty") }
     }
 
     #[allow(unused)]
@@ -341,7 +341,7 @@ impl<T: Item> SumTree<T> {
         };
     }
 
-    /// A more efficient version of `Cursor::new()` + `Cursor::seek()` + `Cursor::item()`
+    /// A more efficient version of `Cursor::new()` + `Cursor::seek()` + `Cursor::item()`.
     pub fn find<'a, 'slf, D, Target>(
         &'slf self,
         cx: <T::Summary as Summary>::Context<'a>,
@@ -415,7 +415,7 @@ impl<T: Item> SumTree<T> {
         }
     }
 
-    /// A more efficient version of `Cursor::new()` + `Cursor::seek()` + `Cursor::item()`
+    /// A more efficient version of `Cursor::new()` + `Cursor::seek()` + `Cursor::item()`.
     pub fn find_with_prev<'a, 'slf, D, Target>(
         &'slf self,
         cx: <T::Summary as Summary>::Context<'a>,
@@ -533,9 +533,9 @@ impl<T: Item> SumTree<T> {
     ) -> Option<T::Summary> {
         match Arc::make_mut(&mut self.0) {
             Node::Internal { summary, child_summaries, child_trees, .. } => {
-                let last_summary = child_summaries.last_mut().unwrap();
-                let last_child = child_trees.last_mut().unwrap();
-                *last_summary = last_child.update_last_recursive(f, cx).unwrap();
+                let last_summary = child_summaries.last_mut().expect("internal nodes are non-empty");
+                let last_child = child_trees.last_mut().expect("internal nodes are non-empty");
+                *last_summary = last_child.update_last_recursive(f, cx).expect("internal nodes are non-empty");
                 *summary = sum(child_summaries.iter(), cx);
                 Some(summary.clone())
             }
@@ -563,9 +563,9 @@ impl<T: Item> SumTree<T> {
     ) -> Option<T::Summary> {
         match Arc::make_mut(&mut self.0) {
             Node::Internal { summary, child_summaries, child_trees, .. } => {
-                let first_summary = child_summaries.first_mut().unwrap();
-                let first_child = child_trees.first_mut().unwrap();
-                *first_summary = first_child.update_first_recursive(f, cx).unwrap();
+                let first_summary = child_summaries.first_mut().expect("internal nodes are non-empty");
+                let first_child = child_trees.first_mut().expect("internal nodes are non-empty");
+                *first_summary = first_child.update_first_recursive(f, cx).expect("internal nodes are non-empty");
                 *summary = sum(child_summaries.iter(), cx);
                 Some(summary.clone())
             }
@@ -648,7 +648,7 @@ impl<T: Item> SumTree<T> {
     ) -> Option<SumTree<T>> {
         match Arc::make_mut(&mut self.0) {
             Node::Internal { height, summary, child_summaries, child_trees, .. } => {
-                let other_node = other.0.clone();
+                let other_node = Arc::clone(&other.0);
                 <T::Summary as Summary>::add_summary(summary, other_node.summary(), cx);
 
                 let height_delta = *height - other_node.height();
@@ -661,8 +661,10 @@ impl<T: Item> SumTree<T> {
                     summaries_to_append.push(other_node.summary().clone()).unwrap_oob();
                     trees_to_append.push(other).unwrap_oob();
                 } else {
-                    let tree_to_append = child_trees.last_mut().unwrap().push_tree_recursive(other, cx);
-                    *child_summaries.last_mut().unwrap() = child_trees.last().unwrap().0.summary().clone();
+                    let tree_to_append =
+                        child_trees.last_mut().expect("internal nodes are non-empty").push_tree_recursive(other, cx);
+                    *child_summaries.last_mut().expect("internal nodes are non-empty") =
+                        child_trees.last().expect("internal nodes are non-empty").0.summary().clone();
 
                     if let Some(split_tree) = tree_to_append {
                         summaries_to_append.push(split_tree.0.summary().clone()).unwrap_oob();
@@ -752,9 +754,9 @@ impl<T: Item> SumTree<T> {
             Summary::add_summary(&mut full_summary, summary, cx);
             *summary = full_summary;
 
-            let first = child_trees.first_mut().unwrap();
+            let first = child_trees.first_mut().expect("internal nodes are non-empty");
             let res = Self::append_large(small, first, cx);
-            *child_summaries.first_mut().unwrap() = first.summary().clone();
+            *child_summaries.first_mut().expect("internal nodes are non-empty") = first.summary().clone();
             if let Some(tree) = res {
                 if child_trees.len() < 2 * TREE_BASE {
                     child_summaries.insert(0, tree.summary().clone()).unwrap_oob();
@@ -904,14 +906,18 @@ impl<T: Item> SumTree<T> {
     fn leftmost_leaf(&self) -> &Self {
         match *self.0 {
             Node::Leaf { .. } => self,
-            Node::Internal { ref child_trees, .. } => child_trees.first().unwrap().leftmost_leaf(),
+            Node::Internal { ref child_trees, .. } => {
+                child_trees.first().expect("internal nodes are non-empty").leftmost_leaf()
+            }
         }
     }
 
     fn rightmost_leaf(&self) -> &Self {
         match *self.0 {
             Node::Leaf { .. } => self,
-            Node::Internal { ref child_trees, .. } => child_trees.last().unwrap().rightmost_leaf(),
+            Node::Internal { ref child_trees, .. } => {
+                child_trees.last().expect("internal nodes are non-empty").rightmost_leaf()
+            }
         }
     }
 }

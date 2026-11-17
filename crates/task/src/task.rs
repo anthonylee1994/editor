@@ -106,7 +106,7 @@ pub enum VariableName {
     SelectedText,
     /// The language of the currently opened buffer (e.g., "Rust", "Python").
     Language,
-    /// The symbol selected by the symbol tagging system, specifically the @run capture in a runnables.scm
+    /// The symbol selected by the symbol tagging system, specifically the @run capture in a runnables.scm.
     RunnableSymbol,
     /// An absolute path of the main (original) git worktree for the current repository.
     /// For normal checkouts, this equals the worktree root. For linked worktrees,
@@ -224,7 +224,7 @@ impl TaskVariables {
     pub fn get(&self, key: &VariableName) -> Option<&str> {
         self.0.get(key).map(String::as_str)
     }
-    /// Clear out variables obtained from tree-sitter queries, which are prefixed with '_' character
+    /// Clear out variables obtained from tree-sitter queries, which are prefixed with '_' character.
     pub fn sweep(&mut self) {
         self.0.retain(|name, _| if let VariableName::Custom(name) = name { !name.starts_with('_') } else { true });
     }

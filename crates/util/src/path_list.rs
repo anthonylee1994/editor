@@ -4,7 +4,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use itertools::Itertools;
+use itertools::Itertools as _;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -108,7 +108,7 @@ impl PathList {
             if !order.is_empty() {
                 order.push(',');
             }
-            write!(&mut order, "{}", *ix).unwrap();
+            write!(&mut order, "{}", *ix).expect("writing to a String can't fail");
         }
         SerializedPathList { paths, order }
     }
