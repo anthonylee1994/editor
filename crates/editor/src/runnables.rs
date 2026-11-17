@@ -53,7 +53,6 @@ use crate::CodeActionSource;
 use crate::Editor;
 use crate::EditorStyle;
 use crate::RangeToAnchorExt;
-use crate::SpawnNearestTask;
 use crate::ToggleCodeActions;
 use crate::UPDATE_DEBOUNCE;
 use crate::display_map::DisplayPoint;
@@ -65,6 +64,8 @@ pub(super) struct RunnableData {
     runnables: FxHashMap<BufferId, (Global, BTreeMap<BufferRow, RunnableTasks>)>,
     task_statuses: FxHashMap<(BufferId, BufferRow), RunnableTaskStatus>,
     invalidate_buffer_data: FxHashSet<BufferId>,
+    /// Singleton editors only: the buffer version and rows the cached runnables cover.
+    queried_rows: Option<(Global, Range<BufferRow>)>,
     runnables_update_task: Task<()>,
 }
 
@@ -74,6 +75,7 @@ impl RunnableData {
             runnables: FxHashMap::default(),
             task_statuses: FxHashMap::default(),
             invalidate_buffer_data: FxHashSet::default(),
+            queried_rows: None,
             runnables_update_task: Task::ready(()),
         }
     }
@@ -101,6 +103,25 @@ impl RunnableData {
     pub fn has_cached(&self, buffer_id: BufferId, version: &Global) -> bool {
         self.runnables.get(&buffer_id).is_some_and(|(cached_version, _)| !version.changed_since(cached_version))
     }
+
+    /// Whether the last query ran at `version` and covered `rows`.
+    fn covers(&self, version: &Global, rows: &Range<BufferRow>) -> bool {
+        self.queried_rows.as_ref().is_some_and(|(queried_version, queried)| {
+            !version.changed_since(queried_version) && queried.start <= rows.start && rows.end <= queried.end
+        })
+    }
+}
+
+/// Whether `language`'s runnables come from its language server rather than its syntax query.
+fn has_lsp_runnables(language: &Arc<language::Language>) -> bool {
+    language.context_provider().is_some_and(|provider| provider.lsp_task_source().is_some())
+}
+
+/// The rows a syntax query for `visible` rows covers: one screen above and below,
+/// so scrolling re-queries about once per screen.
+fn query_rows(visible: &Range<BufferRow>, max_row: BufferRow) -> Range<BufferRow> {
+    let margin = visible.end.saturating_sub(visible.start);
+    visible.start.saturating_sub(margin)..visible.end.saturating_add(margin).min(max_row).saturating_add(1)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -168,9 +189,12 @@ impl Editor {
                 return;
             }
             let buffer_id = buffer_read.buffer_id();
-            if invalidate_buffer_data != Some(buffer_id) && self.runnables.has_cached(buffer_id, &buffer_read.version())
-            {
-                return;
+            let version = buffer_read.version();
+            if invalidate_buffer_data != Some(buffer_id) {
+                let visible_rows = self.visible_buffer_rows(cx);
+                if self.runnables.covers(&version, &visible_rows) {
+                    return;
+                }
             }
         }
         if let Some(buffer_id) = invalidate_buffer_data {
@@ -178,7 +202,7 @@ impl Editor {
         }
 
         let project = self.project().map(Entity::downgrade);
-        let lsp_task_sources = self.lsp_task_sources(true, true, cx);
+        let lsp_task_sources = self.lsp_task_sources(true, invalidate_buffer_data.is_none(), cx);
         self.runnables.runnables_update_task = cx.spawn_in(window, async move |editor, cx| {
             cx.background_executor().timer(UPDATE_DEBOUNCE).await;
             let Some(project) = project.and_then(|p| p.upgrade()) else {
@@ -194,31 +218,46 @@ impl Editor {
                 };
                 lsp_tasks.await
             };
-            let new_rows = {
-                let Some((multi_buffer_snapshot, multi_buffer_query_range)) = editor
-                    .update(cx, |editor, cx| {
-                        let multi_buffer = editor.buffer().read(cx);
-                        if multi_buffer.is_singleton() {
-                            Some((multi_buffer.snapshot(cx), Anchor::Min..Anchor::Max))
-                        } else {
-                            let display_snapshot = editor.display_map.update(cx, |map, cx| map.snapshot(cx));
-                            let multi_buffer_query_range = editor.multi_buffer_visible_range(&display_snapshot, cx);
-                            let multi_buffer_snapshot = display_snapshot.buffer();
-                            Some((
-                                multi_buffer_snapshot.clone(),
-                                multi_buffer_query_range.to_anchors(multi_buffer_snapshot),
-                            ))
-                        }
-                    })
-                    .ok()
-                    .flatten()
-                else {
-                    return;
-                };
-                cx.background_spawn({
-                    async move { multi_buffer_snapshot.runnable_ranges(multi_buffer_query_range).collect() }
+            // Each language has one source of runnables: its language server when it
+            // provides them (covering the whole buffer), else the syntax query, which
+            // only runs over the rows around the viewport.
+            let Some((multi_buffer_snapshot, multi_buffer_query_range, queried_rows)) = editor
+                .update(cx, |editor, cx| {
+                    let display_snapshot = editor.display_map.update(cx, |map, cx| map.snapshot(cx));
+                    let visible_range = editor.multi_buffer_visible_range(&display_snapshot, cx);
+                    let multi_buffer_snapshot = display_snapshot.buffer().clone();
+                    let Some(buffer_snapshot) = multi_buffer_snapshot.as_singleton() else {
+                        let query_range = visible_range.to_anchors(&multi_buffer_snapshot);
+                        return (multi_buffer_snapshot, Some(query_range), None);
+                    };
+                    let version = buffer_snapshot.version().clone();
+                    if buffer_snapshot.language().is_some_and(has_lsp_runnables) {
+                        return (multi_buffer_snapshot, None, Some((version, 0..BufferRow::MAX)));
+                    }
+                    let rows = query_rows(
+                        &(visible_range.start.row..visible_range.end.row),
+                        multi_buffer_snapshot.max_point().row,
+                    );
+                    let query_range = (Point::new(rows.start, 0)
+                        ..multi_buffer_snapshot.clip_point(Point::new(rows.end, 0), Bias::Left))
+                        .to_anchors(&multi_buffer_snapshot);
+                    (multi_buffer_snapshot, Some(query_range), Some((version, rows)))
                 })
-                .await
+                .ok()
+            else {
+                return;
+            };
+            let new_rows = match multi_buffer_query_range {
+                Some(query_range) => {
+                    cx.background_spawn(async move {
+                        multi_buffer_snapshot
+                            .runnable_ranges(query_range)
+                            .filter(|(_, runnable)| !has_lsp_runnables(&runnable.runnable.language))
+                            .collect()
+                    })
+                    .await
+                }
+                None => Vec::new(),
             };
 
             let Ok(multi_buffer_snapshot) = editor.update(cx, |editor, cx| editor.buffer().read(cx).snapshot(cx))
@@ -259,19 +298,13 @@ impl Editor {
                 return;
             };
 
-            let rows = Self::runnable_rows(
-                project,
-                multi_buffer_snapshot,
-                !lsp_tasks_by_rows.is_empty(),
-                new_rows,
-                cx.clone(),
-            )
-            .await;
+            let rows = Self::runnable_rows(project, multi_buffer_snapshot, new_rows, cx.clone()).await;
             editor
                 .update(cx, |editor, cx| {
                     for buffer_id in mem::take(&mut editor.runnables.invalidate_buffer_data) {
                         editor.clear_runnables(Some(buffer_id));
                     }
+                    editor.runnables.queried_rows = queried_rows;
 
                     for ((buffer_id, row), mut new_tasks) in rows {
                         let Some(buffer) = editor.buffer().read(cx).buffer(buffer_id) else {
@@ -294,62 +327,19 @@ impl Editor {
         });
     }
 
-    pub fn spawn_nearest_task(&mut self, action: &SpawnNearestTask, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(workspace) = self.workspace.clone() else {
-            return;
-        };
-        let Some(project) = self.project.clone() else {
-            return;
-        };
+    /// Fetches runnables again for the buffers whose language server provides them.
+    pub(crate) fn refresh_lsp_runnables(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let buffer_ids = self.lsp_task_sources(true, false, cx).into_values().flatten().collect::<Vec<_>>();
+        for buffer_id in buffer_ids {
+            self.refresh_runnables(Some(buffer_id), window, cx);
+        }
+    }
 
-        // Try to find a closest, enclosing node using tree-sitter that has a task
-        let Some((buffer, buffer_row, tasks)) = self
-            .find_enclosing_node_task(cx)
-            // Or find the task that's closest in row-distance.
-            .or_else(|| self.find_closest_task(cx))
-        else {
-            return;
-        };
-
-        let buffer_id = buffer.read(cx).buffer_id();
-        let editor = cx.weak_entity();
-        let reveal_strategy = action.reveal;
-        let task_context = Self::build_tasks_context(&project, &buffer, buffer_row, &tasks, cx);
-        cx.spawn_in(window, async move |_, cx| {
-            let context = task_context.await.ok().flatten()?;
-            let (_, mut resolved_task) = tasks.resolve(&context).next()?;
-
-            let resolved = &mut resolved_task.resolved;
-            resolved.reveal = reveal_strategy;
-
-            editor
-                .update(cx, |editor, cx| {
-                    editor.set_runnable_task_status(buffer_id, buffer_row, RunnableTaskStatus::Running, cx);
-                })
-                .ok();
-            workspace
-                .update_in(cx, |workspace, window, cx| {
-                    workspace.schedule_resolved_task_with_completion(
-                        resolved_task,
-                        move |result, cx| {
-                            editor
-                                .update(cx, |editor, cx| {
-                                    editor.set_runnable_task_status(
-                                        buffer_id,
-                                        buffer_row,
-                                        RunnableTaskStatus::from(result),
-                                        cx,
-                                    );
-                                })
-                                .ok();
-                        },
-                        window,
-                        cx,
-                    );
-                })
-                .ok()
-        })
-        .detach();
+    /// The buffer rows on screen, for a singleton editor.
+    fn visible_buffer_rows(&self, cx: &mut Context<Self>) -> Range<BufferRow> {
+        let display_snapshot = self.display_map.update(cx, |map, cx| map.snapshot(cx));
+        let visible_range = self.multi_buffer_visible_range(&display_snapshot, cx);
+        visible_range.start.row..visible_range.end.row
     }
 
     pub fn clear_runnables(&mut self, for_buffer: Option<BufferId>) {
@@ -361,6 +351,7 @@ impl Editor {
             self.runnables.task_statuses.clear();
         }
         self.runnables.invalidate_buffer_data.clear();
+        self.runnables.queried_rows = None;
         self.runnables.runnables_update_task = Task::ready(());
     }
 
@@ -492,51 +483,6 @@ impl Editor {
             })
     }
 
-    pub fn find_enclosing_node_task(
-        &mut self,
-        cx: &mut Context<Self>,
-    ) -> Option<(Entity<Buffer>, u32, Arc<RunnableTasks>)> {
-        let snapshot = self.buffer.read(cx).snapshot(cx);
-        let anchor = self.selections.newest_anchor().head();
-        let (anchor, buffer_snapshot) = snapshot.anchor_to_buffer_anchor(anchor)?;
-        let offset = anchor.to_offset(buffer_snapshot);
-
-        let layer = buffer_snapshot.syntax_layer_at(offset)?;
-        let mut cursor = layer.node().walk();
-
-        while cursor.goto_first_child_for_byte(offset).is_some() {
-            if cursor.node().end_byte() == offset {
-                cursor.goto_next_sibling();
-            }
-        }
-
-        // Ascend to the smallest ancestor that contains the range and has a task.
-        loop {
-            let node = cursor.node();
-            let node_range = node.byte_range();
-            let symbol_start_row = buffer_snapshot.offset_to_point(node.start_byte()).row;
-
-            // Check if this node contains our offset
-            if node_range.start <= offset && node_range.end >= offset {
-                // If it contains offset, check for task
-                if let Some(tasks) = self
-                    .runnables
-                    .runnables
-                    .get(&buffer_snapshot.buffer_id())
-                    .and_then(|(_, tasks)| tasks.get(&symbol_start_row))
-                {
-                    let buffer = self.buffer.read(cx).buffer(buffer_snapshot.buffer_id())?;
-                    return Some((buffer, symbol_start_row, Arc::new(tasks.to_owned())));
-                }
-            }
-
-            if !cursor.goto_parent() {
-                break;
-            }
-        }
-        None
-    }
-
     pub(crate) fn render_run_indicator(
         &self,
         _style: &EditorStyle,
@@ -586,7 +532,6 @@ impl Editor {
     fn runnable_rows(
         project: Entity<Project>,
         snapshot: MultiBufferSnapshot,
-        prefer_lsp: bool,
         runnable_ranges: Vec<(Range<Anchor>, language::RunnableRange)>,
         cx: AsyncWindowContext,
     ) -> Task<Vec<((BufferId, BufferRow), RunnableTasks)>> {
@@ -598,11 +543,7 @@ impl Editor {
                 else {
                     continue;
                 };
-                let mut tasks = tasks.await;
-
-                if prefer_lsp {
-                    tasks.retain(|(task_kind, _)| !matches!(task_kind, TaskSourceKind::Language { .. }));
-                }
+                let tasks = tasks.await;
                 if tasks.is_empty() {
                     continue;
                 }
@@ -647,21 +588,6 @@ impl Editor {
                 })
                 .collect()
         })
-    }
-
-    fn find_closest_task(&self, cx: &mut Context<Self>) -> Option<(Entity<Buffer>, u32, Arc<RunnableTasks>)> {
-        let cursor_row = self.selections.newest_adjusted(&self.display_snapshot(cx)).head().row;
-
-        let ((buffer_id, row), tasks) = self
-            .runnables
-            .runnables
-            .iter()
-            .flat_map(|(buffer_id, (_, tasks))| tasks.iter().map(|(row, tasks)| ((*buffer_id, *row), tasks)))
-            .min_by_key(|((_, row), _)| cursor_row.abs_diff(*row))?;
-
-        let buffer = self.buffer.read(cx).buffer(buffer_id)?;
-        let tasks = Arc::new(tasks.to_owned());
-        Some((buffer, row, tasks))
     }
 }
 
@@ -733,5 +659,35 @@ impl Editor {
                 task_store.task_context_for_location(captured_task_variables, location, cx)
             })
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_query_rows_adds_a_screen_each_side() {
+        assert_eq!(query_rows(&(100..140), 1000), 60..181);
+        // Clamped to the buffer.
+        assert_eq!(query_rows(&(10..50), 60), 0..61);
+        // Nothing laid out yet: only the top row.
+        assert_eq!(query_rows(&(0..0), 1000), 0..1);
+    }
+
+    #[test]
+    fn test_covers_needs_same_version_and_rows_inside() {
+        let mut data = RunnableData::new();
+        let mut version = Global::default();
+        assert!(!data.covers(&version, &(0..10)));
+
+        data.queried_rows = Some((version.clone(), 60..181));
+        assert!(data.covers(&version, &(100..140)));
+        assert!(data.covers(&version, &(60..181)));
+        assert!(!data.covers(&version, &(50..90)));
+        assert!(!data.covers(&version, &(150..190)));
+
+        version.observe(clock::Lamport { value: 1 });
+        assert!(!data.covers(&version, &(100..140)));
     }
 }

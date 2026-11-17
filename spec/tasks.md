@@ -14,12 +14,19 @@ clients as JSON.
 
 ## Behaviour
 
-- Run icons come from two sources:
-  - tree-sitter `runnables.scm` tags matched against the task templates the
-    buffer's language provides (`ContextProvider::associated_tasks`), e.g.
-    `cargo run` for a Rust `main` or example;
-  - LSP runnables (e.g. rust-analyzer), always requested; when any come back,
-    they replace the language's tree-sitter runnable tasks.
+- Each language has exactly one source of run icons, with no fallback:
+  - a language whose `ContextProvider::lsp_task_source` names a server (Rust:
+    rust-analyzer) takes them from LSP runnables only, for the whole buffer.
+    Its `runnables.scm` is not queried. Nothing shows until the server
+    answers: the request has no timeout, and it is sent again when the
+    buffer is reparsed, when the server registers the buffer, and when the
+    server asks for an inlay hint refresh (rust-analyzer does once it has
+    loaded the project);
+  - every other language uses its tree-sitter `runnables.scm` tags, matched
+    against the task templates the language provides
+    (`ContextProvider::associated_tasks`). The query covers only the visible
+    rows plus one screen above and below, and runs again when scrolling
+    leaves that range, so runnables far from the viewport are unknown.
 - Only the buffer's own language contributes tree-sitter runnables; code
   injected into it (e.g. a markdown code block) does not, since templates
   target the whole file.
@@ -28,7 +35,8 @@ clients as JSON.
   (`<shell> -c`), from the markdown file's folder. The code reaches the shell
   through the `CODE_BLOCK` env var, so the outer task shell never re-parses it.
 - `languages.<lang>.tasks.enabled = false` hides a language's template-based icons.
-- Clicking the icon (or `editor::SpawnNearestTask`) resolves the template with
+- Clicking the icon is the only way to run one (there is no keyboard action
+  for the nearest task). It resolves the template with
   `$ED_*` variables and spawns it in the terminal panel. The icon shows
   running / passed / failed state.
 - In a single-file worktree (a file opened without its folder) there is no

@@ -256,7 +256,6 @@ pub(crate) use actions::SelectUpByLines;
 pub(crate) use actions::ShowCharacterPalette;
 pub(crate) use actions::ShowCompletions;
 pub(crate) use actions::ShowWordCompletions;
-pub(crate) use actions::SpawnNearestTask;
 pub(crate) use actions::SplitSelectionIntoLines;
 pub(crate) use actions::ToggleAllDiffHunks;
 pub(crate) use actions::ToggleBlockComments;
@@ -1811,6 +1810,9 @@ impl Editor {
                 }
                 project::Event::RefreshInlayHints { server_id } => {
                     editor.refresh_inlay_hints(InlayHintRefreshReason::RefreshRequested { server_id: *server_id }, cx);
+                    // A server asks for this once it has loaded the project, which is
+                    // when its runnables become available.
+                    editor.refresh_lsp_runnables(window, cx);
                 }
                 project::Event::RefreshSemanticTokens { .. } => {
                     editor.refresh_semantic_tokens(None, true, cx);

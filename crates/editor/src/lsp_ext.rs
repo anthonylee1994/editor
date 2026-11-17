@@ -1,11 +1,8 @@
 use std::sync::Arc;
-use std::time::Duration;
 
-use futures::TryFutureExt;
 use gpui::App;
 use gpui::AsyncApp;
 use gpui::Entity;
-use gpui::FutureExt;
 use gpui::Task;
 use language::Buffer;
 use language::Language;
@@ -113,49 +110,40 @@ pub fn lsp_tasks(
         .collect::<Vec<_>>();
 
     cx.spawn(async move |cx| {
-        cx.spawn(async move |cx| {
-            let mut lsp_tasks = FxHashMap::default();
-            for (server_id, buffers) in lsp_task_sources {
-                let mut new_lsp_tasks = Vec::new();
-                for buffer in buffers {
-                    let source_kind = match buffer
-                        .update(cx, |buffer, _| buffer.language().map(|language| language.name()))
-                    {
-                        Some(language_name) => {
-                            TaskSourceKind::Lsp { server: server_id, language_name: SharedString::from(language_name) }
-                        }
-                        None => continue,
-                    };
-                    let id_base = source_kind.to_id_base();
-                    let lsp_buffer_context = lsp_task_context(&project, &buffer, cx).await.unwrap_or_default();
+        let mut lsp_tasks = FxHashMap::default();
+        for (server_id, buffers) in lsp_task_sources {
+            let mut new_lsp_tasks = Vec::new();
+            for buffer in buffers {
+                let source_kind = match buffer.update(cx, |buffer, _| buffer.language().map(|language| language.name()))
+                {
+                    Some(language_name) => {
+                        TaskSourceKind::Lsp { server: server_id, language_name: SharedString::from(language_name) }
+                    }
+                    None => continue,
+                };
+                let id_base = source_kind.to_id_base();
+                let lsp_buffer_context = lsp_task_context(&project, &buffer, cx).await.unwrap_or_default();
 
-                    let runnables_task = project.update(cx, |project, cx| {
-                        let buffer_id = buffer.read(cx).buffer_id();
-                        project.request_lsp(
-                            buffer,
-                            LanguageServerToQuery::Other(server_id),
-                            GetLspRunnables { buffer_id, position: for_position, server_id },
-                            cx,
-                        )
-                    });
-                    if let Some(new_runnables) = runnables_task.await.log_err() {
-                        new_lsp_tasks.extend(new_runnables.runnables.into_iter().filter_map(|(location, runnable)| {
-                            let resolved_task = runnable.resolve_task(&id_base, &lsp_buffer_context)?;
-                            Some((location, resolved_task))
-                        }));
-                    }
-                    if !new_lsp_tasks.is_empty() {
-                        lsp_tasks.entry(source_kind).or_insert_with(Vec::new).append(&mut new_lsp_tasks);
-                    }
+                let runnables_task = project.update(cx, |project, cx| {
+                    let buffer_id = buffer.read(cx).buffer_id();
+                    project.request_lsp(
+                        buffer,
+                        LanguageServerToQuery::Other(server_id),
+                        GetLspRunnables { buffer_id, position: for_position, server_id },
+                        cx,
+                    )
+                });
+                if let Some(new_runnables) = runnables_task.await.log_err() {
+                    new_lsp_tasks.extend(new_runnables.runnables.into_iter().filter_map(|(location, runnable)| {
+                        let resolved_task = runnable.resolve_task(&id_base, &lsp_buffer_context)?;
+                        Some((location, resolved_task))
+                    }));
+                }
+                if !new_lsp_tasks.is_empty() {
+                    lsp_tasks.entry(source_kind).or_insert_with(Vec::new).append(&mut new_lsp_tasks);
                 }
             }
-            lsp_tasks.into_iter().collect()
-        })
-        .with_timeout(Duration::from_millis(200), cx.background_executor())
-        .unwrap_or_else(|_| {
-            log::debug!("Timed out waiting for LSP tasks");
-            Vec::new()
-        })
-        .await
+        }
+        lsp_tasks.into_iter().collect()
     })
 }

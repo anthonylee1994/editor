@@ -310,15 +310,6 @@ pub struct CutToEndOfLine {
 #[action(namespace = editor)]
 pub struct FoldAtLevel(pub u32);
 
-/// Spawns the nearest available task from the current cursor position.
-#[derive(PartialEq, Eq, Clone, Deserialize, Default, Action)]
-#[action(namespace = editor)]
-#[serde(deny_unknown_fields)]
-pub struct SpawnNearestTask {
-    #[serde(default)]
-    pub reveal: task::RevealStrategy,
-}
-
 #[derive(Clone, PartialEq, Eq, Action)]
 #[action(no_json, no_register)]
 pub struct DiffClipboardWithSelectionData {

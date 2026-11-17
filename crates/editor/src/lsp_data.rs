@@ -191,7 +191,8 @@ impl Editor {
         if !self.buffer().read(cx).is_singleton() || self.needs_initial_data_update {
             self.needs_initial_data_update = false;
             self.update_lsp_data(None, window, cx);
-            self.refresh_runnables(None, window, cx);
         }
+        // Syntax runnables are only known around the viewport.
+        self.refresh_runnables(None, window, cx);
     }
 }
