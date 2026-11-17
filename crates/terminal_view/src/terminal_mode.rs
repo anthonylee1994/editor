@@ -17,6 +17,7 @@ use workspace::Pane;
 use workspace::TerminalModeDelegate;
 use workspace::Workspace;
 
+use crate::TerminalPanel;
 use crate::TerminalView;
 use crate::default_working_directory;
 use crate::terminal_panel::FailedToSpawnTerminal;
@@ -101,6 +102,12 @@ impl TerminalModeDelegate for TerminalModeTerminals {
 
     fn is_terminal(&self, item: &dyn ItemHandle, _cx: &App) -> bool {
         item.downcast::<TerminalView>().is_some()
+    }
+
+    fn panel_panes(&self, workspace: &Workspace, cx: &App) -> Vec<Entity<Pane>> {
+        workspace
+            .panel::<TerminalPanel>(cx)
+            .map_or_default(|panel| panel.read(cx).panes().into_iter().cloned().collect())
     }
 }
 

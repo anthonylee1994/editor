@@ -1353,6 +1353,11 @@ impl Workspace {
         cx: &mut Context<Self>,
     ) -> Task<Result<bool>> {
         cx.spawn_in(window, async move |this, cx| {
+            let running_items = this.update(cx, |this, cx| this.terminals_with_running_process(cx))?;
+            if !pane::confirm_close_running_items(&running_items, cx).await? {
+                return Ok(false);
+            }
+
             this.update(cx, |this, _| {
                 if close_intent == CloseIntent::CloseWindow {
                     this.removing = true;

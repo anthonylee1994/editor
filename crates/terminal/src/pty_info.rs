@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -47,6 +48,13 @@ impl ProcessIdGetter {
 
         None
     }
+}
+
+/// Whether the process group leader `foreground` is something other than the
+/// shell started as (or, on the default macOS path, under `login` by) the PTY
+/// child.
+fn is_foreground_job(foreground: Pid, foreground_parent: Option<Pid>, child: Pid, child_name: &OsStr) -> bool {
+    foreground != child && !(child_name == "login" && foreground_parent == Some(child))
 }
 
 #[derive(Clone, Debug)]
@@ -140,6 +148,17 @@ impl PtyProcessInfo {
         unsafe { libc::killpg(pid.as_u32().cast_signed(), libc::SIGTERM) == 0 }
     }
 
+    /// Whether the PTY's foreground process group is a job, not the shell at
+    /// its prompt.
+    pub(crate) fn has_foreground_job(&self) -> bool {
+        let child = self.pid_getter.fallback_pid();
+        let Some((foreground, foreground_parent)) = self.refresh().map(|process| (process.pid(), process.parent()))
+        else {
+            return false;
+        };
+        self.get_child().is_some_and(|process| is_foreground_job(foreground, foreground_parent, child, process.name()))
+    }
+
     fn load(&self) -> Option<ProcessInfo> {
         let process = self.refresh()?;
         let cwd = process.cwd().map_or(PathBuf::new(), ToOwned::to_owned);
@@ -197,5 +216,25 @@ impl PtyProcessInfo {
 
     pub(crate) fn pid(&self) -> Option<Pid> {
         self.pid_getter.pid()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn is_foreground_job_works() {
+        let pid = Pid::from_u32;
+        let login = OsStr::new("login");
+        let fish = OsStr::new("fish");
+        // The shell is the PTY child.
+        assert!(!is_foreground_job(pid(10), Some(pid(1)), pid(10), fish));
+        assert!(is_foreground_job(pid(11), Some(pid(10)), pid(10), fish));
+        // The shell runs under `login`.
+        assert!(!is_foreground_job(pid(10), Some(pid(1)), pid(10), login));
+        assert!(!is_foreground_job(pid(11), Some(pid(10)), pid(10), login));
+        assert!(is_foreground_job(pid(12), Some(pid(11)), pid(10), login));
+        assert!(is_foreground_job(pid(12), None, pid(10), login));
     }
 }

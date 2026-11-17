@@ -186,6 +186,24 @@ pub enum SaveIntent {
     Skip,
 }
 
+/// Asks before closing `items`, which still run a process. Resolves to false
+/// if the user cancels.
+pub(crate) async fn confirm_close_running_items(
+    items: &[Box<dyn ItemHandle>],
+    cx: &mut AsyncWindowContext,
+) -> Result<bool> {
+    if items.is_empty() {
+        return Ok(true);
+    }
+    let answer = cx.update(|window, cx| {
+        let detail = items.iter().map(|item| item.tab_content_text(0, cx)).join("\n");
+        window.prompt(PromptLevel::Warning, RUNNING_PROCESS_MESSAGE, Some(&detail), &["Close", "Cancel"], cx)
+    })?;
+    Ok(answer.await == Ok(0))
+}
+
+const RUNNING_PROCESS_MESSAGE: &str = "A process is still running in the following terminals. Close them anyway?";
+
 /// Activates a specific item in the pane by its index.
 #[derive(Clone, PartialEq, Eq, Debug, Deserialize, Default, Action)]
 #[action(namespace = pane)]
@@ -1638,6 +1656,19 @@ impl Pane {
             return Task::ready(Ok(()));
         };
         cx.spawn_in(window, async move |pane, cx| {
+            if save_intent == SaveIntent::Close {
+                let running_items = cx.update(|_, cx| {
+                    items_to_close
+                        .iter()
+                        .filter(|item| item.has_running_process(cx))
+                        .map(|item| item.boxed_clone())
+                        .collect::<Vec<_>>()
+                })?;
+                if !confirm_close_running_items(&running_items, cx).await? {
+                    return Ok(());
+                }
+            }
+
             let dirty_items = workspace.update(cx, |workspace, cx| {
                 items_to_close
                     .iter()

@@ -185,6 +185,10 @@ pub trait Item: Focusable + EventEmitter<Self::Event> + Render + Sized {
     fn is_dirty(&self, _: &App) -> bool {
         false
     }
+    /// Whether closing this item would kill a process, so closing asks first.
+    fn has_running_process(&self, _: &App) -> bool {
+        false
+    }
     fn capability(&self, _: &App) -> Capability {
         Capability::ReadWrite
     }
@@ -349,6 +353,7 @@ pub trait ItemHandle: 'static + Send {
     fn item_id(&self) -> EntityId;
     fn to_any_view(&self) -> AnyView;
     fn is_dirty(&self, cx: &App) -> bool;
+    fn has_running_process(&self, cx: &App) -> bool;
     fn capability(&self, cx: &App) -> Capability;
     fn has_deleted_file(&self, cx: &App) -> bool;
     fn has_conflict(&self, cx: &App) -> bool;
@@ -618,6 +623,10 @@ impl<T: Item> ItemHandle for Entity<T> {
 
     fn is_dirty(&self, cx: &App) -> bool {
         self.read(cx).is_dirty(cx)
+    }
+
+    fn has_running_process(&self, cx: &App) -> bool {
+        self.read(cx).has_running_process(cx)
     }
 
     fn capability(&self, cx: &App) -> Capability {

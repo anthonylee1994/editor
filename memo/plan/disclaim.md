@@ -107,4 +107,8 @@ None of this has been measured yet.
 
 ## Alternative
 
-- or just prompt "background job is running" then not quit?
+- Implemented on `neo`: closing a terminal tab, the window, or quitting asks
+  first when a terminal runs a task or a foreground job (`spec/platform.md`).
+- This guards against quitting by accident. It does not remove the Login Items
+  entry: the ssh mux started by git never runs in a terminal, and `cmd &` /
+  `nohup` jobs are not detected. Those still need disclaim (options 1 to 3).

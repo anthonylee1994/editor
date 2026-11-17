@@ -2291,6 +2291,15 @@ impl Terminal {
         }
     }
 
+    /// Whether an unfinished task or a foreground job of the shell runs here.
+    pub fn has_running_process(&self) -> bool {
+        match (&self.task, &self.terminal_type) {
+            (Some(task), _) => task.status == TaskStatus::Running,
+            (None, TerminalType::Pty { info, .. }) => info.has_foreground_job(),
+            (None, TerminalType::DisplayOnly) => false,
+        }
+    }
+
     pub(crate) fn record_cwd_change(&mut self, new_working_directory: PathBuf) {
         let scrollback_position = self.pending_cwd_boundary.take().unwrap_or_else(|| {
             let term = self.term.lock_unfair();

@@ -39,7 +39,12 @@ or UNC prefixes. There is no path-style abstraction; code uses
   `cli_default_open_behavior` setting; open requests, Open, and Open Recent
   add to the existing window unless the action asks for a new one. New
   windows show the Launchpad.
-- Quit never asks for confirmation (unsaved changes still prompt).
+- Quit never asks for confirmation, except for unsaved changes and running
+  terminals.
+- Closing a terminal tab, closing or replacing the window, and quitting ask
+  first when a terminal still runs a process: an unfinished task, or a
+  foreground job of the shell (the PTY's foreground process group is not the
+  shell). Jobs in the background of the shell (`cmd &`) don't count.
 - Open and Save As use the system dialogs.
 - Terminals, tasks, and environment capture only understand
   POSIX shells (sh/bash/zsh) and fish. Any other shell is treated as POSIX;

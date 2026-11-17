@@ -1320,6 +1320,10 @@ impl Item for TerminalView {
         }
     }
 
+    fn has_running_process(&self, cx: &App) -> bool {
+        self.terminal.read(cx).has_running_process()
+    }
+
     fn has_conflict(&self, _cx: &App) -> bool {
         false
     }

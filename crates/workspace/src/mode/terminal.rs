@@ -78,6 +78,9 @@ pub trait TerminalModeDelegate: 'static {
 
     /// Whether `item` is a terminal. Only terminal panes take terminal tabs.
     fn is_terminal(&self, item: &dyn ItemHandle, cx: &App) -> bool;
+
+    /// The terminal panel's panes.
+    fn panel_panes(&self, workspace: &Workspace, cx: &App) -> Vec<Entity<Pane>>;
 }
 
 struct GlobalTerminalModeDelegate(Rc<dyn TerminalModeDelegate>);
@@ -245,6 +248,19 @@ impl Workspace {
 
     pub fn terminal_panes(&self) -> Vec<&Entity<Pane>> {
         self.terminal_center.panes()
+    }
+
+    /// The terminals, in terminal mode and the terminal panel, that still run
+    /// a process.
+    pub(crate) fn terminals_with_running_process(&self, cx: &App) -> Vec<Box<dyn ItemHandle>> {
+        let panel_panes = terminal_mode_delegate(cx).map_or_default(|delegate| delegate.panel_panes(self, cx));
+        self.terminal_panes()
+            .into_iter()
+            .chain(&panel_panes)
+            .flat_map(|pane| pane.read(cx).items())
+            .filter(|item| item.has_running_process(cx))
+            .map(|item| item.boxed_clone())
+            .collect()
     }
 
     fn terminal_is_empty(&self, cx: &App) -> bool {
