@@ -403,7 +403,7 @@ struct LspRequest<F> {
 }
 
 impl<F> LspRequest<F> {
-    pub const fn new(id: i32, request: F) -> Self {
+    pub(crate) const fn new(id: i32, request: F) -> Self {
         Self { id, request }
     }
 }

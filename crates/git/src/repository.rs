@@ -2908,7 +2908,7 @@ impl GitBinary {
         self
     }
 
-    pub async fn run<S>(&self, args: &[S]) -> Result<String>
+    pub(crate) async fn run<S>(&self, args: &[S]) -> Result<String>
     where
         S: AsRef<OsStr>,
     {
@@ -2920,7 +2920,7 @@ impl GitBinary {
     }
 
     /// Returns the result of the command without trimming the trailing newline.
-    pub async fn run_raw<S>(&self, args: &[S]) -> Result<String>
+    pub(crate) async fn run_raw<S>(&self, args: &[S]) -> Result<String>
     where
         S: AsRef<OsStr>,
     {

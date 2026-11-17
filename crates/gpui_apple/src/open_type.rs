@@ -25,7 +25,7 @@ use objc2_core_text::kCTFontWeightTrait;
 
 use crate::font;
 
-pub fn apply_features_and_fallbacks(
+pub(crate) fn apply_features_and_fallbacks(
     font: &mut CFRetained<CTFont>,
     features: &FontFeatures,
     fallbacks: Option<&FontFallbacks>,

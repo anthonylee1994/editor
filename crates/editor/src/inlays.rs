@@ -13,7 +13,7 @@
 //! [`InlaySplice`] to update this state.
 
 /// Logic, related to managing LSP inlay hint inlays.
-pub mod inlay_hints;
+pub(crate) mod inlay_hints;
 
 use std::sync::OnceLock;
 
@@ -35,13 +35,13 @@ use crate::hover_links::InlayHighlight;
 /// The data in the cache is never used directly for displaying inlays on the screen, to avoid races with updates from LSP queries and sync overhead.
 /// Splice is picked to help avoid extra hint flickering and "jumps" on the screen.
 #[derive(Debug, Default)]
-pub struct InlaySplice {
+pub(crate) struct InlaySplice {
     pub to_remove: Vec<InlayId>,
     pub to_insert: Vec<Inlay>,
 }
 
 impl InlaySplice {
-    pub const fn is_empty(&self) -> bool {
+    pub(crate) const fn is_empty(&self) -> bool {
         self.to_remove.is_empty() && self.to_insert.is_empty()
     }
 }

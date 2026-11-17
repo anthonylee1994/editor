@@ -77,7 +77,7 @@ impl Chunk {
     }
 }
 
-pub struct Arena {
+pub(crate) struct Arena {
     chunks: Vec<Chunk>,
     elements: Vec<ArenaElement>,
     valid: Rc<Cell<bool>>,
@@ -93,7 +93,7 @@ impl Drop for Arena {
 }
 
 impl Arena {
-    pub fn new(chunk_size: usize) -> Self {
+    pub(crate) fn new(chunk_size: usize) -> Self {
         let chunk_size = NonZeroUsize::try_from(chunk_size).expect("chunk size must be non-zero");
         Self {
             chunks: vec![Chunk::new(chunk_size)],
@@ -105,14 +105,14 @@ impl Arena {
         }
     }
 
-    pub const fn capacity(&self) -> usize {
+    pub(crate) const fn capacity(&self) -> usize {
         self.chunks.len() * self.chunk_size.get()
     }
 
     /// Marks the start of a scope (e.g. a window draw) whose allocations must stay
     /// live until the scope ends, even if `clear` is called by a nested scope in
     /// the meantime.
-    pub const fn begin_scope(&mut self) {
+    pub(crate) const fn begin_scope(&mut self) {
         self.scope_depth += 1;
     }
 
@@ -122,7 +122,7 @@ impl Arena {
     /// run while an enclosing scope still references arena memory, which is
     /// exactly the use-after-free this bookkeeping exists to prevent, so failing
     /// loudly here is preferable.
-    pub const fn end_scope(&mut self) {
+    pub(crate) const fn end_scope(&mut self) {
         self.scope_depth =
             self.scope_depth.checked_sub(1).expect("Arena::end_scope called without a matching begin_scope");
     }
@@ -133,7 +133,7 @@ impl Arena {
     /// invocations on Windows, or opening a window from within a draw), the nested
     /// draw's clear must not free memory the outer draw still references, so it is
     /// deferred: the outer draw's own clear will drop both draws' allocations.
-    pub fn clear(&mut self) {
+    pub(crate) fn clear(&mut self) {
         if self.scope_depth == 0 {
             self.force_clear();
         } else {
@@ -152,7 +152,7 @@ impl Arena {
     }
 
     #[inline(always)]
-    pub fn alloc<T>(&mut self, f: impl FnOnce() -> T) -> ArenaBox<T> {
+    pub(crate) fn alloc<T>(&mut self, f: impl FnOnce() -> T) -> ArenaBox<T> {
         #[inline(always)]
         unsafe fn inner_writer<T, F>(ptr: *mut T, f: F)
         where
@@ -202,14 +202,14 @@ impl Arena {
     }
 }
 
-pub struct ArenaBox<T: ?Sized> {
+pub(crate) struct ArenaBox<T: ?Sized> {
     ptr: *mut T,
     valid: Rc<Cell<bool>>,
 }
 
 impl<T: ?Sized> ArenaBox<T> {
     #[inline(always)]
-    pub fn map<U: ?Sized>(mut self, f: impl FnOnce(&mut T) -> &mut U) -> ArenaBox<U> {
+    pub(crate) fn map<U: ?Sized>(mut self, f: impl FnOnce(&mut T) -> &mut U) -> ArenaBox<U> {
         ArenaBox { ptr: f(&mut self), valid: self.valid }
     }
 

@@ -52,7 +52,7 @@ actions!(
     ]
 );
 
-pub fn init(cx: &App) {
+pub(crate) fn init(cx: &App) {
     cx.observe_new(|workspace: &mut Workspace, _, _| {
         workspace.register_action(|workspace, _: &OpenThemePreview, window, cx| {
             let theme_preview = cx.new(|cx| ThemePreview::new(cx));
@@ -69,7 +69,7 @@ enum ThemePreviewPage {
 }
 
 impl ThemePreviewPage {
-    pub const fn name(self) -> &'static str {
+    pub(crate) const fn name(self) -> &'static str {
         match self {
             ThemePreviewPage::Overview => "Overview",
             ThemePreviewPage::Typography => "Typography",
@@ -83,11 +83,11 @@ struct ThemePreview {
 }
 
 impl ThemePreview {
-    pub fn new(cx: &Context<ThemePreview>) -> ThemePreview {
+    pub(crate) fn new(cx: &Context<ThemePreview>) -> ThemePreview {
         ThemePreview { current_page: ThemePreviewPage::Overview, focus_handle: cx.focus_handle() }
     }
 
-    pub fn view(&self, page: ThemePreviewPage, cx: &mut Context<ThemePreview>) -> impl IntoElement {
+    pub(crate) fn view(&self, page: ThemePreviewPage, cx: &mut Context<ThemePreview>) -> impl IntoElement {
         match page {
             ThemePreviewPage::Overview => self.render_overview_page(cx).into_any_element(),
             ThemePreviewPage::Typography => self.render_typography_page().into_any_element(),

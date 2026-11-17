@@ -589,7 +589,7 @@ pub(crate) fn render_buffer_header(
     )
 }
 
-pub fn file_status_label_color(file_status: Option<FileStatus>) -> Color {
+pub(super) fn file_status_label_color(file_status: Option<FileStatus>) -> Color {
     file_status.map_or(Color::Default, |status| {
         if status.is_conflicted() {
             Color::Conflict

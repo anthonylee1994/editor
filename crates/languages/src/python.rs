@@ -152,7 +152,7 @@ const fn highlight_name_for_completion(item_kind: CompletionItemKind) -> Option<
     }
 }
 
-pub struct TyLspAdapter;
+pub(crate) struct TyLspAdapter;
 
 impl TyLspAdapter {
     const SERVER_NAME: LanguageServerName = LanguageServerName::new_static("ty");

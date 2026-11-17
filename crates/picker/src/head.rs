@@ -24,7 +24,7 @@ pub(crate) enum Head {
 }
 
 impl Head {
-    pub fn editor<V: 'static>(
+    pub(crate) fn editor<V: 'static>(
         placeholder_text: Arc<str>,
         edit_handler: impl FnMut(&mut V, ErasedEditorEvent, &mut Window, &mut Context<V>) + 'static,
         window: &mut Window,
@@ -34,7 +34,7 @@ impl Head {
         Self::with_editor(editor, placeholder_text, edit_handler, window, cx)
     }
 
-    pub fn with_editor<V: 'static>(
+    pub(crate) fn with_editor<V: 'static>(
         editor: Arc<dyn ErasedEditor>,
         placeholder_text: Arc<str>,
         mut edit_handler: impl FnMut(&mut V, ErasedEditorEvent, &mut Window, &mut Context<V>) + 'static,
@@ -55,7 +55,7 @@ impl Head {
         Self::Editor(editor)
     }
 
-    pub fn empty<V: 'static>(
+    pub(crate) fn empty<V: 'static>(
         blur_handler: impl FnMut(&mut V, &mut Window, &mut Context<V>) + 'static,
         window: &mut Window,
         cx: &mut Context<V>,

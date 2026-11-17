@@ -22,14 +22,14 @@ use workspace::Workspace;
 use workspace::item::ItemHandle;
 
 #[derive(Default, Debug)]
-pub struct OpenRequest {
+pub(crate) struct OpenRequest {
     pub open_paths: Vec<String>,
     pub diff_paths: Vec<[String; 2]>,
     pub diff_all: bool,
 }
 
 impl OpenRequest {
-    pub fn parse(request: RawOpenRequest) -> Self {
+    pub(crate) fn parse(request: RawOpenRequest) -> Self {
         let mut this = Self { diff_paths: request.diff_paths, diff_all: request.diff_all, ..Default::default() };
 
         for url in request.urls {
@@ -51,10 +51,10 @@ impl OpenRequest {
 }
 
 #[derive(Clone)]
-pub struct OpenListener(UnboundedSender<RawOpenRequest>);
+pub(crate) struct OpenListener(UnboundedSender<RawOpenRequest>);
 
 #[derive(Default)]
-pub struct RawOpenRequest {
+pub(crate) struct RawOpenRequest {
     pub urls: Vec<String>,
     pub diff_paths: Vec<[String; 2]>,
     pub diff_all: bool,
@@ -63,17 +63,17 @@ pub struct RawOpenRequest {
 impl Global for OpenListener {}
 
 impl OpenListener {
-    pub fn new() -> (Self, UnboundedReceiver<RawOpenRequest>) {
+    pub(crate) fn new() -> (Self, UnboundedReceiver<RawOpenRequest>) {
         let (tx, rx) = mpsc::unbounded();
         (OpenListener(tx), rx)
     }
 
-    pub fn open(&self, request: RawOpenRequest) {
+    pub(crate) fn open(&self, request: RawOpenRequest) {
         self.0.unbounded_send(request).context("no listener for open requests").log_err();
     }
 }
 
-pub async fn open_paths_with_positions(
+pub(crate) async fn open_paths_with_positions(
     path_positions: &[PathWithPosition],
     diff_paths: &[[String; 2]],
     diff_all: bool,
@@ -184,7 +184,7 @@ fn navigate_to_positions(
     }
 }
 
-pub async fn derive_paths_with_position(
+pub(crate) async fn derive_paths_with_position(
     fs: &dyn Fs,
     path_strings: impl IntoIterator<Item = impl AsRef<str>>,
 ) -> Vec<PathWithPosition> {

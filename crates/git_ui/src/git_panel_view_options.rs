@@ -2,14 +2,14 @@ use gpui::App;
 use gpui::Global;
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
-pub enum GitPanelSortBy {
+pub(crate) enum GitPanelSortBy {
     #[default]
     Path,
     Name,
 }
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
-pub enum GitPanelGroupBy {
+pub(crate) enum GitPanelGroupBy {
     None,
     #[default]
     Status,
@@ -19,7 +19,7 @@ pub enum GitPanelGroupBy {
 /// How the git panel and the project diff list changed files. Session-wide and
 /// not persisted: every window starts with the tree view grouped by status.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct GitPanelViewOptions {
+pub(crate) struct GitPanelViewOptions {
     pub sort_by: GitPanelSortBy,
     pub group_by: GitPanelGroupBy,
     pub tree_view: bool,
@@ -34,12 +34,12 @@ impl Default for GitPanelViewOptions {
 impl Global for GitPanelViewOptions {}
 
 impl GitPanelViewOptions {
-    pub fn get(cx: &App) -> Self {
+    pub(crate) fn get(cx: &App) -> Self {
         cx.try_global::<Self>().copied().unwrap_or_default()
     }
 
     /// Applies `update` and notifies observers only when the options changed.
-    pub fn update(cx: &mut App, update: impl FnOnce(&mut Self)) {
+    pub(crate) fn update(cx: &mut App, update: impl FnOnce(&mut Self)) {
         let current = Self::get(cx);
         let mut options = current;
         update(&mut options);

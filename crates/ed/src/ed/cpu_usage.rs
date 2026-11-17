@@ -4,7 +4,7 @@ use std::time::Instant;
 
 /// Cumulative CPU counters at one moment.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct CpuSample {
+pub(crate) struct CpuSample {
     pub wall: Option<Instant>,
     pub process_user_ns: u64,
     pub process_system_ns: u64,
@@ -16,7 +16,7 @@ pub struct CpuSample {
 
 impl CpuSample {
     /// Sample the current process, and the calling thread's CPU time.
-    pub fn now() -> CpuSample {
+    pub(crate) fn now() -> CpuSample {
         let mut sample = CpuSample { wall: Some(Instant::now()), thread_ns: thread_cpu_ns(), ..CpuSample::default() };
         if let Some(usage) = process_rusage() {
             let (numer, denom) = timebase();
@@ -29,7 +29,7 @@ impl CpuSample {
     }
 
     /// Counters accumulated from `start` to `self`, as a report.
-    pub fn since(&self, start: &CpuSample) -> control::CpuUsage {
+    pub(crate) fn since(&self, start: &CpuSample) -> control::CpuUsage {
         let wall_ms = match (self.wall, start.wall) {
             (Some(end), Some(start)) => end.saturating_duration_since(start).as_secs_f64() * 1000.,
             _ => 0.,

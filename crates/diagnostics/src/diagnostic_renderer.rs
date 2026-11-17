@@ -45,10 +45,10 @@ pub(crate) trait DiagnosticsEditor: Send + Sync {
     -> Vec<language::DiagnosticEntry<text::Anchor>>;
 }
 
-pub struct DiagnosticRenderer;
+pub(crate) struct DiagnosticRenderer;
 
 impl DiagnosticRenderer {
-    pub fn diagnostic_blocks_for_group(
+    pub(crate) fn diagnostic_blocks_for_group(
         diagnostic_group: Vec<DiagnosticEntryRef<'_, Point>>,
         buffer_id: BufferId,
         diagnostics_editor: Option<Arc<dyn DiagnosticsEditor>>,
@@ -195,7 +195,7 @@ pub(crate) struct DiagnosticBlock {
 }
 
 impl DiagnosticBlock {
-    pub fn render_block(&self, editor: WeakEntity<Editor>, bcx: &BlockContext) -> AnyElement {
+    pub(crate) fn render_block(&self, editor: WeakEntity<Editor>, bcx: &BlockContext) -> AnyElement {
         let cx = &bcx.app;
         let status_colors = cx.theme().status();
 
@@ -249,7 +249,7 @@ impl DiagnosticBlock {
             .into_any_element()
     }
 
-    pub fn open_link(
+    pub(crate) fn open_link(
         editor: &mut Editor,
         diagnostics_editor: Option<&Arc<dyn DiagnosticsEditor>>,
         link: SharedString,

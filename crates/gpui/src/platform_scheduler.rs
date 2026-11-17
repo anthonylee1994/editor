@@ -27,18 +27,18 @@ use crate::RunnableMeta;
 ///
 /// This allows GPUI to use the scheduler crate's executor types with the platform's
 /// native dispatch mechanisms (e.g., Grand Central Dispatch on macOS).
-pub struct PlatformScheduler {
+pub(crate) struct PlatformScheduler {
     dispatcher: Arc<dyn PlatformDispatcher>,
     clock: Arc<PlatformClock>,
     next_session_id: AtomicU16,
 }
 
 impl PlatformScheduler {
-    pub fn new(dispatcher: Arc<dyn PlatformDispatcher>) -> Self {
+    pub(crate) fn new(dispatcher: Arc<dyn PlatformDispatcher>) -> Self {
         Self { dispatcher: Arc::clone(&dispatcher), clock: Arc::new(PlatformClock), next_session_id: AtomicU16::new(0) }
     }
 
-    pub fn foreground_executor(self: &Arc<Self>) -> LocalExecutor {
+    pub(crate) fn foreground_executor(self: &Arc<Self>) -> LocalExecutor {
         let session_id = self.next_session_id();
         let scheduler = Arc::downgrade(self);
         LocalExecutor::new(session_id, Arc::<Self>::clone(self), move |runnable| {

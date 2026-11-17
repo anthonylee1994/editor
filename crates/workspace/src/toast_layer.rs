@@ -35,7 +35,7 @@ use crate::Workspace;
 const DEFAULT_TOAST_DURATION: Duration = Duration::from_secs(10);
 const MINIMUM_RESUME_DURATION: Duration = Duration::from_millis(800);
 
-pub fn init(cx: &App) {
+pub(crate) fn init(cx: &App) {
     cx.observe_new(|workspace: &mut Workspace, _window, _cx| {
         workspace.register_action(|_workspace, _: &toast::RunAction, window, cx| {
             let workspace = cx.entity();
@@ -97,7 +97,7 @@ impl<V: ToastView> ToastViewHandle for Entity<V> {
     }
 }
 
-pub struct ActiveToast {
+pub(crate) struct ActiveToast {
     id: EntityId,
     toast: Box<dyn ToastViewHandle>,
     action: Option<ToastAction>,

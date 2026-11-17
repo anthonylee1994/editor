@@ -121,7 +121,7 @@ impl sum_tree::ContextLessSummary for TransformSummary {
     }
 }
 
-pub type InlayEdit = Edit<InlayOffset>;
+pub(super) type InlayEdit = Edit<InlayOffset>;
 
 #[derive(Copy, Clone, Debug, Default, Eq, Ord, PartialOrd, PartialEq)]
 pub struct InlayOffset(pub MultiBufferOffset);
@@ -244,7 +244,7 @@ pub struct InlayBufferRows<'a> {
     max_buffer_row: MultiBufferRow,
 }
 
-pub struct InlayChunks<'a> {
+pub(crate) struct InlayChunks<'a> {
     transforms: Cursor<'a, 'static, Transform, Dimensions<InlayOffset, MultiBufferOffset>>,
     buffer_chunks: CustomHighlightsChunks<'a>,
     buffer_chunk: Option<Chunk<'a>>,
@@ -259,14 +259,14 @@ pub struct InlayChunks<'a> {
 }
 
 #[derive(Clone)]
-pub struct InlayChunk<'a> {
+pub(crate) struct InlayChunk<'a> {
     pub chunk: Chunk<'a>,
     /// Whether the inlay should be customly rendered.
     pub renderer: Option<ChunkRenderer>,
 }
 
 impl InlayChunks<'_> {
-    pub fn seek(&mut self, new_range: Range<InlayOffset>) {
+    pub(crate) fn seek(&mut self, new_range: Range<InlayOffset>) {
         self.transforms.seek(&new_range.start, Bias::Right);
 
         let buffer_range =
@@ -278,7 +278,7 @@ impl InlayChunks<'_> {
         self.max_output_offset = new_range.end;
     }
 
-    pub const fn offset(&self) -> InlayOffset {
+    pub(crate) const fn offset(&self) -> InlayOffset {
         self.output_offset
     }
 }

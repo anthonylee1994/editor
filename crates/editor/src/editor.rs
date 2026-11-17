@@ -835,7 +835,7 @@ pub enum ContextMenuPlacement {
 struct EditorActionId(usize);
 
 impl EditorActionId {
-    pub const fn post_inc(&mut self) -> Self {
+    pub(crate) const fn post_inc(&mut self) -> Self {
         let answer = self.0;
 
         *self = Self(answer + 1);
@@ -1602,17 +1602,17 @@ struct SelectSyntaxNodeHistory {
 }
 
 impl SelectSyntaxNodeHistory {
-    pub fn try_clear(&mut self) {
+    pub(crate) fn try_clear(&mut self) {
         if !self.disable_clearing {
             self.stack.clear();
         }
     }
 
-    pub fn push(&mut self, selection: SelectSyntaxNodeHistoryState) {
+    pub(crate) fn push(&mut self, selection: SelectSyntaxNodeHistoryState) {
         self.stack.push(selection);
     }
 
-    pub fn pop(&mut self) -> Option<SelectSyntaxNodeHistoryState> {
+    pub(crate) fn pop(&mut self) -> Option<SelectSyntaxNodeHistoryState> {
         self.stack.pop()
     }
 }

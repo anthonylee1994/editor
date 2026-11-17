@@ -28,7 +28,7 @@ use language::language_settings::RewrapBehavior;
 use language::language_settings::SemanticTokenRules;
 use language::language_settings::WordsCompletionMode;
 #[allow(clippy::wildcard_imports)]
-pub use language::*;
+pub(crate) use language::*;
 use lsp::InitializeParams;
 use lsp::LanguageServerBinary;
 use project::lsp_store::rust_analyzer_ext::CARGO_DIAGNOSTICS_SOURCE_NAME;
@@ -51,7 +51,7 @@ fn semantic_token_rules() -> SemanticTokenRules {
         .expect("failed to parse rust semantic_token_rules.json")
 }
 
-pub struct RustLspAdapter;
+pub(crate) struct RustLspAdapter;
 
 const SERVER_NAME: LanguageServerName = LanguageServerName::new_static("rust-analyzer");
 

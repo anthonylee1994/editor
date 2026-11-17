@@ -47,7 +47,7 @@ actions!(
 /// Does not apply to platform menu bars (e.g. on macOS).
 #[derive(Clone, Deserialize, PartialEq, Eq, Default, Action)]
 #[action(namespace = app_menu)]
-pub struct OpenApplicationMenu(String);
+pub(crate) struct OpenApplicationMenu(String);
 
 #[derive(Clone)]
 struct MenuEntry {
@@ -55,13 +55,13 @@ struct MenuEntry {
     handle: PopoverMenuHandle<ContextMenu>,
 }
 
-pub struct ApplicationMenu {
+pub(crate) struct ApplicationMenu {
     entries: SmallVec<[MenuEntry; 8]>,
     pending_menu_open: Option<String>,
 }
 
 impl ApplicationMenu {
-    pub fn new(_: &mut Window, cx: &Context<Self>) -> Self {
+    pub(crate) fn new(_: &mut Window, cx: &Context<Self>) -> Self {
         let entries = Self::build_entries(cx.get_menus().unwrap_or_default());
         Self { entries, pending_menu_open: None }
     }
@@ -195,7 +195,7 @@ impl ApplicationMenu {
             })
     }
 
-    pub fn all_menus_shown(&self) -> bool {
+    pub(crate) fn all_menus_shown(&self) -> bool {
         self.entries.iter().any(|entry| entry.handle.is_deployed()) || self.pending_menu_open.is_some()
     }
 }

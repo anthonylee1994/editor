@@ -7,13 +7,13 @@ use rustc_hash::FxHashMap;
 use serde_json::Value;
 
 #[derive(Clone, Debug)]
-pub struct PackageJson {
+pub(crate) struct PackageJson {
     pub mtime: SystemTime,
     pub data: PackageJsonData,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct PackageJsonData {
+pub(crate) struct PackageJsonData {
     pub jest_package_path: Option<Arc<Path>>,
     pub mocha_package_path: Option<Arc<Path>>,
     pub vitest_package_path: Option<Arc<Path>>,
@@ -25,7 +25,7 @@ pub struct PackageJsonData {
 }
 
 impl PackageJsonData {
-    pub fn new(path: Arc<Path>, package_json: FxHashMap<String, Value>) -> Self {
+    pub(crate) fn new(path: Arc<Path>, package_json: FxHashMap<String, Value>) -> Self {
         let mut scripts = BTreeSet::new();
         if let Some(Value::Object(package_json_scripts)) = package_json.get("scripts") {
             scripts.extend(package_json_scripts.keys().cloned().map(|name| (Arc::clone(&path), name)));
@@ -92,7 +92,7 @@ impl PackageJsonData {
         }
     }
 
-    pub fn merge(&mut self, other: Self) {
+    pub(crate) fn merge(&mut self, other: Self) {
         self.jest_package_path = self.jest_package_path.take().or(other.jest_package_path);
         self.mocha_package_path = self.mocha_package_path.take().or(other.mocha_package_path);
         self.vitest_package_path = self.vitest_package_path.take().or(other.vitest_package_path);

@@ -1540,4 +1540,4 @@ impl<'a> sum_tree::Dimension<'a, TransformSummary> for InlayOffset {
     }
 }
 
-pub type FoldEdit = Edit<FoldOffset>;
+pub(super) type FoldEdit = Edit<FoldOffset>;

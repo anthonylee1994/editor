@@ -37,7 +37,7 @@ pub(super) fn bash_task_context() -> ContextProviderWithTasks {
     ]))
 }
 
-pub struct BashLspAdapter;
+pub(crate) struct BashLspAdapter;
 
 impl BashLspAdapter {
     const PACKAGE_NAME: &str = "bash-language-server";

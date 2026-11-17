@@ -74,7 +74,7 @@ actions!(
     ]
 );
 
-pub fn init(cx: &App) {
+pub(crate) fn init(cx: &App) {
     cx.observe_new(|workspace: &mut Workspace, _, _| {
         workspace.register_action(|workspace, _: &OpenSyntaxTreeView, window, cx| {
             let active_item = workspace.active_item(cx);
@@ -86,7 +86,7 @@ pub fn init(cx: &App) {
     .detach();
 }
 
-pub struct SyntaxTreeView {
+pub(crate) struct SyntaxTreeView {
     editor: Option<EditorState>,
     list_scroll_handle: UniformListScrollHandle,
     /// The last active editor in the workspace. Note that this is specifically not the
@@ -121,7 +121,7 @@ struct BufferState {
 }
 
 impl SyntaxTreeView {
-    pub fn new(
+    pub(crate) fn new(
         workspace_handle: WeakEntity<Workspace>,
         active_item: Option<Box<dyn ItemHandle>>,
         window: &Window,

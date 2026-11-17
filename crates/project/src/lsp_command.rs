@@ -978,7 +978,7 @@ impl LspCommand for GetHover {
 }
 
 impl GetCompletions {
-    pub fn can_resolve_completions(capabilities: &lsp::ServerCapabilities) -> bool {
+    pub(crate) fn can_resolve_completions(capabilities: &lsp::ServerCapabilities) -> bool {
         capabilities.completion_provider.as_ref().and_then(|options| options.resolve_provider).unwrap_or(false)
     }
 }
@@ -1309,7 +1309,7 @@ impl GetCodeActions {
         }
     }
 
-    pub fn can_resolve_actions(capabilities: &ServerCapabilities) -> bool {
+    pub(crate) fn can_resolve_actions(capabilities: &ServerCapabilities) -> bool {
         capabilities
             .code_action_provider
             .as_ref()
@@ -1322,7 +1322,7 @@ impl GetCodeActions {
 }
 
 impl OnTypeFormatting {
-    pub fn supports_on_type_formatting(trigger: &str, capabilities: &ServerCapabilities) -> bool {
+    pub(crate) fn supports_on_type_formatting(trigger: &str, capabilities: &ServerCapabilities) -> bool {
         let Some(on_type_formatting_options) = &capabilities.document_on_type_formatting_provider else {
             return false;
         };
@@ -1421,7 +1421,7 @@ impl InlayHints {
         (position, bias)
     }
 
-    pub fn lsp_to_project_hint(
+    pub(crate) fn lsp_to_project_hint(
         lsp_hint: lsp::InlayHint,
         position: Anchor,
         snapshot: &BufferSnapshot,
@@ -1532,7 +1532,7 @@ impl InlayHints {
         }
     }
 
-    pub fn project_to_lsp_hint(hint: InlayHint, snapshot: &BufferSnapshot) -> Result<lsp::InlayHint> {
+    pub(crate) fn project_to_lsp_hint(hint: InlayHint, snapshot: &BufferSnapshot) -> Result<lsp::InlayHint> {
         anyhow::ensure!(snapshot.can_resolve(&hint.position), "invalid inlay hint position anchor");
         Ok(lsp::InlayHint {
             position: point_to_lsp(hint.position.to_point_utf16(snapshot)),
@@ -1618,7 +1618,7 @@ impl InlayHints {
         })
     }
 
-    pub fn can_resolve_inlays(capabilities: &ServerCapabilities) -> bool {
+    pub(crate) fn can_resolve_inlays(capabilities: &ServerCapabilities) -> bool {
         capabilities
             .inlay_hint_provider
             .as_ref()
@@ -1632,7 +1632,7 @@ impl InlayHints {
             .unwrap_or(false)
     }
 
-    pub fn check_capabilities(capabilities: &ServerCapabilities) -> bool {
+    pub(crate) fn check_capabilities(capabilities: &ServerCapabilities) -> bool {
         capabilities.inlay_hint_provider.as_ref().is_some_and(|inlay_hint_provider| match inlay_hint_provider {
             lsp::OneOf::Left(enabled) => *enabled,
             lsp::OneOf::Right(_) => true,
@@ -1890,7 +1890,7 @@ impl LspCommand for GetCodeLens {
 }
 
 impl LinkedEditingRange {
-    pub const fn check_server_capabilities(capabilities: &ServerCapabilities) -> bool {
+    pub(crate) const fn check_server_capabilities(capabilities: &ServerCapabilities) -> bool {
         let Some(linked_editing_options) = capabilities.linked_editing_range_provider.as_ref() else {
             return false;
         };

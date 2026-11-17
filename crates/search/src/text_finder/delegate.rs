@@ -113,7 +113,7 @@ use crate::highlight_query_as_regex;
 use crate::project_search::ActiveSettings;
 use crate::project_search::ProjectSearch;
 
-pub struct Delegate {
+pub(super) struct Delegate {
     pub(crate) project_search_view: Entity<ProjectSearchView>,
     pub(crate) focus_handle: FocusHandle,
     /// Flat list of every match, in result order. This is the canonical list
@@ -299,7 +299,7 @@ impl InProgressSearch {
 }
 
 impl Delegate {
-    pub fn hook_up_any_ongoing_search(&mut self, picker: gpui::WeakEntity<Picker<Delegate>>, cx: &App) {
+    pub(super) fn hook_up_any_ongoing_search(&mut self, picker: gpui::WeakEntity<Picker<Delegate>>, cx: &App) {
         let cancel_flag = Arc::clone(&self.cancel_flag);
         let text_finder_turning_into_project_search = Arc::clone(&self.text_finder_turning_into_project_search);
         let project_search_view = self.project_search_view.clone();
@@ -323,7 +323,7 @@ impl Delegate {
         }));
     }
 
-    pub fn new_from_project_search(project_search: Entity<ProjectSearchView>, cx: &AsyncApp) -> Task<Delegate> {
+    pub(super) fn new_from_project_search(project_search: Entity<ProjectSearchView>, cx: &AsyncApp) -> Task<Delegate> {
         cx.spawn(async move |cx| {
             let ongoing = get_ongoing_search(&project_search, cx).await;
 
@@ -364,7 +364,7 @@ impl Delegate {
         })
     }
 
-    pub fn new(workspace: &Workspace, window: &mut Window, cx: &mut Context<Workspace>) -> Task<Self> {
+    pub(super) fn new(workspace: &Workspace, window: &mut Window, cx: &mut Context<Workspace>) -> Task<Self> {
         let project = workspace.project().clone();
         let weak_workspace = workspace.weak_handle();
         let settings = cx.global::<ActiveSettings>().0.get(&project.downgrade()).cloned();

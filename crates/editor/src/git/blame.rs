@@ -42,7 +42,7 @@ use workspace::Workspace;
 use crate::Editor;
 
 #[derive(Clone, Debug, Default)]
-pub struct GitBlameEntry {
+pub(crate) struct GitBlameEntry {
     pub rows: u32,
     pub blame: Option<BlameEntry>,
 }

@@ -107,7 +107,7 @@ const fn should_preserve_invisible_character(c: char) -> bool {
         | '\u{e007f}')
 }
 
-pub fn is_standalone_grapheme(text: &str, start: usize, end: usize) -> bool {
+pub(super) fn is_standalone_grapheme(text: &str, start: usize, end: usize) -> bool {
     let mut cursor = GraphemeCursor::new(start, text.len(), true);
     if cursor.is_boundary(text, 0) != Ok(true) {
         return false;

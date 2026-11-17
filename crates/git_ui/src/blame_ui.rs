@@ -51,7 +51,7 @@ const GIT_BLAME_MAX_AUTHOR_CHARS_DISPLAYED: usize = 20;
 const GIT_BLAME_GUTTER_MARGIN: Rems = rems(0.5);
 const GIT_BLAME_GUTTER_GAP: Rems = rems(0.5);
 
-pub struct GitBlameRenderer;
+pub(crate) struct GitBlameRenderer;
 
 impl BlameRenderer for GitBlameRenderer {
     fn max_author_length(&self) -> usize {

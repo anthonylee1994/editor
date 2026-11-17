@@ -3768,7 +3768,7 @@ impl NavHistory {
 
 impl NavHistoryState {
     /// Redraws the workspace, whose title bar shows whether back and forward can go anywhere.
-    pub fn did_update(&self, cx: &mut App) {
+    pub(crate) fn did_update(&self, cx: &mut App) {
         if let Some(workspace) = self.workspace.upgrade() {
             cx.defer(move |cx| workspace.update(cx, |_, cx| cx.notify()));
         }

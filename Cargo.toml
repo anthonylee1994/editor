@@ -409,6 +409,7 @@ redundant_feature_names = "warn"
 wildcard_dependencies = "warn"
 
 [workspace.lints.rust]
+unreachable_pub = "warn"
 unused_crate_dependencies = "warn"
 
 [profile.dev]

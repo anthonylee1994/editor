@@ -66,7 +66,7 @@ type PressedButton = Rc<Cell<Option<MouseButton>>>;
 /// CPU counters at the last `perf_reset`, shared across connections.
 type PerfStart = Rc<Cell<Option<CpuSample>>>;
 
-pub fn init(cx: &mut App) {
+pub(crate) fn init(cx: &mut App) {
     let Some(socket_path) = control::socket_path_from_env() else {
         return;
     };

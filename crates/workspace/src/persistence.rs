@@ -4,7 +4,7 @@ use std::time::Duration;
 use futures::future;
 use futures::lock;
 use project::git_store;
-pub mod model;
+pub(crate) mod model;
 
 use std::path::Path;
 use std::path::PathBuf;
@@ -37,7 +37,7 @@ use crate::path_list::PathList;
 /// marking the ones open when ed last quit.
 const PROJECTS_FILE_NAME: &str = "projects.json";
 /// Project-level folder holding per-project state.
-pub const WORKSPACE_STATE_DIR: &str = ".ed";
+pub(crate) const WORKSPACE_STATE_DIR: &str = ".ed";
 const WORKSPACE_STATE_FILE: &str = "workspace.json";
 const MAX_RECENT_PROJECTS: usize = 100;
 
@@ -72,7 +72,7 @@ pub struct RecentProject {
 
 /// Contents of `projects.json`.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ProjectsFile {
+pub(crate) struct ProjectsFile {
     /// Most recent first.
     #[serde(default)]
     pub recent: Vec<RecentProject>,
@@ -81,7 +81,7 @@ pub struct ProjectsFile {
 impl ProjectsFile {
     /// Parses `projects.json`, treating unreadable contents as an empty file.
     /// Entries of remote projects, written by older versions, are dropped.
-    pub fn parse(text: &str) -> ProjectsFile {
+    pub(crate) fn parse(text: &str) -> ProjectsFile {
         #[derive(Default, Deserialize)]
         struct Raw {
             #[serde(default)]
@@ -100,7 +100,7 @@ impl ProjectsFile {
     /// Moves `location` to the front of the recent list, keeping its open
     /// flag. Returns whether the list order changed, which is when the file
     /// needs rewriting.
-    pub fn record_recent(&mut self, location: ProjectLocation, now: i64) -> bool {
+    pub(crate) fn record_recent(&mut self, location: ProjectLocation, now: i64) -> bool {
         if location.paths.is_empty() {
             return false;
         }
@@ -120,7 +120,7 @@ impl ProjectsFile {
     }
 
     /// Drops every recent entry `remove` matches. Returns whether any was dropped.
-    pub fn remove_recent(&mut self, mut remove: impl FnMut(&ProjectLocation) -> bool) -> bool {
+    pub(crate) fn remove_recent(&mut self, mut remove: impl FnMut(&ProjectLocation) -> bool) -> bool {
         let len = self.recent.len();
         self.recent.retain(|project| !remove(&project.location));
         self.recent.len() != len
@@ -128,7 +128,7 @@ impl ProjectsFile {
 
     /// Marks exactly the recent entries in `open` as open. Returns whether
     /// any flag changed.
-    pub fn set_open(&mut self, open: &[ProjectLocation]) -> bool {
+    pub(crate) fn set_open(&mut self, open: &[ProjectLocation]) -> bool {
         let mut changed = false;
         for project in &mut self.recent {
             let is_open = open.contains(&project.location);
@@ -139,7 +139,7 @@ impl ProjectsFile {
     }
 
     /// Locations of the projects marked open, most recent first.
-    pub fn open_projects(&self) -> Vec<ProjectLocation> {
+    pub(crate) fn open_projects(&self) -> Vec<ProjectLocation> {
         self.recent.iter().filter(|project| project.open).map(|project| project.location.clone()).collect()
     }
 }
@@ -223,7 +223,7 @@ impl ProjectsStore {
     }
 }
 
-pub fn init(fs: Arc<dyn Fs>, cx: &mut App) {
+pub(crate) fn init(fs: Arc<dyn Fs>, cx: &mut App) {
     let store = ProjectsStore::load(fs, paths::data_dir().join(PROJECTS_FILE_NAME));
     cx.set_global(GlobalProjectsStore(Arc::new(store)));
     track_session(cx);
@@ -281,12 +281,12 @@ pub fn last_session_workspaces(cx: &App) -> Vec<SessionWorkspace> {
 /// Whether `path`, relative to a root folder, is inside the project-level
 /// `.ed` folder. Tabs on such files aren't persisted: `.ed` is config, and
 /// recording a tab on `workspace.json` would rewrite the file it shows.
-pub fn is_in_workspace_state_dir(path: &RelPath) -> bool {
+pub(crate) fn is_in_workspace_state_dir(path: &RelPath) -> bool {
     path.starts_with(RelPath::from_unix_str(WORKSPACE_STATE_DIR).expect("workspace state dir is a valid relative path"))
 }
 
 /// Path of the state file for a project whose first root folder is `root`.
-pub fn workspace_state_path(root: &Path) -> PathBuf {
+pub(crate) fn workspace_state_path(root: &Path) -> PathBuf {
     root.join(WORKSPACE_STATE_DIR).join(WORKSPACE_STATE_FILE)
 }
 

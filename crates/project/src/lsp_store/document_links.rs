@@ -47,7 +47,7 @@ pub type BufferDocumentLinks = FxHashMap<LanguageServerId, FxHashMap<DocumentLin
 
 pub(super) type DocumentLinksTask = Shared<Task<result::Result<Option<BufferDocumentLinks>, Arc<anyhow::Error>>>>;
 
-pub type DocumentLinkResolveTask = Shared<Task<Option<(DocumentLinkId, LspDocumentLink)>>>;
+pub(super) type DocumentLinkResolveTask = Shared<Task<Option<(DocumentLinkId, LspDocumentLink)>>>;
 
 #[derive(Debug, Default)]
 pub(super) struct DocumentLinksData {

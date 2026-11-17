@@ -269,7 +269,7 @@ impl PackageJsonData {
 }
 
 impl TypeScriptContextProvider {
-    pub fn new(fs: Arc<dyn Fs>) -> Self {
+    pub(crate) fn new(fs: Arc<dyn Fs>) -> Self {
         Self { fs, last_package_json: PackageJsonContents::default() }
     }
 

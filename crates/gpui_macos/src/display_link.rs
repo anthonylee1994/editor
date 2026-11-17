@@ -15,22 +15,22 @@ use gpui_apple::display_link::MetalFrameSource;
 /// decides when frames are needed (including presenting after high-rate
 /// input); this only stops the link between those decisions.
 #[derive(Default)]
-pub struct MetalFrames {
+pub(crate) struct MetalFrames {
     source: RefCell<Option<MetalFrameSource>>,
     /// Whether GPUI asked for a frame since the current update began.
     woken: Cell<bool>,
 }
 
 impl MetalFrames {
-    pub fn replace(&self, source: Option<MetalFrameSource>) {
+    pub(crate) fn replace(&self, source: Option<MetalFrameSource>) {
         *self.source.borrow_mut() = source;
     }
 
-    pub fn is_attached(&self) -> bool {
+    pub(crate) fn is_attached(&self) -> bool {
         self.source.borrow().is_some()
     }
 
-    pub fn wake(&self) {
+    pub(crate) fn wake(&self) {
         self.woken.set(true);
         // A source being replaced starts unpaused, so skipping it is safe.
         if let Ok(source) = self.source.try_borrow()
@@ -40,13 +40,13 @@ impl MetalFrames {
         }
     }
 
-    pub fn begin_frame(&self) {
+    pub(crate) fn begin_frame(&self) {
         self.woken.set(false);
     }
 
     /// Ends an update, pausing the link if GPUI neither used its drawable nor
     /// asked for another frame while it ran. Returns whether it paused.
-    pub fn end_frame(&self, used_drawable: bool) -> bool {
+    pub(crate) fn end_frame(&self, used_drawable: bool) -> bool {
         let pause = !used_drawable && !self.woken.get();
         if pause && let Some(source) = self.source.borrow().as_ref() {
             source.set_paused(true);

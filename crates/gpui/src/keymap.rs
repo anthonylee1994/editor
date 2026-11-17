@@ -266,6 +266,7 @@ impl Keymap {
 }
 
 #[cfg(test)]
+#[allow(unreachable_pub, reason = "actions! emits pub structs")]
 mod tests {
     use super::*;
     use crate::Keystroke;

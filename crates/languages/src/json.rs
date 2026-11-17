@@ -112,12 +112,12 @@ impl ContextProvider for JsonTaskProvider {
     }
 }
 
-pub struct JsonLspAdapter {
+pub(crate) struct JsonLspAdapter {
     languages: Arc<LanguageRegistry>,
 }
 
 impl JsonLspAdapter {
-    pub const fn new(languages: Arc<LanguageRegistry>) -> Self {
+    pub(crate) const fn new(languages: Arc<LanguageRegistry>) -> Self {
         Self { languages }
     }
 }

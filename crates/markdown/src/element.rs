@@ -111,7 +111,7 @@ type SourceClickCallback = Box<dyn Fn(usize, usize, &mut Window, &mut App) -> bo
 pub(crate) type CheckboxToggleCallback = Rc<dyn Fn(Range<usize>, bool, &mut Window, &mut App)>;
 type CodeBlockRenderFn = Rc<dyn Fn(&CodeBlock, &MarkdownStyle, &mut Window, &mut App) -> Option<AnyElement>>;
 
-pub enum AutoscrollBehavior {
+pub(crate) enum AutoscrollBehavior {
     /// Propagate the request up the element tree for the nearest
     /// scrollable ancestor (e.g. `List`) to handle.
     Propagate,

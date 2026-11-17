@@ -220,15 +220,15 @@ mod macos {
     use objc2_core_foundation::CFLocale;
     use objc2_core_foundation::CFRetained;
 
-    pub fn format_time(timestamp: &time::OffsetDateTime) -> String {
+    pub(crate) fn format_time(timestamp: &time::OffsetDateTime) -> String {
         TIME_FORMATTER.with(|f| format_with_date_formatter(timestamp, f.as_ref()))
     }
 
-    pub fn format_date(timestamp: &time::OffsetDateTime) -> String {
+    pub(crate) fn format_date(timestamp: &time::OffsetDateTime) -> String {
         DATE_FORMATTER.with(|f| format_with_date_formatter(timestamp, f.as_ref()))
     }
 
-    pub fn format_date_medium(timestamp: &time::OffsetDateTime) -> String {
+    pub(crate) fn format_date_medium(timestamp: &time::OffsetDateTime) -> String {
         MEDIUM_DATE_FORMATTER.with(|f| format_with_date_formatter(timestamp, f.as_ref()))
     }
 

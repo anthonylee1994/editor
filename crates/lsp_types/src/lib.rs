@@ -949,7 +949,7 @@ mod url_map {
     use super::Uri;
     use super::de;
 
-    pub fn deserialize<'de, D, V>(deserializer: D) -> Result<Option<HashMap<Uri, V>>, D::Error>
+    pub(crate) fn deserialize<'de, D, V>(deserializer: D) -> Result<Option<HashMap<Uri, V>>, D::Error>
     where
         D: serde::Deserializer<'de>,
         V: de::DeserializeOwned,
@@ -1032,7 +1032,7 @@ mod url_map {
     }
 
     #[allow(clippy::ref_option)] // signature required by `#[serde(with)]`
-    pub fn serialize<S, V>(changes: &Option<HashMap<Uri, V>>, serializer: S) -> Result<S::Ok, S::Error>
+    pub(crate) fn serialize<S, V>(changes: &Option<HashMap<Uri, V>>, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
         V: serde::Serialize,

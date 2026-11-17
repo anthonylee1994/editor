@@ -56,9 +56,9 @@ use crate::LanguageRegistry;
 use crate::QUERY_CURSORS;
 use crate::with_parser;
 
-pub const MAX_BYTES_TO_QUERY: usize = 16 * 1024;
+pub(crate) const MAX_BYTES_TO_QUERY: usize = 16 * 1024;
 
-pub struct SyntaxMap {
+pub(crate) struct SyntaxMap {
     snapshot: SyntaxSnapshot,
     language_registry: Option<Arc<LanguageRegistry>>,
 }
@@ -370,31 +370,31 @@ pub(crate) struct TextProvider<'a>(pub(crate) &'a Rope);
 pub(crate) struct QueryCursorHandle(Option<QueryCursor>);
 
 impl SyntaxMap {
-    pub fn new(text: &BufferSnapshot) -> Self {
+    pub(crate) fn new(text: &BufferSnapshot) -> Self {
         Self { snapshot: SyntaxSnapshot::new(text), language_registry: None }
     }
 
-    pub fn set_language_registry(&mut self, registry: Arc<LanguageRegistry>) {
+    pub(crate) fn set_language_registry(&mut self, registry: Arc<LanguageRegistry>) {
         self.language_registry = Some(registry);
     }
 
-    pub fn snapshot(&self) -> SyntaxSnapshot {
+    pub(crate) fn snapshot(&self) -> SyntaxSnapshot {
         self.snapshot.clone()
     }
 
-    pub fn language_registry(&self) -> Option<Arc<LanguageRegistry>> {
+    pub(crate) fn language_registry(&self) -> Option<Arc<LanguageRegistry>> {
         self.language_registry.clone()
     }
 
-    pub fn interpolate(&mut self, text: &BufferSnapshot) {
+    pub(crate) fn interpolate(&mut self, text: &BufferSnapshot) {
         self.snapshot.interpolate(text);
     }
 
-    pub fn did_parse(&mut self, snapshot: SyntaxSnapshot) {
+    pub(crate) fn did_parse(&mut self, snapshot: SyntaxSnapshot) {
         self.snapshot = snapshot;
     }
 
-    pub fn clear(&mut self, text: &BufferSnapshot) {
+    pub(crate) fn clear(&mut self, text: &BufferSnapshot) {
         let update_count = self.snapshot.update_count + 1;
         self.snapshot = SyntaxSnapshot::new(text);
         self.snapshot.update_count = update_count;
@@ -2072,7 +2072,7 @@ impl<'a> tree_sitter::TextProvider<&'a [u8]> for TextProvider<'a> {
 }
 
 impl QueryCursorHandle {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         let mut cursor = QUERY_CURSORS.lock().pop().unwrap_or_default();
         cursor.set_match_limit(64);
         QueryCursorHandle(Some(cursor))

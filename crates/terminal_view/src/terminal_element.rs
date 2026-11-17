@@ -111,11 +111,11 @@ impl DisplayCursor {
         Self { line: cursor_point.line + (display_offset as u32).cast_signed(), col: cursor_point.column }
     }
 
-    pub const fn line(&self) -> i32 {
+    pub(crate) const fn line(&self) -> i32 {
         self.line
     }
 
-    pub const fn col(&self) -> usize {
+    pub(crate) const fn col(&self) -> usize {
         self.col
     }
 }

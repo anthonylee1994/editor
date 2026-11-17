@@ -351,7 +351,7 @@ struct Inner {
 
 /// pls arc this.
 #[derive(Clone)]
-pub struct UndoManager {
+pub(crate) struct UndoManager {
     tx: mpsc::Sender<UndoMessage>,
 
     can_undo: Arc<AtomicBool>,
@@ -359,7 +359,7 @@ pub struct UndoManager {
 }
 
 impl UndoManager {
-    pub fn new(workspace: WeakEntity<Workspace>, panel: WeakEntity<ProjectPanel>, cx: &App) -> Self {
+    pub(crate) fn new(workspace: WeakEntity<Workspace>, panel: WeakEntity<ProjectPanel>, cx: &App) -> Self {
         let (tx, rx) = mpsc::channel(1024);
         let inner = Inner::new(workspace, panel, rx);
 
@@ -370,25 +370,25 @@ impl UndoManager {
         this
     }
 
-    pub fn undo(&mut self) -> Result<()> {
+    pub(crate) fn undo(&mut self) -> Result<()> {
         self.tx.try_send(UndoMessage::Undo).context("Undo and redo task can not keep up")
     }
-    pub fn redo(&mut self) -> Result<()> {
+    pub(crate) fn redo(&mut self) -> Result<()> {
         self.tx.try_send(UndoMessage::Redo).context("Undo and redo task can not keep up")
     }
-    pub fn record(&mut self, changes: impl IntoIterator<Item = Change>) -> Result<()> {
+    pub(crate) fn record(&mut self, changes: impl IntoIterator<Item = Change>) -> Result<()> {
         self.tx
             .try_send(UndoMessage::Changed(changes.into_iter().collect()))
             .context("Undo and redo task can not keep up")
     }
     /// just for the UI, an undo may still fail if there are concurrent file
     /// operations happening.
-    pub fn can_undo(&self) -> bool {
+    pub(crate) fn can_undo(&self) -> bool {
         self.can_undo.load(Ordering::Relaxed)
     }
     /// just for the UI, an undo may still fail if there are concurrent file
     /// operations happening.
-    pub fn can_redo(&self) -> bool {
+    pub(crate) fn can_redo(&self) -> bool {
         self.can_redo.load(Ordering::Relaxed)
     }
 }
@@ -454,7 +454,7 @@ impl Inner {
         }
     }
 
-    pub fn new(
+    pub(crate) fn new(
         workspace: WeakEntity<Workspace>,
         panel: WeakEntity<ProjectPanel>,
         rx: mpsc::Receiver<UndoMessage>,
@@ -462,7 +462,7 @@ impl Inner {
         Self::new_with_limit(workspace, panel, MAX_UNDO_OPERATIONS, rx)
     }
 
-    pub fn new_with_limit(
+    pub(crate) fn new_with_limit(
         workspace: WeakEntity<Workspace>,
         panel: WeakEntity<ProjectPanel>,
         limit: usize,
@@ -480,15 +480,15 @@ impl Inner {
         }
     }
 
-    pub const fn can_undo(&self) -> bool {
+    pub(crate) const fn can_undo(&self) -> bool {
         self.cursor > 0
     }
 
-    pub fn can_redo(&self) -> bool {
+    pub(crate) fn can_redo(&self) -> bool {
         self.cursor < self.history.len()
     }
 
-    pub async fn undo(&mut self, cx: &mut AsyncApp) -> Result<()> {
+    pub(crate) async fn undo(&mut self, cx: &mut AsyncApp) -> Result<()> {
         if !self.can_undo() {
             return Ok(());
         }
@@ -541,7 +541,7 @@ impl Inner {
         Ok(())
     }
 
-    pub async fn redo(&mut self, cx: &mut AsyncApp) -> Result<()> {
+    pub(crate) async fn redo(&mut self, cx: &mut AsyncApp) -> Result<()> {
         if !self.can_redo() {
             return Ok(());
         }
@@ -563,7 +563,7 @@ impl Inner {
     }
 
     /// Passed in changes will always be performed as a single step.
-    pub fn record(&mut self, mut changes: Vec<Change>) {
+    pub(crate) fn record(&mut self, mut changes: Vec<Change>) {
         let change = match changes.len() {
             0 => return,
             1 => changes.remove(0),

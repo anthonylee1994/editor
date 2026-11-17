@@ -523,7 +523,7 @@ impl From<Point> for TabPoint {
     }
 }
 
-pub type TabEdit = text::Edit<TabPoint>;
+pub(super) type TabEdit = text::Edit<TabPoint>;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct TextSummary {
@@ -574,7 +574,7 @@ impl<'a> AddAssign<&'a Self> for TextSummary {
     }
 }
 
-pub struct TabChunks<'a> {
+pub(crate) struct TabChunks<'a> {
     snapshot: &'a TabSnapshot,
     max_expansion_column: u32,
     max_output_position: Point,

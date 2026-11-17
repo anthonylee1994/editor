@@ -96,7 +96,7 @@ actions!(
     ]
 );
 
-pub fn init(cx: &App) {
+pub(crate) fn init(cx: &App) {
     cx.observe_new(move |workspace: &mut Workspace, _, _| {
         workspace.register_action(move |workspace, _: &OpenHighlightsTreeView, window, cx| {
             let active_item = workspace.active_item(cx);
@@ -109,7 +109,7 @@ pub fn init(cx: &App) {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum HighlightCategory {
+pub(crate) enum HighlightCategory {
     Text(HighlightKey),
     SyntaxToken {
         capture_name: SharedString,
@@ -174,7 +174,7 @@ enum DisplayItem {
     },
 }
 
-pub struct HighlightsTreeView {
+pub(crate) struct HighlightsTreeView {
     editor: Option<EditorState>,
     list_scroll_handle: UniformListScrollHandle,
     selected_item_ix: Option<usize>,
@@ -216,7 +216,7 @@ struct HighlightRefreshInput {
 }
 
 impl HighlightsTreeView {
-    pub fn new(
+    pub(crate) fn new(
         workspace_handle: WeakEntity<Workspace>,
         active_item: Option<Box<dyn ItemHandle>>,
         window: &Window,

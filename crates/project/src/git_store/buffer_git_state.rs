@@ -453,7 +453,7 @@ impl BufferGitState {
         self.clear_pending_hunks(cx);
     }
 
-    pub fn wait_for_recalculation(&mut self) -> Option<impl Future<Output = ()> + use<>> {
+    pub(super) fn wait_for_recalculation(&mut self) -> Option<impl Future<Output = ()> + use<>> {
         (*watch::Receiver::borrow(&mut self.recalculating.1)).then(|| {
             let mut rx = self.recalculating.0.receiver();
             async move { while rx.changed().await.is_ok() && *watch::Receiver::borrow(&mut rx) {} }

@@ -358,7 +358,7 @@ const fn semantic_tokens_provider_legend(
     }
 }
 
-pub type SemanticTokensTask = Shared<Task<result::Result<BufferSemanticTokens, Arc<anyhow::Error>>>>;
+pub(super) type SemanticTokensTask = Shared<Task<result::Result<BufferSemanticTokens, Arc<anyhow::Error>>>>;
 
 #[derive(Debug, Default, Clone)]
 pub struct BufferSemanticTokens {
@@ -504,7 +504,7 @@ async fn raw_to_buffer_semantic_tokens(
 }
 
 #[derive(Default, Debug)]
-pub struct SemanticTokensData {
+pub(super) struct SemanticTokensData {
     pub(super) raw_tokens: RawSemanticTokens,
     pub(super) pending_refreshes: FxHashSet<LanguageServerId>,
     fetched_servers: FxHashSet<LanguageServerId>,
@@ -542,7 +542,7 @@ pub(super) struct RawSemanticTokens {
 
 /// All the semantic tokens for a buffer, from a single language server.
 #[derive(Debug, Clone)]
-pub struct ServerSemanticTokens {
+pub(super) struct ServerSemanticTokens {
     /// Each value is:
     /// data[5*i] - deltaLine: token line number, relative to the start of the previous token
     /// data[5*i+1] - deltaStart: token start character, relative to the start of the previous token (relative to 0 or the previous token’s start if they are on the same line)
@@ -556,7 +556,7 @@ pub struct ServerSemanticTokens {
     pub(crate) result_id: Option<SharedString>,
 }
 
-pub struct SemanticTokensIter<'a> {
+pub(super) struct SemanticTokensIter<'a> {
     prev: Option<(u32, u32)>,
     data: Iter<'a, [u32; 5]>,
 }
@@ -572,7 +572,7 @@ struct SemanticTokenValue {
 
 /// A semantic token, independent of its position.
 #[derive(Debug, PartialEq, Eq)]
-pub struct SemanticToken {
+pub(super) struct SemanticToken {
     pub line: u32,
     pub start: u32,
     pub length: u32,
@@ -581,7 +581,7 @@ pub struct SemanticToken {
 }
 
 impl ServerSemanticTokens {
-    pub const fn from_full(data: Vec<u32>, result_id: Option<SharedString>) -> Self {
+    pub(super) const fn from_full(data: Vec<u32>, result_id: Option<SharedString>) -> Self {
         ServerSemanticTokens { data, result_id }
     }
 
@@ -593,7 +593,7 @@ impl ServerSemanticTokens {
         }
     }
 
-    pub fn tokens(&self) -> SemanticTokensIter<'_> {
+    pub(super) fn tokens(&self) -> SemanticTokensIter<'_> {
         SemanticTokensIter { prev: None, data: self.data.as_chunks::<5>().0.iter() }
     }
 }

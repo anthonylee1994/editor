@@ -20,7 +20,7 @@ use language::language_settings::RewrapBehavior;
 use language::language_settings::SemanticTokenRules;
 use language::language_settings::WordsCompletionMode;
 #[allow(clippy::wildcard_imports)]
-pub use language::*;
+pub(crate) use language::*;
 use lsp::LanguageServerBinary;
 use lsp::LanguageServerName;
 use regex::Regex;
@@ -43,7 +43,7 @@ fn server_binary_arguments() -> Vec<OsString> {
 }
 
 #[derive(Copy, Clone)]
-pub struct GoLspAdapter;
+pub(crate) struct GoLspAdapter;
 
 impl GoLspAdapter {
     const SERVER_NAME: LanguageServerName = LanguageServerName::new_static("gopls");

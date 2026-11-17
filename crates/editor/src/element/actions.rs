@@ -450,7 +450,7 @@ impl EditorElement {
     }
 }
 
-pub fn register_action<T: Action>(
+pub(crate) fn register_action<T: Action>(
     editor: &Entity<Editor>,
     window: &mut Window,
     listener: impl Fn(&mut Editor, &T, &mut Window, &mut Context<Editor>) + 'static,

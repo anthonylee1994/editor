@@ -8,7 +8,7 @@ use std::sync::OnceLock;
 static INSTANCE_LOCK: OnceLock<File> = OnceLock::new();
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum IsOnlyInstance {
+pub(crate) enum IsOnlyInstance {
     Yes,
     No,
 }
@@ -16,7 +16,7 @@ pub enum IsOnlyInstance {
 /// Takes an exclusive `flock` on `<state_dir>/ed.lock`. The lock lives under
 /// this app's own state directory, so it is per user (or per `--user-data-dir`)
 /// and never collides with an upstream ed instance.
-pub fn ensure_only_instance() -> IsOnlyInstance {
+pub(crate) fn ensure_only_instance() -> IsOnlyInstance {
     let path = paths::state_dir().join(format!("{}.lock", paths::APP_NAME));
     let file = match fs::create_dir_all(paths::state_dir())
         .and_then(|()| File::options().create(true).truncate(false).write(true).open(&path))

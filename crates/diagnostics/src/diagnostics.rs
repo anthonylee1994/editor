@@ -146,7 +146,7 @@ enum RetainExcerpts {
 }
 
 impl ProjectDiagnosticsEditor {
-    pub fn register(workspace: &mut Workspace, _window: Option<&mut Window>, _: &mut Context<Workspace>) {
+    pub(crate) fn register(workspace: &mut Workspace, _window: Option<&mut Window>, _: &mut Context<Workspace>) {
         workspace.register_action(Self::deploy);
     }
 

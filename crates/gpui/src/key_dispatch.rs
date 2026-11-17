@@ -76,11 +76,11 @@ pub(crate) struct ReusedSubtree {
 }
 
 impl ReusedSubtree {
-    pub const fn refresh_node_id(&self, node_id: DispatchNodeId) -> DispatchNodeId {
+    pub(crate) const fn refresh_node_id(&self, node_id: DispatchNodeId) -> DispatchNodeId {
         DispatchNodeId((node_id.0 - self.old_range.start) + self.new_range.start)
     }
 
-    pub const fn contains_focus(&self) -> bool {
+    pub(crate) const fn contains_focus(&self) -> bool {
         self.contains_focus
     }
 }
@@ -110,7 +110,7 @@ pub(crate) struct DispatchActionListener {
 }
 
 impl DispatchTree {
-    pub fn new(keymap: Rc<RefCell<Keymap>>, action_registry: Rc<ActionRegistry>) -> Self {
+    pub(crate) fn new(keymap: Rc<RefCell<Keymap>>, action_registry: Rc<ActionRegistry>) -> Self {
         Self {
             node_stack: Vec::new(),
             context_stack: Vec::new(),
@@ -123,7 +123,7 @@ impl DispatchTree {
         }
     }
 
-    pub fn clear(&mut self) {
+    pub(crate) fn clear(&mut self) {
         self.node_stack.clear();
         self.context_stack.clear();
         self.view_stack.clear();
@@ -132,11 +132,11 @@ impl DispatchTree {
         self.view_node_ids.clear();
     }
 
-    pub const fn len(&self) -> usize {
+    pub(crate) const fn len(&self) -> usize {
         self.nodes.len()
     }
 
-    pub fn push_node(&mut self) -> DispatchNodeId {
+    pub(crate) fn push_node(&mut self) -> DispatchNodeId {
         let parent = self.node_stack.last().copied();
         let node_id = DispatchNodeId(self.nodes.len());
 
@@ -145,7 +145,7 @@ impl DispatchTree {
         node_id
     }
 
-    pub fn set_active_node(&mut self, node_id: DispatchNodeId) {
+    pub(crate) fn set_active_node(&mut self, node_id: DispatchNodeId) {
         let next_node_parent = self.nodes[node_id.0].parent;
         while self.node_stack.last().copied() != next_node_parent && !self.node_stack.is_empty() {
             self.pop_node();
@@ -180,18 +180,18 @@ impl DispatchTree {
         }
     }
 
-    pub fn set_key_context(&mut self, context: KeyContext) {
+    pub(crate) fn set_key_context(&mut self, context: KeyContext) {
         self.active_node().context = Some(context.clone());
         self.context_stack.push(context);
     }
 
-    pub fn set_focus_id(&mut self, focus_id: FocusId) {
+    pub(crate) fn set_focus_id(&mut self, focus_id: FocusId) {
         let node_id = *self.node_stack.last().expect("node stack is non-empty");
         self.nodes[node_id.0].focus_id = Some(focus_id);
         self.focusable_node_ids.insert(focus_id, node_id);
     }
 
-    pub fn set_view_id(&mut self, view_id: EntityId) {
+    pub(crate) fn set_view_id(&mut self, view_id: EntityId) {
         if self.view_stack.last().copied() != Some(view_id) {
             let node_id = *self.node_stack.last().expect("node stack is non-empty");
             self.nodes[node_id.0].view_id = Some(view_id);
@@ -200,7 +200,7 @@ impl DispatchTree {
         }
     }
 
-    pub fn pop_node(&mut self) {
+    pub(crate) fn pop_node(&mut self) {
         let node = &self.nodes[self.active_node_id().expect("node stack is non-empty").0];
         if node.context.is_some() {
             self.context_stack.pop();
@@ -229,7 +229,7 @@ impl DispatchTree {
         target.modifiers_changed_listeners = mem::take(&mut source.modifiers_changed_listeners);
     }
 
-    pub fn reuse_subtree(
+    pub(crate) fn reuse_subtree(
         &mut self,
         old_range: Range<usize>,
         source: &mut Self,
@@ -266,7 +266,7 @@ impl DispatchTree {
         ReusedSubtree { old_range, new_range, contains_focus }
     }
 
-    pub fn truncate(&mut self, index: usize) {
+    pub(crate) fn truncate(&mut self, index: usize) {
         for node in &self.nodes[index..] {
             if let Some(focus_id) = node.focus_id {
                 self.focusable_node_ids.remove(&focus_id);
@@ -279,15 +279,15 @@ impl DispatchTree {
         self.nodes.truncate(index);
     }
 
-    pub fn on_key_event(&mut self, listener: KeyListener) {
+    pub(crate) fn on_key_event(&mut self, listener: KeyListener) {
         self.active_node().key_listeners.push(listener);
     }
 
-    pub fn on_modifiers_changed(&mut self, listener: ModifiersChangedListener) {
+    pub(crate) fn on_modifiers_changed(&mut self, listener: ModifiersChangedListener) {
         self.active_node().modifiers_changed_listeners.push(listener);
     }
 
-    pub fn on_action(
+    pub(crate) fn on_action(
         &mut self,
         action_type: TypeId,
         listener: Rc<dyn Fn(&dyn Any, DispatchPhase, &mut Window, &mut App)>,
@@ -295,7 +295,7 @@ impl DispatchTree {
         self.active_node().action_listeners.push(DispatchActionListener { action_type, listener });
     }
 
-    pub fn focus_contains(&self, parent: FocusId, child: FocusId) -> bool {
+    pub(crate) fn focus_contains(&self, parent: FocusId, child: FocusId) -> bool {
         if parent == child {
             return true;
         }
@@ -312,7 +312,7 @@ impl DispatchTree {
         false
     }
 
-    pub fn available_actions(&self, target: DispatchNodeId) -> Vec<Box<dyn Action>> {
+    pub(crate) fn available_actions(&self, target: DispatchNodeId) -> Vec<Box<dyn Action>> {
         let mut actions = Vec::<Box<dyn Action>>::new();
         for node_id in self.dispatch_path(target) {
             let node = &self.nodes[node_id.0];
@@ -330,7 +330,7 @@ impl DispatchTree {
         actions
     }
 
-    pub fn is_action_available(&self, action: &dyn Action, target: DispatchNodeId) -> bool {
+    pub(crate) fn is_action_available(&self, action: &dyn Action, target: DispatchNodeId) -> bool {
         for node_id in self.dispatch_path(target) {
             let node = &self.nodes[node_id.0];
             if node.action_listeners.iter().any(|listener| listener.action_type == action.as_any().type_id()) {
@@ -345,7 +345,7 @@ impl DispatchTree {
     ///
     /// Bindings are only included if they are the highest precedence match for their keystrokes, so
     /// shadowed bindings are not included.
-    pub fn bindings_for_action(&self, action: &dyn Action, context_stack: &[KeyContext]) -> Vec<KeyBinding> {
+    pub(crate) fn bindings_for_action(&self, action: &dyn Action, context_stack: &[KeyContext]) -> Vec<KeyBinding> {
         // Ideally this would return a `DoubleEndedIterator` to avoid `highest_precedence_*`
         // methods, but this can't be done very cleanly since keymap must be borrowed.
         let keymap = self.keymap.borrow();
@@ -358,7 +358,7 @@ impl DispatchTree {
 
     /// Returns the highest precedence binding for the given action and context stack. This is the
     /// same as the last result of `bindings_for_action`, but more efficient than getting all bindings.
-    pub fn highest_precedence_binding_for_action(
+    pub(crate) fn highest_precedence_binding_for_action(
         &self,
         action: &dyn Action,
         context_stack: &[KeyContext],
@@ -399,7 +399,7 @@ impl DispatchTree {
     /// - pending: the new set of pending keystrokes to store
     /// - to_replay: any keystroke that had been pushed to pending, but are no-longer matched,
     ///   these should be replayed first.
-    pub fn dispatch_key(
+    pub(crate) fn dispatch_key(
         &mut self,
         mut input: SmallVec<[Keystroke; 1]>,
         keystroke: Keystroke,
@@ -432,7 +432,7 @@ impl DispatchTree {
 
     /// If the user types a matching prefix of a binding and then waits for a timeout
     /// flush_dispatch() converts any previously pending input to replay events.
-    pub fn flush_dispatch(
+    pub(crate) fn flush_dispatch(
         &mut self,
         input: SmallVec<[Keystroke; 1]>,
         dispatch_path: &SmallVec<[DispatchNodeId; 32]>,
@@ -469,7 +469,7 @@ impl DispatchTree {
         (input, to_replay)
     }
 
-    pub fn dispatch_path(&self, target: DispatchNodeId) -> SmallVec<[DispatchNodeId; 32]> {
+    pub(crate) fn dispatch_path(&self, target: DispatchNodeId) -> SmallVec<[DispatchNodeId; 32]> {
         let mut dispatch_path: SmallVec<[DispatchNodeId; 32]> = SmallVec::new();
         let mut current_node_id = Some(target);
         while let Some(node_id) = current_node_id {
@@ -480,7 +480,7 @@ impl DispatchTree {
         dispatch_path
     }
 
-    pub fn focus_path(&self, focus_id: FocusId) -> SmallVec<[FocusId; 8]> {
+    pub(crate) fn focus_path(&self, focus_id: FocusId) -> SmallVec<[FocusId; 8]> {
         let mut focus_path: SmallVec<[FocusId; 8]> = SmallVec::new();
         let mut current_node_id = self.focusable_node_ids.get(&focus_id).copied();
         while let Some(node_id) = current_node_id {
@@ -494,14 +494,14 @@ impl DispatchTree {
         focus_path
     }
 
-    pub fn view_path_reversed(&self, view_id: EntityId) -> impl Iterator<Item = EntityId> {
+    pub(crate) fn view_path_reversed(&self, view_id: EntityId) -> impl Iterator<Item = EntityId> {
         let current_node_id = self.view_node_ids.get(&view_id).copied();
 
         iter::successors(current_node_id.map(|node_id| self.node(node_id)), |node_id| Some(self.node(node_id.parent?)))
             .filter_map(|node| node.view_id)
     }
 
-    pub fn node(&self, node_id: DispatchNodeId) -> &DispatchNode {
+    pub(crate) fn node(&self, node_id: DispatchNodeId) -> &DispatchNode {
         &self.nodes[node_id.0]
     }
 
@@ -510,15 +510,15 @@ impl DispatchTree {
         &mut self.nodes[active_node_id.0]
     }
 
-    pub fn focusable_node_id(&self, target: FocusId) -> Option<DispatchNodeId> {
+    pub(crate) fn focusable_node_id(&self, target: FocusId) -> Option<DispatchNodeId> {
         self.focusable_node_ids.get(&target).copied()
     }
 
-    pub const fn root_node_id(&self) -> DispatchNodeId {
+    pub(crate) const fn root_node_id(&self) -> DispatchNodeId {
         DispatchNodeId(0)
     }
 
-    pub fn active_node_id(&self) -> Option<DispatchNodeId> {
+    pub(crate) fn active_node_id(&self) -> Option<DispatchNodeId> {
         self.node_stack.last().copied()
     }
 }

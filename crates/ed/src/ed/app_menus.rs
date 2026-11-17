@@ -10,7 +10,7 @@ use gpui::OsAction;
 use search::buffer_search;
 use terminal_view::terminal_panel;
 
-pub fn app_menus(_cx: &mut App) -> Vec<Menu> {
+pub(super) fn app_menus(_cx: &mut App) -> Vec<Menu> {
     let mut view_items = vec![
         MenuItem::action("Zoom In", ed_actions::IncreaseBufferFontSize),
         MenuItem::action("Zoom Out", ed_actions::DecreaseBufferFontSize),

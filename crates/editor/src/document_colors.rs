@@ -37,7 +37,7 @@ struct BufferColors {
 }
 
 impl LspColorData {
-    pub fn new() -> LspColorData {
+    pub(crate) fn new() -> LspColorData {
         LspColorData { buffer_colors: FxHashMap::default() }
     }
 

@@ -673,7 +673,7 @@ enum WrapBoundaryCandidate {
 }
 
 impl WrapBoundaryCandidate {
-    pub const fn len_utf8(&self) -> usize {
+    pub(crate) const fn len_utf8(&self) -> usize {
         match self {
             WrapBoundaryCandidate::Char { character } => character.len_utf8(),
             WrapBoundaryCandidate::Element { len_utf8: len, .. } => *len,

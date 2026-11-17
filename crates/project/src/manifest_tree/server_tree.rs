@@ -35,7 +35,7 @@ pub(crate) struct ServersForWorktree {
         BTreeMap<Arc<RelPath>, BTreeMap<LanguageServerName, (Arc<InnerTreeNode>, BTreeSet<LanguageName>)>>,
 }
 
-pub struct LanguageServerTree {
+pub(crate) struct LanguageServerTree {
     manifest_tree: Entity<ManifestTree>,
     pub(crate) instances: BTreeMap<WorktreeId, ServersForWorktree>,
     languages: Arc<LanguageRegistry>,
@@ -45,7 +45,7 @@ pub struct LanguageServerTree {
 /// - A language server that has already been initialized/updated for a given project
 /// - A soon-to-be-initialized language server.
 #[derive(Clone, Debug)]
-pub struct LanguageServerTreeNode(Weak<InnerTreeNode>);
+pub(crate) struct LanguageServerTreeNode(Weak<InnerTreeNode>);
 
 /// Describes a request to launch a language server.
 #[derive(Clone, Debug)]
@@ -77,7 +77,7 @@ impl LanguageServerTreeNode {
     }
 
     /// Returns a language server name as the language server adapter would return.
-    pub fn name(&self) -> Option<LanguageServerName> {
+    pub(crate) fn name(&self) -> Option<LanguageServerName> {
         self.0.upgrade().map(|node| node.disposition.server_name.clone())
     }
 }
@@ -89,7 +89,7 @@ impl From<Weak<InnerTreeNode>> for LanguageServerTreeNode {
 }
 
 #[derive(Debug)]
-pub struct InnerTreeNode {
+pub(crate) struct InnerTreeNode {
     id: OnceLock<LanguageServerId>,
     disposition: Arc<LaunchDisposition>,
 }

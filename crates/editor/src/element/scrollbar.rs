@@ -272,7 +272,7 @@ pub(super) struct ScrollbarLayoutInformation {
 }
 
 impl ScrollbarLayoutInformation {
-    pub fn new(
+    pub(super) fn new(
         editor_bounds: Bounds<Pixels>,
         glyph_grid_cell: Size<Pixels>,
         document_size: Size<Pixels>,
@@ -296,7 +296,7 @@ pub(super) struct EditorScrollbars {
 }
 
 impl EditorScrollbars {
-    pub fn new(
+    pub(super) fn new(
         layout_information: &ScrollbarLayoutInformation,
         content_offset: gpui::Point<Pixels>,
         scroll_position: gpui::Point<f64>,
@@ -337,12 +337,12 @@ impl EditorScrollbars {
         Self { horizontal, visible: show_scrollbars }
     }
 
-    pub fn iter_scrollbars(&self) -> impl Iterator<Item = (&ScrollbarLayout, ScrollbarAxis)> + '_ {
+    pub(super) fn iter_scrollbars(&self) -> impl Iterator<Item = (&ScrollbarLayout, ScrollbarAxis)> + '_ {
         self.horizontal.iter().map(|scrollbar| (scrollbar, ScrollbarAxis::Horizontal))
     }
 
     /// Returns the currently hovered scrollbar axis, if any.
-    pub fn get_hovered_axis(&self, window: &Window) -> Option<(&ScrollbarLayout, ScrollbarAxis)> {
+    pub(super) fn get_hovered_axis(&self, window: &Window) -> Option<(&ScrollbarLayout, ScrollbarAxis)> {
         self.iter_scrollbars().find(|s| s.0.hitbox.is_hovered(window))
     }
 }

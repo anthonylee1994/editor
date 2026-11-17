@@ -168,7 +168,7 @@ impl InsertionSlice {
 }
 
 impl History {
-    pub const fn new(base_text: Rope) -> Self {
+    pub(crate) const fn new(base_text: Rope) -> Self {
         Self {
             base_text,
             undo_stack: Vec::new(),

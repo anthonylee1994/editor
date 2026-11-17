@@ -45,10 +45,10 @@ impl sum_tree::ContextLessSummary for UndoMapKey {
 }
 
 #[derive(Clone, Default)]
-pub struct UndoMap(SumTree<UndoMapEntry>);
+pub(crate) struct UndoMap(SumTree<UndoMapEntry>);
 
 impl UndoMap {
-    pub fn insert(&mut self, undo: &UndoOperation) {
+    pub(crate) fn insert(&mut self, undo: &UndoOperation) {
         let edits = undo
             .counts
             .iter()
@@ -62,10 +62,10 @@ impl UndoMap {
         self.0.edit(edits, ());
     }
 
-    pub fn is_undone(&self, edit_id: clock::Lamport) -> bool {
+    pub(crate) fn is_undone(&self, edit_id: clock::Lamport) -> bool {
         self.undo_count(edit_id) % 2 == 1
     }
-    pub fn was_undone(&self, edit_id: clock::Lamport, version: &clock::Global) -> bool {
+    pub(crate) fn was_undone(&self, edit_id: clock::Lamport, version: &clock::Global) -> bool {
         let mut cursor = self.0.cursor::<UndoMapKey>(());
         cursor.seek(&UndoMapKey { edit_id, undo_id: Lamport::MIN }, Bias::Left);
 
@@ -83,7 +83,7 @@ impl UndoMap {
         undo_count % 2 == 1
     }
 
-    pub fn undo_count(&self, edit_id: clock::Lamport) -> u32 {
+    pub(crate) fn undo_count(&self, edit_id: clock::Lamport) -> u32 {
         let mut cursor = self.0.cursor::<UndoMapKey>(());
         cursor.seek(&UndoMapKey { edit_id, undo_id: Lamport::MIN }, Bias::Left);
 

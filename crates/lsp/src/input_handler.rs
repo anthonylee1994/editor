@@ -35,7 +35,7 @@ const HEADER_DELIMITER: &[u8; 4] = b"\r\n\r\n";
 pub(crate) const INCOMING_MESSAGE_QUEUE_CAPACITY: usize = 128;
 
 /// Handler for stdout of language server.
-pub struct LspStdoutHandler {
+pub(crate) struct LspStdoutHandler {
     pub(super) loop_handle: Task<Result<()>>,
     pub(super) incoming_messages: Receiver<NotificationOrRequest>,
 }
@@ -58,7 +58,7 @@ where
 }
 
 impl LspStdoutHandler {
-    pub fn new<Input>(
+    pub(crate) fn new<Input>(
         stdout: Input,
         response_handlers: Arc<Mutex<Option<FxHashMap<RequestId, ResponseHandler>>>>,
         io_handlers: Arc<Mutex<FxHashMap<i32, IoHandler>>>,

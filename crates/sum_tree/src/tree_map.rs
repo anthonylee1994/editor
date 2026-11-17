@@ -20,13 +20,13 @@ where
     V: Clone;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MapEntry<K, V> {
+pub(crate) struct MapEntry<K, V> {
     key: K,
     value: V,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct MapKey<K>(Option<K>);
+pub(crate) struct MapKey<K>(Option<K>);
 
 impl<K> Default for MapKey<K> {
     fn default() -> Self {
@@ -35,7 +35,7 @@ impl<K> Default for MapKey<K> {
 }
 
 #[derive(Clone, Debug)]
-pub struct MapKeyRef<'a, K>(Option<&'a K>);
+pub(crate) struct MapKeyRef<'a, K>(Option<&'a K>);
 
 impl<K> Default for MapKeyRef<'_, K> {
     fn default() -> Self {

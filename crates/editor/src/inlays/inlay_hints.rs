@@ -77,7 +77,7 @@ impl HoveredInlayHintCommand {
 }
 
 #[derive(Debug)]
-pub struct LspInlayHintData {
+pub(crate) struct LspInlayHintData {
     allowed_hint_kinds: FxHashSet<Option<InlayHintKind>>,
     invalidate_debounce: Option<Duration>,
     append_debounce: Option<Duration>,
@@ -110,7 +110,7 @@ struct PendingHintTextEdit {
 }
 
 impl LspInlayHintData {
-    pub fn new(settings: InlayHintSettings) -> Self {
+    pub(crate) fn new(settings: InlayHintSettings) -> Self {
         Self {
             hint_refresh_tasks: FxHashMap::default(),
             added_hints: FxHashMap::default(),
@@ -125,7 +125,7 @@ impl LspInlayHintData {
         }
     }
 
-    pub fn clear(&mut self) {
+    pub(crate) fn clear(&mut self) {
         self.hint_refresh_tasks.clear();
         self.hint_chunk_fetching.clear();
         self.added_hints.clear();
@@ -137,7 +137,7 @@ impl LspInlayHintData {
     /// Like `clear`, but only wipes tracking state for the given buffer IDs.
     /// Hints belonging to other buffers are left intact so they are neither
     /// re-fetched nor duplicated on the next `NewLinesShown`.
-    pub fn clear_for_buffers(
+    pub(crate) fn clear_for_buffers(
         &mut self,
         buffer_ids: &FxHashSet<BufferId>,
         current_hints: impl IntoIterator<Item = Inlay>,
@@ -209,7 +209,7 @@ impl LspInlayHintData {
 }
 
 #[derive(Debug, Clone)]
-pub enum InlayHintRefreshReason {
+pub(crate) enum InlayHintRefreshReason {
     NewLinesShown,
     BufferEdited(BufferId),
     ServerRemoved,

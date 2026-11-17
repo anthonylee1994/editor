@@ -940,7 +940,7 @@ mod element {
         }
     }
 
-    pub struct PaneAxisElement {
+    pub(super) struct PaneAxisElement {
         axis: Axis,
         basis: usize,
         /// Equivalent to ColumnWidths (but in terms of flexes instead of percentages)
@@ -954,7 +954,7 @@ mod element {
         leaf_panes: Vec<Option<Entity<Pane>>>,
     }
 
-    pub struct PaneAxisLayout {
+    pub(super) struct PaneAxisLayout {
         dragged_handle: Rc<RefCell<Option<usize>>>,
         children: Vec<PaneAxisChildLayout>,
     }
@@ -972,12 +972,12 @@ mod element {
     }
 
     impl PaneAxisElement {
-        pub const fn with_active_pane(mut self, active_pane_ix: Option<usize>) -> Self {
+        pub(super) const fn with_active_pane(mut self, active_pane_ix: Option<usize>) -> Self {
             self.active_pane_ix = active_pane_ix;
             self
         }
 
-        pub fn with_leaf_panes(mut self, leaf_panes: Vec<Option<Entity<Pane>>>) -> Self {
+        pub(super) fn with_leaf_panes(mut self, leaf_panes: Vec<Option<Entity<Pane>>>) -> Self {
             self.leaf_panes = leaf_panes;
             self
         }

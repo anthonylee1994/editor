@@ -223,7 +223,7 @@ impl ActionRegistry {
     }
 
     /// Construct an action based on its name and optional JSON parameters sourced from the keymap.
-    pub fn build_action_type(&self, type_id: &TypeId) -> Result<Box<dyn Action>> {
+    pub(crate) fn build_action_type(&self, type_id: &TypeId) -> Result<Box<dyn Action>> {
         let name =
             self.names_by_type_id.get(type_id).with_context(|| format!("no action type registered for {type_id:?}"))?;
 
@@ -231,7 +231,7 @@ impl ActionRegistry {
     }
 
     /// Construct an action based on its name and optional JSON parameters sourced from the keymap.
-    pub fn build_action(
+    pub(crate) fn build_action(
         &self,
         name: &str,
         params: Option<serde_json::Value>,
@@ -242,11 +242,11 @@ impl ActionRegistry {
             .map_err(|e| ActionBuildError::BuildError { name: name.into(), error: e })
     }
 
-    pub const fn all_action_names(&self) -> &[&'static str] {
+    pub(crate) const fn all_action_names(&self) -> &[&'static str] {
         self.all_names.as_slice()
     }
 
-    pub const fn documentation(&self) -> &FxHashMap<&'static str, &'static str> {
+    pub(crate) const fn documentation(&self) -> &FxHashMap<&'static str, &'static str> {
         &self.documentation
     }
 }

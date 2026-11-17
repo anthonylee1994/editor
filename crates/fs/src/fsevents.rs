@@ -92,11 +92,11 @@ pub(crate) struct Event {
 
 impl Event {
     /// The subtree at `path` lost sync and must be rescanned.
-    pub const fn must_rescan(&self) -> bool {
+    pub(crate) const fn must_rescan(&self) -> bool {
         self.flags & MUST_SCAN_SUBDIRS != 0
     }
 
-    pub const fn rescan_reason(&self) -> &'static str {
+    pub(crate) const fn rescan_reason(&self) -> &'static str {
         if self.flags & USER_DROPPED != 0 {
             "user dropped"
         } else if self.flags & KERNEL_DROPPED != 0 {
@@ -108,7 +108,7 @@ impl Event {
 
     /// FSEvents coalesces changes to one path, so a single event can carry
     /// several kinds.
-    pub fn kinds(&self) -> impl Iterator<Item = PathEventKind> + use<> {
+    pub(crate) fn kinds(&self) -> impl Iterator<Item = PathEventKind> + use<> {
         let flags = self.flags;
         [(CREATED, PathEventKind::Created), (CHANGED, PathEventKind::Changed), (REMOVED, PathEventKind::Removed)]
             .into_iter()
@@ -137,7 +137,7 @@ unsafe impl Sync for Stream {}
 impl Stream {
     /// Watches `path` recursively, sending events to `tx`. Event paths are
     /// reported under `path` as given, even where it traverses symlinks.
-    pub fn new(path: &Path, tx: Sender<Event>) -> anyhow::Result<Self> {
+    pub(crate) fn new(path: &Path, tx: Sender<Event>) -> anyhow::Result<Self> {
         let canonical = std::fs::canonicalize(path)?;
         let cf_path = CFString::from_str(canonical.to_str().context("watch path is not valid UTF-8")?);
         let paths = CFArray::from_retained_objects(&[cf_path]);

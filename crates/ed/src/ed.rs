@@ -121,7 +121,7 @@ actions!(
     ]
 );
 
-pub fn init(cx: &mut App) {
+pub(crate) fn init(cx: &mut App) {
     cx.on_action(|_: &Hide, cx| cx.hide());
 
     cx.on_action(|_: &HideOthers, cx| cx.hide_other_apps());
@@ -148,7 +148,7 @@ pub fn init(cx: &mut App) {
     });
 }
 
-pub fn build_window_options(display_uuid: Option<Uuid>, cx: &mut App) -> WindowOptions {
+pub(crate) fn build_window_options(display_uuid: Option<Uuid>, cx: &mut App) -> WindowOptions {
     let display = display_uuid
         .and_then(|uuid| cx.displays().into_iter().find(|display| display.uuid().ok() == Some(uuid)))
         .or_else(|| frontmost_window_display(cx))
@@ -185,7 +185,7 @@ fn frontmost_window_display(cx: &mut App) -> Option<Rc<dyn PlatformDisplay>> {
     window.update(cx, |_, window, cx| window.display(cx)).ok().flatten()
 }
 
-pub fn initialize_workspace(app_state: Arc<AppState>, cx: &mut App) {
+pub(crate) fn initialize_workspace(app_state: Arc<AppState>, cx: &mut App) {
     cx.set_cursor_hide_mode(gpui::CursorHideMode::OnTypingAndAction);
     init_app_appearance(cx);
 
@@ -700,7 +700,7 @@ fn init_app_appearance(cx: &App) {
 
 /// The keymap and menus are built-in and static: they're built once at startup, against the
 /// keyboard layout active at launch.
-pub fn initialize_keymap(cx: &mut App) {
+pub(crate) fn initialize_keymap(cx: &mut App) {
     let bindings = keymap::keymap(cx);
     cx.bind_keys(bindings);
     let menus = app_menus(cx);

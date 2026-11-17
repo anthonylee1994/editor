@@ -34,7 +34,7 @@ use crate::display_map::ToDisplayPoint as _;
 use crate::movement::TextLayoutDetails;
 
 #[derive(Debug, Clone)]
-pub struct PendingSelection {
+pub(crate) struct PendingSelection {
     selection: Selection<Anchor>,
     mode: SelectMode,
 }

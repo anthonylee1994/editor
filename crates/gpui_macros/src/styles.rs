@@ -39,7 +39,7 @@ impl Parse for StyleableMacroInput {
     }
 }
 
-pub fn style_helpers(input: TokenStream) -> TokenStream {
+pub(crate) fn style_helpers(input: TokenStream) -> TokenStream {
     let _ = parse_macro_input!(input as StyleableMacroInput);
     let methods = generate_methods();
     let output = quote! {
@@ -49,7 +49,7 @@ pub fn style_helpers(input: TokenStream) -> TokenStream {
     output.into()
 }
 
-pub fn visibility_style_methods(input: TokenStream) -> TokenStream {
+pub(crate) fn visibility_style_methods(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as StyleableMacroInput);
     let visibility = input.method_visibility;
     let output = quote! {
@@ -71,7 +71,7 @@ pub fn visibility_style_methods(input: TokenStream) -> TokenStream {
     output.into()
 }
 
-pub fn margin_style_methods(input: TokenStream) -> TokenStream {
+pub(crate) fn margin_style_methods(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as StyleableMacroInput);
     let methods =
         generate_box_style_methods(margin_box_style_prefixes(), box_style_suffixes(), input.method_visibility);
@@ -82,7 +82,7 @@ pub fn margin_style_methods(input: TokenStream) -> TokenStream {
     output.into()
 }
 
-pub fn padding_style_methods(input: TokenStream) -> TokenStream {
+pub(crate) fn padding_style_methods(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as StyleableMacroInput);
     let methods =
         generate_box_style_methods(padding_box_style_prefixes(), box_style_suffixes(), input.method_visibility);
@@ -93,7 +93,7 @@ pub fn padding_style_methods(input: TokenStream) -> TokenStream {
     output.into()
 }
 
-pub fn position_style_methods(input: TokenStream) -> TokenStream {
+pub(crate) fn position_style_methods(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as StyleableMacroInput);
     let visibility = input.method_visibility;
     let methods = generate_box_style_methods(position_box_style_prefixes(), box_style_suffixes(), visibility.clone());
@@ -118,7 +118,7 @@ pub fn position_style_methods(input: TokenStream) -> TokenStream {
     output.into()
 }
 
-pub fn overflow_style_methods(input: TokenStream) -> TokenStream {
+pub(crate) fn overflow_style_methods(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as StyleableMacroInput);
     let visibility = input.method_visibility;
     let output = quote! {
@@ -148,7 +148,7 @@ pub fn overflow_style_methods(input: TokenStream) -> TokenStream {
     output.into()
 }
 
-pub fn cursor_style_methods(input: TokenStream) -> TokenStream {
+pub(crate) fn cursor_style_methods(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as StyleableMacroInput);
     let visibility = input.method_visibility;
     let output = quote! {
@@ -324,7 +324,7 @@ pub fn cursor_style_methods(input: TokenStream) -> TokenStream {
     output.into()
 }
 
-pub fn border_style_methods(input: TokenStream) -> TokenStream {
+pub(crate) fn border_style_methods(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as StyleableMacroInput);
     let visibility = input.method_visibility;
 
@@ -373,7 +373,7 @@ pub fn border_style_methods(input: TokenStream) -> TokenStream {
     output.into()
 }
 
-pub fn box_shadow_style_methods(input: TokenStream) -> TokenStream {
+pub(crate) fn box_shadow_style_methods(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as StyleableMacroInput);
     let visibility = input.method_visibility;
     let output = quote! {

@@ -15,7 +15,7 @@ use crate::npx;
 /// Biome's language server (`biome lsp-proxy`): lint diagnostics and code actions
 /// (quick fixes, `source.fixAll.biome`, `source.organizeImports.biome`).
 /// Formatting stays on the Biome CLI (see `project::biome`).
-pub struct BiomeLspAdapter {
+pub(crate) struct BiomeLspAdapter {
     fs: Arc<dyn Fs>,
 }
 
@@ -24,7 +24,7 @@ impl BiomeLspAdapter {
     const NPX_PACKAGE: &str = "@biomejs/biome";
     const ARGUMENTS: &[&str] = &["lsp-proxy"];
 
-    pub fn new(fs: Arc<dyn Fs>) -> Self {
+    pub(crate) fn new(fs: Arc<dyn Fs>) -> Self {
         BiomeLspAdapter { fs }
     }
 }

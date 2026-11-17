@@ -19,7 +19,7 @@ use serde_json::json;
 use crate::LanguageDef;
 use crate::npx;
 
-pub struct CssLspAdapter;
+pub(crate) struct CssLspAdapter;
 
 #[async_trait(?Send)]
 impl LspAdapter for CssLspAdapter {

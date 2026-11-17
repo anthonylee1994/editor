@@ -11,7 +11,7 @@ use serde_json::json;
 
 type BuildAction<'a> = &'a dyn Fn(&str, Option<Value>) -> Box<dyn Action>;
 
-pub fn keymap(cx: &App) -> Vec<KeyBinding> {
+pub(super) fn keymap(cx: &App) -> Vec<KeyBinding> {
     build(&|name, input| {
         cx.build_action(name, input).unwrap_or_else(|error| panic!("invalid built-in action {name}: {error}"))
     })

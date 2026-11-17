@@ -42,7 +42,7 @@ struct LogFile {
 
 struct Logger;
 
-pub fn init() {
+pub(crate) fn init() {
     if let Err(err) = log::set_logger(&Logger) {
         eprintln!("{err}");
         return;
@@ -50,11 +50,11 @@ pub fn init() {
     log::set_max_level(LEVEL);
 }
 
-pub fn init_output_stdout() {
+pub(crate) fn init_output_stdout() {
     STDOUT.store(true, Ordering::Release);
 }
 
-pub fn init_output_file(path: &'static Path, old_path: &'static Path) -> io::Result<()> {
+pub(crate) fn init_output_file(path: &'static Path, old_path: &'static Path) -> io::Result<()> {
     let size = fs::metadata(path).map_or(0, |metadata| metadata.len());
     let log_file = if size >= FILE_SIZE_MAX {
         LogFile { file: rotate(path, old_path)?, size: 0, path, old_path }
@@ -65,7 +65,7 @@ pub fn init_output_file(path: &'static Path, old_path: &'static Path) -> io::Res
     Ok(())
 }
 
-pub fn flush() {
+pub(crate) fn flush() {
     if STDOUT.load(Ordering::Acquire) {
         _ = io::stdout().lock().flush();
     }

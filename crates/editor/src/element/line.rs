@@ -655,7 +655,7 @@ impl LineWithInvisibles {
         }
     }
 
-    pub fn x_for_index(&self, index: usize) -> Pixels {
+    pub(crate) fn x_for_index(&self, index: usize) -> Pixels {
         let mut fragment_start_x = Pixels::ZERO;
         let mut fragment_start_index = 0;
 
@@ -683,7 +683,7 @@ impl LineWithInvisibles {
         fragment_start_x
     }
 
-    pub fn index_for_x(&self, x: Pixels) -> Option<usize> {
+    pub(crate) fn index_for_x(&self, x: Pixels) -> Option<usize> {
         let mut fragment_start_x = Pixels::ZERO;
         let mut fragment_start_index = 0;
 
@@ -711,7 +711,7 @@ impl LineWithInvisibles {
         None
     }
 
-    pub fn font_id_for_index(&self, index: usize) -> Option<FontId> {
+    pub(crate) fn font_id_for_index(&self, index: usize) -> Option<FontId> {
         let mut fragment_start_index = 0;
 
         for fragment in &self.fragments {
@@ -736,7 +736,7 @@ impl LineWithInvisibles {
         None
     }
 
-    pub fn alignment_offset(&self, text_align: TextAlign, content_width: Pixels) -> Pixels {
+    pub(crate) fn alignment_offset(&self, text_align: TextAlign, content_width: Pixels) -> Pixels {
         let line_width = self.width;
         match text_align {
             TextAlign::Left => px(0.0),

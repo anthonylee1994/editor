@@ -61,7 +61,7 @@ impl editor::Addon for ConflictAddon {
     }
 }
 
-pub fn register_editor(editor: &mut Editor, buffer: Entity<MultiBuffer>, cx: &Context<Editor>) {
+pub(crate) fn register_editor(editor: &mut Editor, buffer: Entity<MultiBuffer>, cx: &Context<Editor>) {
     let is_singleton = editor.buffer().read(cx).is_singleton();
     if !editor.mode().is_full()
         || (!is_singleton && !editor.buffer().read(cx).all_diff_hunks_expanded())

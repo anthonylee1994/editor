@@ -17,17 +17,17 @@ pub trait SearchActionsRegistrar {
 
 type SearchBarActionCallback<A> = fn(&mut BufferSearchBar, &A, &mut Window, &mut Context<BufferSearchBar>);
 
-pub struct PaneDivRegistrar {
+pub(super) struct PaneDivRegistrar {
     div: Option<Div>,
     pane: Entity<Pane>,
 }
 
 impl PaneDivRegistrar {
-    pub const fn new(div: Div, pane: Entity<Pane>) -> Self {
+    pub(super) const fn new(div: Div, pane: Entity<Pane>) -> Self {
         Self { div: Some(div), pane }
     }
 
-    pub fn into_div(self) -> Div {
+    pub(super) fn into_div(self) -> Div {
         self.div.expect("div is only taken by into_div")
     }
 }
@@ -98,7 +98,7 @@ pub trait ActionExecutor<A: Action>: 'static + Clone {
 }
 
 /// Run an action when the search bar has been dismissed from the panel.
-pub struct ForDismissed<A>(pub(super) SearchBarActionCallback<A>);
+pub(super) struct ForDismissed<A>(pub(super) SearchBarActionCallback<A>);
 impl<A> Clone for ForDismissed<A> {
     fn clone(&self) -> Self {
         Self(self.0)
@@ -123,7 +123,7 @@ impl<A: Action> ActionExecutor<A> for ForDismissed<A> {
 }
 
 /// Run an action when the search bar is deployed.
-pub struct ForDeployed<A>(pub(super) SearchBarActionCallback<A>);
+pub(super) struct ForDeployed<A>(pub(super) SearchBarActionCallback<A>);
 impl<A> Clone for ForDeployed<A> {
     fn clone(&self) -> Self {
         Self(self.0)
@@ -149,7 +149,7 @@ impl<A: Action> ActionExecutor<A> for ForDeployed<A> {
 
 /// Run an action when the search bar has any matches or a pending external query,
 /// regardless of whether it is visible or not.
-pub struct WithResultsOrExternalQuery<A>(pub(super) SearchBarActionCallback<A>);
+pub(super) struct WithResultsOrExternalQuery<A>(pub(super) SearchBarActionCallback<A>);
 impl<A> Clone for WithResultsOrExternalQuery<A> {
     fn clone(&self) -> Self {
         Self(self.0)

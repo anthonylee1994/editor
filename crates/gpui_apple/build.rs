@@ -14,7 +14,7 @@ mod apple_build {
 
     use cbindgen::Config;
 
-    pub fn run() {
+    pub(crate) fn run() {
         let header_path = generate_shader_bindings();
 
         #[cfg(feature = "runtime_shaders")]

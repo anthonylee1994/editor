@@ -213,7 +213,7 @@ impl History {
         self.transaction_depth
     }
 
-    pub const fn set_group_interval(&mut self, group_interval: Duration) {
+    pub(crate) const fn set_group_interval(&mut self, group_interval: Duration) {
         self.group_interval = group_interval;
     }
 }

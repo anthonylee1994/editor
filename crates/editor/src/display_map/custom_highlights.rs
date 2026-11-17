@@ -13,7 +13,7 @@ use crate::display_map::HighlightKey;
 use crate::display_map::SemanticTokensHighlights;
 use crate::display_map::TextHighlights;
 
-pub struct CustomHighlightsChunks<'a> {
+pub(super) struct CustomHighlightsChunks<'a> {
     buffer_chunks: MultiBufferChunks<'a>,
     buffer_chunk: Option<Chunk<'a>>,
     offset: MultiBufferOffset,
@@ -33,7 +33,7 @@ struct HighlightEndpoint {
 }
 
 impl<'a> CustomHighlightsChunks<'a> {
-    pub fn new(
+    pub(super) fn new(
         range: Range<MultiBufferOffset>,
         language_aware: LanguageAwareStyling,
         text_highlights: Option<&'a TextHighlights>,
@@ -60,7 +60,7 @@ impl<'a> CustomHighlightsChunks<'a> {
         }
     }
 
-    pub fn seek(&mut self, new_range: Range<MultiBufferOffset>) {
+    pub(super) fn seek(&mut self, new_range: Range<MultiBufferOffset>) {
         create_highlight_endpoints(
             &new_range,
             self.text_highlights,

@@ -84,7 +84,7 @@ impl InvalidationStrategy {
     }
 }
 
-pub struct BufferInlayHints {
+pub(super) struct BufferInlayHints {
     chunks: RowChunks,
     hints_by_chunks: Vec<Option<CacheInlayHints>>,
     fetches_by_chunks: Vec<Option<CacheInlayHintsTask>>,
@@ -116,7 +116,7 @@ impl Debug for BufferInlayHints {
 const MAX_ROWS_IN_A_CHUNK: u32 = 50;
 
 impl BufferInlayHints {
-    pub fn new(buffer: &Entity<Buffer>, cx: &App) -> Self {
+    pub(super) fn new(buffer: &Entity<Buffer>, cx: &App) -> Self {
         let chunks = RowChunks::new(buffer.read(cx).as_text_snapshot(), MAX_ROWS_IN_A_CHUNK);
 
         Self {
@@ -131,25 +131,25 @@ impl BufferInlayHints {
         }
     }
 
-    pub fn applicable_chunks(&self, ranges: &[Range<Point>]) -> impl Iterator<Item = RowChunk> {
+    pub(super) fn applicable_chunks(&self, ranges: &[Range<Point>]) -> impl Iterator<Item = RowChunk> {
         self.chunks.applicable_chunks(ranges)
     }
 
-    pub fn cached_hints(&self, chunk: &RowChunk) -> Option<&CacheInlayHints> {
+    pub(super) fn cached_hints(&self, chunk: &RowChunk) -> Option<&CacheInlayHints> {
         self.hints_by_chunks[chunk.id].as_ref()
     }
 
-    pub fn fetched_hints(&mut self, chunk: &RowChunk) -> &mut Option<CacheInlayHintsTask> {
+    pub(super) fn fetched_hints(&mut self, chunk: &RowChunk) -> &mut Option<CacheInlayHintsTask> {
         &mut self.fetches_by_chunks[chunk.id]
     }
 
-    pub fn remove_server_data(&mut self, for_server: LanguageServerId) {
+    pub(super) fn remove_server_data(&mut self, for_server: LanguageServerId) {
         self.remove_hints_for_server(for_server);
         self.pending_refreshes.remove(&for_server);
         self.work_end_refreshes.remove(&for_server);
     }
 
-    pub fn cached_hint(&self, id: InlayId) -> Option<&InlayHint> {
+    pub(super) fn cached_hint(&self, id: InlayId) -> Option<&InlayHint> {
         let hint_for_id = self.hints_by_id.get(&id)?;
         if self.pending_refreshes.contains(&hint_for_id.server_id) {
             return None;
@@ -182,7 +182,7 @@ impl BufferInlayHints {
         }
     }
 
-    pub fn clear(&mut self) {
+    pub(super) fn clear(&mut self) {
         self.hints_by_chunks = vec![None; self.chunks.len()];
         self.fetches_by_chunks = vec![None; self.chunks.len()];
         self.hints_by_id.clear();
@@ -192,7 +192,7 @@ impl BufferInlayHints {
         self.fetched_servers.clear();
     }
 
-    pub fn insert_new_hints(
+    pub(super) fn insert_new_hints(
         &mut self,
         chunk: RowChunk,
         server_id: LanguageServerId,
@@ -219,7 +219,7 @@ impl BufferInlayHints {
         *self.fetched_hints(&chunk) = None;
     }
 
-    pub fn hint_for_id(&mut self, id: InlayId) -> Option<&mut InlayHint> {
+    pub(super) fn hint_for_id(&mut self, id: InlayId) -> Option<&mut InlayHint> {
         let hint_for_id = self.hints_by_id.get(&id)?;
         let (_, hint) = self
             .hints_by_chunks

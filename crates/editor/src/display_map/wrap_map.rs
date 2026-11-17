@@ -40,9 +40,9 @@ use super::tab_map;
 use super::tab_map::TabEdit;
 use super::tab_map::TabPoint;
 use super::tab_map::TabSnapshot;
-pub use super::tab_map::TextSummary;
-pub type WrapEdit = text::Edit<WrapRow>;
-pub type WrapPatch = text::Patch<WrapRow>;
+pub(super) use super::tab_map::TextSummary;
+pub(super) type WrapEdit = text::Edit<WrapRow>;
+pub(super) type WrapPatch = text::Patch<WrapRow>;
 
 #[derive(Copy, Clone, Debug, Default, Eq, Ord, PartialOrd, PartialEq)]
 pub struct WrapRow(pub u32);
@@ -56,7 +56,7 @@ impl_for_row_types! {
 /// Handles soft wrapping of text.
 ///
 /// See the [`display_map` module documentation](crate::display_map) for more information.
-pub struct WrapMap {
+pub(super) struct WrapMap {
     snapshot: WrapSnapshot,
     pending_edits: VecDeque<(TabSnapshot, Vec<TabEdit>)>,
     interpolated_edits: WrapPatch,
@@ -149,7 +149,7 @@ impl LineFragmentBuilder {
     }
 }
 
-pub struct WrapChunks<'a> {
+pub(crate) struct WrapChunks<'a> {
     input_chunks: tab_map::TabChunks<'a>,
     input_chunk: Chunk<'a>,
     output_position: WrapPoint,
@@ -183,7 +183,7 @@ impl WrapRows<'_> {
 }
 
 impl WrapMap {
-    pub fn new(
+    pub(super) fn new(
         tab_snapshot: TabSnapshot,
         font: Font,
         font_size: Pixels,
@@ -208,11 +208,11 @@ impl WrapMap {
         (handle, snapshot)
     }
 
-    pub const fn is_rewrapping(&self) -> bool {
+    pub(super) const fn is_rewrapping(&self) -> bool {
         self.background_task.is_some() || (self.wrap_width.is_some() && self.snapshot.interpolated)
     }
 
-    pub fn sync(
+    pub(super) fn sync(
         &mut self,
         tab_snapshot: TabSnapshot,
         edits: Vec<TabEdit>,
@@ -229,7 +229,7 @@ impl WrapMap {
         (self.snapshot.clone(), mem::take(&mut self.edits_since_sync))
     }
 
-    pub fn set_font_with_size(&mut self, font: Font, font_size: Pixels, cx: &Context<Self>) -> bool {
+    pub(super) fn set_font_with_size(&mut self, font: Font, font_size: Pixels, cx: &Context<Self>) -> bool {
         let font_with_size = (font, font_size);
 
         if font_with_size == self.font_with_size {
@@ -241,7 +241,7 @@ impl WrapMap {
         }
     }
 
-    pub fn set_wrap_width(&mut self, wrap_width: Option<Pixels>, cx: &Context<Self>) -> bool {
+    pub(super) fn set_wrap_width(&mut self, wrap_width: Option<Pixels>, cx: &Context<Self>) -> bool {
         if wrap_width == self.wrap_width {
             return false;
         }

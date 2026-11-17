@@ -5,7 +5,7 @@ use syn::parse_macro_input;
 
 use crate::get_simple_attribute_field;
 
-pub fn derive_app_context(input: TokenStream) -> TokenStream {
+pub(crate) fn derive_app_context(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
 
     let Some(app_variable) = get_simple_attribute_field(&ast, "app") else {

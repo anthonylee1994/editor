@@ -37,7 +37,7 @@ use workspace::SplitDirection;
 use workspace::Workspace;
 use workspace::item::ItemEvent;
 
-pub fn init(cx: &App) {
+pub(crate) fn init(cx: &App) {
     cx.observe_new(|workspace: &mut Workspace, _, _| {
         workspace.register_action(|workspace, _: &OpenKeyContextView, window, cx| {
             let key_context_view = cx.new(|cx| KeyContextView::new(window, cx));
@@ -57,7 +57,7 @@ struct KeyContextView {
 }
 
 impl KeyContextView {
-    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
+    pub(crate) fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let sub1 = cx.observe_keystrokes(|this, e, _, cx| {
             let mut pending = this.pending_keystrokes.take().unwrap_or_default();
             pending.push(e.keystroke.clone());

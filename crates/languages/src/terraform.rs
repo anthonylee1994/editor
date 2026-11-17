@@ -16,7 +16,7 @@ use rustc_hash::FxHashMap;
 
 use crate::LanguageDef;
 
-pub struct TerraformLspAdapter;
+pub(crate) struct TerraformLspAdapter;
 
 impl TerraformLspAdapter {
     const SERVER_NAME: &str = "terraform-ls";

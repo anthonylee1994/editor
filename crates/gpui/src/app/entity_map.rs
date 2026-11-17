@@ -104,7 +104,7 @@ pub(super) struct LeaseInner {
 }
 
 impl EntityMap {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             entities: SecondaryMap::new(),
             accessed_entities: RefCell::default(),
@@ -116,13 +116,13 @@ impl EntityMap {
     }
 
     /// Reserve a slot for an entity, which you can subsequently use with `insert`.
-    pub fn reserve<T: 'static>(&self) -> Slot<T> {
+    pub(crate) fn reserve<T: 'static>(&self) -> Slot<T> {
         let id = self.ref_counts.write().counts.insert(1.into());
         Slot(Entity::new(id, Arc::downgrade(&self.ref_counts)))
     }
 
     /// Insert an entity into a slot obtained by calling `reserve`.
-    pub fn insert<T>(&mut self, slot: Slot<T>, entity: T) -> Entity<T>
+    pub(crate) fn insert<T>(&mut self, slot: Slot<T>, entity: T) -> Entity<T>
     where
         T: 'static,
     {
@@ -135,17 +135,17 @@ impl EntityMap {
 
     /// Move an entity to the stack.
     #[track_caller]
-    pub fn lease<T>(&mut self, pointer: &Entity<T>) -> Lease<T> {
+    pub(crate) fn lease<T>(&mut self, pointer: &Entity<T>) -> Lease<T> {
         Lease { inner: self.lease_erased(pointer, type_name::<T>()), id: pointer.entity_id, entity_type: PhantomData }
     }
 
     /// Returns an entity after moving it to the stack.
-    pub fn end_lease<T>(&mut self, lease: Lease<T>) {
+    pub(crate) fn end_lease<T>(&mut self, lease: Lease<T>) {
         self.end_lease_erased(lease.id, lease.inner);
     }
 
     #[inline(always)]
-    pub fn read<T: 'static>(&self, entity: &Entity<T>) -> &T {
+    pub(crate) fn read<T: 'static>(&self, entity: &Entity<T>) -> &T {
         self.read_inner(entity.entity_id)
             .and_then(|entity| entity.downcast_ref())
             .unwrap_or_else(|| double_lease_panic("read", type_name::<T>()))
@@ -166,7 +166,7 @@ impl EntityMap {
     /// recorded them are skipped, because the window would otherwise subscribe
     /// to them again after `App` has cleaned up their subscriptions, and
     /// nothing would clean those up.
-    pub fn extend_accessed(&mut self, entities: impl IntoIterator<Item = EntityId>) {
+    pub(crate) fn extend_accessed(&mut self, entities: impl IntoIterator<Item = EntityId>) {
         let ref_counts = self.ref_counts.read();
         self.accessed_entities
             .get_mut()
@@ -175,19 +175,19 @@ impl EntityMap {
     }
 
     /// Clears the accessed entities and ends any scope left open.
-    pub fn clear_accessed(&mut self) {
+    pub(crate) fn clear_accessed(&mut self) {
         let accessed_entities = self.accessed_entities.get_mut();
         accessed_entities.scopes.clear();
         accessed_entities.frame.clear();
     }
 
-    pub fn push_access_scope(&mut self) {
+    pub(crate) fn push_access_scope(&mut self) {
         self.accessed_entities.get_mut().scopes.push(FxHashSet::default());
     }
 
     /// Ends the innermost scope, adds its accessed entities to the scope
     /// around it, and returns them.
-    pub fn pop_access_scope(&mut self) -> FxHashSet<EntityId> {
+    pub(crate) fn pop_access_scope(&mut self) -> FxHashSet<EntityId> {
         let accessed_entities = self.accessed_entities.get_mut();
         let Some(scope) = accessed_entities.scopes.pop() else {
             return FxHashSet::default();
@@ -198,16 +198,16 @@ impl EntityMap {
 
     /// Takes every entity accessed during the draw, to be handed back with
     /// [`Self::restore_accessed`].
-    pub fn take_accessed(&mut self) -> FxHashSet<EntityId> {
+    pub(crate) fn take_accessed(&mut self) -> FxHashSet<EntityId> {
         let accessed_entities = self.accessed_entities.get_mut();
         mem::take(&mut accessed_entities.frame)
     }
 
-    pub fn restore_accessed(&mut self, entities: FxHashSet<EntityId>) {
+    pub(crate) fn restore_accessed(&mut self, entities: FxHashSet<EntityId>) {
         self.accessed_entities.get_mut().frame = entities;
     }
 
-    pub fn take_dropped(&mut self) -> Vec<(EntityId, Box<dyn Any>)> {
+    pub(crate) fn take_dropped(&mut self) -> Vec<(EntityId, Box<dyn Any>)> {
         let ref_counts = &mut *self.ref_counts.write();
         let dropped_entity_ids = ref_counts.dropped_entity_ids.drain(..);
         let accessed_entities = self.accessed_entities.get_mut();

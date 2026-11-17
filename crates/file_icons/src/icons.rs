@@ -25,7 +25,7 @@ pub(crate) struct FolderIcons {
 }
 
 impl FolderIcons {
-    pub fn get(&self, expanded: bool) -> SharedString {
+    pub(crate) fn get(&self, expanded: bool) -> SharedString {
         if expanded { self.expanded.clone() } else { self.collapsed.clone() }
     }
 }

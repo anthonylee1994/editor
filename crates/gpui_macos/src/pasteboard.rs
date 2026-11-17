@@ -25,18 +25,18 @@ use crate::ns::id;
 use crate::ns::nil;
 use crate::ns_string;
 
-pub struct Pasteboard {
+pub(crate) struct Pasteboard {
     inner: Retained<AnyObject>,
     text_hash_type: Retained<AnyObject>,
     metadata_type: Retained<AnyObject>,
 }
 
 impl Pasteboard {
-    pub fn general() -> Option<Self> {
+    pub(crate) fn general() -> Option<Self> {
         unsafe { Self::new(msg_send![class!(NSPasteboard), generalPasteboard]) }
     }
 
-    pub fn find() -> Option<Self> {
+    pub(crate) fn find() -> Option<Self> {
         unsafe {
             Self::new(msg_send![
                 class!(NSPasteboard),
@@ -57,7 +57,7 @@ impl Pasteboard {
         })
     }
 
-    pub fn read(&self) -> Option<ClipboardItem> {
+    pub(crate) fn read(&self) -> Option<ClipboardItem> {
         unsafe {
             // Check for file paths first
             let filenames: id = msg_send![&*self.inner, propertyListForType: NSFilenamesPboardType];
@@ -158,7 +158,7 @@ impl Pasteboard {
         }
     }
 
-    pub fn write(&self, item: ClipboardItem) {
+    pub(crate) fn write(&self, item: ClipboardItem) {
         unsafe {
             match item.entries.as_slice() {
                 [] => {
@@ -264,10 +264,10 @@ unsafe fn ns_data(bytes: *const u8, length: usize) -> id {
 #[link(name = "AppKit", kind = "framework")]
 unsafe extern "C" {
     /// [Apple's documentation](https://developer.apple.com/documentation/appkit/nspasteboardnamefind?language=objc).
-    pub static NSPasteboardNameFind: id;
-    pub static NSFilenamesPboardType: id;
-    pub static NSPasteboardTypePNG: id;
-    pub static NSPasteboardTypeString: id;
+    pub(crate) static NSPasteboardNameFind: id;
+    pub(crate) static NSFilenamesPboardType: id;
+    pub(crate) static NSPasteboardTypePNG: id;
+    pub(crate) static NSPasteboardTypeString: id;
 }
 
 impl From<ImageFormat> for UTType {
@@ -283,30 +283,30 @@ impl From<ImageFormat> for UTType {
 }
 
 // See https://developer.apple.com/documentation/uniformtypeidentifiers/uttype-swift.struct/
-pub struct UTType(id);
+pub(crate) struct UTType(id);
 
 impl UTType {
-    pub fn png() -> Self {
+    pub(crate) fn png() -> Self {
         // https://developer.apple.com/documentation/uniformtypeidentifiers/uttype-swift.struct/png
         Self(unsafe { NSPasteboardTypePNG }) // This is a rare case where there's a built-in NSPasteboardType
     }
 
-    pub fn jpeg() -> Self {
+    pub(crate) fn jpeg() -> Self {
         // https://developer.apple.com/documentation/uniformtypeidentifiers/uttype-swift.struct/jpeg
         Self(unsafe { ns_string("public.jpeg") })
     }
 
-    pub fn gif() -> Self {
+    pub(crate) fn gif() -> Self {
         // https://developer.apple.com/documentation/uniformtypeidentifiers/uttype-swift.struct/gif
         Self(unsafe { ns_string("com.compuserve.gif") })
     }
 
-    pub fn webp() -> Self {
+    pub(crate) fn webp() -> Self {
         // https://developer.apple.com/documentation/uniformtypeidentifiers/uttype-swift.struct/webp
         Self(unsafe { ns_string("org.webmproject.webp") })
     }
 
-    pub fn svg() -> Self {
+    pub(crate) fn svg() -> Self {
         // https://developer.apple.com/documentation/uniformtypeidentifiers/uttype-swift.struct/svg
         Self(unsafe { ns_string("public.svg-image") })
     }
@@ -315,7 +315,7 @@ impl UTType {
         self.0
     }
 
-    pub const fn inner_mut(&self) -> *mut AnyObject {
+    pub(crate) const fn inner_mut(&self) -> *mut AnyObject {
         self.0
     }
 }

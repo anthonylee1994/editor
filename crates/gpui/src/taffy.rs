@@ -45,7 +45,7 @@ type NodeMeasureFn = Box<MeasureFn>;
 struct NodeContext {
     measure: NodeMeasureFn,
 }
-pub struct TaffyLayoutEngine {
+pub(crate) struct TaffyLayoutEngine {
     taffy: TaffyTree<NodeContext>,
     absolute_layout_bounds: FxHashMap<LayoutId, Bounds<Pixels>>,
     /// Unrounded absolute border-box top-left per-node coordinate in device pixels.
@@ -57,7 +57,7 @@ pub struct TaffyLayoutEngine {
 const EXPECT_MESSAGE: &str = "we should avoid taffy layout errors by construction if possible";
 
 impl TaffyLayoutEngine {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         let mut taffy = TaffyTree::new();
         taffy.disable_rounding();
         TaffyLayoutEngine {
@@ -69,14 +69,14 @@ impl TaffyLayoutEngine {
         }
     }
 
-    pub fn clear(&mut self) {
+    pub(crate) fn clear(&mut self) {
         self.taffy.clear();
         self.absolute_layout_bounds.clear();
         self.absolute_outer_origins.clear();
         self.computed_layouts.clear();
     }
 
-    pub fn request_layout(
+    pub(crate) fn request_layout(
         &mut self,
         style: Style,
         rem_size: Pixels,
@@ -96,7 +96,7 @@ impl TaffyLayoutEngine {
         }
     }
 
-    pub fn request_measured_layout(
+    pub(crate) fn request_measured_layout(
         &mut self,
         style: Style,
         rem_size: Pixels,
@@ -115,7 +115,7 @@ impl TaffyLayoutEngine {
     /// root element on the web, which stretches to fill the initial containing
     /// block (the viewport) unless given an explicit size. Explicitly styled
     /// dimensions are preserved.
-    pub fn stretch_auto_size_to_fill(&mut self, id: LayoutId, size: Size<Pixels>, scale_factor: f32) {
+    pub(crate) fn stretch_auto_size_to_fill(&mut self, id: LayoutId, size: Size<Pixels>, scale_factor: f32) {
         let style = self.taffy.style(id.0).expect(EXPECT_MESSAGE);
         let stretch_width = style.size.width.is_auto();
         let stretch_height = style.size.height.is_auto();
@@ -177,7 +177,7 @@ impl TaffyLayoutEngine {
         Ok(edges)
     }
 
-    pub fn compute_layout(
+    pub(crate) fn compute_layout(
         &mut self,
         id: LayoutId,
         available_space: Size<AvailableSpace>,
@@ -319,7 +319,7 @@ impl TaffyLayoutEngine {
     // snapped independently, but the raw content-box origin can carry a
     // 1dp residual into descendants.
 
-    pub fn layout_bounds(&mut self, id: LayoutId, scale_factor: f32) -> Bounds<Pixels> {
+    pub(crate) fn layout_bounds(&mut self, id: LayoutId, scale_factor: f32) -> Bounds<Pixels> {
         if let Some(layout) = self.absolute_layout_bounds.get(&id).copied() {
             return layout;
         }

@@ -48,7 +48,7 @@ where
     EmitterKey: 'static + Ord + Clone + Debug,
     Callback: 'static,
 {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         SubscriberSet(Rc::new(RefCell::new(SubscriberSetState {
             subscribers: BTreeMap::default(),
             next_subscriber_id: 0,
@@ -56,7 +56,7 @@ where
     }
 
     /// Inserts an immediately active subscription for the given emitter.
-    pub fn insert(&self, emitter_key: EmitterKey, callback: Callback) -> Subscription {
+    pub(crate) fn insert(&self, emitter_key: EmitterKey, callback: Callback) -> Subscription {
         let (subscription, activate) = self.insert_pending(emitter_key, callback);
         activate();
         subscription
@@ -65,7 +65,7 @@ where
     /// Inserts a pending subscription and returns its handle and activation function.
     ///
     /// Pending callbacks are skipped by `retain` and excluded from `remove` until activated.
-    pub fn insert_pending(
+    pub(crate) fn insert_pending(
         &self,
         emitter_key: EmitterKey,
         callback: Callback,
@@ -97,14 +97,17 @@ where
         (subscription, move || activate(&state))
     }
 
-    pub fn remove(&self, emitter: &EmitterKey) -> impl IntoIterator<Item = Callback> + use<EmitterKey, Callback> {
+    pub(crate) fn remove(
+        &self,
+        emitter: &EmitterKey,
+    ) -> impl IntoIterator<Item = Callback> + use<EmitterKey, Callback> {
         let subscribers = self.0.borrow_mut().subscribers.remove(emitter);
         subscribers.into_iter().flat_map(BTreeMap::into_values).filter_map(Subscriber::into_active_callback)
     }
 
     /// Call the given callback for each subscriber to the given emitter.
     /// If the callback returns false, the subscriber is removed.
-    pub fn retain<F>(&self, emitter: &EmitterKey, mut f: F)
+    pub(crate) fn retain<F>(&self, emitter: &EmitterKey, mut f: F)
     where
         F: FnMut(&mut Callback) -> bool,
     {
@@ -135,7 +138,7 @@ impl<Callback> Clone for SingleSubscriberSet<Callback> {
 }
 
 impl<Callback: 'static> SingleSubscriberSet<Callback> {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         SingleSubscriberSet(Rc::new(RefCell::new(SingleSubscriberSetState {
             subscribers: BTreeMap::new(),
             next_subscriber_id: 0,
@@ -143,7 +146,7 @@ impl<Callback: 'static> SingleSubscriberSet<Callback> {
     }
 
     /// Inserts an immediately active subscription.
-    pub fn insert(&self, callback: Callback) -> Subscription {
+    pub(crate) fn insert(&self, callback: Callback) -> Subscription {
         let (subscription, activate) = self.insert_pending(callback);
         activate();
         subscription
@@ -152,7 +155,7 @@ impl<Callback: 'static> SingleSubscriberSet<Callback> {
     /// Inserts a pending subscription and returns its handle and activation function.
     ///
     /// Pending callbacks are skipped by `retain` and excluded from `remove` until activated.
-    pub fn insert_pending(&self, callback: Callback) -> (Subscription, impl FnOnce() + use<Callback>) {
+    pub(crate) fn insert_pending(&self, callback: Callback) -> (Subscription, impl FnOnce() + use<Callback>) {
         let state = Rc::new(Cell::new(SubscriberState::Pending));
         let mut lock = self.0.borrow_mut();
         let subscriber_id = post_inc(&mut lock.next_subscriber_id);
@@ -170,13 +173,13 @@ impl<Callback: 'static> SingleSubscriberSet<Callback> {
     }
 
     /// Removes all subscriptions and returns the active callbacks in registration order.
-    pub fn remove(&self) -> impl IntoIterator<Item = Callback> + use<Callback> {
+    pub(crate) fn remove(&self) -> impl IntoIterator<Item = Callback> + use<Callback> {
         let subscribers = mem::take(&mut self.0.borrow_mut().subscribers);
         subscribers.into_values().filter_map(Subscriber::into_active_callback)
     }
 
     /// Invokes each active callback, removing subscriptions for which `f` returns false.
-    pub fn retain(&self, mut f: impl FnMut(&mut Callback) -> bool) {
+    pub(crate) fn retain(&self, mut f: impl FnMut(&mut Callback) -> bool) {
         let mut subscribers = mem::take(&mut self.0.borrow_mut().subscribers);
         subscribers.retain(|_, subscriber| subscriber.retain(&mut f));
         // Callbacks may have added subscribers; ids keep registration order.

@@ -178,7 +178,7 @@ pub(crate) struct ManifestQueryDelegate {
 }
 
 impl ManifestQueryDelegate {
-    pub const fn new(worktree: Snapshot) -> Self {
+    pub(crate) const fn new(worktree: Snapshot) -> Self {
         Self { worktree }
     }
 }

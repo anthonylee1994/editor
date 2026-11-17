@@ -68,7 +68,7 @@ struct LanguageRegistryState {
 }
 
 #[derive(Debug)]
-pub struct LanguageNotFound;
+pub(crate) struct LanguageNotFound;
 
 impl Display for LanguageNotFound {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {

@@ -19,7 +19,7 @@ use crate::npx;
 
 /// The TypeScript 7 native language server (`tsc --lsp --stdio`), for TypeScript,
 /// TSX and JavaScript. Older TypeScript versions are not supported.
-pub struct TsgoLspAdapter {
+pub(crate) struct TsgoLspAdapter {
     fs: Arc<dyn Fs>,
 }
 
@@ -29,7 +29,7 @@ impl TsgoLspAdapter {
     const NPX_PACKAGE: &str = "typescript@^7";
     const ARGUMENTS: &[&str] = &["--lsp", "--stdio"];
 
-    pub fn new(fs: Arc<dyn Fs>) -> Self {
+    pub(crate) fn new(fs: Arc<dyn Fs>) -> Self {
         TsgoLspAdapter { fs }
     }
 

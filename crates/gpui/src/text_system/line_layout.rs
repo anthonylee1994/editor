@@ -466,7 +466,7 @@ pub(crate) struct LineLayoutIndex {
 }
 
 impl LineLayoutCache {
-    pub fn new(platform_text_system: Arc<dyn PlatformTextSystem>, font_generation: Arc<AtomicUsize>) -> Self {
+    pub(crate) fn new(platform_text_system: Arc<dyn PlatformTextSystem>, font_generation: Arc<AtomicUsize>) -> Self {
         let cached_font_generation = font_generation.load(Ordering::Acquire);
         Self {
             state: RefCell::default(),
@@ -477,7 +477,7 @@ impl LineLayoutCache {
         }
     }
 
-    pub fn layout_index(&self) -> LineLayoutIndex {
+    pub(crate) fn layout_index(&self) -> LineLayoutIndex {
         let font_generation = self.clear_if_font_generation_changed();
         let state = self.state.borrow();
         LineLayoutIndex {
@@ -487,7 +487,7 @@ impl LineLayoutCache {
         }
     }
 
-    pub fn reuse_layouts(&self, range: Range<LineLayoutIndex>) {
+    pub(crate) fn reuse_layouts(&self, range: Range<LineLayoutIndex>) {
         let font_generation = self.clear_if_font_generation_changed();
         if range.start.font_generation != font_generation || range.end.font_generation != font_generation {
             return;
@@ -509,7 +509,7 @@ impl LineLayoutCache {
         }
     }
 
-    pub fn truncate_layouts(&self, index: LineLayoutIndex) {
+    pub(crate) fn truncate_layouts(&self, index: LineLayoutIndex) {
         let font_generation = self.clear_if_font_generation_changed();
         if index.font_generation != font_generation {
             return;
@@ -520,11 +520,11 @@ impl LineLayoutCache {
     }
 
     /// Lines shaped by the platform text system so far, i.e. layout cache misses.
-    pub const fn shaped_line_count(&self) -> usize {
+    pub(crate) const fn shaped_line_count(&self) -> usize {
         self.shaped_lines.get()
     }
 
-    pub fn finish_frame(&self) {
+    pub(crate) fn finish_frame(&self) {
         let _font_generation = self.clear_if_font_generation_changed();
         let LineLayoutCacheState { previous_frame, current_frame, recent_lines } = &mut *self.state.borrow_mut();
         // Wrapped hits never touch the unwrapped line, so it may have aged out of
@@ -564,7 +564,7 @@ impl LineLayoutCache {
         current_frame.used_wrapped_lines.clear();
     }
 
-    pub fn layout_wrapped_line<Text>(
+    pub(crate) fn layout_wrapped_line<Text>(
         &self,
         text: Text,
         font_size: Pixels,
@@ -616,7 +616,7 @@ impl LineLayoutCache {
         layout
     }
 
-    pub fn layout_line<Text>(
+    pub(crate) fn layout_line<Text>(
         &self,
         text: Text,
         font_size: Pixels,

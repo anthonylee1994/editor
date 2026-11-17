@@ -126,7 +126,7 @@ pub(crate) struct BufferDiagnosticsEditor {
 impl BufferDiagnosticsEditor {
     /// Creates new instance of the `BufferDiagnosticsEditor` which can then be
     /// displayed by adding it to a pane.
-    pub fn new(
+    pub(crate) fn new(
         project_path: ProjectPath,
         project_handle: Entity<Project>,
         buffer: Option<Entity<Buffer>>,
@@ -264,7 +264,7 @@ impl BufferDiagnosticsEditor {
         }
     }
 
-    pub fn register(workspace: &mut Workspace, _window: Option<&mut Window>, _: &mut Context<Workspace>) {
+    pub(crate) fn register(workspace: &mut Workspace, _window: Option<&mut Window>, _: &mut Context<Workspace>) {
         workspace.register_action(Self::deploy);
     }
 

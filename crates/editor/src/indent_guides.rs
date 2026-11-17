@@ -25,7 +25,7 @@ struct ActiveIndentedRange {
 }
 
 #[derive(Default)]
-pub struct ActiveIndentGuidesState {
+pub(crate) struct ActiveIndentGuidesState {
     pub dirty: bool,
     cursor_row: MultiBufferRow,
     pending_refresh: Option<Task<()>>,
@@ -33,7 +33,7 @@ pub struct ActiveIndentGuidesState {
 }
 
 impl ActiveIndentGuidesState {
-    pub const fn should_refresh(&self) -> bool {
+    pub(crate) const fn should_refresh(&self) -> bool {
         self.pending_refresh.is_none() && self.dirty
     }
 }
@@ -129,7 +129,7 @@ impl Editor {
     }
 }
 
-pub fn indent_guides_in_range(
+pub(crate) fn indent_guides_in_range(
     editor: &Editor,
     visible_buffer_range: Range<MultiBufferRow>,
     ignore_disabled_for_language: bool,

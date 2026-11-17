@@ -1017,7 +1017,7 @@ pub(crate) struct MacWindow(
 );
 
 impl MacWindow {
-    pub fn open(
+    pub(crate) fn open(
         handle: AnyWindowHandle,
         WindowParams {
             bounds,
@@ -1291,7 +1291,7 @@ impl MacWindow {
         }
     }
 
-    pub fn active_window() -> Option<AnyWindowHandle> {
+    pub(crate) fn active_window() -> Option<AnyWindowHandle> {
         unsafe {
             let app = shared_application();
             let main_window: id = msg_send![app, mainWindow];
@@ -1304,7 +1304,7 @@ impl MacWindow {
         }
     }
 
-    pub fn ordered_windows() -> Vec<AnyWindowHandle> {
+    pub(crate) fn ordered_windows() -> Vec<AnyWindowHandle> {
         unsafe {
             let app = shared_application();
             let windows: id = msg_send![app, orderedWindows];

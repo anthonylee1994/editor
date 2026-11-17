@@ -914,7 +914,7 @@ mod remote_button {
 
     use crate::git_panel::RemoteOperationKind;
 
-    pub fn render_fetch_button(
+    pub(crate) fn render_fetch_button(
         keybinding_target: Option<FocusHandle>,
         id: SharedString,
         in_progress_operation: Option<RemoteOperationKind>,
@@ -938,7 +938,7 @@ mod remote_button {
         )
     }
 
-    pub fn render_push_button(
+    pub(crate) fn render_push_button(
         keybinding_target: Option<FocusHandle>,
         id: SharedString,
         ahead: u32,
@@ -969,7 +969,7 @@ mod remote_button {
         )
     }
 
-    pub fn render_pull_button(
+    pub(crate) fn render_pull_button(
         keybinding_target: Option<FocusHandle>,
         id: SharedString,
         ahead: u32,
@@ -995,7 +995,7 @@ mod remote_button {
         )
     }
 
-    pub fn render_publish_button(
+    pub(crate) fn render_publish_button(
         keybinding_target: Option<FocusHandle>,
         id: SharedString,
         in_progress_operation: Option<RemoteOperationKind>,
@@ -1025,7 +1025,7 @@ mod remote_button {
         )
     }
 
-    pub fn render_republish_button(
+    pub(crate) fn render_republish_button(
         keybinding_target: Option<FocusHandle>,
         id: SharedString,
         in_progress_operation: Option<RemoteOperationKind>,
@@ -1233,7 +1233,7 @@ struct GitCloneModal {
 }
 
 impl GitCloneModal {
-    pub fn show(panel: Entity<GitPanel>, window: &mut Window, cx: &mut Context<Self>) -> Self {
+    pub(crate) fn show(panel: Entity<GitPanel>, window: &mut Window, cx: &mut Context<Self>) -> Self {
         let repo_input = cx.new(|cx| {
             let mut editor = Editor::single_line(window, cx);
             editor.set_placeholder_text("Enter repository URL…", window, cx);

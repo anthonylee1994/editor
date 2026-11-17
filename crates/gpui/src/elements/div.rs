@@ -2915,15 +2915,15 @@ pub(crate) struct GroupHitboxes(FxHashMap<SharedString, SmallVec<[HitboxId; 1]>>
 impl Global for GroupHitboxes {}
 
 impl GroupHitboxes {
-    pub fn get(name: &SharedString, cx: &mut App) -> Option<HitboxId> {
+    pub(crate) fn get(name: &SharedString, cx: &mut App) -> Option<HitboxId> {
         cx.default_global::<Self>().0.get(name).and_then(|bounds_stack| bounds_stack.last()).copied()
     }
 
-    pub fn push(name: SharedString, hitbox_id: HitboxId, cx: &mut App) {
+    pub(crate) fn push(name: SharedString, hitbox_id: HitboxId, cx: &mut App) {
         cx.default_global::<Self>().0.entry(name).or_default().push(hitbox_id);
     }
 
-    pub fn pop(name: &SharedString, cx: &mut App) {
+    pub(crate) fn pop(name: &SharedString, cx: &mut App) {
         cx.default_global::<Self>().0.get_mut(name).expect("pop is paired with push").pop();
     }
 }

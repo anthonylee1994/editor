@@ -39,7 +39,7 @@ use crate::actions::FormatSelections;
 use crate::selections_collection::SelectionsCollection;
 
 #[derive(Debug)]
-pub enum MenuPosition {
+pub(crate) enum MenuPosition {
     /// When the editor is scrolled, the context menu stays on the exact
     /// same position on the screen, never disappearing.
     PinnedToScreen(Point<Pixels>),
@@ -48,7 +48,7 @@ pub enum MenuPosition {
     PinnedToEditor { source: multi_buffer::Anchor, offset: Point<Pixels> },
 }
 
-pub struct MouseContextMenu {
+pub(crate) struct MouseContextMenu {
     pub(crate) position: MenuPosition,
     pub(crate) context_menu: Entity<ui::ContextMenu>,
     _dismiss_subscription: Subscription,
@@ -148,7 +148,7 @@ fn display_ranges<'a>(
         .map(move |s| s.start.to_display_point(display_map)..s.end.to_display_point(display_map))
 }
 
-pub fn deploy_context_menu(
+pub(crate) fn deploy_context_menu(
     editor: &mut Editor,
     position: Option<Point<Pixels>>,
     point: DisplayPoint,

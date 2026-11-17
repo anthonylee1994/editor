@@ -36,7 +36,7 @@ fn is_rust_language(language: &Language) -> bool {
     language.name() == "Rust"
 }
 
-pub fn apply_related_actions(editor: &Entity<Editor>, window: &mut Window, cx: &App) {
+pub(crate) fn apply_related_actions(editor: &Entity<Editor>, window: &mut Window, cx: &App) {
     if editor.read(cx).project().is_some_and(|project| {
         project.read(cx).language_server_statuses(cx).any(|(_, status)| status.name == RUST_ANALYZER_NAME)
     }) {
@@ -60,7 +60,12 @@ pub fn apply_related_actions(editor: &Entity<Editor>, window: &mut Window, cx: &
     }
 }
 
-pub fn go_to_parent_module(editor: &mut Editor, _: &GoToParentModule, window: &mut Window, cx: &mut Context<Editor>) {
+pub(crate) fn go_to_parent_module(
+    editor: &mut Editor,
+    _: &GoToParentModule,
+    window: &mut Window,
+    cx: &mut Context<Editor>,
+) {
     if editor.selections.count() == 0 {
         return;
     }
@@ -111,7 +116,7 @@ pub fn go_to_parent_module(editor: &mut Editor, _: &GoToParentModule, window: &m
     .detach_and_log_err(cx);
 }
 
-pub fn expand_macro_recursively(
+pub(crate) fn expand_macro_recursively(
     editor: &mut Editor,
     _: &ExpandMacroRecursively,
     window: &mut Window,
@@ -175,7 +180,7 @@ pub fn expand_macro_recursively(
     .detach_and_log_err(cx);
 }
 
-pub fn open_docs(editor: &mut Editor, _: &OpenDocs, window: &mut Window, cx: &mut Context<Editor>) {
+pub(crate) fn open_docs(editor: &mut Editor, _: &OpenDocs, window: &mut Window, cx: &mut Context<Editor>) {
     if editor.selections.count() == 0 {
         return;
     }

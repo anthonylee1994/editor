@@ -95,7 +95,7 @@ where
     U: Clone + Debug + PartialEq + PartialOrd + Add<U, Output = U> + Sub<Output = U> + Half + Default,
 {
     /// Clears all nodes from the tree.
-    pub fn clear(&mut self) {
+    pub(crate) fn clear(&mut self) {
         self.nodes.clear();
         self.root = None;
         self.max_leaf = None;
@@ -107,7 +107,7 @@ where
     ///
     /// The ordering is one greater than the maximum ordering of any
     /// existing bounds that intersect with the new bounds.
-    pub fn insert(&mut self, new_bounds: Bounds<U>) -> u32 {
+    pub(crate) fn insert(&mut self, new_bounds: Bounds<U>) -> u32 {
         // Find maximum ordering among intersecting bounds
         let max_intersecting = self.find_max_ordering(&new_bounds);
         let ordering = max_intersecting + 1;

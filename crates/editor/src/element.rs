@@ -21,7 +21,7 @@ use std::ops::Range;
 use std::rc::Rc;
 use std::sync::Arc;
 
-pub use actions::register_action;
+pub(crate) use actions::register_action;
 pub(crate) use blocks::BlockLayout;
 use blocks::RenderBlocksOutput;
 use buffer_diff::DiffHunkStatus;
@@ -2583,7 +2583,7 @@ impl PositionMap {
     }
 }
 
-pub fn layout_line(
+pub(crate) fn layout_line(
     row: DisplayRow,
     snapshot: &EditorSnapshot,
     style: &EditorStyle,
@@ -2612,7 +2612,7 @@ pub fn layout_line(
 }
 
 #[derive(Debug, Clone)]
-pub struct IndentGuideLayout {
+pub(crate) struct IndentGuideLayout {
     origin: gpui::Point<Pixels>,
     length: Pixels,
     display_row_range: Range<DisplayRow>,

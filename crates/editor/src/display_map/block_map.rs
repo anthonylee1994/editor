@@ -81,12 +81,12 @@ pub struct BlockMap {
     pub(super) deferred_edits: Cell<Patch<WrapRow>>,
 }
 
-pub struct BlockMapReader<'a> {
+pub(crate) struct BlockMapReader<'a> {
     pub blocks: &'a Vec<Arc<CustomBlock>>,
     pub snapshot: BlockSnapshot,
 }
 
-pub struct BlockMapWriter<'a> {
+pub(crate) struct BlockMapWriter<'a> {
     block_map: &'a mut BlockMap,
     companion: Option<BlockMapWriterCompanion<'a>>,
 }
@@ -562,7 +562,7 @@ pub struct BlockChunks<'a> {
 }
 
 #[derive(Clone)]
-pub struct BlockRows<'a> {
+pub(super) struct BlockRows<'a> {
     transforms: sum_tree::Cursor<'a, 'static, Transform, Dimensions<BlockRow, WrapRow>>,
     input_rows: wrap_map::WrapRows<'a>,
     output_row: BlockRow,
@@ -1544,7 +1544,7 @@ impl DerefMut for BlockMapReader<'_> {
 }
 
 impl BlockMapReader<'_> {
-    pub fn row_for_block(&self, block_id: CustomBlockId) -> Option<BlockRow> {
+    pub(crate) fn row_for_block(&self, block_id: CustomBlockId) -> Option<BlockRow> {
         let block = self.blocks.iter().find(|block| block.id == block_id)?;
         let buffer_row = block.start().to_point(self.wrap_snapshot.buffer_snapshot()).row;
         let wrap_row = self.wrap_snapshot.make_wrap_point(Point::new(buffer_row, 0), Bias::Left).row();
@@ -1627,7 +1627,7 @@ impl BlockMapWriterCompanion<'_> {
 }
 
 impl BlockMapWriter<'_> {
-    pub fn insert(&mut self, blocks: impl IntoIterator<Item = BlockProperties<Anchor>>) -> Vec<CustomBlockId> {
+    pub(crate) fn insert(&mut self, blocks: impl IntoIterator<Item = BlockProperties<Anchor>>) -> Vec<CustomBlockId> {
         let blocks = blocks.into_iter();
         let mut ids = Vec::with_capacity(blocks.size_hint().1.unwrap_or(0));
         let mut edits = Patch::default();
@@ -1694,7 +1694,7 @@ impl BlockMapWriter<'_> {
         ids
     }
 
-    pub fn resize(&mut self, mut heights: FxHashMap<CustomBlockId, u32>) {
+    pub(crate) fn resize(&mut self, mut heights: FxHashMap<CustomBlockId, u32>) {
         let wrap_snapshot = self.block_map.wrap_snapshot.borrow().clone();
         let buffer = wrap_snapshot.buffer_snapshot();
         let mut edits = Patch::default();
@@ -1756,7 +1756,7 @@ impl BlockMapWriter<'_> {
         }
     }
 
-    pub fn remove(&mut self, block_ids: FxHashSet<CustomBlockId>) {
+    pub(crate) fn remove(&mut self, block_ids: FxHashSet<CustomBlockId>) {
         let wrap_snapshot = &*self.block_map.wrap_snapshot.borrow();
         let buffer = wrap_snapshot.buffer_snapshot();
         let mut edits = Patch::default();
@@ -1818,7 +1818,7 @@ impl BlockMapWriter<'_> {
         }
     }
 
-    pub fn remove_intersecting_replace_blocks(
+    pub(crate) fn remove_intersecting_replace_blocks(
         &mut self,
         ranges: impl IntoIterator<Item = Range<MultiBufferOffset>>,
         inclusive: bool,
@@ -1836,11 +1836,11 @@ impl BlockMapWriter<'_> {
         self.remove(blocks_to_remove);
     }
 
-    pub fn disable_header_for_buffer(&mut self, buffer_id: BufferId) {
+    pub(crate) fn disable_header_for_buffer(&mut self, buffer_id: BufferId) {
         self.block_map.buffers_with_disabled_headers.insert(buffer_id);
     }
 
-    pub fn fold_buffers(
+    pub(crate) fn fold_buffers(
         &mut self,
         buffer_ids: impl IntoIterator<Item = BufferId>,
         multi_buffer: &MultiBuffer,
@@ -1849,7 +1849,7 @@ impl BlockMapWriter<'_> {
         self.fold_or_unfold_buffers(true, buffer_ids, multi_buffer, cx);
     }
 
-    pub fn unfold_buffers(
+    pub(crate) fn unfold_buffers(
         &mut self,
         buffer_ids: impl IntoIterator<Item = BufferId>,
         multi_buffer: &MultiBuffer,

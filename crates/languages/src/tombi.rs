@@ -16,7 +16,7 @@ use rustc_hash::FxHashMap;
 use crate::LanguageDef;
 use crate::npx;
 
-pub struct TombiLspAdapter;
+pub(crate) struct TombiLspAdapter;
 
 impl TombiLspAdapter {
     const PACKAGE_NAME: &str = "tombi";

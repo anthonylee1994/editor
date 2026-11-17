@@ -4,7 +4,7 @@ use git::repository::RemoteCommandOutput;
 use ui::SharedString;
 
 #[derive(Clone)]
-pub enum RemoteAction {
+pub(crate) enum RemoteAction {
     Fetch(Option<Remote>),
     Pull(Remote),
     Push(SharedString, Remote),
@@ -12,7 +12,7 @@ pub enum RemoteAction {
 }
 
 impl RemoteAction {
-    pub const fn name(&self) -> &'static str {
+    pub(crate) const fn name(&self) -> &'static str {
         match self {
             RemoteAction::Fetch(_) => "fetch",
             RemoteAction::Pull(_) => "pull",
@@ -22,12 +22,12 @@ impl RemoteAction {
     }
 }
 
-pub enum SuccessStyle {
+pub(crate) enum SuccessStyle {
     Toast,
     ToastWithLog { output: RemoteCommandOutput },
 }
 
-pub struct SuccessMessage {
+pub(crate) struct SuccessMessage {
     pub message: String,
     pub style: SuccessStyle,
 }
@@ -40,7 +40,7 @@ fn autostash_conflicted(output: &RemoteCommandOutput) -> bool {
     output.stderr.contains("Your local changes are stashed")
 }
 
-pub fn format_output(action: &RemoteAction, output: RemoteCommandOutput) -> SuccessMessage {
+pub(crate) fn format_output(action: &RemoteAction, output: RemoteCommandOutput) -> SuccessMessage {
     match action {
         RemoteAction::Fetch(remote) => {
             if output.stderr.is_empty() {

@@ -94,7 +94,7 @@ struct BufferSubscriptions {
     _conflict_set_subscription: Option<Subscription>,
 }
 
-pub struct DiffMultibuffer {
+pub(crate) struct DiffMultibuffer {
     multibuffer: Entity<MultiBuffer>,
     branch_diff: Entity<diff_buffer_list::DiffBufferList>,
     editor: Entity<SplittableEditor>,

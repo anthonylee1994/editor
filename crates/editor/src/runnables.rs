@@ -70,7 +70,7 @@ pub(super) struct RunnableData {
 }
 
 impl RunnableData {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             runnables: FxHashMap::default(),
             task_statuses: FxHashMap::default(),
@@ -80,27 +80,31 @@ impl RunnableData {
         }
     }
 
-    pub fn runnables(&self, (buffer_id, buffer_row): (BufferId, BufferRow)) -> Option<&RunnableTasks> {
+    pub(crate) fn runnables(&self, (buffer_id, buffer_row): (BufferId, BufferRow)) -> Option<&RunnableTasks> {
         self.runnables.get(&buffer_id)?.1.get(&buffer_row)
     }
 
-    pub fn all_runnables(&self) -> impl Iterator<Item = &RunnableTasks> {
+    pub(crate) fn all_runnables(&self) -> impl Iterator<Item = &RunnableTasks> {
         self.runnables.values().flat_map(|(_, tasks)| tasks.values())
     }
 
-    pub fn task_status(&self, (buffer_id, buffer_row): (BufferId, BufferRow)) -> Option<RunnableTaskStatus> {
+    pub(crate) fn task_status(&self, (buffer_id, buffer_row): (BufferId, BufferRow)) -> Option<RunnableTaskStatus> {
         self.task_statuses.get(&(buffer_id, buffer_row)).copied()
     }
 
-    pub fn set_task_status(&mut self, (buffer_id, buffer_row): (BufferId, BufferRow), status: RunnableTaskStatus) {
+    pub(crate) fn set_task_status(
+        &mut self,
+        (buffer_id, buffer_row): (BufferId, BufferRow),
+        status: RunnableTaskStatus,
+    ) {
         self.task_statuses.insert((buffer_id, buffer_row), status);
     }
 
-    pub fn clear_task_status(&mut self, (buffer_id, buffer_row): (BufferId, BufferRow)) {
+    pub(crate) fn clear_task_status(&mut self, (buffer_id, buffer_row): (BufferId, BufferRow)) {
         self.task_statuses.remove(&(buffer_id, buffer_row));
     }
 
-    pub fn has_cached(&self, buffer_id: BufferId, version: &Global) -> bool {
+    pub(crate) fn has_cached(&self, buffer_id: BufferId, version: &Global) -> bool {
         self.runnables.get(&buffer_id).is_some_and(|(cached_version, _)| !version.changed_since(cached_version))
     }
 
@@ -143,7 +147,7 @@ impl From<ScheduledTaskResult> for RunnableTaskStatus {
 }
 
 #[derive(Clone, Debug)]
-pub struct RunnableTasks {
+pub(crate) struct RunnableTasks {
     pub templates: Vec<(TaskSourceKind, TaskTemplate)>,
     pub offset: multi_buffer::Anchor,
     // We need the column at which the task context evaluation should take place (when we're spawning it via gutter).
@@ -155,7 +159,7 @@ pub struct RunnableTasks {
 }
 
 impl RunnableTasks {
-    pub fn resolve<'a>(
+    pub(crate) fn resolve<'a>(
         &'a self,
         cx: &'a task::TaskContext,
     ) -> impl Iterator<Item = (TaskSourceKind, ResolvedTask)> + 'a {

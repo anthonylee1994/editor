@@ -24,8 +24,8 @@ pub(crate) unsafe fn window_appearance_from_native(appearance: id) -> WindowAppe
 
 #[link(name = "AppKit", kind = "framework")]
 unsafe extern "C" {
-    pub static NSAppearanceNameAqua: id;
-    pub static NSAppearanceNameDarkAqua: id;
-    pub static NSAppearanceNameVibrantLight: id;
-    pub static NSAppearanceNameVibrantDark: id;
+    pub(crate) static NSAppearanceNameAqua: id;
+    pub(crate) static NSAppearanceNameDarkAqua: id;
+    pub(crate) static NSAppearanceNameVibrantLight: id;
+    pub(crate) static NSAppearanceNameVibrantDark: id;
 }

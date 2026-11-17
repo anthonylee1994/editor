@@ -21,7 +21,7 @@ pub(crate) struct TabStopMap {
 }
 
 #[derive(Debug, Clone)]
-pub enum TabStopOperation {
+pub(crate) enum TabStopOperation {
     Insert(FocusHandle),
     Group(TabIndex),
     GroupEnd,
@@ -67,7 +67,7 @@ impl PartialOrd for TabStopNode {
 }
 
 impl TabStopMap {
-    pub fn insert(&mut self, focus_handle: &FocusHandle) {
+    pub(crate) fn insert(&mut self, focus_handle: &FocusHandle) {
         self.insertion_history.push(TabStopOperation::Insert(focus_handle.clone()));
         let mut path = self.current_path.clone();
         path.0.push(focus_handle.tab_index);
@@ -80,17 +80,17 @@ impl TabStopMap {
         });
     }
 
-    pub fn begin_group(&mut self, tab_index: isize) {
+    pub(crate) fn begin_group(&mut self, tab_index: isize) {
         self.insertion_history.push(TabStopOperation::Group(tab_index));
         self.current_path.0.push(tab_index);
     }
 
-    pub fn end_group(&mut self) {
+    pub(crate) fn end_group(&mut self) {
         self.insertion_history.push(TabStopOperation::GroupEnd);
         self.current_path.0.pop();
     }
 
-    pub fn clear(&mut self) {
+    pub(crate) fn clear(&mut self) {
         self.current_path.0.clear();
         self.insertion_history.clear();
         self.by_id.clear();
@@ -98,14 +98,14 @@ impl TabStopMap {
         self.sorted = false;
     }
 
-    pub fn next(&mut self, focused_id: Option<&FocusId>) -> Option<FocusHandle> {
+    pub(crate) fn next(&mut self, focused_id: Option<&FocusId>) -> Option<FocusHandle> {
         self.ensure_sorted();
         let start = focused_id.and_then(|id| self.by_id.get(id)).map_or(0, |position| position + 1);
         let node = self.nodes[start..].iter().chain(&self.nodes[..start]).find(|node| node.tab_stop)?;
         self.focus_handle_for_order(node)
     }
 
-    pub fn prev(&mut self, focused_id: Option<&FocusId>) -> Option<FocusHandle> {
+    pub(crate) fn prev(&mut self, focused_id: Option<&FocusId>) -> Option<FocusHandle> {
         self.ensure_sorted();
         let end = focused_id.and_then(|id| self.by_id.get(id).copied()).unwrap_or(self.nodes.len());
         let node = self.nodes[..end].iter().rev().chain(self.nodes[end..].iter().rev()).find(|node| node.tab_stop)?;
@@ -134,7 +134,7 @@ impl TabStopMap {
         self.sorted = true;
     }
 
-    pub fn replay(&mut self, nodes: &[TabStopOperation]) {
+    pub(crate) fn replay(&mut self, nodes: &[TabStopOperation]) {
         for node in nodes {
             match node {
                 TabStopOperation::Insert(focus_handle) => self.insert(focus_handle),
@@ -144,7 +144,7 @@ impl TabStopMap {
         }
     }
 
-    pub const fn paint_index(&self) -> usize {
+    pub(crate) const fn paint_index(&self) -> usize {
         self.insertion_history.len()
     }
 

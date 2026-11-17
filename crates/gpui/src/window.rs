@@ -195,7 +195,7 @@ pub(crate) struct WindowInvalidator {
 }
 
 impl WindowInvalidator {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         WindowInvalidator {
             inner: Rc::new(RefCell::new(WindowInvalidatorInner {
                 dirty: true,
@@ -207,7 +207,7 @@ impl WindowInvalidator {
         }
     }
 
-    pub fn invalidate_view(&self, entity: EntityId, cx: &mut App) -> bool {
+    pub(crate) fn invalidate_view(&self, entity: EntityId, cx: &mut App) -> bool {
         let mut inner = self.inner.borrow_mut();
         inner.update_count += 1;
         inner.dirty_views.insert(entity);
@@ -226,11 +226,11 @@ impl WindowInvalidator {
         }
     }
 
-    pub fn is_dirty(&self) -> bool {
+    pub(crate) fn is_dirty(&self) -> bool {
         self.inner.borrow().dirty
     }
 
-    pub fn set_dirty(&self, dirty: bool) {
+    pub(crate) fn set_dirty(&self, dirty: bool) {
         let mut inner = self.inner.borrow_mut();
         let became_dirty = dirty && !inner.dirty;
         inner.dirty = dirty;
@@ -244,7 +244,7 @@ impl WindowInvalidator {
         }
     }
 
-    pub fn set_platform_waker(&self, waker: Option<Rc<dyn Fn()>>) {
+    pub(crate) fn set_platform_waker(&self, waker: Option<Rc<dyn Fn()>>) {
         let mut inner = self.inner.borrow_mut();
         inner.platform_waker = waker;
         let waker = inner.dirty.then(|| inner.platform_waker.clone()).flatten();
@@ -257,30 +257,30 @@ impl WindowInvalidator {
     /// Wakes the platform's frame-request source so a frame request is
     /// delivered even if the platform stops requesting frames for idle
     /// windows. No-op on platforms without a frame waker.
-    pub fn wake_platform(&self) {
+    pub(crate) fn wake_platform(&self) {
         let waker = self.inner.borrow().platform_waker.clone();
         if let Some(waker) = waker {
             waker();
         }
     }
 
-    pub fn set_phase(&self, phase: DrawPhase) {
+    pub(crate) fn set_phase(&self, phase: DrawPhase) {
         self.inner.borrow_mut().draw_phase = phase;
     }
 
-    pub fn update_count(&self) -> usize {
+    pub(crate) fn update_count(&self) -> usize {
         self.inner.borrow().update_count
     }
 
-    pub fn take_views(&self) -> FxHashSet<EntityId> {
+    pub(crate) fn take_views(&self) -> FxHashSet<EntityId> {
         mem::take(&mut self.inner.borrow_mut().dirty_views)
     }
 
-    pub fn replace_views(&self, views: FxHashSet<EntityId>) {
+    pub(crate) fn replace_views(&self, views: FxHashSet<EntityId>) {
         self.inner.borrow_mut().dirty_views = views;
     }
 
-    pub fn not_drawing(&self) -> bool {
+    pub(crate) fn not_drawing(&self) -> bool {
         self.inner.borrow().draw_phase == DrawPhase::None
     }
 }
@@ -295,11 +295,11 @@ pub(crate) struct WindowFocusEvent {
 }
 
 impl WindowFocusEvent {
-    pub fn is_focus_in(&self, focus_id: FocusId) -> bool {
+    pub(crate) fn is_focus_in(&self, focus_id: FocusId) -> bool {
         !self.previous_focus_path.contains(&focus_id) && self.current_focus_path.contains(&focus_id)
     }
 
-    pub fn is_focus_out(&self, focus_id: FocusId) -> bool {
+    pub(crate) fn is_focus_out(&self, focus_id: FocusId) -> bool {
         self.previous_focus_path.contains(&focus_id) && !self.current_focus_path.contains(&focus_id)
     }
 }
@@ -748,7 +748,7 @@ impl Default for InputRateTracker {
 }
 
 impl InputRateTracker {
-    pub fn record_input(&mut self) {
+    pub(crate) fn record_input(&mut self) {
         let now = Instant::now();
         self.timestamps.push(now);
         self.prune_old_timestamps(now);
@@ -759,7 +759,7 @@ impl InputRateTracker {
         }
     }
 
-    pub fn is_high_rate(&self) -> bool {
+    pub(crate) fn is_high_rate(&self) -> bool {
         Instant::now() < self.sustain_until
     }
 

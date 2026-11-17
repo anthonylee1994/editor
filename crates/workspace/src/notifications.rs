@@ -1079,7 +1079,7 @@ struct AppNotifications {
 }
 
 impl AppNotifications {
-    pub fn remove(&mut self, id: &NotificationId) {
+    pub(crate) fn remove(&mut self, id: &NotificationId) {
         self.app_notifications.retain(|(existing_id, _)| existing_id != id);
     }
 }

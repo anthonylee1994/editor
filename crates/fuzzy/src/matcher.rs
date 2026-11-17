@@ -3,13 +3,13 @@ use std::thread;
 
 static MATCHERS: Mutex<Vec<nucleo::Matcher>> = Mutex::new(Vec::new());
 
-pub const LENGTH_PENALTY: f64 = 0.01;
+pub(crate) const LENGTH_PENALTY: f64 = 0.01;
 
 fn pool_cap() -> usize {
     thread::available_parallelism().map_or(8, |x| x.get()).max(1)
 }
 
-pub fn get_matcher(config: nucleo::Config) -> nucleo::Matcher {
+pub(crate) fn get_matcher(config: nucleo::Config) -> nucleo::Matcher {
     let mut matchers = MATCHERS.lock().unwrap_or_else(|x| x.into_inner());
     match matchers.pop() {
         Some(mut matcher) => {
@@ -20,14 +20,14 @@ pub fn get_matcher(config: nucleo::Config) -> nucleo::Matcher {
     }
 }
 
-pub fn return_matcher(matcher: nucleo::Matcher) {
+pub(crate) fn return_matcher(matcher: nucleo::Matcher) {
     let mut pool = MATCHERS.lock().unwrap_or_else(|x| x.into_inner());
     if pool.len() < pool_cap() {
         pool.push(matcher);
     }
 }
 
-pub fn get_matchers(n: usize, config: nucleo::Config) -> Vec<nucleo::Matcher> {
+pub(crate) fn get_matchers(n: usize, config: nucleo::Config) -> Vec<nucleo::Matcher> {
     let mut matchers: Vec<_> = {
         let mut pool = MATCHERS.lock().unwrap_or_else(|x| x.into_inner());
         let available = pool.len().min(n);
@@ -42,7 +42,7 @@ pub fn get_matchers(n: usize, config: nucleo::Config) -> Vec<nucleo::Matcher> {
     matchers
 }
 
-pub fn return_matchers(matchers: Vec<nucleo::Matcher>) {
+pub(crate) fn return_matchers(matchers: Vec<nucleo::Matcher>) {
     let cap = pool_cap();
     let mut pool = MATCHERS.lock().unwrap_or_else(|x| x.into_inner());
     let space = cap.saturating_sub(pool.len());

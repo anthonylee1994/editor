@@ -269,7 +269,7 @@ enum DiffTarget {
 }
 
 impl GitHeaderEntry {
-    pub fn contains(&self, status_entry: &GitStatusEntry, repo: &Repository) -> bool {
+    pub(crate) fn contains(&self, status_entry: &GitStatusEntry, repo: &Repository) -> bool {
         let this = &self.header;
         let status = status_entry.status;
         match this {
@@ -290,7 +290,7 @@ impl GitHeaderEntry {
             }
         }
     }
-    pub const fn title(&self) -> &'static str {
+    pub(crate) const fn title(&self) -> &'static str {
         match self.header {
             Section::Conflict => "Conflicts",
             Section::Tracked => "Tracked",

@@ -38,13 +38,13 @@ unsafe impl Send for MacDisplay {}
 
 impl MacDisplay {
     /// Get the screen with the given [`DisplayId`].
-    pub fn find_by_id(id: DisplayId) -> Option<Self> {
+    pub(crate) fn find_by_id(id: DisplayId) -> Option<Self> {
         Self::all().find(|screen| screen.id() == id)
     }
 
     /// Get the primary screen - the one with the menu bar, and whose bottom left
     /// corner is at the origin of the AppKit coordinate system.
-    pub fn primary() -> Self {
+    pub(crate) fn primary() -> Self {
         // Instead of iterating through all active systems displays via `all()` we use the first
         // NSScreen and gets its CGDirectDisplayID, because we can't be sure that `CGGetActiveDisplayList`
         // will always return a list of active displays (machine might be sleeping).
@@ -63,7 +63,7 @@ impl MacDisplay {
     /// window (e.g. at launch) it is the menu bar's screen, which stays on the
     /// primary display unless displays have separate Spaces. `None` without a
     /// window server connection.
-    pub fn main() -> Option<Self> {
+    pub(crate) fn main() -> Option<Self> {
         unsafe {
             let mouse: NSPoint = msg_send![class!(NSEvent), mouseLocation];
             let screens: id = msg_send![class!(NSScreen), screens];
@@ -91,7 +91,7 @@ impl MacDisplay {
     ///
     /// Empty if the system can't list them, e.g. without a window server
     /// connection.
-    pub fn all() -> impl Iterator<Item = Self> {
+    pub(crate) fn all() -> impl Iterator<Item = Self> {
         // We're assuming there aren't more than 32 displays connected to the system.
         let mut displays = Vec::with_capacity(32);
         let mut display_count = 0;

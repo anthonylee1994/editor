@@ -207,7 +207,7 @@ impl SerializedPaneGroup {
 }
 
 #[derive(Debug, PartialEq, Eq, Default, Clone, Serialize, Deserialize)]
-pub struct SerializedPane {
+pub(crate) struct SerializedPane {
     #[serde(default)]
     pub(crate) active: bool,
     #[serde(default, rename = "items")]
@@ -220,11 +220,11 @@ pub struct SerializedPane {
 }
 
 impl SerializedPane {
-    pub const fn new(children: Vec<SerializedItem>, active: bool, pinned_count: usize, zoomed: bool) -> Self {
+    pub(crate) const fn new(children: Vec<SerializedItem>, active: bool, pinned_count: usize, zoomed: bool) -> Self {
         SerializedPane { active, children, pinned_count, zoomed }
     }
 
-    pub async fn deserialize_to(
+    pub(crate) async fn deserialize_to(
         &self,
         project: &Entity<Project>,
         pane: &WeakEntity<Pane>,
@@ -293,7 +293,7 @@ impl SerializedPane {
 /// A tab: its kind, which picks the item type that restores it, and the state
 /// that item type saved.
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
-pub struct SerializedItem {
+pub(crate) struct SerializedItem {
     pub kind: String,
     #[serde(default)]
     pub state: serde_json::Value,

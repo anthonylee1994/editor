@@ -19,7 +19,7 @@ use util::ResultExt as _;
 use crate::Editor;
 use crate::SelectionEffects;
 
-pub struct JsxTagCompletionState {
+pub(crate) struct JsxTagCompletionState {
     edit_index: usize,
     open_tag_range: Range<usize>,
 }
