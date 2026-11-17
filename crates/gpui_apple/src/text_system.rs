@@ -29,7 +29,6 @@ use gpui::ShapedGlyph;
 use gpui::ShapedRun;
 use gpui::SharedString;
 use gpui::Size;
-use gpui::TextRenderingMode;
 use gpui::point;
 use gpui::px;
 use gpui::swap_rgba_pa_to_bgra;
@@ -190,10 +189,6 @@ impl PlatformTextSystem for AppleTextSystem {
 
     fn layout_line(&self, text: &str, font_size: Pixels, font_runs: &[FontRun]) -> LineLayout {
         self.0.write().layout_line(text, font_size, font_runs)
-    }
-
-    fn recommended_rendering_mode(&self, _font_id: FontId, _font_size: Pixels) -> TextRenderingMode {
-        TextRenderingMode::Grayscale
     }
 
     fn glyph_dilation_for_color(&self, color: Hsla) -> u8 {

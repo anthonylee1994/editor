@@ -232,10 +232,6 @@ pub fn initialize_workspace(app_state: Arc<AppState>, cx: &mut App) {
         })
         .detach();
 
-        if let Some(specs) = window.gpu_specs() {
-            log::info!("Using GPU: {specs:?}");
-        }
-
         let search_button = cx.new(|_| SearchButton::new());
         let diagnostic_summary = cx.new(|cx| DiagnosticIndicator::new(workspace, cx));
         let activity_indicator = activity_indicator::ActivityIndicator::new(workspace, window, cx);
@@ -346,10 +342,9 @@ fn register_actions(app_state: Arc<AppState>, workspace: &mut Workspace, _: &mut
             );
         })
         .register_action(|workspace, _: &workspace::OpenFiles, window, cx| {
-            let directories = cx.can_select_mixed_files_and_dirs();
             workspace::prompt_for_open_path_and_open(
                 workspace,
-                PathPromptOptions { files: true, directories, multiple: true, prompt: None },
+                PathPromptOptions { files: true, directories: true, multiple: true, prompt: None },
                 true,
                 window,
                 cx,

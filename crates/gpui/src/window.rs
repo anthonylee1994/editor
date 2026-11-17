@@ -58,7 +58,6 @@ use crate::EventEmitter;
 use crate::FrameStats;
 use crate::Global;
 use crate::GlobalElementId;
-use crate::GpuSpecs;
 use crate::InputHandler;
 use crate::InputPreference;
 use crate::IsZero as _;
@@ -90,7 +89,6 @@ use crate::Subscription;
 use crate::TabStopMap;
 use crate::TaffyLayoutEngine;
 use crate::Task;
-use crate::TextRenderingMode;
 use crate::TextStyle;
 use crate::TextStyleRefinement;
 use crate::UiElement;
@@ -657,7 +655,6 @@ pub struct Window {
     is_minimizable: bool,
     sprite_atlas: Arc<dyn PlatformAtlas>,
     text_system: Rc<WindowTextSystem>,
-    text_rendering_mode: Rc<Cell<TextRenderingMode>>,
     rem_size: Pixels,
     /// The stack of override values for the window's rem size.
     ///
@@ -1122,7 +1119,6 @@ impl Window {
             is_minimizable,
             sprite_atlas,
             text_system,
-            text_rendering_mode: Rc::clone(&cx.text_rendering_mode),
             rem_size: px(16.),
             rem_size_override_stack: SmallVec::new(),
             viewport_size: content_size,
@@ -1847,9 +1843,6 @@ impl Window {
         // This ensures that multiple test Apps have isolated arenas.
         let arena_scope = ElementArenaScope::enter(&cx.element_arena);
 
-        if self.platform_window.prepare_frame() {
-            self.refresh();
-        }
         self.invalidate_entities();
         cx.entities.clear_accessed();
         self.frame_number += 1;
@@ -3101,12 +3094,6 @@ impl Window {
         if condition {
             self.next_frame.dispatch_tree.on_action(action_type, Rc::new(listener));
         }
-    }
-
-    /// Read information about the GPU backing this window.
-    /// Currently returns None on Mac and Windows.
-    pub fn gpu_specs(&self) -> Option<GpuSpecs> {
-        self.platform_window.gpu_specs()
     }
 
     /// Perform titlebar double-click action.

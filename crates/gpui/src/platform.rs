@@ -1,11 +1,6 @@
-use std::error;
-use std::vec::Drain;
 mod app_menu;
 mod keyboard;
 mod keystroke;
-
-/// Types for configuring parent-anchored popup windows such as menus, dropdowns and tooltips.
-pub mod popup;
 
 use std::borrow::Cow;
 use std::collections::hash_map::Entry;
@@ -40,7 +35,6 @@ pub use keystroke::*;
 use raw_window_handle::HasDisplayHandle;
 use raw_window_handle::HasWindowHandle;
 use rustc_hash::FxHashMap;
-use scheduler::Instant;
 pub use scheduler::RunnableMeta;
 use seahash::SeaHasher;
 use serde::Deserialize;
@@ -64,12 +58,10 @@ use crate::FontMetrics;
 use crate::FontRun;
 use crate::ForegroundExecutor;
 use crate::GlyphId;
-use crate::GpuSpecs;
 use crate::Hsla;
 use crate::ImageSource;
 use crate::Keymap;
 use crate::LineLayout;
-use crate::MissingGlyphSink;
 use crate::Pixels;
 use crate::PlatformInput;
 use crate::Point;
@@ -84,7 +76,6 @@ use crate::ShapedRun;
 use crate::SharedString;
 use crate::Size;
 use crate::SvgRenderer;
-use crate::Task;
 use crate::Window;
 use crate::WindowControlArea;
 use crate::hash;
@@ -221,7 +212,6 @@ pub trait Platform: 'static {
         directory: &Path,
         suggested_name: Option<&str>,
     ) -> oneshot::Receiver<Result<Option<PathBuf>>>;
-    fn can_select_mixed_files_and_dirs(&self) -> bool;
     fn reveal_path(&self, path: &Path);
     fn open_with_system(&self, path: &Path);
 
@@ -239,13 +229,6 @@ pub trait Platform: 'static {
 
     fn set_dock_menu(&self, menu: Vec<MenuItem>, keymap: &Keymap);
     fn add_recent_document(&self, _path: &Path) {}
-    fn update_jump_list(
-        &self,
-        _menus: Vec<MenuItem>,
-        _entries: Vec<SmallVec<[PathBuf; 2]>>,
-    ) -> Task<Vec<SmallVec<[PathBuf; 2]>>> {
-        Task::ready(Vec::new())
-    }
     fn on_app_menu_action(&self, callback: Box<dyn FnMut(&dyn Action)>);
     fn on_will_open_app_menu(&self, callback: Box<dyn FnMut()>);
     fn on_validate_app_menu_command(&self, callback: Box<dyn FnMut(&dyn Action) -> bool>);
@@ -265,17 +248,6 @@ pub trait Platform: 'static {
 
     fn read_from_clipboard(&self) -> Option<ClipboardItem>;
     fn write_to_clipboard(&self, item: ClipboardItem);
-
-    /// Reads the clipboard, resolving once its contents are available.
-    ///
-    /// Most platforms read synchronously and return a ready task. Platforms
-    /// whose clipboard access is inherently asynchronous and permission-gated
-    /// (e.g. the browser's async clipboard API) override this method; on those
-    /// platforms [`Platform::read_from_clipboard`] cannot return the clipboard
-    /// contents, so callers that can await should prefer this method.
-    fn read_from_clipboard_async(&self) -> Task<Result<Option<ClipboardItem>, ClipboardReadError>> {
-        Task::ready(Ok(self.read_from_clipboard()))
-    }
 
     fn read_from_find_pasteboard(&self) -> Option<ClipboardItem>;
 
@@ -369,13 +341,6 @@ pub trait PlatformWindow: HasWindowHandle + HasDisplayHandle {
     fn is_maximized(&self) -> bool;
     fn window_bounds(&self) -> WindowBounds;
     fn content_size(&self) -> Size<Pixels>;
-    /// Samples platform geometry before a draw, returning whether view caches must be invalidated.
-    ///
-    /// Geometry getters must remain consistent throughout the ensuing draw.
-    /// Do not invoke callbacks here: GPUI is already updating this window.
-    fn prepare_frame(&self) -> bool {
-        false
-    }
     fn resize(&mut self, size: Size<Pixels>);
     fn scale_factor(&self) -> f32;
     fn appearance(&self) -> WindowAppearance;
@@ -432,7 +397,6 @@ pub trait PlatformWindow: HasWindowHandle + HasDisplayHandle {
     }
     fn schedule_frame(&self) {}
     fn sprite_atlas(&self) -> Arc<dyn PlatformAtlas>;
-    fn is_subpixel_rendering_supported(&self) -> bool;
 
     // macOS specific methods
     fn get_title(&self) -> String {
@@ -455,55 +419,26 @@ pub trait PlatformWindow: HasWindowHandle + HasDisplayHandle {
     fn restore_native_window_state(&self, _state: &[u8]) {}
 
     fn start_window_move(&self) {}
-    fn gpu_specs(&self) -> Option<GpuSpecs>;
-
     fn update_ime_position(&self, _bounds: Bounds<Pixels>);
 
     fn play_system_bell(&self) {}
 }
 
-/// Type alias for runnables with metadata.
-/// Previously an enum with a single variant, now simplified to a direct type alias.
-pub type RunnableVariant = Runnable<RunnableMeta>;
-
-/// Restores the platform's timer resolution when dropped.
-pub type TimerResolutionGuard = gpui_util::Deferred<Box<dyn FnOnce() + Send>>;
-
 /// Dispatches executor tasks through the platform's threads and timers.
 pub trait PlatformDispatcher: Send + Sync {
     fn is_main_thread(&self) -> bool;
-    fn dispatch(&self, runnable: RunnableVariant, priority: Priority);
-    fn dispatch_on_main_thread(&self, runnable: RunnableVariant, priority: Priority);
-    fn dispatch_after(&self, duration: Duration, runnable: RunnableVariant);
-
-    fn dispatch_on_main_thread_when_idle(&self, runnable: RunnableVariant, _timeout: Option<Duration>) {
-        self.dispatch_on_main_thread(runnable, Priority::Low);
-    }
-
-    fn idle_time_remaining(&self) -> Option<Duration> {
-        None
-    }
-
-    fn now(&self) -> Instant {
-        Instant::now()
-    }
-
-    fn increase_timer_resolution(&self) -> TimerResolutionGuard {
-        gpui_util::defer(Box::new(|| {}))
-    }
+    fn dispatch(&self, runnable: Runnable<RunnableMeta>, priority: Priority);
+    fn dispatch_on_main_thread(&self, runnable: Runnable<RunnableMeta>, priority: Priority);
+    fn dispatch_after(&self, duration: Duration, runnable: Runnable<RunnableMeta>);
 }
 
 #[expect(missing_docs)]
 pub trait PlatformTextSystem: Send + Sync {
     fn add_fonts(&self, fonts: Vec<Cow<'static, [u8]>>) -> Result<()>;
-    /// Installs a nonblocking sink for unresolved grapheme clusters.
-    fn set_missing_glyph_sink(&self, _sink: Option<Arc<dyn MissingGlyphSink>>) {}
     /// Get all available font names.
     fn all_font_names(&self) -> Vec<String>;
     /// Get the font ID for a font descriptor.
     fn font_id(&self, descriptor: &Font) -> Result<FontId>;
-    /// Prewarm any system font caches needed to shape text.
-    fn prewarm_fonts(&self, _font_ids: &[FontId]) {}
     /// Get metrics for a font.
     fn font_metrics(&self, font_id: FontId) -> FontMetrics;
     /// Get typographic bounds for a glyph.
@@ -522,8 +457,6 @@ pub trait PlatformTextSystem: Send + Sync {
     ) -> Result<(Size<DevicePixels>, Vec<u8>)>;
     /// Layout a line of text with the given font runs.
     fn layout_line(&self, text: &str, font_size: Pixels, runs: &[FontRun]) -> LineLayout;
-    /// Returns the recommended text rendering mode for the given font and size.
-    fn recommended_rendering_mode(&self, _font_id: FontId, _font_size: Pixels) -> TextRenderingMode;
     /// Returns the dilation level to use for a glyph painted in the given color.
     fn glyph_dilation_for_color(&self, _color: Hsla) -> u8 {
         0
@@ -533,14 +466,6 @@ pub trait PlatformTextSystem: Send + Sync {
 #[expect(missing_docs)]
 #[derive(Default)]
 pub struct NoopTextSystem;
-
-#[expect(missing_docs)]
-impl NoopTextSystem {
-    #[allow(dead_code)]
-    pub const fn new() -> Self {
-        Self
-    }
-}
 
 impl PlatformTextSystem for NoopTextSystem {
     fn add_fonts(&self, _fonts: Vec<Cow<'static, [u8]>>) -> Result<()> {
@@ -639,41 +564,6 @@ impl PlatformTextSystem for NoopTextSystem {
             len: text.len(),
         }
     }
-
-    fn recommended_rendering_mode(&self, _font_id: FontId, _font_size: Pixels) -> TextRenderingMode {
-        TextRenderingMode::Grayscale
-    }
-}
-
-// Adapted from https://github.com/microsoft/terminal/blob/1283c0f5b99a2961673249fa77c6b986efb5086c/src/renderer/atlas/dwrite.cpp
-// Copyright (c) Microsoft Corporation.
-// Licensed under the MIT license.
-/// Compute gamma correction ratios for subpixel text rendering.
-#[allow(dead_code)]
-pub fn get_gamma_correction_ratios(gamma: f32) -> [f32; 4] {
-    const GAMMA_INCORRECT_TARGET_RATIOS: [[f32; 4]; 13] = [
-        [0.0000 / 4.0, 0.0000 / 4.0, 0.0000 / 4.0, 0.0000 / 4.0], // gamma = 1.0
-        [0.0166 / 4.0, -0.0807 / 4.0, 0.2227 / 4.0, -0.0751 / 4.0], // gamma = 1.1
-        [0.0350 / 4.0, -0.1760 / 4.0, 0.4325 / 4.0, -0.1370 / 4.0], // gamma = 1.2
-        [0.0543 / 4.0, -0.2821 / 4.0, 0.6302 / 4.0, -0.1876 / 4.0], // gamma = 1.3
-        [0.0739 / 4.0, -0.3963 / 4.0, 0.8167 / 4.0, -0.2287 / 4.0], // gamma = 1.4
-        [0.0933 / 4.0, -0.5161 / 4.0, 0.9926 / 4.0, -0.2616 / 4.0], // gamma = 1.5
-        [0.1121 / 4.0, -0.6395 / 4.0, 1.1588 / 4.0, -0.2877 / 4.0], // gamma = 1.6
-        [0.1300 / 4.0, -0.7649 / 4.0, 1.3159 / 4.0, -0.3080 / 4.0], // gamma = 1.7
-        [0.1469 / 4.0, -0.8911 / 4.0, 1.4644 / 4.0, -0.3234 / 4.0], // gamma = 1.8
-        [0.1627 / 4.0, -1.0170 / 4.0, 1.6051 / 4.0, -0.3347 / 4.0], // gamma = 1.9
-        [0.1773 / 4.0, -1.1420 / 4.0, 1.7385 / 4.0, -0.3426 / 4.0], // gamma = 2.0
-        [0.1908 / 4.0, -1.2652 / 4.0, 1.8650 / 4.0, -0.3476 / 4.0], // gamma = 2.1
-        [0.2031 / 4.0, -1.3864 / 4.0, 1.9851 / 4.0, -0.3501 / 4.0], // gamma = 2.2
-    ];
-
-    const NORM13: f32 = ((0x10000 as f64) / (255.0 * 255.0) * 4.0) as f32;
-    const NORM24: f32 = ((0x100 as f64) / (255.0) * 4.0) as f32;
-
-    let index = ((gamma * 10.0).round() as usize).clamp(10, 22) - 10;
-    let ratios = GAMMA_INCORRECT_TARGET_RATIOS[index];
-
-    [ratios[0] * NORM13, ratios[1] * NORM24, ratios[2] * NORM13, ratios[3] * NORM24]
 }
 
 #[derive(PartialEq, Eq, Hash, Clone)]
@@ -691,8 +581,6 @@ impl AtlasKey {
             AtlasKey::Glyph(params) => {
                 if params.is_emoji {
                     AtlasTextureKind::Polychrome
-                } else if params.subpixel_rendering {
-                    AtlasTextureKind::Subpixel
                 } else {
                     AtlasTextureKind::Monochrome
                 }
@@ -792,49 +680,6 @@ impl<Backend: AtlasBackend> AtlasState<Backend> {
     }
 }
 
-/// A sprite atlas for windows without a GPU. It hands out uniquely identified
-/// tiles without uploading any pixels, so glyph, SVG, and image painting can
-/// run to completion in tests and headless platforms.
-#[derive(Default)]
-pub struct HeadlessAtlas(parking_lot::Mutex<AtlasState<HeadlessAtlasBackend>>);
-
-#[doc(hidden)]
-#[derive(Default)]
-pub struct HeadlessAtlasBackend {
-    next_id: u32,
-}
-
-impl AtlasBackend for HeadlessAtlasBackend {
-    fn insert(&mut self, kind: AtlasTextureKind, size: Size<DevicePixels>, _bytes: &[u8]) -> Result<AtlasTile> {
-        self.next_id += 1;
-        let texture_id = self.next_id;
-        self.next_id += 1;
-        let tile_id = self.next_id;
-        Ok(AtlasTile {
-            texture_id: AtlasTextureId { index: texture_id, kind },
-            tile_id: TileId(tile_id),
-            padding: 0,
-            bounds: Bounds { origin: Point::default(), size },
-        })
-    }
-
-    fn remove(&mut self, _tile: AtlasTile) {}
-}
-
-impl PlatformAtlas for HeadlessAtlas {
-    fn get_or_insert_with<'a>(
-        &self,
-        key: AtlasKey,
-        build: &mut dyn FnMut() -> Result<Option<(Size<DevicePixels>, Cow<'a, [u8]>)>>,
-    ) -> Result<Option<AtlasTile>> {
-        self.0.lock().get_or_insert_with(key, build)
-    }
-
-    fn remove(&self, key: &AtlasKey) {
-        self.0.lock().remove(key);
-    }
-}
-
 /// Texture slots and reusable indices for a sprite atlas.
 pub struct AtlasTextureList<T> {
     pub textures: Vec<Option<T>>,
@@ -856,12 +701,6 @@ impl<T> ops::Index<usize> for AtlasTextureList<T> {
 }
 
 impl<T> AtlasTextureList<T> {
-    #[allow(unused)]
-    pub fn drain(&mut self) -> Drain<'_, Option<T>> {
-        self.free_list.clear();
-        self.textures.drain(..)
-    }
-
     #[allow(dead_code)]
     pub fn iter_mut(&mut self) -> impl DoubleEndedIterator<Item = &mut T> {
         self.textures.iter_mut().flatten()
@@ -899,7 +738,6 @@ pub struct AtlasTextureId {
 pub enum AtlasTextureKind {
     Monochrome = 0,
     Polychrome = 1,
-    Subpixel = 2,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -968,10 +806,6 @@ impl PlatformInputHandler {
         self.cx.update(|window, cx| self.handler.unmark_text(window, cx)).ok();
     }
 
-    pub fn paste(&mut self, item: ClipboardItem) {
-        self.cx.update(|window, cx| self.handler.paste(item, window, cx)).ok();
-    }
-
     pub fn bounds_for_range(&mut self, range_utf16: Range<usize>) -> Option<Bounds<Pixels>> {
         self.cx.update(|window, cx| self.handler.bounds_for_range(range_utf16, window, cx)).ok().flatten()
     }
@@ -1032,11 +866,6 @@ impl PlatformInputHandler {
     #[allow(dead_code)]
     pub fn accepts_text_input(&mut self, window: &mut Window, cx: &mut App) -> bool {
         self.handler.accepts_text_input(window, cx)
-    }
-
-    #[allow(dead_code)]
-    pub fn query_accepts_text_input(&mut self) -> bool {
-        self.cx.update(|window, cx| self.handler.accepts_text_input(window, cx)).unwrap_or(true)
     }
 
     /// See [`InputHandler::prefers_ime_for_printable_keys`].
@@ -1131,18 +960,6 @@ pub trait InputHandler: 'static {
     /// Corresponds to [unmarkText()](https://developer.apple.com/documentation/appkit/nstextinputclient/1438239-unmarktext).
     fn unmark_text(&mut self, window: &mut Window, cx: &mut App);
 
-    /// Insert a platform-initiated paste at the current selection.
-    ///
-    /// Platforms that deliver paste as an input event rather than through an
-    /// application-defined action (e.g. the DOM `paste` event on web) call
-    /// this with the full clipboard contents. The default implementation
-    /// inserts only the plain-text portion of the item.
-    fn paste(&mut self, item: ClipboardItem, window: &mut Window, cx: &mut App) {
-        if let Some(text) = item.text() {
-            self.replace_text_in_range(None, &text, window, cx);
-        }
-    }
-
     /// Get the bounds of the given document range in screen coordinates
     /// Corresponds to [firstRect(forCharacterRange:actualRange:)](https://developer.apple.com/documentation/appkit/nstextinputclient/1438240-firstrect).
     ///
@@ -1171,20 +988,6 @@ pub trait InputHandler: 'static {
     /// Returns whether this handler is accepting text input to be inserted.
     fn accepts_text_input(&mut self, _window: &mut Window, _cx: &mut App) -> bool {
         true
-    }
-
-    /// The contiguous range of text, in UTF-16 code units, that platform text
-    /// input may read and edit around the current selection.
-    ///
-    /// Platforms that mirror document text into an IME-editable buffer clamp
-    /// the mirrored window to this range, so multi-step IME edit gestures
-    /// (word deletion, autocorrect rewrites, suggestion picks) cannot reach
-    /// content outside it. The range should contain the current selection;
-    /// when it cannot (a selection spanning a region boundary), platforms
-    /// degrade the mirrored IME context rather than widening the range.
-    /// `None` places no bound.
-    fn text_input_editable_range(&mut self, _window: &mut Window, _cx: &mut App) -> Option<Range<usize>> {
-        None
     }
 
     /// Returns whether printable keys should be routed to the IME before keybinding
@@ -1375,14 +1178,6 @@ pub enum WindowKind {
     /// use sparingly!
     PopUp,
 
-    /// A parent-anchored, platform-native popup window for menus, comboboxes, context menus and
-    /// tooltips. Unlike [`WindowKind::PopUp`], it is positioned relative to a parent window.
-    ///
-    /// The popup's size comes from [`WindowOptions::window_bounds`], whose origin is ignored.
-    /// See [`popup::PopupOptions`] for the placement options. Platforms without a native
-    /// implementation reject it with [`popup::PopupNotSupportedError`].
-    AnchoredPopup(popup::PopupOptions),
-
     /// A floating window that appears on top of its parent window.
     Floating,
 
@@ -1438,22 +1233,6 @@ pub enum WindowBackgroundAppearance {
     ///
     /// Not always supported.
     Blurred,
-    /// The Mica backdrop material, supported on Windows 11.
-    MicaBackdrop,
-    /// The Mica Alt backdrop material, supported on Windows 11.
-    MicaAltBackdrop,
-}
-
-/// The text rendering mode to use for drawing glyphs.
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
-pub enum TextRenderingMode {
-    /// Use the platform's default text rendering mode.
-    #[default]
-    PlatformDefault,
-    /// Use subpixel (ClearType-style) text rendering.
-    Subpixel,
-    /// Use grayscale text rendering.
-    Grayscale,
 }
 
 /// The options that can be configured for a file dialog prompt.
@@ -1494,23 +1273,7 @@ pub enum PromptButton {
 }
 
 impl PromptButton {
-    /// Create a button with label.
-    pub fn new(label: impl Into<SharedString>) -> Self {
-        PromptButton::Other(label.into())
-    }
-
-    /// Create an Ok button.
-    pub fn ok(label: impl Into<SharedString>) -> Self {
-        PromptButton::Ok(label.into())
-    }
-
-    /// Create a Cancel button.
-    pub fn cancel(label: impl Into<SharedString>) -> Self {
-        PromptButton::Cancel(label.into())
-    }
-
     /// Returns true if this button is a cancel button.
-    #[allow(dead_code)]
     pub const fn is_cancel(&self) -> bool {
         matches!(self, PromptButton::Cancel(_))
     }
@@ -1630,38 +1393,6 @@ pub struct ClipboardItem {
     pub entries: Vec<ClipboardEntry>,
 }
 
-/// An error produced by [`Platform::read_from_clipboard_async`].
-///
-/// Callers surface these failures to users, so the variants distinguish
-/// conditions that call for different user-facing guidance.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum ClipboardReadError {
-    /// The platform clipboard is not available in this context, e.g. the
-    /// browser does not expose the async clipboard API or the page is not a
-    /// secure context.
-    Unavailable,
-    /// The platform refused access, e.g. the user declined the browser's
-    /// clipboard permission prompt or paste confirmation.
-    Denied(String),
-    /// The clipboard contents could not be converted into a
-    /// [`ClipboardItem`].
-    UnsupportedContent,
-}
-
-impl fmt::Display for ClipboardReadError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Unavailable => formatter.write_str("the clipboard is unavailable"),
-            Self::Denied(message) => {
-                write!(formatter, "clipboard access was denied: {message}")
-            }
-            Self::UnsupportedContent => formatter.write_str("the clipboard contents are unsupported"),
-        }
-    }
-}
-
-impl error::Error for ClipboardReadError {}
-
 /// Either a ClipboardString or a ClipboardImage.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ClipboardEntry {
@@ -1715,7 +1446,6 @@ impl ClipboardItem {
     }
 
     /// If this item is one ClipboardEntry::String, returns its metadata.
-    #[allow(dead_code)]
     pub fn metadata(&self) -> Option<&String> {
         match self.entries().first() {
             Some(ClipboardEntry::String(clipboard_string)) if self.entries.len() == 1 => {
@@ -2034,6 +1764,23 @@ mod image_tests {
         56, 32, 44, 0, 0, 0, 148, 1, 0, 157, 1, 42, 1, 0, 1, 0, 0, 0, 52, 37, 160, 2, 116, 186, 0, 3, 152, 0, 254, 249,
         147, 111, 255, 144, 31, 255, 144, 31, 255, 144, 31, 255, 32, 63, 226, 23, 123, 32, 48, 0,
     ];
+
+    #[test]
+    fn glyph_atlas_keys_pick_texture_kind_by_emoji() {
+        let glyph = |is_emoji| {
+            crate::AtlasKey::Glyph(crate::RenderGlyphParams {
+                font_id: crate::FontId(0),
+                glyph_id: crate::GlyphId(1),
+                font_size: crate::px(14.),
+                subpixel_variant: crate::Point::default(),
+                scale_factor: 2.,
+                is_emoji,
+                dilation: 0,
+            })
+        };
+        assert_eq!(glyph(false).texture_kind(), crate::AtlasTextureKind::Monochrome);
+        assert_eq!(glyph(true).texture_kind(), crate::AtlasTextureKind::Polychrome);
+    }
 
     #[test]
     fn animated_webp_image_to_image_data_decodes_frames() {

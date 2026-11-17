@@ -1,8 +1,3 @@
-use std::future;
-use std::iter;
-use std::mem;
-use std::result;
-use std::task::Poll;
 mod font_fallbacks;
 mod font_features;
 mod line;
@@ -13,7 +8,6 @@ use core::fmt;
 use std::borrow::Cow;
 use std::cell::Cell;
 use std::cmp;
-use std::collections::VecDeque;
 use std::fmt::Debug;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -47,7 +41,6 @@ use parking_lot::Mutex;
 use parking_lot::RwLock;
 use parking_lot::RwLockUpgradableReadGuard;
 use rustc_hash::FxHashMap;
-use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde::Serialize;
 use smallvec::SmallVec;
@@ -63,7 +56,6 @@ use crate::Result;
 use crate::SharedString;
 use crate::Size;
 use crate::StrikethroughStyle;
-use crate::TextRenderingMode;
 use crate::UnderlineStyle;
 use crate::point;
 use crate::px;
@@ -92,155 +84,6 @@ pub fn underline_y_offset(line_height: Pixels, ascent: Pixels, descent: Pixels) 
     padding_top + ascent + descent * UNDERLINE_DESCENT_OFFSET_FACTOR
 }
 
-const MAX_REPORTED_MISSING_GLYPHS: usize = 1024;
-
-/// The spacing behavior required of a fallback font.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum FallbackFontClass {
-    /// A proportionally spaced fallback font.
-    Proportional,
-    /// A fixed-width fallback font.
-    Monospace,
-}
-
-/// A grapheme cluster that could not be represented by any available font.
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-pub struct MissingGlyph {
-    grapheme: SharedString,
-    font_class: FallbackFontClass,
-}
-
-impl MissingGlyph {
-    /// Creates a missing-glyph report.
-    pub const fn new(grapheme: SharedString, font_class: FallbackFontClass) -> Self {
-        Self { grapheme, font_class }
-    }
-
-    /// Returns the unresolved grapheme cluster.
-    pub fn grapheme(&self) -> &str {
-        &self.grapheme
-    }
-}
-
-/// Accepts missing glyphs detected by a platform text system.
-pub trait MissingGlyphSink: Send + Sync {
-    /// Reports grapheme clusters that exhausted font fallback.
-    fn report(&self, missing_glyphs: Vec<MissingGlyph>);
-}
-
-#[derive(Default)]
-struct MissingGlyphState {
-    reported: FxHashSet<MissingGlyph>,
-    reported_order: VecDeque<MissingGlyph>,
-    generation: usize,
-}
-
-impl MissingGlyphState {
-    fn reset(&mut self, generation: usize) {
-        self.reported.clear();
-        self.reported_order.clear();
-        self.generation = generation;
-    }
-}
-
-struct QueuedMissingGlyph {
-    generation: usize,
-    missing_glyph: MissingGlyph,
-}
-
-/// Collects missing-glyph reports without invoking application code during layout.
-struct MissingGlyphReporter {
-    generation: Arc<AtomicUsize>,
-    sender: async_channel::Sender<QueuedMissingGlyph>,
-}
-
-impl MissingGlyphSink for MissingGlyphReporter {
-    fn report(&self, missing_glyphs: Vec<MissingGlyph>) {
-        if self.sender.is_closed() {
-            return;
-        }
-
-        let generation = self.generation.load(Ordering::Acquire);
-        // Repetitions within a line must not fill the queue before its other
-        // missing glyphs. Cross-report deduplication belongs to the receiver.
-        for missing_glyph in missing_glyphs.into_iter().unique() {
-            let queued = QueuedMissingGlyph { generation, missing_glyph };
-            if self.sender.try_send(queued).is_err() {
-                break;
-            }
-        }
-    }
-}
-
-impl MissingGlyphReporter {
-    fn reset(&self) {
-        self.generation.fetch_add(1, Ordering::AcqRel);
-    }
-}
-
-/// Receives batches of grapheme clusters that exhausted font fallback.
-pub(crate) struct MissingGlyphReceiver {
-    state: MissingGlyphState,
-    generation: Arc<AtomicUsize>,
-    receiver: async_channel::Receiver<QueuedMissingGlyph>,
-}
-
-impl MissingGlyphReceiver {
-    /// Waits until at least one new missing glyph has been observed.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`async_channel::RecvError`] if the reporting channel is closed.
-    pub(crate) async fn recv(&mut self) -> result::Result<Vec<MissingGlyph>, async_channel::RecvError> {
-        loop {
-            let queued = self.receiver.recv().await?;
-            let mut missing_glyphs = Vec::new();
-            for queued in iter::once(queued)
-                .chain(iter::from_fn(|| self.receiver.try_recv().ok()))
-                .take(MAX_REPORTED_MISSING_GLYPHS)
-            {
-                let generation = self.generation.load(Ordering::Acquire);
-                if self.state.generation != generation {
-                    self.state.reset(generation);
-                    missing_glyphs.clear();
-                }
-                if queued.generation != generation || !self.state.reported.insert(queued.missing_glyph.clone()) {
-                    continue;
-                }
-                self.state.reported_order.push_back(queued.missing_glyph.clone());
-                missing_glyphs.push(queued.missing_glyph);
-                if self.state.reported.len() > MAX_REPORTED_MISSING_GLYPHS
-                    && let Some(expired) = self.state.reported_order.pop_front()
-                {
-                    self.state.reported.remove(&expired);
-                }
-            }
-            if !missing_glyphs.is_empty() {
-                return Ok(missing_glyphs);
-            }
-            // A producer can keep refilling the queue with already-reported
-            // glyphs. Bound work per poll even when every report is filtered out.
-            let mut yielded = false;
-            future::poll_fn(|cx| {
-                if mem::replace(&mut yielded, true) {
-                    Poll::Ready(())
-                } else {
-                    cx.waker().wake_by_ref();
-                    Poll::Pending
-                }
-            })
-            .await;
-        }
-    }
-}
-
-impl Drop for MissingGlyphReceiver {
-    fn drop(&mut self) {
-        self.receiver.close();
-        while self.receiver.try_recv().is_ok() {}
-    }
-}
-
 /// The GPUI text rendering sub system.
 pub struct TextSystem {
     platform_text_system: Arc<dyn PlatformTextSystem>,
@@ -250,15 +93,11 @@ pub struct TextSystem {
     wrapper_pool: Mutex<FxHashMap<FontIdWithSize, Vec<CharWidthCache>>>,
     fallback_font_stack: SmallVec<[Font; 2]>,
     font_generation: Arc<AtomicUsize>,
-    missing_glyph_reporter: Arc<MissingGlyphReporter>,
-    missing_glyph_receiver: Mutex<Option<MissingGlyphReceiver>>,
 }
 
 impl TextSystem {
     /// Create a new TextSystem with the given platform text system.
     pub fn new(platform_text_system: Arc<dyn PlatformTextSystem>) -> Self {
-        let (sender, receiver) = async_channel::bounded(MAX_REPORTED_MISSING_GLYPHS);
-        let missing_glyph_generation = Arc::<AtomicUsize>::default();
         TextSystem {
             platform_text_system,
             font_metrics: RwLock::default(),
@@ -267,15 +106,6 @@ impl TextSystem {
             wrapper_pool: Mutex::default(),
             fallback_font_stack: smallvec![font("Helvetica"), font("Arial"),],
             font_generation: Arc::default(),
-            missing_glyph_reporter: Arc::new(MissingGlyphReporter {
-                generation: Arc::clone(&missing_glyph_generation),
-                sender,
-            }),
-            missing_glyph_receiver: Mutex::new(Some(MissingGlyphReceiver {
-                state: MissingGlyphState::default(),
-                generation: missing_glyph_generation,
-                receiver,
-            })),
         }
     }
 
@@ -296,28 +126,8 @@ impl TextSystem {
     pub fn add_fonts(&self, fonts: Vec<Cow<'static, [u8]>>) -> Result<()> {
         self.platform_text_system.add_fonts(fonts)?;
         self.font_ids_by_font.write().clear();
-        self.missing_glyph_reporter.reset();
         self.font_generation.fetch_add(1, Ordering::Release);
         Ok(())
-    }
-
-    /// Takes the receiver for missing-glyph reports.
-    ///
-    /// Only one receiver is available for each text system. Returns `None` when
-    /// the receiver was already taken or another caller is taking it.
-    pub(crate) fn take_missing_glyph_receiver(&self) -> Option<MissingGlyphReceiver> {
-        let mut receiver = self.missing_glyph_receiver.try_lock()?;
-        receiver.take()
-    }
-
-    pub(crate) fn enable_missing_glyph_reporting(&self) {
-        self.platform_text_system
-            .set_missing_glyph_sink(Some(Arc::<MissingGlyphReporter>::clone(&self.missing_glyph_reporter)));
-    }
-
-    pub(crate) fn disable_missing_glyph_reporting(&self) {
-        self.platform_text_system.set_missing_glyph_sink(None);
-        self.missing_glyph_reporter.reset();
     }
 
     /// Get the FontId for the configure font family and style.
@@ -369,22 +179,6 @@ impl TextSystem {
             font.family,
             self.fallback_font_stack.iter().map(|fallback| &fallback.family).join(", ")
         );
-    }
-
-    /// Prewarm any system font caches needed to shape text.
-    ///
-    /// This may be expensive, so callers should generally invoke it on a
-    /// background executor. Missing entries are still populated on demand by
-    /// the normal shaping path.
-    pub fn prewarm_fonts(&self, fonts: &[Font]) {
-        let mut font_ids = SmallVec::<[FontId; 8]>::new();
-        for font in fonts {
-            let font_id = self.resolve_font(font);
-            if !font_ids.contains(&font_id) {
-                font_ids.push(font_id);
-            }
-        }
-        self.platform_text_system.prewarm_fonts(&font_ids);
     }
 
     /// Get the bounding box for the given font and font size.
@@ -530,12 +324,6 @@ impl TextSystem {
     /// Returns the dilation level to use for a glyph painted in the given color.
     pub(crate) fn glyph_dilation_for_color(&self, color: Hsla) -> u8 {
         self.platform_text_system.glyph_dilation_for_color(color)
-    }
-
-    /// Returns the text rendering mode recommended by the platform for the given font and size.
-    /// The return value will never be [`TextRenderingMode::PlatformDefault`].
-    pub(crate) fn recommended_rendering_mode(&self, font_id: FontId, font_size: Pixels) -> TextRenderingMode {
-        self.platform_text_system.recommended_rendering_mode(font_id, font_size)
     }
 }
 
@@ -989,7 +777,6 @@ pub struct RenderGlyphParams {
     pub subpixel_variant: Point<u8>,
     pub scale_factor: f32,
     pub is_emoji: bool,
-    pub subpixel_rendering: bool,
     pub dilation: u8,
 }
 
@@ -1003,7 +790,6 @@ impl Hash for RenderGlyphParams {
         self.subpixel_variant.hash(state);
         self.scale_factor.to_bits().hash(state);
         self.is_emoji.hash(state);
-        self.subpixel_rendering.hash(state);
         self.dilation.hash(state);
     }
 }

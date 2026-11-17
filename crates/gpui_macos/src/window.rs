@@ -1062,9 +1062,7 @@ impl MacWindow {
 
             let use_panel = match kind {
                 WindowKind::Normal => false,
-                // `AnchoredPopup` is rejected in `MacPlatform::open_window`, grouped here only
-                // for exhaustiveness.
-                WindowKind::PopUp | WindowKind::AnchoredPopup(_) => {
+                WindowKind::PopUp => {
                     style_mask |= NSWindowStyleMaskNonactivatingPanel;
                     true
                 }
@@ -1248,9 +1246,7 @@ impl MacWindow {
                     // Every window stands alone: no native window tabs.
                     let _: () = msg_send![native_window, setTabbingMode: NS_WINDOW_TABBING_MODE_DISALLOWED];
                 }
-                // `AnchoredPopup` is rejected in `MacPlatform::open_window`, grouped here only
-                // for exhaustiveness.
-                WindowKind::PopUp | WindowKind::AnchoredPopup(_) => {
+                WindowKind::PopUp => {
                     add_mouse_tracking_area(tracking_view);
 
                     let _: () = msg_send![native_window, setLevel: NSPopUpWindowLevel];
@@ -1738,10 +1734,6 @@ impl PlatformWindow for MacWindow {
         self.0.as_ref().lock().background_appearance
     }
 
-    fn is_subpixel_rendering_supported(&self) -> bool {
-        false
-    }
-
     fn set_edited(&mut self, edited: bool) {
         unsafe {
             let window = self.0.lock().native_window;
@@ -1915,10 +1907,6 @@ impl PlatformWindow for MacWindow {
 
     fn sprite_atlas(&self) -> Arc<dyn PlatformAtlas> {
         Arc::clone(self.0.lock().renderer.sprite_atlas()) as Arc<dyn PlatformAtlas>
-    }
-
-    fn gpu_specs(&self) -> Option<gpui::GpuSpecs> {
-        None
     }
 
     fn update_ime_position(&self, _bounds: Bounds<Pixels>) {

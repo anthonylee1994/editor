@@ -35,11 +35,7 @@ pub struct PlatformScheduler {
 
 impl PlatformScheduler {
     pub fn new(dispatcher: Arc<dyn PlatformDispatcher>) -> Self {
-        Self {
-            dispatcher: Arc::clone(&dispatcher),
-            clock: Arc::new(PlatformClock { dispatcher }),
-            next_session_id: AtomicU16::new(0),
-        }
+        Self { dispatcher: Arc::clone(&dispatcher), clock: Arc::new(PlatformClock), next_session_id: AtomicU16::new(0) }
     }
 
     pub fn foreground_executor(self: &Arc<Self>) -> LocalExecutor {
@@ -76,16 +72,9 @@ impl Scheduler for PlatformScheduler {
             return true;
         }
 
-        let park_deadline = |deadline: Instant| {
-            // Timer expirations are only delivered every ~15.6 milliseconds by default on Windows.
-            // We increase the resolution during this wait so that short timeouts stay reasonably short.
-            let _timer_guard = self.dispatcher.increase_timer_resolution();
-            parker.park_deadline(deadline)
-        };
-
         loop {
             match deadline {
-                Some(deadline) if !park_deadline(deadline) && deadline <= Instant::now() => {
+                Some(deadline) if !parker.park_deadline(deadline) && deadline <= Instant::now() => {
                     return false;
                 }
                 Some(_) => (),
@@ -142,13 +131,10 @@ impl Scheduler for PlatformScheduler {
     }
 }
 
-/// A production clock that uses the platform dispatcher's time.
-struct PlatformClock {
-    dispatcher: Arc<dyn PlatformDispatcher>,
-}
+struct PlatformClock;
 
 impl Clock for PlatformClock {
     fn now(&self) -> Instant {
-        self.dispatcher.now()
+        Instant::now()
     }
 }

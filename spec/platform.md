@@ -249,6 +249,12 @@ from the installed app only resolve the panic location itself.
   `displayLayer:`) and occlusion detach the link; it is recreated afterwards,
   on screen changes, and invalidated when the window is dropped. Neither
   `CADisplayLink` nor the deprecated `CVDisplayLink` is used.
+- Glyphs are always rasterized as grayscale coverage masks (monochrome atlas)
+  or colour emoji (polychrome atlas). There is no subpixel/LCD text pipeline
+  and no text rendering mode setting.
+- GPUI's platform traits carry only what macOS implements: no anchored popup
+  window kind, jump list, async clipboard read, missing-glyph reporting, font
+  prewarming, GPU specs, or timer-resolution hook.
 - The Metal renderer and sprite atlas (`gpui_apple`) use `objc2-metal` and
   `objc2-quartz-core`'s `CAMetalLayer`; the `metal` (metal-rs) crate is not a
   dependency.

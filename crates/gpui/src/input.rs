@@ -2,7 +2,6 @@ use std::ops::Range;
 
 use crate::App;
 use crate::Bounds;
-use crate::ClipboardItem;
 use crate::Context;
 use crate::Entity;
 use crate::InputHandler;
@@ -39,13 +38,6 @@ pub trait EntityInputHandler: 'static + Sized {
 
     /// See [`InputHandler::unmark_text`] for details.
     fn unmark_text(&mut self, window: &mut Window, cx: &mut Context<Self>);
-
-    /// See [`InputHandler::paste`] for details.
-    fn paste(&mut self, item: ClipboardItem, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(text) = item.text() {
-            self.replace_text_in_range(None, &text, window, cx);
-        }
-    }
 
     /// See [`InputHandler::replace_text_in_range`] for details.
     fn replace_text_in_range(
@@ -86,11 +78,6 @@ pub trait EntityInputHandler: 'static + Sized {
     /// See [`InputHandler::accepts_text_input`] for details.
     fn accepts_text_input(&self, _window: &mut Window, _cx: &mut Context<Self>) -> bool {
         true
-    }
-
-    /// See [`InputHandler::text_input_editable_range`] for details.
-    fn text_input_editable_range(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> Option<Range<usize>> {
-        None
     }
 }
 
@@ -161,10 +148,6 @@ impl<V: EntityInputHandler> InputHandler for ElementInputHandler<V> {
         self.view.update(cx, |view, cx| view.unmark_text(window, cx));
     }
 
-    fn paste(&mut self, item: ClipboardItem, window: &mut Window, cx: &mut App) {
-        self.view.update(cx, |view, cx| view.paste(item, window, cx));
-    }
-
     fn bounds_for_range(
         &mut self,
         range_utf16: Range<usize>,
@@ -189,9 +172,5 @@ impl<V: EntityInputHandler> InputHandler for ElementInputHandler<V> {
 
     fn prefers_ime_for_printable_keys(&mut self, window: &mut Window, cx: &mut App) -> bool {
         self.view.update(cx, |view, cx| view.accepts_text_input(window, cx))
-    }
-
-    fn text_input_editable_range(&mut self, window: &mut Window, cx: &mut App) -> Option<Range<usize>> {
-        self.view.update(cx, |view, cx| view.text_input_editable_range(window, cx))
     }
 }

@@ -90,7 +90,6 @@ impl AtlasBackend for MetalAtlasTextures {
         let textures = match id.kind {
             AtlasTextureKind::Monochrome => &mut self.monochrome_textures,
             AtlasTextureKind::Polychrome => &mut self.polychrome_textures,
-            AtlasTextureKind::Subpixel => unreachable!(),
         };
 
         let Some(texture_slot) =
@@ -117,7 +116,6 @@ impl MetalAtlasTextures {
             let textures = match texture_kind {
                 AtlasTextureKind::Monochrome => &mut self.monochrome_textures,
                 AtlasTextureKind::Polychrome => &mut self.polychrome_textures,
-                AtlasTextureKind::Subpixel => unreachable!(),
             };
 
             if let Some(tile) = textures.iter_mut().rev().find_map(|texture| texture.allocate(size)) {
@@ -143,7 +141,6 @@ impl MetalAtlasTextures {
         let (pixel_format, usage) = match kind {
             AtlasTextureKind::Monochrome => (MTLPixelFormat::A8Unorm, MTLTextureUsage::ShaderRead),
             AtlasTextureKind::Polychrome => (MTLPixelFormat::BGRA8Unorm, MTLTextureUsage::ShaderRead),
-            AtlasTextureKind::Subpixel => unreachable!(),
         };
         texture_descriptor.setPixelFormat(pixel_format);
         texture_descriptor.setUsage(usage);
@@ -160,7 +157,6 @@ impl MetalAtlasTextures {
         let texture_list = match kind {
             AtlasTextureKind::Monochrome => &mut self.monochrome_textures,
             AtlasTextureKind::Polychrome => &mut self.polychrome_textures,
-            AtlasTextureKind::Subpixel => unreachable!(),
         };
 
         let index = texture_list.free_list.pop();
@@ -187,7 +183,6 @@ impl MetalAtlasTextures {
         let textures = match id.kind {
             AtlasTextureKind::Monochrome => &self.monochrome_textures,
             AtlasTextureKind::Polychrome => &self.polychrome_textures,
-            AtlasTextureKind::Subpixel => unreachable!(),
         };
         textures.textures.get(id.index as usize)?.as_ref()
     }

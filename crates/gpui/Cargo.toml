@@ -9,7 +9,6 @@ path = "src/gpui.rs"
 
 [dependencies]
 anyhow.workspace = true
-async-channel = { workspace = true, features = ["std"] }
 async-task.workspace = true
 bitflags.workspace = true
 derive_more = { workspace = true, features = ["add", "add_assign", "mul", "mul_assign", "not"] }

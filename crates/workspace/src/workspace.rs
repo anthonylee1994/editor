@@ -6,7 +6,6 @@ use ed_actions::mode::Terminal;
 use ui::font;
 pub mod dock;
 mod docks;
-pub mod history_manager;
 pub mod invalid_item_view;
 pub mod item;
 mod item_registry;
@@ -95,7 +94,6 @@ use gpui::actions;
 use gpui::point;
 use gpui::size;
 #[allow(clippy::wildcard_imports)]
-pub use history_manager::*;
 pub use item::Item;
 pub use item::ItemHandle;
 pub use item::ProjectItem;
@@ -591,7 +589,6 @@ pub fn init(app_state: Arc<AppState>, cx: &mut App) {
     theme_preview::init(cx);
     toast_layer::init(cx);
     persistence::init(Arc::clone(&app_state.fs), cx);
-    history_manager::init(Arc::clone(&app_state.fs), cx);
 
     cx.on_app_quit(flush_windows_serialization_on_quit).detach();
 
@@ -606,11 +603,10 @@ pub fn init(app_state: Arc<AppState>, cx: &mut App) {
             );
         })
         .on_action(|_: &OpenFiles, cx: &mut App| {
-            let directories = cx.can_select_mixed_files_and_dirs();
             let app_state = AppState::global(cx);
             prompt_and_open_paths(
                 app_state,
-                PathPromptOptions { files: true, directories, multiple: true, prompt: None },
+                PathPromptOptions { files: true, directories: true, multiple: true, prompt: None },
                 true,
                 cx,
             );

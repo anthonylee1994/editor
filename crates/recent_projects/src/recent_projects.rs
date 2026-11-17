@@ -79,7 +79,6 @@ use ui::prelude::v_flex;
 use util::ResultExt as _;
 use util::disambiguate;
 use util::paths::PathExt as _;
-use workspace::HistoryManager;
 use workspace::ModalView;
 use workspace::OpenMode;
 use workspace::OpenOptions;
@@ -616,10 +615,6 @@ impl RecentProjectsDelegate {
                 let workspaces = workspace::recent_project_workspaces(recent, fs.as_ref()).await;
                 this.update_in(cx, move |picker, window, cx| {
                     Self::update_picker_after_recent_project_deletion(picker, ix, workspaces, window, cx);
-                    // Keep the dock's recent-projects menu in step with the list.
-                    if let Some(history_manager) = HistoryManager::global(cx) {
-                        history_manager.update(cx, |this, cx| this.delete_history(&recent_workspace.paths, cx));
-                    }
                 })
                 .ok();
             })

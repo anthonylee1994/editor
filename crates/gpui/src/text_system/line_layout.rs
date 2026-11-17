@@ -802,7 +802,7 @@ mod tests {
 
     fn cache() -> (LineLayoutCache, Arc<AtomicUsize>) {
         let font_generation = Arc::new(AtomicUsize::new(0));
-        (LineLayoutCache::new(Arc::new(NoopTextSystem::new()), Arc::clone(&font_generation)), font_generation)
+        (LineLayoutCache::new(Arc::new(NoopTextSystem), Arc::clone(&font_generation)), font_generation)
     }
 
     fn layout(cache: &LineLayoutCache, text: &'static str) -> Arc<LineLayout> {
@@ -831,7 +831,7 @@ mod tests {
         use crate::WindowTextSystem;
         use crate::font;
 
-        let text_system = WindowTextSystem::new(Arc::new(TextSystem::new(Arc::new(NoopTextSystem::new()))));
+        let text_system = WindowTextSystem::new(Arc::new(TextSystem::new(Arc::new(NoopTextSystem))));
         // Long enough to be stored on the heap rather than inline.
         let text = SharedString::from("let value = compute_something(argument_one, argument_two);");
         let runs = [TextRun { len: text.len(), font: font(".ZedMono"), ..Default::default() }];

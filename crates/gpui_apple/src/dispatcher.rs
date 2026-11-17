@@ -10,7 +10,6 @@ use dispatch2::GlobalQueueIdentifier;
 use gpui::PlatformDispatcher;
 use gpui::Priority;
 use gpui::RunnableMeta;
-use gpui::RunnableVariant;
 use objc2_foundation::NSThread;
 
 pub struct AppleDispatcher;
@@ -32,7 +31,7 @@ impl PlatformDispatcher for AppleDispatcher {
         NSThread::isMainThread_class()
     }
 
-    fn dispatch(&self, runnable: RunnableVariant, priority: Priority) {
+    fn dispatch(&self, runnable: Runnable<RunnableMeta>, priority: Priority) {
         let context = runnable.into_raw().as_ptr().cast::<c_void>();
 
         let queue_priority = match priority {
@@ -47,14 +46,14 @@ impl PlatformDispatcher for AppleDispatcher {
         }
     }
 
-    fn dispatch_on_main_thread(&self, runnable: RunnableVariant, _priority: Priority) {
+    fn dispatch_on_main_thread(&self, runnable: Runnable<RunnableMeta>, _priority: Priority) {
         let context = runnable.into_raw().as_ptr().cast::<c_void>();
         unsafe {
             DispatchQueue::main().exec_async_f(context, trampoline);
         }
     }
 
-    fn dispatch_after(&self, duration: Duration, runnable: RunnableVariant) {
+    fn dispatch_after(&self, duration: Duration, runnable: Runnable<RunnableMeta>) {
         let context = runnable.into_raw().as_ptr().cast::<c_void>();
         let queue = DispatchQueue::global_queue(GlobalQueueIdentifier::Priority(DispatchQueueGlobalPriority::High));
         let when = DispatchTime::NOW.time(duration.as_nanos() as i64);

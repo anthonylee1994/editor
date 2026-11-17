@@ -680,7 +680,6 @@ impl MetalRenderer {
                 PrimitiveBatch::PolychromeSprites { texture_id, range } => {
                     self.draw_polychrome_sprites(texture_id, range, instance_bindings, viewport_size, &command_encoder);
                 }
-                PrimitiveBatch::SubpixelSprites { .. } => unreachable!(),
             }
         }
 

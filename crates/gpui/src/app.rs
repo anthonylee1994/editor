@@ -67,7 +67,6 @@ use crate::AssetSource;
 use crate::BackgroundExecutor;
 use crate::Bounds;
 use crate::ClipboardItem;
-use crate::ClipboardReadError;
 use crate::CursorStyle;
 use crate::DispatchPhase;
 use crate::DisplayChanges;
@@ -85,7 +84,6 @@ use crate::Keystroke;
 use crate::LayoutId;
 use crate::Menu;
 use crate::MenuItem;
-use crate::MissingGlyph;
 use crate::OwnedMenu;
 use crate::PathPromptOptions;
 use crate::Pixels;
@@ -108,7 +106,6 @@ use crate::SubscriberSet;
 use crate::Subscription;
 use crate::SvgRenderer;
 use crate::Task;
-use crate::TextRenderingMode;
 use crate::TextSystem;
 use crate::Window;
 use crate::WindowAppearance;
@@ -344,62 +341,11 @@ fn display_events(
     removed.chain(added_or_changed).collect()
 }
 type Listener = Box<dyn FnMut(&dyn Any, &mut App) -> bool + 'static>;
-type MissingGlyphCallback = Box<dyn FnMut(&[MissingGlyph], &mut App) + 'static>;
 pub(crate) type KeystrokeObserver = Box<dyn FnMut(&KeystrokeEvent, &mut Window, &mut App) -> bool + 'static>;
 type QuitHandler = (Box<dyn FnOnce(&mut App) -> LocalBoxFuture<'static, ()> + 'static>, &'static Location<'static>);
 type WindowClosedHandler = Box<dyn FnMut(&mut App, WindowId)>;
 type ReleaseListener = Box<dyn FnOnce(&mut dyn Any, &mut App) + 'static>;
 type NewEntityListener = Box<dyn FnMut(AnyEntity, &mut Option<&mut Window>, &mut App) + 'static>;
-
-struct MissingGlyphCallbackEntry {
-    registration: Rc<()>,
-    callback: Option<MissingGlyphCallback>,
-}
-
-#[derive(Default)]
-struct MissingGlyphCallbackSlot {
-    entry: RefCell<Option<MissingGlyphCallbackEntry>>,
-}
-
-impl MissingGlyphCallbackSlot {
-    fn replace(&self, callback: MissingGlyphCallback) -> Rc<()> {
-        let registration = Rc::new(());
-        self.entry
-            .borrow_mut()
-            .replace(MissingGlyphCallbackEntry { registration: Rc::clone(&registration), callback: Some(callback) });
-        registration
-    }
-
-    fn invoke(&self, missing_glyphs: &[MissingGlyph], cx: &mut App) {
-        let Some((registration, mut callback)) = self
-            .entry
-            .borrow_mut()
-            .as_mut()
-            .and_then(|entry| entry.callback.take().map(|callback| (Rc::clone(&entry.registration), callback)))
-        else {
-            return;
-        };
-        callback(missing_glyphs, cx);
-
-        let mut entry = self.entry.borrow_mut();
-        let is_current = entry.as_ref().is_some_and(|entry| Rc::ptr_eq(&entry.registration, &registration));
-        if is_current {
-            let Some(entry) = entry.as_mut() else {
-                return;
-            };
-            entry.callback = Some(callback);
-        }
-    }
-
-    fn remove(&self, registration: &Rc<()>) -> bool {
-        let mut entry = self.entry.borrow_mut();
-        let is_current = entry.as_ref().is_some_and(|entry| Rc::ptr_eq(&entry.registration, registration));
-        if is_current {
-            entry.take();
-        }
-        is_current
-    }
-}
 
 /// Defines when the application should automatically quit.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -469,7 +415,6 @@ pub struct App {
     pub(crate) keystroke_observers: SingleSubscriberSet<KeystrokeObserver>,
     pub(crate) keystroke_interceptors: SingleSubscriberSet<KeystrokeObserver>,
     pub(crate) keyboard_layout_observers: SingleSubscriberSet<Handler>,
-    missing_glyph_callback: Rc<MissingGlyphCallbackSlot>,
     pub(crate) display_observers: SingleSubscriberSet<DisplayHandler>,
     /// The connected displays, as of the platform's last display change
     /// notification.
@@ -511,7 +456,6 @@ pub struct App {
     pub(crate) window_invalidators_by_entity: FxHashMap<EntityId, FxHashMap<WindowId, WindowInvalidator>>,
     pub(crate) tracked_entities: FxHashMap<WindowId, FxHashSet<EntityId>>,
     pub(crate) current_window_by_entity: FxHashMap<EntityId, WindowId>,
-    pub(crate) text_rendering_mode: Rc<Cell<TextRenderingMode>>,
 
     pub(crate) window_update_stack: Vec<WindowId>,
     pub(crate) mode: GpuiMode,
@@ -541,7 +485,6 @@ impl App {
                 this: Weak::clone(this),
                 platform: Rc::clone(&platform),
                 text_system,
-                text_rendering_mode: Rc::new(Cell::new(TextRenderingMode::default())),
                 mode: GpuiMode::Production,
                 actions: Rc::new(ActionRegistry::default()),
                 pending_updates: 0,
@@ -574,7 +517,6 @@ impl App {
                 keystroke_observers: SingleSubscriberSet::new(),
                 keystroke_interceptors: SingleSubscriberSet::new(),
                 keyboard_layout_observers: SingleSubscriberSet::new(),
-                missing_glyph_callback: Rc::default(),
                 display_observers: SingleSubscriberSet::new(),
                 displays: read_displays(platform.as_ref()),
                 system_sleep_observers: SingleSubscriberSet::new(),
@@ -1086,27 +1028,6 @@ impl App {
         self.platform.read_from_clipboard()
     }
 
-    /// Reads data from the platform clipboard, resolving once the contents
-    /// are available.
-    ///
-    /// Prefer this over [`App::read_from_clipboard`] in code that can await:
-    /// on platforms where clipboard access is asynchronous and
-    /// permission-gated (e.g. web), the synchronous read always returns
-    /// `None` while this method performs a real read.
-    pub fn read_from_clipboard_async(&self) -> Task<Result<Option<ClipboardItem>, ClipboardReadError>> {
-        self.platform.read_from_clipboard_async()
-    }
-
-    /// Sets the text rendering mode for the application.
-    pub fn set_text_rendering_mode(&mut self, mode: TextRenderingMode) {
-        self.text_rendering_mode.set(mode);
-    }
-
-    /// Returns the current text rendering mode for the application.
-    pub fn text_rendering_mode(&self) -> TextRenderingMode {
-        self.text_rendering_mode.get()
-    }
-
     /// Writes data to the platform clipboard.
     pub fn write_to_clipboard(&self, item: ClipboardItem) {
         self.platform.write_to_clipboard(item);
@@ -1464,39 +1385,6 @@ impl App {
         &self.text_system
     }
 
-    /// Invokes a callback with grapheme clusters that exhausted font fallback.
-    ///
-    /// Registering a callback replaces the previous callback and enables missing-glyph
-    /// detection. The callback runs on the foreground executor after shaping has
-    /// released its internal locks. Dropping its subscription disables detection until
-    /// another callback is registered.
-    ///
-    /// Reports are queued without blocking shaping, then deduplicated before delivery.
-    /// The bounded queue can drop reports on overflow. Dropped reports may be reported
-    /// again when the text is reshaped; no retry is scheduled automatically.
-    pub fn on_missing_glyphs(&self, callback: impl FnMut(&[MissingGlyph], &mut App) + 'static) -> Subscription {
-        let registration = self.missing_glyph_callback.replace(Box::new(callback));
-
-        if let Some(mut receiver) = self.text_system.take_missing_glyph_receiver() {
-            let callback = Rc::clone(&self.missing_glyph_callback);
-            self.spawn(async move |cx| {
-                while let Ok(missing_glyphs) = receiver.recv().await {
-                    cx.update(|cx| callback.invoke(&missing_glyphs, cx));
-                }
-            })
-            .detach();
-        }
-        self.text_system.enable_missing_glyph_reporting();
-
-        let callback = Rc::clone(&self.missing_glyph_callback);
-        let text_system = Arc::clone(&self.text_system);
-        Subscription::new(move || {
-            if callback.remove(&registration) {
-                text_system.disable_missing_glyph_reporting();
-            }
-        })
-    }
-
     /// Check whether a global of the given type has been assigned.
     pub fn has_global<G: Global>(&self) -> bool {
         self.globals_by_type.contains_key(&TypeId::of::<G>())
@@ -1836,16 +1724,6 @@ impl App {
         self.platform.add_recent_document(path);
     }
 
-    /// Updates the jump list with the updated list of recent paths for the application, only used on Windows for now.
-    /// Note that this also sets the dock menu on Windows.
-    pub fn update_jump_list(
-        &self,
-        menus: Vec<MenuItem>,
-        entries: Vec<SmallVec<[PathBuf; 2]>>,
-    ) -> Task<Vec<SmallVec<[PathBuf; 2]>>> {
-        self.platform.update_jump_list(menus, entries)
-    }
-
     /// Dispatch an action to the currently active window or global action handler
     /// See [`crate::Action`] for more information on how actions work.
     pub fn dispatch_action(&mut self, action: &dyn Action) {
@@ -2005,11 +1883,6 @@ impl App {
         }
 
         self.window_invalidators_by_entity.insert(entity_id, window_invalidators);
-    }
-
-    /// Returns `true` if the platform file picker supports selecting a mix of files and directories.
-    pub fn can_select_mixed_files_and_dirs(&self) -> bool {
-        self.platform.can_select_mixed_files_and_dirs()
     }
 
     /// Removes an image from the sprite atlas on all windows.

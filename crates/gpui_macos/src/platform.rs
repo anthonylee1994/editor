@@ -42,9 +42,7 @@ use gpui::PlatformWindow;
 use gpui::Result;
 use gpui::SystemMenuType;
 use gpui::WindowAppearance;
-use gpui::WindowKind;
 use gpui::WindowParams;
-use gpui::popup::PopupNotSupportedError;
 use gpui_util::ResultExt as _;
 use gpui_util::new_std_command;
 use itertools::Itertools as _;
@@ -674,12 +672,6 @@ impl Platform for MacPlatform {
     }
 
     fn open_window(&self, handle: AnyWindowHandle, options: WindowParams) -> Result<Box<dyn PlatformWindow>> {
-        // Native popups are not implemented on macOS yet. Rejecting lets callers fall back to
-        // gpui's in-window popovers.
-        if let WindowKind::AnchoredPopup(_) = options.kind {
-            return Err(PopupNotSupportedError.into());
-        }
-
         let (cursor_visible, foreground_executor, background_executor, renderer_context) = {
             let guard = self.0.lock();
             (
@@ -846,10 +838,6 @@ impl Platform for MacPlatform {
             .detach();
 
         done_rx
-    }
-
-    fn can_select_mixed_files_and_dirs(&self) -> bool {
-        true
     }
 
     fn reveal_path(&self, path: &Path) {

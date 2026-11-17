@@ -38,12 +38,9 @@ use crate::Shadow;
 use crate::SharedString;
 use crate::SpriteAnimation;
 use crate::StrikethroughStyle;
-use crate::SubpixelSprite;
-use crate::TextRenderingMode;
 use crate::TransformationMatrix;
 use crate::Underline;
 use crate::UnderlineStyle;
-use crate::WindowBackgroundAppearance;
 use crate::point;
 use crate::px;
 use crate::size;
@@ -466,7 +463,6 @@ impl Window {
             (quantized_origin.y.fract() * SUBPIXEL_VARIANTS_Y as f32) as u8,
         );
         let integer_origin = quantized_origin.map(|c| ScaledPixels(c.trunc()));
-        let subpixel_rendering = self.should_use_subpixel_rendering(font_id, font_size);
         let dilation = self.text_system().glyph_dilation_for_color(color);
         let params = RenderGlyphParams {
             font_id,
@@ -475,7 +471,6 @@ impl Window {
             subpixel_variant,
             scale_factor,
             is_emoji: false,
-            subpixel_rendering,
             dilation,
         };
 
@@ -494,48 +489,17 @@ impl Window {
             };
             let content_mask = self.snapped_content_mask();
 
-            if subpixel_rendering {
-                self.next_frame.scene.insert_primitive(SubpixelSprite {
-                    order: 0,
-                    pad: 0,
-                    bounds,
-                    content_mask,
-                    color: color.opacity(element_opacity),
-                    tile,
-                    transformation: TransformationMatrix::unit(),
-                });
-            } else {
-                self.next_frame.scene.insert_primitive(MonochromeSprite {
-                    order: 0,
-                    animation: 0,
-                    bounds,
-                    content_mask,
-                    color: color.opacity(element_opacity),
-                    tile,
-                    transformation: TransformationMatrix::unit(),
-                });
-            }
+            self.next_frame.scene.insert_primitive(MonochromeSprite {
+                order: 0,
+                animation: 0,
+                bounds,
+                content_mask,
+                color: color.opacity(element_opacity),
+                tile,
+                transformation: TransformationMatrix::unit(),
+            });
         }
         Ok(())
-    }
-
-    fn should_use_subpixel_rendering(&self, font_id: FontId, font_size: Pixels) -> bool {
-        // Checked first because it's cheap, while reading the background appearance locks the
-        // window, and this runs for every glyph.
-        if !self.platform_window.is_subpixel_rendering_supported() {
-            return false;
-        }
-
-        if self.platform_window.background_appearance() != WindowBackgroundAppearance::Opaque {
-            return false;
-        }
-
-        let mode = match self.text_rendering_mode.get() {
-            TextRenderingMode::PlatformDefault => self.text_system().recommended_rendering_mode(font_id, font_size),
-            mode => mode,
-        };
-
-        mode == TextRenderingMode::Subpixel
     }
 
     /// Paints an emoji glyph into the scene for the next frame at the current z-index.
@@ -563,7 +527,6 @@ impl Window {
             subpixel_variant: Point::default(),
             scale_factor,
             is_emoji: true,
-            subpixel_rendering: false,
             dilation: 0,
         };
 

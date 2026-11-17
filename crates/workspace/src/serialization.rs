@@ -19,8 +19,6 @@ use ui::Window;
 
 use super::AppState;
 use super::Event;
-use super::HistoryManager;
-use super::HistoryManagerEntry;
 use super::OpenMode;
 use super::Pane;
 use super::SERIALIZATION_THROTTLE_TIME;
@@ -131,17 +129,12 @@ impl Workspace {
         })
     }
 
-    pub(super) fn update_history(&self, cx: &mut App) {
+    pub(super) fn update_history(&self, cx: &App) {
         let Some(location) = self.project_location(cx) else {
             return;
         };
         if let Some(store) = ProjectsStore::try_global(cx) {
-            store.record_recent(location.clone(), cx);
-        }
-        if let Some(manager) = HistoryManager::global(cx) {
-            manager.update(cx, |this, cx| {
-                this.update_history(HistoryManagerEntry::new(&location.path_list()), cx);
-            });
+            store.record_recent(location, cx);
         }
     }
 

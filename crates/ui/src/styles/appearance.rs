@@ -14,11 +14,5 @@ fn window_appearance(cx: &App) -> WindowBackgroundAppearance {
 /// Helps determine if you need to take extra steps to prevent
 /// transparent backgrounds.
 pub fn theme_is_transparent(cx: &mut App) -> bool {
-    matches!(
-        window_appearance(cx),
-        WindowBackgroundAppearance::Transparent
-            | WindowBackgroundAppearance::Blurred
-            | WindowBackgroundAppearance::MicaBackdrop
-            | WindowBackgroundAppearance::MicaAltBackdrop
-    )
+    matches!(window_appearance(cx), WindowBackgroundAppearance::Transparent | WindowBackgroundAppearance::Blurred)
 }

@@ -1441,7 +1441,6 @@ name = "gpui"
 version = "0.2.2"
 dependencies = [
  "anyhow",
- "async-channel",
  "async-task",
  "bitflags",
  "derive_more",
