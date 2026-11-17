@@ -69,3 +69,53 @@ larger lever if rendering cost ever matters.
 - The spinner row was measured in this repository with rust-analyzer running
   `cargo clippy`, so its system power is dominated by that, not the editor.
 - No before/after comparison for the spinner port was taken.
+
+## Where a frame's CPU goes (sampling profile)
+
+`sample <pid> 10 1` (1 kHz, main thread) on the same release build while
+`edctl` typed and deleted characters in a 3.9k-line Rust file, with the
+project panel open. Stacks separate real display-link frames from work
+queued by the automation server, so the split below is for real frames only.
+
+Main thread over 10 s: 90.3% idle, 6.0% in display-link frames, 3.2% in
+queued tasks. Of the queued tasks, about 90% was the automation server
+(including the extra draw it forces after each event), so the "main-thread
+work outside drawing" seen in the `perf` numbers above is automation
+overhead, not editor work.
+
+Inside display-link frames (392 samples):
+
+| Share | Where |
+|---|---|
+| 79% | `Window::draw` (everything below except Metal and drawable) |
+| 25% | taffy layout of the window's element tree |
+| 16% | the editor element (layout, prepaint and paint of the text area) |
+| 10% | status bar |
+| 9% | project panel |
+| 7% | tab bar |
+| 7% | text shaping |
+| 4% | `Workspace::render` |
+| 9% | Metal encode (`MetalRenderer::draw`) |
+| 5% | waiting for the next drawable |
+| 4% | freeing the frame's element arena |
+
+Rows overlap where one area calls another (shaping sits inside the editor
+and panels), so they don't sum to 100%.
+
+Reading:
+
+- **The text area is a minority of a typing frame (~16%).** Laying out and
+  re-rendering the surrounding chrome (layout, status bar, project panel, tab
+  bar, workspace) is around half.
+- Every frame of a keystroke's animation (cursor trail, smooth scroll)
+  re-renders the path from the workspace root to the editor, and with it the
+  uncached siblings on that path: the status bar and the pane's tab bar.
+  Only dock panels, panes and the mode view are wrapped in `AnyView::cached`.
+- The project panel is cached in its dock but still showed up in 9% of frame
+  samples, so something invalidates it while typing. Not investigated.
+- The most promising lever is therefore making animation and keystroke
+  frames skip chrome that didn't change, not speeding up the editor element
+  or the GPU side.
+
+Caveats: about 390 frame samples, one workload. The scroll profile had too
+few frame samples (25) to break down. Symbols were demangled approximately.
