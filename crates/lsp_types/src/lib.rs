@@ -1229,7 +1229,9 @@ pub struct ClientInfo {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Deserialize, Serialize)]
-pub struct InitializedParams;
+// Braces keep it a JSON object (`{}`); a unit struct is `null`.
+#[allow(clippy::empty_structs_with_brackets)]
+pub struct InitializedParams {}
 
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 pub struct GenericRegistrationOptions {
@@ -2791,9 +2793,12 @@ mod tests {
     use serde::Deserialize;
     use serde::Serialize;
 
+    use super::ColorProviderOptions;
     use super::ConfigurationItem;
     use super::DiagnosticMessage;
+    use super::FoldingProviderOptions;
     use super::InitializeParams;
+    use super::InitializedParams;
     use super::LanguageString;
     use super::MarkedString;
     use super::MarkupContent;
@@ -2964,5 +2969,12 @@ mod tests {
 
         // Malformed URI still produces an error
         serde_json::from_str::<ConfigurationItem>(r#"{"scopeUri": "not a valid uri", "section": "yaml"}"#).unwrap_err();
+    }
+
+    #[test]
+    fn empty_params_serialize_as_objects() {
+        assert_eq!(serde_json::to_string(&InitializedParams {}).unwrap(), "{}");
+        assert_eq!(serde_json::from_str::<ColorProviderOptions>("{}").unwrap(), ColorProviderOptions {});
+        assert_eq!(serde_json::from_str::<FoldingProviderOptions>("{}").unwrap(), FoldingProviderOptions {});
     }
 }

@@ -432,9 +432,9 @@ impl std::error::Error for ServerNotInstalled {}
 pub trait LspAdapter: 'static + Send + Sync {
     fn name(&self) -> LanguageServerName;
 
-    /// Locates the language server binary installed by the user (on `PATH` or in the
-    /// project). Language servers are never installed by the editor,
-    /// so returning `None` means the server is not available.
+    /// Locates the language server binary: the user's install (on `PATH` or in the project),
+    /// else one fetched through the user's toolchain (`npx`, `uvx`, `rustup`, `go run`).
+    /// Returning `None` means the server is not available.
     async fn check_if_user_installed(
         &self,
         _delegate: &Arc<dyn LspAdapterDelegate>,

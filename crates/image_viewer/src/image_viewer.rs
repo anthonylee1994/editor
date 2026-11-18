@@ -562,7 +562,7 @@ impl Item for ImageView {
 
     fn tab_icon(&self, _: &Window, cx: &App) -> Option<Icon> {
         let path = self.image_item.read(cx).abs_path(cx)?;
-        FileIcons::get_icon(&path, cx).map(Icon::from_path)
+        Some(Icon::from_path(FileIcons::get_material_icon(&path)))
     }
 
     fn has_deleted_file(&self, cx: &App) -> bool {

@@ -48,7 +48,9 @@ impl From<bool> for FoldingRangeProviderCapability {
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
-pub struct FoldingProviderOptions;
+// Braces keep it a JSON object (`{}`); a unit struct is `null`.
+#[allow(clippy::empty_structs_with_brackets)]
+pub struct FoldingProviderOptions {}
 
 #[derive(Debug, Eq, PartialEq, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]

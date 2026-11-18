@@ -152,6 +152,8 @@ enum IconSource {
     External(Arc<Path>),
     /// An SVG not embedded in the ed binary.
     ExternalSvg(SharedString),
+    /// An embedded polychrome SVG, rendered as an image to keep its colors.
+    EmbeddedImage(SharedString),
 }
 
 #[derive(Clone, IntoElement)]
@@ -177,11 +179,15 @@ impl Icon {
     }
 
     /// Create an icon from a path. Uses a heuristic to determine if it's embedded or external:
-    /// - Paths starting with "icons/" are treated as embedded SVGs
+    /// - Paths starting with "icons/material/" are embedded polychrome SVGs, drawn in their own
+    ///   colors ([`Icon::color`] has no effect)
+    /// - Other paths starting with "icons/" are treated as embedded SVGs
     /// - Other paths are treated as external raster images (from icon themes)
     pub fn from_path(path: impl Into<SharedString>) -> Self {
         let path = path.into();
-        let source = if path.starts_with("icons/") {
+        let source = if path.starts_with("icons/material/") {
+            IconSource::EmbeddedImage(path)
+        } else if path.starts_with("icons/") {
             IconSource::Embedded(path)
         } else {
             IconSource::External(Arc::from(PathBuf::from(path.as_ref())))
@@ -208,9 +214,12 @@ impl Icon {
     }
 
     pub fn preload(&self, cx: &mut App) {
-        if let IconSource::External(path) = &self.source {
-            drop(cx.fetch_asset::<ImgResourceLoader>(&Resource::Path(Arc::clone(path))));
-        }
+        let resource = match &self.source {
+            IconSource::External(path) => Resource::Path(Arc::clone(path)),
+            IconSource::EmbeddedImage(path) => Resource::Embedded(path.clone()),
+            IconSource::Embedded(_) | IconSource::ExternalSvg(_) => return,
+        };
+        drop(cx.fetch_asset::<ImgResourceLoader>(&resource));
     }
 
     pub const fn color(mut self, color: Color) -> Self {
@@ -263,6 +272,7 @@ impl RenderOnce for Icon {
             IconSource::External(path) => {
                 return img(path).size(self.size).flex_none().text_color(color).into_any_element();
             }
+            IconSource::EmbeddedImage(path) => return img(path).size(self.size).flex_none().into_any_element(),
         };
         let group_hover_color = self.group_hover_color.map(|color| color.color(cx));
 

@@ -184,10 +184,16 @@ migrator, or Vim/Helix mode.
   are built once at startup.
 - Keybindings should be simple single keystrokes. There is no UI for pending
   multi-stroke input (no which-key popup or status bar indicator).
-- Personal bindings sit in their normal context groups: global `cmd-[`/`cmd-]`
-  navigate backward/forward (Editor `cmd-[`/`cmd-]` still outdent/indent),
-  Editor `f1` opens documentation and `cmd-shift-u` toggles case, and Terminal
-  `shift-enter` sends Escape followed by carriage return.
+- The keymap follows VS Code's macOS defaults wherever an equivalent action
+  exists, and those win over earlier personal bindings (e.g. `ctrl--` /
+  `ctrl-shift--` go back/forward, `f1` command palette, `cmd-1`…`cmd-9` focus
+  pane, `shift-alt-f` format, `shift-f12` references, `cmd-f12`
+  implementation, `alt-z` soft wrap, `alt-cmd-f` replace). VS Code chords
+  (`cmd-k …`) are left out. Features VS Code lacks keep their own keys when
+  they don't collide (git staging, branch/worktree pickers, diff hunks); ones
+  that collided (mode switch, dock cycling, text finder, open docs, toggle
+  case, reset font size) are left to the command palette. Terminal
+  `shift-enter` still sends Escape followed by carriage return.
 - JSON schemas are not generated: nothing derives `JsonSchema` and `schemars`
   is not a dependency. Actions still derive `Deserialize`, because the built-in
   keymap builds actions from a name plus JSON input. Bindings may omit input,

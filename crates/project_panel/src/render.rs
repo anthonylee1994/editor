@@ -228,7 +228,7 @@ impl ProjectPanel {
         if show_editor && details.kind.is_file() {
             let filename = self.filename_editor.read(cx).text(cx);
             if filename.len() > 2 {
-                icon = FileIcons::get_icon(Path::new(&filename), cx);
+                icon = Some(FileIcons::get_material_icon(Path::new(&filename)));
             }
         }
 
@@ -861,10 +861,10 @@ impl ProjectPanel {
             .child(Label::new(delimiter.clone()).single_line().color(filename_text_color))
     }
 
-    pub(super) fn entry_icon(entry: &Entry, is_expanded: bool, cx: &App) -> Option<SharedString> {
+    pub(super) fn entry_icon(entry: &Entry, is_expanded: bool) -> SharedString {
         match entry.kind {
-            EntryKind::File => FileIcons::get_icon(entry.path.as_std_path(), cx),
-            _ => FileIcons::get_folder_icon(is_expanded, entry.path.as_std_path(), cx),
+            EntryKind::File => FileIcons::get_material_icon(entry.path.as_std_path()),
+            _ => FileIcons::get_material_folder_icon(is_expanded, entry.path.as_std_path()),
         }
     }
 
@@ -882,7 +882,7 @@ impl ProjectPanel {
         let expanded_entry_ids = self.state.expanded_dir_ids.get(&worktree_id).map_or(&[][..], Vec::as_slice);
         let is_expanded = expanded_entry_ids.binary_search(&entry.id).is_ok();
 
-        let mut icon = Self::entry_icon(entry, is_expanded, cx);
+        let mut icon = Some(Self::entry_icon(entry, is_expanded));
         let (depth, difference) = ProjectPanel::calculate_depth_and_difference(entry, entries_paths);
         let depth = depth
             + self

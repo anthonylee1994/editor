@@ -42,6 +42,13 @@ fn server_binary_arguments() -> Vec<OsString> {
     vec!["-mode=stdio".into()]
 }
 
+/// Runs the latest gopls through `go run`, which downloads it on first use and caches the build.
+fn go_run_arguments() -> Vec<OsString> {
+    let mut args: Vec<OsString> = vec!["run".into(), "golang.org/x/tools/gopls@latest".into()];
+    args.extend(server_binary_arguments());
+    args
+}
+
 #[derive(Copy, Clone)]
 pub(crate) struct GoLspAdapter;
 
@@ -63,8 +70,11 @@ impl LspAdapter for GoLspAdapter {
         delegate: &Arc<dyn LspAdapterDelegate>,
         _: &AsyncApp,
     ) -> Option<LanguageServerBinary> {
-        let path = delegate.which(Self::SERVER_NAME.as_ref()).await?;
-        Some(LanguageServerBinary { path, arguments: server_binary_arguments(), env: None })
+        if let Some(path) = delegate.which(Self::SERVER_NAME.as_ref()).await {
+            return Some(LanguageServerBinary { path, arguments: server_binary_arguments(), env: None });
+        }
+        let go = delegate.which("go".as_ref()).await?;
+        Some(LanguageServerBinary { path: go, arguments: go_run_arguments(), env: Some(delegate.shell_env().await) })
     }
 
     async fn initialization_options(
@@ -633,4 +643,12 @@ pub(crate) fn languages() -> Vec<LanguageDef> {
         },
         LanguageDef { adapters: vec![adapter], context: Some(context), ..LanguageDef::new("gowork", mod_settings()) },
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn go_run_runs_latest_gopls_over_stdio() {
+        assert_eq!(super::go_run_arguments(), ["run", "golang.org/x/tools/gopls@latest", "-mode=stdio"]);
+    }
 }

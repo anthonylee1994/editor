@@ -173,13 +173,22 @@
 - There is no managed Node.js runtime and no `node` settings (`node.path`,
   `node.npm_path` are removed). Node-based tooling uses `node`/`npx` from the
   shell `PATH`.
-- Language servers are never installed by ed and there is no setting for a
-  server's binary path (`lsp.<server>.binary.path` is removed). A server starts
-  from a user installation the adapter finds (`PATH`, or the project). Node-based
-  servers (css/html/json, yaml, bash, tombi) then fall back to
-  `npx --yes --package <pkg> <bin>`, unpinned: npx prefers a version installed
-  in the project, else the latest release from npm's cache, downloading it on
-  first use.
+- ed has no downloader of its own and there is no setting for a server's binary
+  path (`lsp.<server>.binary.path` is removed). A server starts from a user
+  installation the adapter finds (`PATH`, or the project), else it is
+  auto-installed through the user's toolchain:
+  - Node-based servers (css/html/json, yaml, bash, tombi) fall back to
+    `npx --yes --package <pkg> <bin>`, unpinned: npx prefers a version installed
+    in the project, else the latest release from npm's cache, downloading it on
+    first use.
+  - Python tools fall back to `uvx <tool>`.
+  - rust-analyzer: when `rust-analyzer` is missing or fails to run (e.g. the
+    rustup proxy without the component), ed runs
+    `rustup component add rust-analyzer` in the worktree (so a toolchain
+    override gets it) and starts the binary `rustup which` reports.
+  - gopls falls back to `go run golang.org/x/tools/gopls@latest`, which
+    downloads on first use and reuses Go's build cache after.
+  - terraform-ls has no toolchain runner and must be installed by the user.
 - A missing server is not an error: its binary status is "Not Installed"
   (`BinaryStatus::NotInstalled`, raised by `find_binary` returning
   `ServerNotInstalled`). The LSP menu still lists it, greyed out like a stopped

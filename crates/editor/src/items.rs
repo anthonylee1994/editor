@@ -210,8 +210,7 @@ impl Item for Editor {
 
     fn tab_icon(&self, _: &Window, cx: &App) -> Option<Icon> {
         path_for_buffer(&self.buffer, 0, true, cx)
-            .and_then(|path| FileIcons::get_icon(Path::new(&*path), cx))
-            .map(Icon::from_path)
+            .map(|path| Icon::from_path(FileIcons::get_material_icon(Path::new(&*path))))
     }
 
     fn tab_content(&self, params: TabContentParams, _: &Window, cx: &App) -> AnyElement {

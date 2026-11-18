@@ -329,8 +329,7 @@ impl Item for SvgPreviewView {
         self.buffer
             .as_ref()
             .and_then(|buffer| buffer.read(cx).file())
-            .and_then(|file| FileIcons::get_icon(file.path().as_std_path(), cx))
-            .map(Icon::from_path)
+            .map(|file| Icon::from_path(FileIcons::get_material_icon(file.path().as_std_path())))
             .or_else(|| Some(Icon::new(IconName::Image)))
     }
 

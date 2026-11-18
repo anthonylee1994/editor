@@ -398,9 +398,7 @@ impl ProjectPanel {
                 .expanded_dir_ids
                 .get(&worktree_id)
                 .is_some_and(|entries| entries.binary_search(&entry.id).is_ok());
-            if let Some(icon) = Self::entry_icon(entry, is_expanded, cx) {
-                Icon::from_path(icon).preload(cx);
-            }
+            Icon::from_path(Self::entry_icon(entry, is_expanded)).preload(cx);
         }
     }
 

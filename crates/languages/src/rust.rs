@@ -56,11 +56,8 @@ pub(crate) struct RustLspAdapter;
 const SERVER_NAME: LanguageServerName = LanguageServerName::new_static("rust-analyzer");
 
 impl RustLspAdapter {
-    async fn rustup_rust_analyzer_for_worktree(delegate: &dyn LspAdapterDelegate) -> Option<PathBuf> {
-        if !Self::workspace_has_rust_toolchain_override(delegate).await {
-            return None;
-        }
-
+    /// The rust-analyzer of the worktree's active rustup toolchain, if that toolchain has the component.
+    async fn rustup_rust_analyzer(delegate: &dyn LspAdapterDelegate) -> Option<PathBuf> {
         let rustup = delegate.which("rustup".as_ref()).await?;
         let env = delegate.shell_env().await;
         let worktree_root = delegate.worktree_root_path();
@@ -99,6 +96,20 @@ impl RustLspAdapter {
         }
 
         false
+    }
+
+    async fn runs(delegate: &dyn LspAdapterDelegate, path: &Path, env: &FxHashMap<String, String>) -> bool {
+        let result = delegate
+            .try_exec(LanguageServerBinary {
+                path: path.to_path_buf(),
+                arguments: vec!["--help".into()],
+                env: Some(env.clone()),
+            })
+            .await;
+        if let Err(err) = &result {
+            log::debug!("failed to run {path:?}: {err}");
+        }
+        result.is_ok()
     }
 }
 
@@ -167,37 +178,35 @@ impl LspAdapter for RustLspAdapter {
         let delegate = Arc::clone(delegate);
         cx.background_spawn(async move {
             let env = delegate.shell_env().await;
-            if let Some(path) = Self::rustup_rust_analyzer_for_worktree(delegate.as_ref()).await {
-                let result = delegate
-                    .try_exec(LanguageServerBinary {
-                        path: path.clone(),
-                        arguments: vec!["--help".into()],
-                        env: Some(env.clone()),
-                    })
-                    .await;
-                if result.is_ok() {
-                    log::debug!("found rust-analyzer in rustup toolchain override");
-                    return Some(LanguageServerBinary { path, env: Some(env), arguments: vec![] });
-                }
+            let delegate = delegate.as_ref();
+            if Self::workspace_has_rust_toolchain_override(delegate).await
+                && let Some(path) = Self::rustup_rust_analyzer(delegate).await
+                && Self::runs(delegate, &path, &env).await
+            {
+                log::debug!("found rust-analyzer in rustup toolchain override");
+                return Some(LanguageServerBinary { path, env: Some(env), arguments: vec![] });
             }
 
-            let path = delegate.which("rust-analyzer".as_ref()).await?;
+            // ~/.cargo/bin/rust-analyzer is often a rustup proxy without the component, or a broken
+            // symlink to /usr/bin/rust-analyzer, so test that it runs.
+            if let Some(path) = delegate.which("rust-analyzer".as_ref()).await
+                && Self::runs(delegate, &path, &env).await
+            {
+                return Some(LanguageServerBinary { path, env: Some(env), arguments: vec![] });
+            }
 
-            // It is surprisingly common for ~/.cargo/bin/rust-analyzer to be a symlink to
-            // /usr/bin/rust-analyzer that fails when you run it; so we need to test it.
-            log::debug!("found rust-analyzer in PATH. trying to run `rust-analyzer --help`");
-            let result = delegate
+            // Not installed: rustup adds the component to the worktree's active toolchain.
+            let rustup = delegate.which("rustup".as_ref()).await?;
+            log::info!("installing rust-analyzer with rustup");
+            delegate
                 .try_exec(LanguageServerBinary {
-                    path: path.clone(),
-                    arguments: vec!["--help".into()],
+                    path: rustup,
+                    arguments: vec!["component".into(), "add".into(), "rust-analyzer".into()],
                     env: Some(env.clone()),
                 })
-                .await;
-            if let Err(err) = result {
-                log::debug!("failed to run rust-analyzer after detecting it in PATH: binary: {path:?}: {err}");
-                return None;
-            }
-
+                .await
+                .log_err()?;
+            let path = Self::rustup_rust_analyzer(delegate).await?;
             Some(LanguageServerBinary { path, env: Some(env), arguments: vec![] })
         })
         .await

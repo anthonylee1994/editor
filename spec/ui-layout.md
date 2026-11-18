@@ -10,12 +10,12 @@ because it hurt readability; an opaque window is also cheaper to composite.
 
 ## Theme
 
-- The theme is constant: Nord (dark), built in Rust in `theme::built_in`, so
+- The theme is constant: One Dark (Atom palette), built in Rust in `theme::built_in`, so
   there is no theme JSON, no light/dark default palette, no refinement or
   fallback derivation, and no `theme_settings` crate. To change colours, edit
   `theme::built_in` and rebuild.
 - `theme::built_in` is the single origin of every colour, in three layers:
-  the Nord palette (the only raw hex values), role constants derived from it
+  the One Dark palette (the only raw hex values), role constants derived from it
   by formula (`shade` scales RGB channels, `mix` flattens a translucent colour
   onto a surface, alpha via `Hsla::alpha`), and theme fields that reference
   roles only. No theme field holds a colour from outside the palette (except
@@ -76,10 +76,11 @@ because it hurt readability; an opaque window is also cheaper to composite.
   lights, the project name (the active folder, see `git.md`), the
   worktree and branch pickers as `worktree / branch` (shown only for a project
   in a git repository), then an icon-only, segmented mode switch, then Go
-  Back / Go Forward. The switch offers Editor (`cmd-1`, `mode::Editor`), Git
-  History (`cmd-2`, `mode::GitHistory`, git only) and Terminal (`cmd-3`,
-  `mode::Terminal`), in that order, and is
-  shown whenever more than one mode is available; the keys work in any mode. The pickers moved here from
+  Back / Go Forward. The switch offers Editor (`mode::Editor`), Git
+  History (`mode::GitHistory`, git only) and Terminal (`mode::Terminal`), in
+  that order, and is
+  shown whenever more than one mode is available. The mode actions have no
+  default keys (the keymap follows VS Code, see `configuration.md`). The pickers moved here from
   the status bar so everything that names the project sits together; their
   menus open downward. The switch groups its icon buttons on a faint, borderless
   track (2px inset) so the modes read as one control as more are added; the
@@ -184,17 +185,17 @@ because it hurt readability; an opaque window is also cheaper to composite.
   little in history to be worth the space), leaving the bottom gap. The sidebar shows the active history
   item's `Item::side_card` and is styled like a left dock (flat, resizable, 8px
   gap before the panes), so the tab bars start after it rather than above it.
-- Terminal mode (`cmd-3`) fills the area of the docks and center panes with
+- Terminal mode (`mode::Terminal`) fills the area of the docks and center panes with
   terminal panes, split like editor panes; the status bar is hidden, as in Git
   History. The workspace owns these panes (like Git History's), apart from
   the terminal panel's; the terminal crate plugs in through
   `TerminalModeDelegate` (pane setup, opening shells, reading a terminal's
   directory), since it depends on `workspace`.
   - The two terminal sets have separate jobs: terminal mode for work in
-    shells, the bottom dock (`cmd-j`) for a quick shell and task output beside
+    shells, the bottom dock (`cmd-j` / `` ctrl-` ``) for a quick shell and task output beside
     the code. Tasks always run in the dock.
   - Showing the mode with no terminals starts a shell, except that a repeated
-    `cmd-3` while it is shown does not. Closing the last terminal keeps one
+    `mode::Terminal` while it is shown does not. Closing the last terminal keeps one
     empty pane offering "New Terminal" (`EmptyPaneHints::Terminal`) instead of
     leaving the mode. The first time the mode is shown in a window it restores
     the saved layout instead (`configuration.md`).
@@ -243,7 +244,7 @@ because it hurt readability; an opaque window is also cheaper to composite.
   if needed; a closed file reopens in the last active center pane. Moving focus
   from one pane to another records where the user was in the pane they left,
   so going back returns there. `workspace::GoBack` / `workspace::GoForward`
-  are workspace actions bound only to `cmd-[` / `cmd-]`, so they work wherever
+  are workspace actions bound only to `ctrl--` / `ctrl-shift--` (VS Code), so they work wherever
   focus is in the window. The Go Back / Go Forward buttons sit
   only in the window header (see above), not on tab bars.
   The `tab_bar.show_nav_history_buttons` and `reveal_if_open`
@@ -253,7 +254,7 @@ because it hurt readability; an opaque window is also cheaper to composite.
   tabs in the same row as the others. There are no `tab_bar` settings and no
   Toggle Tab Bar action.
 - Tabs are hardcoded too; there are no `tabs` settings. Every tab shows its
-  file icon and git status colour, the close button sits on the right and
+  file icon (full-colour Material icons, not tinted) and git status colour, the close button sits on the right and
   appears on hover, closing the active tab activates the previously active one
   (else its left neighbour), and tabs carry no diagnostic badges. The tab
   switcher and file headers follow the same icon and git colouring.
@@ -298,13 +299,14 @@ because it hurt readability; an opaque window is also cheaper to composite.
   Editor mode focuses it again, so it is still open and zoomed rather than
   closed.
 - Actions act only in the mode they belong to; in other modes they are ignored
-  rather than switching modes, so switching is always explicit (`cmd-1`,
-  `cmd-2`, `cmd-3`). Docks belong to Editor mode: toggling, opening, closing, focusing
-  or resizing docks and panels (`cmd-b`, `cmd-r`, `cmd-j`, …)
+  rather than switching modes, so switching is always explicit (the `mode::*`
+  actions). Docks belong to Editor mode: toggling, opening, closing, focusing
+  or resizing docks and panels (`cmd-b`, `alt-cmd-b`, `cmd-j`, …)
   does nothing in Git History.
-- One key per dock, no per-panel shortcuts (the panel `ToggleFocus` actions
-  stay in the command palette and View menu):
-  - `cmd-b` / `cmd-r` (`workspace::CycleLeftDock` / `CycleRightDock`) rotate
+- Dock keys follow VS Code: `cmd-b` / `alt-cmd-b` (`workspace::ToggleLeftDock`
+  / `ToggleRightDock`) show or hide a dock, `cmd-shift-e` / `cmd-0` focus the
+  project panel and `ctrl-shift-g` the git panel (`ToggleFocus`).
+  - `workspace::CycleLeftDock` / `CycleRightDock` (command palette, no key) rotate
     the dock: hidden → first enabled panel → next enabled panel → … → hidden
     (left: project → git → hidden; right: outline → hidden). The rotation
     follows what is visible, not focus: a hidden dock always starts at its
@@ -312,17 +314,17 @@ because it hurt readability; an opaque window is also cheaper to composite.
     the editor. The shown panel takes focus; closing returns focus to the
     center only if the dock had it. A dock hidden behind another zoomed view
     counts as hidden.
-  - `cmd-j` (`terminal_panel::ToggleShell`) is about shell terminals, not
+  - `cmd-j` / `` ctrl-` `` (`terminal_panel::ToggleShell`) is about shell terminals, not
     task output (tasks run as terminal tabs in the same panel). With a shell
     in front of a visible panel it hides the panel; otherwise (hidden, or task
     output in front) it shows and focuses a shell: the active tab if it is
     one, else the first shell in the active terminal pane, then in the other
     panes, else a new shell.
-- Zoom (`workspace::ToggleZoom`, `` cmd-` ``, also `shift-escape`) expands the
+- Zoom (`workspace::ToggleZoom`, `shift-escape`; `` cmd-` `` cycles windows as in VS Code) expands the
   focused pane. In the terminal dock that is the focused terminal pane alone,
   not every split, as zooming an editor pane hides the other panes.
-- `cmd-1`…`cmd-9` don't activate panes, and the image viewer and branch/stash
-  picker have no `cmd-1`/`cmd-2`/`cmd-3`, so the mode shortcuts work everywhere.
+- `cmd-1`…`cmd-9` focus the nth pane (`workspace::ActivatePane`), as VS Code
+  focuses editor groups.
 - An 8px gap separates the cards from the window edges and from open docks.
   There is no gap at the top: tab bars and the sidebar header start at the
   window's top edge. When the status bar is shown, it replaces

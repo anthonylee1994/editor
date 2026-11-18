@@ -6,7 +6,7 @@
   gone). Fixed behaviour: left dock only, 360px default width, always-shown
   button, opens on startup when a folder is open, 20px indent with indent
   guides, comfortable spacing, sticky parent rows, 1.5s path tooltip.
-- Entries: file icons and folder icons (no chevrons), git status colours (when
+- Entries: full-colour Material file and folder icons (no chevrons), git status colours (when
   git status is enabled), diagnostics marks and error/warning count badges for
   errors and warnings, no git status letter indicator. The root entry is always
   shown. Directories sort first, then case-insensitive natural name order; the

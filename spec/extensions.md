@@ -9,11 +9,18 @@ macOS.
 
 - Languages, grammars, and language servers come only from built-in code and
   user settings/files. Snippets come only from built-in code; the theme is the
-  built-in Nord theme (see `ui-layout.md`). The user config `themes/` folder is
+  built-in One Dark theme (see `ui-layout.md`). The user config `themes/` folder is
   never read or watched.
 - There are no icon themes: no `icon_theme` setting, selector, or menu item.
   File/folder/chevron icons are one hardcoded set (`file_icons` crate,
   `assets/icons/file_icons/`); to change icons, replace the asset files.
+  Item tabs (and so the tab switcher) and the project panel instead use
+  polychrome Material Icon Theme SVGs (`assets/icons/material/`, MIT), mapped
+  from the same icon keys; keys without one use the generic file icon. The
+  project panel's folders use Material's per-name folder icons (`folderNames`,
+  generated into `material_folders.rs`; matched case-insensitively, ignoring a
+  `.`/`_`/`-` prefix or `__name__` wrapping), else the plain folder icon. `Icon::from_path` draws `icons/material/` paths
+  as images in their own colours.
 - Tree-sitter grammars are native only; Wasm grammars cannot be loaded.
 - The standalone VS Code theme importer is removed; this fork does not provide
   a theme conversion tool.

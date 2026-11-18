@@ -13,7 +13,9 @@ pub type DocumentColorClientCapabilities = DynamicRegistrationClientCapabilities
 
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ColorProviderOptions;
+// Braces keep it a JSON object (`{}`); a unit struct is `null`.
+#[allow(clippy::empty_structs_with_brackets)]
+pub struct ColorProviderOptions {}
 
 #[derive(Debug, Eq, PartialEq, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]

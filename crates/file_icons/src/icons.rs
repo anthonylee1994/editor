@@ -3,6 +3,8 @@ use std::sync::LazyLock;
 use gpui::SharedString;
 use rustc_hash::FxHashMap;
 
+use crate::material_folders::MATERIAL_FOLDERS;
+
 /// The built-in file icon set. To change icons, replace the SVGs under
 /// `assets/icons/file_icons/` or edit the tables below.
 pub(crate) struct Icons {
@@ -15,6 +17,11 @@ pub(crate) struct Icons {
     pub file_suffixes: FxHashMap<String, String>,
     /// Icon key → icon path.
     pub file_icons: FxHashMap<String, SharedString>,
+    /// Icon key → polychrome Material icon path, for tabs and the project panel.
+    pub material_icons: FxHashMap<String, SharedString>,
+    pub material_directory: FolderIcons,
+    /// Lowercase folder base name → Material folder icons.
+    pub material_named_directories: FxHashMap<&'static str, FolderIcons>,
 }
 
 /// Collapsed / expanded icon pair.
@@ -329,6 +336,94 @@ const FILE_ICONS: &[(&str, &str)] = &[
     ("zig", "icons/file_icons/zig.svg"),
 ];
 
+/// Icon key → Material Icon Theme SVG. Keys without an entry use `default`.
+const MATERIAL_ICONS: &[(&str, &str)] = &[
+    ("astro", "icons/material/astro.svg"),
+    ("audio", "icons/material/audio.svg"),
+    ("ballerina", "icons/material/ballerina.svg"),
+    ("bicep", "icons/material/bicep.svg"),
+    ("bun", "icons/material/bun.svg"),
+    ("c", "icons/material/c.svg"),
+    ("cairo", "icons/material/cairo.svg"),
+    ("coffeescript", "icons/material/coffee.svg"),
+    ("cpp", "icons/material/cpp.svg"),
+    ("crystal", "icons/material/crystal.svg"),
+    ("csharp", "icons/material/csharp.svg"),
+    ("csproj", "icons/material/visualstudio.svg"),
+    ("css", "icons/material/css.svg"),
+    ("cue", "icons/material/cue.svg"),
+    ("dart", "icons/material/dart.svg"),
+    ("default", "icons/material/file.svg"),
+    ("diff", "icons/material/diff.svg"),
+    ("docker", "icons/material/docker.svg"),
+    ("document", "icons/material/document.svg"),
+    ("editorconfig", "icons/material/editorconfig.svg"),
+    ("elixir", "icons/material/elixir.svg"),
+    ("elm", "icons/material/elm.svg"),
+    ("erlang", "icons/material/erlang.svg"),
+    ("eslint", "icons/material/eslint.svg"),
+    ("font", "icons/material/font.svg"),
+    ("fsharp", "icons/material/fsharp.svg"),
+    ("fsproj", "icons/material/fsharp.svg"),
+    ("gitlab", "icons/material/gitlab.svg"),
+    ("gleam", "icons/material/gleam.svg"),
+    ("go", "icons/material/go.svg"),
+    ("graphql", "icons/material/graphql.svg"),
+    ("haskell", "icons/material/haskell.svg"),
+    ("hcl", "icons/material/hcl.svg"),
+    ("helm", "icons/material/helm.svg"),
+    ("heroku", "icons/material/heroku.svg"),
+    ("html", "icons/material/html.svg"),
+    ("image", "icons/material/image.svg"),
+    ("ipynb", "icons/material/jupyter.svg"),
+    ("java", "icons/material/java.svg"),
+    ("javascript", "icons/material/javascript.svg"),
+    ("json", "icons/material/json.svg"),
+    ("julia", "icons/material/julia.svg"),
+    ("kotlin", "icons/material/kotlin.svg"),
+    ("lock", "icons/material/lock.svg"),
+    ("log", "icons/material/log.svg"),
+    ("lua", "icons/material/lua.svg"),
+    ("luau", "icons/material/luau.svg"),
+    ("markdown", "icons/material/markdown.svg"),
+    ("nim", "icons/material/nim.svg"),
+    ("nix", "icons/material/nix.svg"),
+    ("ocaml", "icons/material/ocaml.svg"),
+    ("odin", "icons/material/odin.svg"),
+    ("php", "icons/material/php.svg"),
+    ("prettier", "icons/material/prettier.svg"),
+    ("prisma", "icons/material/prisma.svg"),
+    ("puppet", "icons/material/puppet.svg"),
+    ("python", "icons/material/python.svg"),
+    ("r", "icons/material/r.svg"),
+    ("react", "icons/material/react.svg"),
+    ("ruby", "icons/material/ruby.svg"),
+    ("rust", "icons/material/rust.svg"),
+    ("sass", "icons/material/sass.svg"),
+    ("scala", "icons/material/scala.svg"),
+    ("settings", "icons/material/settings.svg"),
+    ("solidity", "icons/material/solidity.svg"),
+    ("storage", "icons/material/database.svg"),
+    ("stylelint", "icons/material/stylelint.svg"),
+    ("svelte", "icons/material/svelte.svg"),
+    ("swift", "icons/material/swift.svg"),
+    ("tcl", "icons/material/tcl.svg"),
+    ("template", "icons/material/xml.svg"),
+    ("terminal", "icons/material/console.svg"),
+    ("terraform", "icons/material/terraform.svg"),
+    ("toml", "icons/material/toml.svg"),
+    ("typescript", "icons/material/typescript.svg"),
+    ("v", "icons/material/vlang.svg"),
+    ("vbproj", "icons/material/visualstudio.svg"),
+    ("vcs", "icons/material/git.svg"),
+    ("video", "icons/material/video.svg"),
+    ("vs_sln", "icons/material/visualstudio.svg"),
+    ("vs_suo", "icons/material/visualstudio.svg"),
+    ("wgsl", "icons/material/shader.svg"),
+    ("yaml", "icons/material/yaml.svg"),
+    ("zig", "icons/material/zig.svg"),
+];
+
 /// Returns a mapping of file associations to icon keys.
 fn icon_keys_by_association(associations_by_icon_key: &[(&str, &[&str])]) -> FxHashMap<String, String> {
     let mut icon_keys_by_association = FxHashMap::default();
@@ -354,4 +449,19 @@ pub(crate) static ICONS: LazyLock<Icons> = LazyLock::new(|| Icons {
     file_stems: icon_keys_by_association(FILE_STEMS_BY_ICON_KEY),
     file_suffixes: icon_keys_by_association(FILE_SUFFIXES_BY_ICON_KEY),
     file_icons: FILE_ICONS.iter().map(|(ty, path)| (ty.to_string(), (*path).into())).collect(),
+    material_directory: FolderIcons {
+        collapsed: "icons/material/folder.svg".into(),
+        expanded: "icons/material/folder-open.svg".into(),
+    },
+    material_named_directories: MATERIAL_FOLDERS
+        .iter()
+        .map(|(name, id)| {
+            let icons = FolderIcons {
+                collapsed: format!("icons/material/folder-{id}.svg").into(),
+                expanded: format!("icons/material/folder-{id}-open.svg").into(),
+            };
+            (*name, icons)
+        })
+        .collect(),
+    material_icons: MATERIAL_ICONS.iter().map(|(ty, path)| (ty.to_string(), (*path).into())).collect(),
 });
