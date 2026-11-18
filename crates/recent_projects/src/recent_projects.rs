@@ -73,6 +73,7 @@ use ui::prelude::SharedString;
 use ui::prelude::StatefulInteractiveElement as _;
 use ui::prelude::Styled as _;
 use ui::prelude::Toggleable as _;
+use ui::prelude::div;
 use ui::prelude::h_flex;
 use ui::prelude::rems;
 use ui::prelude::v_flex;
@@ -660,6 +661,40 @@ impl RecentProjectsDelegate {
     fn is_valid_recent_candidate(&self, workspace: &RecentWorkspace, cx: &Context<Picker<Self>>) -> bool {
         !self.is_current_workspace(workspace, cx) && !self.is_open_folder(workspace)
     }
+
+    /// A row of circles, one per theme accent colour, starting on the menu's
+    /// text edge, setting the window's border colour; the picked one is
+    /// ringed, and clicking it again clears the colour.
+    fn render_border_colors(&self, cx: &Context<Picker<Self>>) -> impl IntoElement + use<> {
+        let theme = cx.theme();
+        let current = self.workspace.upgrade().and_then(|workspace| workspace.read(cx).border_color());
+        h_flex().pl(px(1.)).py_1().gap_1().children((0_u32..).zip(theme.accents().0).map(|(index, accent)| {
+            let selected = current == Some(index);
+            div()
+                .id(("border-color", index as usize))
+                .p(px(2.))
+                .rounded_full()
+                .border_1()
+                .border_color(if selected { theme.colors().text } else { gpui::transparent_black() })
+                .cursor_pointer()
+                .child(div().size_4().rounded_full().bg(accent))
+                .on_click(cx.listener(move |picker, _, window, cx| {
+                    let color = toggled_color(current, index);
+                    picker
+                        .delegate
+                        .workspace
+                        .update(cx, |workspace, cx| workspace.set_border_color(color, window, cx))
+                        .ok();
+                    cx.notify();
+                }))
+        }))
+    }
+}
+
+/// The colour to set when `clicked` is clicked: none when it is already the
+/// current one.
+fn toggled_color(current: Option<u32>, clicked: u32) -> Option<u32> {
+    (current != Some(clicked)).then_some(clicked)
 }
 
 impl EventEmitter<DismissEvent> for RecentProjectsDelegate {}
@@ -1107,6 +1142,8 @@ impl PickerDelegate for RecentProjectsDelegate {
                                 }
                             })
                     })
+                    .child(Divider::horizontal())
+                    .child(self.render_border_colors(cx))
                     .into_any(),
             );
         }
@@ -1313,4 +1350,16 @@ fn open_local_project(workspace: WeakEntity<Workspace>, create_new_window: bool,
             }
         })
         .detach();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::toggled_color;
+
+    #[test]
+    fn toggled_color_clears_the_current_color() {
+        assert_eq!(toggled_color(None, 2), Some(2));
+        assert_eq!(toggled_color(Some(4), 2), Some(2));
+        assert_eq!(toggled_color(Some(2), 2), None);
+    }
 }

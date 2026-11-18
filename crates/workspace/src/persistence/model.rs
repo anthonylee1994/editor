@@ -38,6 +38,10 @@ pub(crate) struct SerializedWorkspace {
     /// Terminal mode's layout, if it has any terminals.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) terminal: Option<SerializedTerminalGroup>,
+    /// The window's border colour, if one is picked: an index into the
+    /// theme's accent colours.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) border_color: Option<u32>,
 }
 
 /// Terminal mode's splits and each terminal's working directory. Shells are
@@ -359,9 +363,17 @@ mod tests {
                     }),
                 ],
             }),
+            border_color: Some(6),
         };
         let json = serde_json::to_string_pretty(&workspace).unwrap();
+        assert!(json.contains(r#""border_color": 6"#));
         assert_eq!(parse_workspace_state(&json), Some(workspace));
+    }
+
+    #[test]
+    fn border_color_is_written_only_when_set() {
+        assert!(!serde_json::to_string(&SerializedWorkspace::default()).unwrap().contains("border_color"));
+        assert_eq!(parse_workspace_state(r#"{"border_color": 2}"#).unwrap().border_color, Some(2));
     }
 
     #[test]

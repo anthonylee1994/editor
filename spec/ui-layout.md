@@ -146,6 +146,19 @@ because it hurt readability; an opaque window is also cheaper to composite.
   for this, instead of the blank strip.
 - The status bar has no worktree or branch pickers; they are in the window
   header.
+- A window can have a solid 2px border in one of the theme's accent colours
+  (`built_in::accent_colors`), to tell windows apart. It is picked from a
+  row of 16px colour circles, close together and starting on the menu's
+  text edge like Finder's tags (centred or spread over the width, they
+  ignored the edge everything else hangs off), on the last row of the project
+  menu (the header's project name), below a separator; the picked circle is
+  ringed and clicking it again clears the border. The menu stays open, so
+  colours can be tried. The colour is per project (`.ed/workspace.json`); a
+  window without a root folder keeps it only until it closes. The border is
+  painted over the chrome's edge rather than laid out, so picking one moves
+  nothing, and it follows the macOS window corner (16px radius, square in
+  fullscreen). Tinting the whole chrome would be more visible but needs a
+  per-window theme, which the single static theme rules out.
 - Each pane's tab bar (with the window header inside it) is its own cached
   view, apart from the pane, which re-renders with every frame of its active
   item. The tab bar re-renders when the pane notifies, when something inside

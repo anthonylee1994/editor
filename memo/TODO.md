@@ -1,8 +1,5 @@
 - no support for hard click touchpad (lookup), add or put right click menu
 
-# UI
-- add workspace scoped UI settings, like title or border color, do i really need this? to distinguish project
-
 # support to open in restricted mode? like not starting LSP?
 
 # picker

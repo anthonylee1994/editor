@@ -204,6 +204,8 @@ pub const CARD_RADIUS: Pixels = px(10.);
 pub const CARD_INSET: Pixels = px(3.);
 
 const WINDOW_TITLE_SEPARATOR: &str = " — ";
+/// The macOS window corner radius, which the window's coloured border follows.
+const WINDOW_CORNER_RADIUS: Pixels = px(16.);
 
 /// The window title: the project name, followed by the active file's name when there is one.
 fn window_title(project_name: &str, file_name: Option<&str>) -> String {
@@ -801,6 +803,9 @@ pub struct Workspace {
     pub(crate) modal_layer: Entity<ModalLayer>,
     toast_layer: Entity<ToastLayer>,
     titlebar_item: Option<AnyView>,
+    /// Drawn around the window to tell it apart from other windows: an index
+    /// into the theme's accent colours.
+    border_color: Option<u32>,
     titlebar_focus_handle: FocusHandle,
     notifications: Notifications,
     suppressed_notifications: FxHashSet<NotificationId>,
@@ -1042,6 +1047,7 @@ impl Workspace {
             modal_layer,
             toast_layer,
             titlebar_item: None,
+            border_color: None,
             titlebar_focus_handle: cx.focus_handle(),
             notifications: Notifications::default(),
             suppressed_notifications: FxHashSet::default(),
@@ -1300,6 +1306,17 @@ impl Workspace {
 
     pub fn set_titlebar_item(&mut self, item: AnyView, _: &mut Window, cx: &mut Context<Self>) {
         self.titlebar_item = Some(item);
+        cx.notify();
+    }
+
+    pub const fn border_color(&self) -> Option<u32> {
+        self.border_color
+    }
+
+    /// Sets the window's border colour and saves it with the workspace.
+    pub fn set_border_color(&mut self, color: Option<u32>, window: &Window, cx: &mut Context<Self>) {
+        self.border_color = color;
+        self.serialize_workspace(window, cx);
         cx.notify();
     }
 
@@ -2639,7 +2656,19 @@ impl Render for Workspace {
                     .child(self.toast_layer.clone()),
             );
 
-        root.child(div().flex().flex_1().size_full().overflow_hidden().child(content)).child(self.modal_layer.clone())
+        root.child(div().flex().flex_1().size_full().overflow_hidden().child(content))
+            .child(self.modal_layer.clone())
+            // Painted over the chrome's edge, so picking a colour moves nothing.
+            .when_some(self.border_color, |root, color| {
+                root.child(
+                    div()
+                        .absolute()
+                        .inset_0()
+                        .when(!window.is_fullscreen(), |border| border.rounded(WINDOW_CORNER_RADIUS))
+                        .border_2()
+                        .border_color(theme.accents().color_for_index(color)),
+                )
+            })
     }
 }
 

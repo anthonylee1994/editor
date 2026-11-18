@@ -27,8 +27,9 @@ migrator, or Vim/Helix mode.
     There is no Remote Servers modal.
   - `<first root folder>/.ed/workspace.json`, per project: the pane tree with
     each tab's kind and its own JSON state, pinned/active/preview tabs, which
-    pane is zoomed, dock visibility/active panel/zoom, and recent navigation
-    history. A restored zoomed pane comes back zoomed and active.
+    pane is zoomed, dock visibility/active panel/zoom, recent navigation
+    history, and the window's border colour (`border_color`, an index into the theme's
+    accent colours). A restored zoomed pane comes back zoomed and active.
     Unreadable files are ignored.
     Identical contents aren't rewritten. Windows with no root folder aren't
     persisted.

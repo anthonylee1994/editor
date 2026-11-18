@@ -114,6 +114,7 @@ impl Workspace {
             docks: self.capture_dock_state(window, cx),
             recent_navigation_history: self.persisted_recent_navigation_history.clone(),
             terminal: self.terminal_layout_to_save(cx),
+            border_color: self.border_color,
         };
         let Some(json) = serde_json::to_string_pretty(&serialized_workspace).log_err() else {
             return Task::ready(());
@@ -148,7 +149,10 @@ impl Workspace {
         cx.spawn_in(window, async move |workspace, cx| {
             let recent_navigation_history = serialized_workspace.recent_navigation_history.clone();
             let terminal_layout = serialized_workspace.terminal.clone();
-            workspace.update(cx, |workspace, _| {
+            let border_color = serialized_workspace.border_color;
+            workspace.update(cx, |workspace, cx| {
+                workspace.border_color = border_color;
+                cx.notify();
                 workspace.persisted_recent_navigation_history = recent_navigation_history;
                 if matches!(workspace.terminal_layout, TerminalLayout::Pending(_)) {
                     workspace.terminal_layout = TerminalLayout::Pending(terminal_layout);
