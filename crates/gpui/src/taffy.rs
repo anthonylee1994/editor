@@ -8,6 +8,7 @@ use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use taffy::TaffyTree;
 use taffy::TraversePartialTree as _;
+use taffy::compute_leaf_layout;
 use taffy::geometry::Point as TaffyPoint;
 use taffy::geometry::Rect as TaffyRect;
 use taffy::geometry::Size as TaffySize;
@@ -215,32 +216,38 @@ impl TaffyLayoutEngine {
         let available_space = size(transform(available_space.width), transform(available_space.height));
 
         self.taffy
-            .compute_layout_with_measure(
-                id.into(),
-                available_space.into(),
-                |known_dimensions, available_space, _id, node_context, _style| {
-                    let Some(node_context) = node_context else {
-                        return TaffySize::default();
-                    };
+            .compute_layout_with_measure(id.into(), available_space.into(), |inputs, _id, node_context, style| {
+                compute_leaf_layout(
+                    inputs,
+                    style,
+                    |_, _| 0.0,
+                    |known_dimensions, available_space| {
+                        let Some(node_context) = node_context else {
+                            return TaffySize::default();
+                        };
 
-                    let known_dimensions = Size {
-                        width: known_dimensions.width.map(|e| Pixels(e / scale_factor)),
-                        height: known_dimensions.height.map(|e| Pixels(e / scale_factor)),
-                    };
+                        let known_dimensions = Size {
+                            width: known_dimensions.width.map(|e| Pixels(e / scale_factor)),
+                            height: known_dimensions.height.map(|e| Pixels(e / scale_factor)),
+                        };
 
-                    let available_space: Size<AvailableSpace> = available_space.into();
-                    let untransform = |ev: AvailableSpace| match ev {
-                        AvailableSpace::Definite(pixels) => AvailableSpace::Definite(Pixels(pixels.0 / scale_factor)),
-                        AvailableSpace::MinContent => AvailableSpace::MinContent,
-                        AvailableSpace::MaxContent => AvailableSpace::MaxContent,
-                    };
-                    let available_space = size(untransform(available_space.width), untransform(available_space.height));
+                        let available_space: Size<AvailableSpace> = available_space.into();
+                        let untransform = |ev: AvailableSpace| match ev {
+                            AvailableSpace::Definite(pixels) => {
+                                AvailableSpace::Definite(Pixels(pixels.0 / scale_factor))
+                            }
+                            AvailableSpace::MinContent => AvailableSpace::MinContent,
+                            AvailableSpace::MaxContent => AvailableSpace::MaxContent,
+                        };
+                        let available_space =
+                            size(untransform(available_space.width), untransform(available_space.height));
 
-                    let measured_size: Size<Pixels> =
-                        (node_context.measure)(known_dimensions, available_space, window, cx);
-                    snap_measured_size_to_device_pixels(measured_size, scale_factor).into()
-                },
-            )
+                        let measured_size: Size<Pixels> =
+                            (node_context.measure)(known_dimensions, available_space, window, cx);
+                        snap_measured_size_to_device_pixels(measured_size, scale_factor).into()
+                    },
+                )
+            })
             .expect(EXPECT_MESSAGE);
     }
 
@@ -452,10 +459,10 @@ impl ToTaffy<style::Style> for Style {
             margin: self.margin.to_taffy(rem_size, scale_factor),
             padding: self.padding.to_taffy(rem_size, scale_factor),
             border: border_widths_to_taffy(&self.border_widths, rem_size, scale_factor),
-            align_items: self.align_items.map(Into::into),
+            align_items: self.align_items.map_or(style::AlignItems::NORMAL, Into::into),
             align_self: self.align_self.map(Into::into),
-            align_content: self.align_content.map(Into::into),
-            justify_content: self.justify_content.map(Into::into),
+            align_content: self.align_content.map_or(style::AlignContent::NORMAL, Into::into),
+            justify_content: self.justify_content.map_or(style::JustifyContent::NORMAL, Into::into),
             gap: self.gap.to_taffy(rem_size, scale_factor),
             flex_direction: self.flex_direction.into(),
             flex_wrap: self.flex_wrap.into(),
@@ -660,8 +667,34 @@ impl From<Size<Pixels>> for Size<AvailableSpace> {
 
 #[cfg(test)]
 mod tests {
+    use taffy::style;
 
     use super::AvailableSpace;
+    use super::ToTaffy as _;
+    use crate::AlignItems;
+    use crate::JustifyContent;
+    use crate::Style;
+    use crate::px;
+
+    #[test]
+    fn style_to_taffy_maps_unset_alignment_to_normal() {
+        let taffy_style = Style::default().to_taffy(px(16.), 1.);
+        assert_eq!(taffy_style.align_items, style::AlignItems::NORMAL);
+        assert_eq!(taffy_style.align_content, style::AlignContent::NORMAL);
+        assert_eq!(taffy_style.justify_content, style::JustifyContent::NORMAL);
+    }
+
+    #[test]
+    fn style_to_taffy_maps_set_alignment() {
+        let gpui_style = Style {
+            align_items: Some(AlignItems::Center),
+            justify_content: Some(JustifyContent::SpaceBetween),
+            ..Style::default()
+        };
+        let taffy_style = gpui_style.to_taffy(px(16.), 1.);
+        assert_eq!(taffy_style.align_items, style::AlignItems::CENTER);
+        assert_eq!(taffy_style.justify_content, style::JustifyContent::SPACE_BETWEEN);
+    }
 
     #[test]
     fn available_space_min_size() {

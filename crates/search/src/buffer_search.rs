@@ -7,7 +7,6 @@ mod registrar;
 use std::any::TypeId;
 use std::sync::Arc;
 
-use any_vec::AnyVec;
 use ed_actions::workspace::CopyPath;
 use ed_actions::workspace::CopyRelativePath;
 use editor::DiffStyleControls;
@@ -77,6 +76,7 @@ use workspace::ToolbarItemLocation;
 use workspace::ToolbarItemView;
 use workspace::Workspace;
 use workspace::item::ItemHandle;
+use workspace::searchable::AnyMatches;
 use workspace::searchable::Direction;
 use workspace::searchable::FilteredSearchRange;
 use workspace::searchable::SearchEvent;
@@ -142,7 +142,7 @@ pub struct BufferSearchBar {
 
     pending_external_query: Option<(String, SearchOptions)>,
     active_search: Option<Arc<SearchQuery>>,
-    searchable_items_with_matches: FxHashMap<Box<dyn WeakSearchableItemHandle>, (AnyVec<dyn Send>, SearchToken)>,
+    searchable_items_with_matches: FxHashMap<Box<dyn WeakSearchableItemHandle>, (AnyMatches, SearchToken)>,
     pending_search: Option<Task<()>>,
     search_options: SearchOptions,
     default_options: SearchOptions,
@@ -1363,7 +1363,7 @@ impl BufferSearchBar {
         {
             if let Some(active_index) = self.active_match_index {
                 let query = query.as_ref().clone().with_replacement(self.replacement(cx));
-                searchable_item.replace(matches.at(active_index), &query, *token, window, cx);
+                searchable_item.replace(active_index, matches, &query, *token, window, cx);
                 self.select_next_match(&SelectNextMatch, window, cx);
             }
             cx.stop_propagation();
@@ -1378,7 +1378,7 @@ impl BufferSearchBar {
             && let Some((matches, token)) = self.searchable_items_with_matches.get(&searchable_item.downgrade())
         {
             let query = query.as_ref().clone().with_replacement(self.replacement(cx));
-            searchable_item.replace_all(&mut matches.iter(), &query, *token, window, cx);
+            searchable_item.replace_all(matches, &query, *token, window, cx);
         }
     }
 

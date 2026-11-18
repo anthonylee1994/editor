@@ -158,7 +158,17 @@ fn to_hex_hash(object: impl Serialize) -> anyhow::Result<String> {
     let json = serde_json::to_string(&object).context("serializing the object")?;
     let mut hasher = Sha256::new();
     hasher.update(json.as_bytes());
-    Ok(hex::encode(hasher.finalize()))
+    Ok(to_hex(&hasher.finalize()))
+}
+
+fn to_hex(bytes: &[u8]) -> String {
+    const DIGITS: &[u8; 16] = b"0123456789abcdef";
+    let mut hex = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        hex.push(DIGITS[usize::from(byte >> 4)] as char);
+        hex.push(DIGITS[usize::from(byte & 0xf)] as char);
+    }
+    hex
 }
 
 fn substitute_all_template_variables_in_str<A: AsRef<str>>(
@@ -234,6 +244,13 @@ mod tests {
 
     use super::TaskContext;
     use super::TaskTemplate;
+    use super::to_hex;
+
+    #[test]
+    fn to_hex_encodes_lowercase_pairs() {
+        assert_eq!(to_hex(&[]), "");
+        assert_eq!(to_hex(&[0x00, 0x0f, 0xa5, 0xff]), "000fa5ff");
+    }
 
     #[test]
     fn resolve_task_preserves_multiline_labels_and_escapes_display_newlines() {

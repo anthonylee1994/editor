@@ -1386,7 +1386,9 @@ impl Terminal {
 
         let target = if is_url {
             if let Some(path) = maybe_url_or_path.strip_prefix("file://") {
-                let decoded_path = urlencoding::decode(path).map_or_else(|_| path.to_owned(), |x| x.into_owned());
+                let decoded_path = percent_encoding::percent_decode_str(path)
+                    .decode_utf8()
+                    .map_or_else(|_| path.to_owned(), |x| x.into_owned());
 
                 MaybeNavigationTarget::PathLike(PathLikeTarget { maybe_path: decoded_path, working_directory })
             } else {

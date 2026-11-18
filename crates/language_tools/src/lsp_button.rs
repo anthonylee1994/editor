@@ -122,7 +122,11 @@ struct ProcessMemoryCache {
 
 impl ProcessMemoryCache {
     fn new() -> Self {
-        Self { system: System::new(), memory_usage: HashMap::new(), last_refresh: None }
+        Self {
+            system: System::new().expect("System::new is infallible on macOS"),
+            memory_usage: HashMap::new(),
+            last_refresh: None,
+        }
     }
 
     fn get_memory_usage(&mut self, process_id: u32) -> u64 {

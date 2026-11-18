@@ -44,7 +44,7 @@ impl OpenRequest {
     }
 
     fn parse_file_path(&mut self, file: &str) {
-        if let Some(decoded) = urlencoding::decode(file).log_err() {
+        if let Some(decoded) = percent_encoding::percent_decode_str(file).decode_utf8().log_err() {
             self.open_paths.push(decoded.into_owned());
         }
     }

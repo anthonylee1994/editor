@@ -3,8 +3,6 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::sync::Arc;
 
-use any_vec::AnyVec;
-use any_vec::element::ElementRef;
 use gpui::AnyView;
 use gpui::AnyWeakEntity;
 use gpui::App;
@@ -21,6 +19,31 @@ use project::search::SearchQuery;
 use crate::ItemHandle;
 use crate::item::Item;
 use crate::item::WeakItemHandle;
+
+/// A search result list with its match type erased, so the search bar can hold
+/// matches from any [`SearchableItem`].
+pub struct AnyMatches {
+    matches: Box<dyn Any + Send>,
+    len: usize,
+}
+
+impl AnyMatches {
+    pub fn new<T: Any + Send>(matches: Vec<T>) -> Self {
+        Self { len: matches.len(), matches: Box::new(matches) }
+    }
+
+    pub const fn len(&self) -> usize {
+        self.len
+    }
+
+    pub const fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    pub fn downcast_ref<T: Any>(&self) -> Option<&[T]> {
+        self.matches.downcast_ref::<Vec<T>>().map(Vec::as_slice)
+    }
+}
 
 /// When to populate a new search's query from the text under the cursor.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -243,33 +266,27 @@ pub trait SearchableItemHandle: ItemHandle {
     fn clear_matches(&self, window: &mut Window, cx: &mut App);
     fn update_matches(
         &self,
-        matches: &AnyVec<dyn Send>,
+        matches: &AnyMatches,
         active_match_index: Option<usize>,
         token: SearchToken,
         window: &mut Window,
         cx: &mut App,
     );
     fn query_suggestion(&self, seed_query_override: Option<SeedQuery>, window: &mut Window, cx: &mut App) -> String;
-    fn activate_match(
+    fn activate_match(&self, index: usize, matches: &AnyMatches, token: SearchToken, window: &mut Window, cx: &mut App);
+    fn select_matches(&self, matches: &AnyMatches, token: SearchToken, window: &mut Window, cx: &mut App);
+    fn replace(
         &self,
         index: usize,
-        matches: &AnyVec<dyn Send>,
+        matches: &AnyMatches,
+        query: &SearchQuery,
         token: SearchToken,
         window: &mut Window,
         cx: &mut App,
     );
-    fn select_matches(&self, matches: &AnyVec<dyn Send>, token: SearchToken, window: &mut Window, cx: &mut App);
-    fn replace(
-        &self,
-        _: ElementRef<'_, dyn Send>,
-        _: &SearchQuery,
-        token: SearchToken,
-        _window: &mut Window,
-        _: &mut App,
-    );
     fn replace_all(
         &self,
-        matches: &mut dyn Iterator<Item = ElementRef<'_, dyn Send>>,
+        matches: &AnyMatches,
         query: &SearchQuery,
         token: SearchToken,
         window: &mut Window,
@@ -277,7 +294,7 @@ pub trait SearchableItemHandle: ItemHandle {
     );
     fn match_index_for_direction(
         &self,
-        matches: &AnyVec<dyn Send>,
+        matches: &AnyMatches,
         current_index: usize,
         direction: Direction,
         count: usize,
@@ -285,17 +302,17 @@ pub trait SearchableItemHandle: ItemHandle {
         window: &mut Window,
         cx: &mut App,
     ) -> usize;
-    fn find_matches(&self, query: Arc<SearchQuery>, window: &mut Window, cx: &mut App) -> Task<AnyVec<dyn Send>>;
+    fn find_matches(&self, query: Arc<SearchQuery>, window: &mut Window, cx: &mut App) -> Task<AnyMatches>;
     fn find_matches_with_token(
         &self,
         query: Arc<SearchQuery>,
         window: &mut Window,
         cx: &mut App,
-    ) -> Task<(AnyVec<dyn Send>, SearchToken)>;
+    ) -> Task<(AnyMatches, SearchToken)>;
     fn active_match_index(
         &self,
         direction: Direction,
-        matches: &AnyVec<dyn Send>,
+        matches: &AnyMatches,
         token: SearchToken,
         window: &mut Window,
         cx: &mut App,
@@ -341,14 +358,14 @@ impl<T: SearchableItem> SearchableItemHandle for Entity<T> {
     }
     fn update_matches(
         &self,
-        matches: &AnyVec<dyn Send>,
+        matches: &AnyMatches,
         active_match_index: Option<usize>,
         token: SearchToken,
         window: &mut Window,
         cx: &mut App,
     ) {
         let matches = matches.downcast_ref().expect("matches have the item's match type");
-        self.update(cx, |this, cx| this.update_matches(matches.as_slice(), active_match_index, token, window, cx));
+        self.update(cx, |this, cx| this.update_matches(matches, active_match_index, token, window, cx));
     }
     fn query_suggestion(&self, seed_query_override: Option<SeedQuery>, window: &mut Window, cx: &mut App) -> String {
         self.update(cx, |this, cx| this.query_suggestion(seed_query_override, window, cx))
@@ -356,23 +373,23 @@ impl<T: SearchableItem> SearchableItemHandle for Entity<T> {
     fn activate_match(
         &self,
         index: usize,
-        matches: &AnyVec<dyn Send>,
+        matches: &AnyMatches,
         token: SearchToken,
         window: &mut Window,
         cx: &mut App,
     ) {
         let matches = matches.downcast_ref().expect("matches have the item's match type");
-        self.update(cx, |this, cx| this.activate_match(index, matches.as_slice(), token, window, cx));
+        self.update(cx, |this, cx| this.activate_match(index, matches, token, window, cx));
     }
 
-    fn select_matches(&self, matches: &AnyVec<dyn Send>, token: SearchToken, window: &mut Window, cx: &mut App) {
+    fn select_matches(&self, matches: &AnyMatches, token: SearchToken, window: &mut Window, cx: &mut App) {
         let matches = matches.downcast_ref().expect("matches have the item's match type");
-        self.update(cx, |this, cx| this.select_matches(matches.as_slice(), token, window, cx));
+        self.update(cx, |this, cx| this.select_matches(matches, token, window, cx));
     }
 
     fn match_index_for_direction(
         &self,
-        matches: &AnyVec<dyn Send>,
+        matches: &AnyMatches,
         current_index: usize,
         direction: Direction,
         count: usize,
@@ -382,85 +399,60 @@ impl<T: SearchableItem> SearchableItemHandle for Entity<T> {
     ) -> usize {
         let matches = matches.downcast_ref().expect("matches have the item's match type");
         self.update(cx, |this, cx| {
-            this.match_index_for_direction(matches.as_slice(), current_index, direction, count, token, window, cx)
+            this.match_index_for_direction(matches, current_index, direction, count, token, window, cx)
         })
     }
-    fn find_matches(&self, query: Arc<SearchQuery>, window: &mut Window, cx: &mut App) -> Task<AnyVec<dyn Send>> {
+    fn find_matches(&self, query: Arc<SearchQuery>, window: &mut Window, cx: &mut App) -> Task<AnyMatches> {
         let matches = self.update(cx, |this, cx| this.find_matches(query, window, cx));
-        window.spawn(cx, async |_| {
-            let matches = matches.await;
-            let mut any_matches = AnyVec::with_capacity::<T::Match>(matches.len());
-            {
-                let mut any_matches =
-                    any_matches.downcast_mut::<T::Match>().expect("vec was created with the match type");
-                for mat in matches {
-                    any_matches.push(mat);
-                }
-            }
-            any_matches
-        })
+        window.spawn(cx, async |_| AnyMatches::new(matches.await))
     }
     fn find_matches_with_token(
         &self,
         query: Arc<SearchQuery>,
         window: &mut Window,
         cx: &mut App,
-    ) -> Task<(AnyVec<dyn Send>, SearchToken)> {
+    ) -> Task<(AnyMatches, SearchToken)> {
         let matches_with_token = self.update(cx, |this, cx| this.find_matches_with_token(query, window, cx));
         window.spawn(cx, async |_| {
             let (matches, token) = matches_with_token.await;
-            let mut any_matches = AnyVec::with_capacity::<T::Match>(matches.len());
-            {
-                let mut any_matches =
-                    any_matches.downcast_mut::<T::Match>().expect("vec was created with the match type");
-                for mat in matches {
-                    any_matches.push(mat);
-                }
-            }
-            (any_matches, token)
+            (AnyMatches::new(matches), token)
         })
     }
     fn active_match_index(
         &self,
         direction: Direction,
-        matches: &AnyVec<dyn Send>,
+        matches: &AnyMatches,
         token: SearchToken,
         window: &mut Window,
         cx: &mut App,
     ) -> Option<usize> {
         let matches = matches.downcast_ref()?;
-        self.update(cx, |this, cx| this.active_match_index(direction, matches.as_slice(), token, window, cx))
+        self.update(cx, |this, cx| this.active_match_index(direction, matches, token, window, cx))
     }
 
     fn replace(
         &self,
-        mat: ElementRef<'_, dyn Send>,
+        index: usize,
+        matches: &AnyMatches,
         query: &SearchQuery,
         token: SearchToken,
         window: &mut Window,
         cx: &mut App,
     ) {
-        let mat = mat.downcast_ref().expect("match has the item's match type");
-        self.update(cx, |this, cx| this.replace(mat, query, token, window, cx));
+        let matches = matches.downcast_ref().expect("matches have the item's match type");
+        self.update(cx, |this, cx| this.replace(&matches[index], query, token, window, cx));
     }
 
     fn replace_all(
         &self,
-        matches: &mut dyn Iterator<Item = ElementRef<'_, dyn Send>>,
+        matches: &AnyMatches,
         query: &SearchQuery,
         token: SearchToken,
         window: &mut Window,
         cx: &mut App,
     ) {
-        self.update(cx, |this, cx| {
-            this.replace_all(
-                &mut matches.map(|m| m.downcast_ref().expect("matches have the item's match type")),
-                query,
-                token,
-                window,
-                cx,
-            );
-        });
+        let matches = matches.downcast_ref().expect("matches have the item's match type");
+        self.update(cx, |this, cx| this.replace_all(&mut matches.iter(), query, token, window, cx));
     }
 
     fn search_bar_visibility_changed(&self, visible: bool, window: &mut Window, cx: &mut App) {
@@ -543,5 +535,26 @@ mod search_options_tests {
         assert!(options(true).for_capability(Capability::ReadWrite).replacement);
         assert!(!options(true).for_capability(Capability::ReadOnly).replacement);
         assert!(!options(false).for_capability(Capability::ReadWrite).replacement);
+    }
+}
+
+#[cfg(test)]
+mod any_matches_tests {
+    use super::AnyMatches;
+
+    #[test]
+    fn len_and_downcast() {
+        let matches = AnyMatches::new(vec![1_u32, 2, 3]);
+        assert_eq!(matches.len(), 3);
+        assert!(!matches.is_empty());
+        assert_eq!(matches.downcast_ref::<u32>(), Some(&[1, 2, 3][..]));
+        assert_eq!(matches.downcast_ref::<u64>(), None);
+    }
+
+    #[test]
+    fn empty() {
+        let matches = AnyMatches::new(Vec::<String>::new());
+        assert!(matches.is_empty());
+        assert_eq!(matches.downcast_ref::<String>(), Some(&[][..]));
     }
 }

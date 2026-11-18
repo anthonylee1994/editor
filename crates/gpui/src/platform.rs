@@ -35,7 +35,6 @@ pub use keystroke::*;
 use raw_window_handle::HasDisplayHandle;
 use raw_window_handle::HasWindowHandle;
 use rustc_hash::FxHashMap;
-use seahash::SeaHasher;
 use serde::Deserialize;
 use serde::Serialize;
 use smallvec::SmallVec;
@@ -1702,7 +1701,7 @@ impl ClipboardString {
 
     /// Compute a hash of the given text for clipboard change detection.
     pub fn text_hash(text: &str) -> u64 {
-        let mut hasher = SeaHasher::new();
+        let mut hasher = rustc_hash::FxHasher::default();
         text.hash(&mut hasher);
         hasher.finish()
     }
@@ -1718,6 +1717,14 @@ impl From<String> for ClipboardString {
 mod image_tests {
     use std::sync::Arc;
     use std::time::Duration;
+
+    use crate::ClipboardString;
+
+    #[test]
+    fn clipboard_text_hash_is_deterministic() {
+        assert_eq!(ClipboardString::text_hash("hello"), ClipboardString::text_hash("hello"));
+        assert_ne!(ClipboardString::text_hash("hello"), ClipboardString::text_hash("hellO"));
+    }
 
     use crate::Image;
     use crate::ImageFormat;

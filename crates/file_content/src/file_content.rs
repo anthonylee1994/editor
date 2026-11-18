@@ -7,6 +7,8 @@ use std::io::Read;
 use anyhow::Result;
 use async_macos::yield_now;
 use chardetng::EncodingDetector;
+use chardetng::Iso2022JpDetection;
+use chardetng::Utf8Detection;
 use encoding_rs::CoderResult;
 use encoding_rs::Decoder;
 use encoding_rs::Encoding;
@@ -78,7 +80,7 @@ pub fn decode_text(bytes: Vec<u8>) -> Result<DecodedText> {
 }
 
 pub async fn detect_encoding(reader: &mut (dyn Read + Send)) -> io::Result<&'static Encoding> {
-    let mut detector = EncodingDetector::new();
+    let mut detector = EncodingDetector::new(Iso2022JpDetection::Allow);
     let mut block = vec![0; DECODING_BLOCK_BYTES];
     let mut length = 0;
     loop {
@@ -88,7 +90,7 @@ pub async fn detect_encoding(reader: &mut (dyn Read + Send)) -> io::Result<&'sta
         };
         if read == 0 {
             detector.feed(&block[..length], true);
-            return Ok(detector.guess(None, true));
+            return Ok(detector.guess(None, Utf8Detection::Allow));
         }
         length += read;
         if length == block.len() {
@@ -306,9 +308,9 @@ fn decode_block(decoder: &mut Decoder, block: &[u8], last: bool, output: &mut Ve
 }
 
 fn decode_with_detected_encoding(bytes: Vec<u8>) -> DecodedText {
-    let mut detector = EncodingDetector::new();
+    let mut detector = EncodingDetector::new(Iso2022JpDetection::Allow);
     detector.feed(&bytes, true);
-    let encoding = detector.guess(None, true);
+    let encoding = detector.guess(None, Utf8Detection::Allow);
     let (text, _, _) = encoding.decode(&bytes);
     DecodedText { text: text.into_owned(), encoding, has_bom: false }
 }
@@ -458,4 +460,37 @@ fn read_u16(bytes: &[u8], offset: usize, little_endian: bool) -> Option<u16> {
         return Some(u16::from_le_bytes(pair));
     }
     Some(u16::from_be_bytes(pair))
+}
+
+#[cfg(test)]
+mod tests {
+    use encoding_rs::ISO_2022_JP;
+    use encoding_rs::SHIFT_JIS;
+
+    use super::*;
+
+    const JAPANESE: &str = "日本語のテキストです。これは文字コード判定のテストです。";
+
+    #[test]
+    fn decode_text_detects_iso_2022_jp() {
+        let (bytes, _, _) = ISO_2022_JP.encode(JAPANESE);
+        let decoded = decode_text(bytes.into_owned()).unwrap();
+        assert_eq!(decoded.encoding, ISO_2022_JP);
+        assert_eq!(decoded.text, JAPANESE);
+    }
+
+    #[test]
+    fn decode_with_detected_encoding_detects_shift_jis() {
+        let (bytes, _, _) = SHIFT_JIS.encode(JAPANESE);
+        let decoded = decode_with_detected_encoding(bytes.into_owned());
+        assert_eq!(decoded.encoding, SHIFT_JIS);
+        assert_eq!(decoded.text, JAPANESE);
+    }
+
+    #[test]
+    fn decode_with_detected_encoding_allows_utf8() {
+        let decoded = decode_with_detected_encoding(JAPANESE.as_bytes().to_vec());
+        assert_eq!(decoded.encoding, UTF_8);
+        assert_eq!(decoded.text, JAPANESE);
+    }
 }

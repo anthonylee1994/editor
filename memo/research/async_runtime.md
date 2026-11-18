@@ -57,7 +57,8 @@ stable, so there is no "latest API" to chase.
   (`crates/util/src/command/darwin.rs`) was already gone.
 - async-task (zed fork `015845a`, waker vtable identity fix): upstream merged
   the same fix as smol-rs/async-task#108 (`41fd335`, 2026-11-14), not released
-  yet. The patch now points at that upstream commit; delete it on 4.7.2.
+  yet. The patch now points at upstream head (`3aea7f5`, 2026-11-14, adds
+  `Runnable::is_cancelled`); delete it on 4.7.2.
 
 ## Done 2026-11-16: below smol, onto GCD
 

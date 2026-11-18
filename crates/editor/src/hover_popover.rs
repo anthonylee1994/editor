@@ -927,7 +927,10 @@ fn parse_file_link(link: &str) -> Option<(PathBuf, Option<String>)> {
     let path = uri.to_file_path().unwrap_or_else(|()| {
         let encoded = uri.path();
 
-        urlencoding::decode(encoded).map(Cow::into_owned).map_or_else(|_| PathBuf::from(encoded), PathBuf::from)
+        percent_encoding::percent_decode_str(encoded)
+            .decode_utf8()
+            .map(Cow::into_owned)
+            .map_or_else(|_| PathBuf::from(encoded), PathBuf::from)
     });
 
     Some((path, fragment))
@@ -1407,4 +1410,23 @@ fn hide_popovers(editor: &mut Editor, cx: &mut Context<Editor>) -> bool {
     }
 
     did_hide
+}
+
+#[cfg(test)]
+mod parse_file_link_tests {
+    use std::path::PathBuf;
+
+    use super::parse_file_link;
+
+    #[test]
+    fn decodes_percent_encoded_path_and_keeps_fragment() {
+        let (path, fragment) = parse_file_link("file:///tmp/a%20b.rs#L3").unwrap();
+        assert_eq!(path, PathBuf::from("/tmp/a b.rs"));
+        assert_eq!(fragment.as_deref(), Some("L3"));
+    }
+
+    #[test]
+    fn rejects_non_file_scheme() {
+        assert!(parse_file_link("https://example.com/a.rs").is_none());
+    }
 }

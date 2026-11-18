@@ -12,6 +12,8 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::task::Context;
 use std::task::Poll;
+use std::task::Wake;
+use std::task::Waker;
 use std::thread;
 use std::thread::ThreadId;
 use std::time::Duration;
@@ -234,7 +236,7 @@ impl BackgroundExecutor {
 
     /// How many CPUs are available to the dispatcher.
     pub fn num_cpus(&self) -> usize {
-        num_cpus::get()
+        std::thread::available_parallelism().map_or(1, std::num::NonZero::get)
     }
 
     /// Whether we're on the main thread.
@@ -284,22 +286,38 @@ impl ForegroundExecutor {
 }
 
 /// Polls `future` on the current thread, parking between wakes, until it completes or `deadline` passes.
-fn block<F: Future>(mut future: Pin<&mut F>, deadline: Option<Instant>) -> Option<F::Output> {
-    let parker = parking::Parker::new();
-    let unparker = parker.unparker();
-    let waker = waker_fn::waker_fn(move || {
-        unparker.unpark();
-    });
+pub(crate) fn block<F: Future>(mut future: Pin<&mut F>, deadline: Option<Instant>) -> Option<F::Output> {
+    let waker = Waker::from(Arc::new(ThreadWaker(thread::current())));
     let mut cx = Context::from_waker(&waker);
     loop {
         if let Poll::Ready(output) = future.as_mut().poll(&mut cx) {
             return Some(output);
         }
+        // `park` may wake spuriously or from an unpark meant for an earlier
+        // poll; either way the loop just polls again.
         match deadline {
-            Some(deadline) if !parker.park_deadline(deadline) && deadline <= Instant::now() => return None,
-            Some(_) => (),
-            None => parker.park(),
+            Some(deadline) => {
+                let now = Instant::now();
+                if deadline <= now {
+                    return None;
+                }
+                thread::park_timeout(deadline - now);
+            }
+            None => thread::park(),
         }
+    }
+}
+
+/// Wakes a thread blocked in [`block`].
+struct ThreadWaker(thread::Thread);
+
+impl Wake for ThreadWaker {
+    fn wake(self: Arc<Self>) {
+        self.0.unpark();
+    }
+
+    fn wake_by_ref(self: &Arc<Self>) {
+        self.0.unpark();
     }
 }
 
@@ -440,7 +458,38 @@ mod tests {
     use std::sync::atomic::AtomicUsize;
     use std::sync::atomic::Ordering;
 
+    use futures::channel::oneshot;
+
     use super::*;
+
+    #[test]
+    fn block_returns_ready_future() {
+        assert_eq!(block(std::pin::pin!(async { 7 }), None), Some(7));
+    }
+
+    #[test]
+    fn block_wakes_on_cross_thread_completion() {
+        let (tx, rx) = oneshot::channel();
+        let sender = thread::spawn(move || {
+            thread::sleep(Duration::from_millis(20));
+            tx.send(5).unwrap();
+        });
+        assert_eq!(block(std::pin::pin!(rx), None), Some(Ok(5)));
+        sender.join().unwrap();
+    }
+
+    #[test]
+    fn block_times_out_on_pending_future() {
+        let start = Instant::now();
+        let result = block(std::pin::pin!(std::future::pending::<()>()), Some(start + Duration::from_millis(20)));
+        assert_eq!(result, None);
+        assert!(start.elapsed() >= Duration::from_millis(20));
+    }
+
+    #[test]
+    fn util_block_on_completes() {
+        assert_eq!(crate::util::block_on(async { 3 }), 3);
+    }
 
     /// Runs background work on fresh threads and queues main-thread work until `run_main`.
     #[derive(Default)]

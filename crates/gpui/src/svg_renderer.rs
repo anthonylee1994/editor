@@ -5,6 +5,7 @@ use std::sync::LazyLock;
 use image::Frame;
 use resvg::tiny_skia::Pixmap;
 use resvg::tiny_skia::Transform;
+use skrifa::MetadataProvider as _;
 use smallvec::SmallVec;
 use usvg::fontdb::Database;
 use usvg::fontdb::Family;
@@ -33,7 +34,7 @@ fn is_emoji_presentation(c: char) -> bool {
 
 fn font_has_char(db: &Database, id: ID, ch: char) -> bool {
     db.with_face_data(id, |font_data, face_index| {
-        ttf_parser::Face::parse(font_data, face_index).ok().and_then(|face| face.glyph_index(ch)).is_some()
+        skrifa::FontRef::from_index(font_data, face_index).is_ok_and(|font| font.charmap().map(ch).is_some())
     })
     .unwrap_or(false)
 }
@@ -243,4 +244,24 @@ fn rasterize_tree(tree: &usvg::Tree, size: SvgSize) -> Result<Pixmap, usvg::Erro
     resvg::render(tree, transform, &mut pixmap.as_mut());
 
     Ok(pixmap)
+}
+
+#[cfg(test)]
+mod tests {
+    use usvg::fontdb::Database;
+    use usvg::fontdb::Family;
+    use usvg::fontdb::Query;
+
+    use super::font_has_char;
+
+    #[test]
+    fn font_has_char_checks_cmap() {
+        let mut db = Database::new();
+        db.load_system_fonts();
+        let id = db
+            .query(&Query { families: &[Family::Name("Apple Color Emoji")], ..Query::default() })
+            .expect("Apple Color Emoji is installed on macOS");
+        assert!(font_has_char(&db, id, '😀'));
+        assert!(!font_has_char(&db, id, '\u{e000}'));
+    }
 }

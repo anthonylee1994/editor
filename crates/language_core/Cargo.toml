@@ -18,7 +18,7 @@ rustc-hash.workspace = true
 serde = { workspace = true, features = ["derive"] }
 smallvec.workspace = true
 strum.workspace = true
-toml = { version = "0.9", default-features = false, features = ["parse", "serde", "std"] }
+toml = { version = "1.2", default-features = false, features = ["parse", "serde", "std"] }
 tree-sitter.workspace = true
 
 [lints]

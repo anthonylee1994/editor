@@ -88,7 +88,7 @@ impl PtyProcessInfo {
         // retaining one open procfs handle per process for the lifetime of the
         // terminal (#58651). Refresh only the spawned child so that
         // `kill_child_process` works before the first foreground refresh.
-        let mut system = System::new();
+        let mut system = System::new().expect("System::new is infallible on macOS");
         system.refresh_processes_specifics(
             ProcessesToUpdate::Some(&[pid_getter.fallback_pid()]),
             true,
@@ -118,7 +118,7 @@ impl PtyProcessInfo {
         // accumulate for as long as this terminal lives (#58651). Rebuild the `System` whenever
         // the foreground process changes to keep the map bounded.
         if self.last_foreground_pid.lock().replace(pid) != Some(pid) {
-            *system = System::new();
+            *system = System::new().expect("System::new is infallible on macOS");
         }
         let pids = [pid, fallback_pid];
         let pids = if pid == fallback_pid { &pids[..1] } else { &pids[..] };

@@ -925,7 +925,7 @@ fn open_preview_url(
     window: &mut Window,
     cx: &mut App,
 ) {
-    let decoded_path = urlencoding::decode(&url).unwrap_or_else(|_| Cow::Borrowed(&url));
+    let decoded_path = percent_encoding::percent_decode_str(&url).decode_utf8().unwrap_or_else(|_| Cow::Borrowed(&url));
 
     // Only `://` URLs skip local handling (a scheme check would misclassify `main.rs:2`); ambiguous links like `tel:123` are tried as files first, then fall back to the URL handler.
     if !decoded_path.contains("://") {
@@ -1120,7 +1120,9 @@ fn resolve_preview_image(
         return None;
     }
 
-    let decoded = urlencoding::decode(dest_url).map_or_else(|_| dest_url.to_owned(), |x| x.into_owned());
+    let decoded = percent_encoding::percent_decode_str(dest_url)
+        .decode_utf8()
+        .map_or_else(|_| dest_url.to_owned(), |x| x.into_owned());
     let workspace_relative_path = ['/', '\\'].iter().find_map(|prefix| decoded.strip_prefix(*prefix));
 
     if let (Some(project), Some(source_project_path)) = (project, source_project_path) {

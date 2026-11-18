@@ -23,15 +23,13 @@ itertools.workspace = true
 log.workspace = true
 lru.workspace = true
 lyon = "1.0"
-num_cpus = "1.13"
-parking = "2.0.0"
 parking_lot.workspace = true
 pin-project = "1.1.10"
 raw-window-handle.workspace = true
 refineable.workspace = true
 regex = { workspace = true, default-features = true }
 resvg = {
-  version = "0.48.1",
+  version = "0.50",
   default-features = false,
   features = [
     "memmap-fonts",
@@ -41,7 +39,6 @@ resvg = {
   ]
 }
 rustc-hash.workspace = true
-seahash = "4.1"
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 slotmap.workspace = true
@@ -49,7 +46,7 @@ smallvec.workspace = true
 strum.workspace = true
 sum_tree.workspace = true
 taffy = {
-  version = "=0.13.0",
+  version = "0.15",
   default-features = false,
   features = [
     "block_layout",
@@ -62,10 +59,9 @@ taffy = {
   ]
 }
 thiserror.workspace = true
-ttf-parser = "0.25"
+skrifa = { version = "0.49", default-features = false, features = ["std"] }
 usvg.workspace = true
 uuid = { workspace = true, features = ["v4"] }
-waker-fn = "1.2.0"
 
 [lints]
 workspace = true

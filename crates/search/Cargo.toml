@@ -8,7 +8,6 @@ path = "src/search.rs"
 
 [dependencies]
 async_macos.workspace = true
-any_vec.workspace = true
 anyhow.workspace = true
 bitflags.workspace = true
 ed_actions.workspace = true

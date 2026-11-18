@@ -5,16 +5,11 @@ use quote::quote;
 use syn::DeriveInput;
 use syn::Field;
 use syn::FieldsNamed;
-use syn::PredicateType;
-use syn::TraitBound;
 use syn::Type;
-use syn::TypeParamBound;
 use syn::WhereClause;
 use syn::WherePredicate;
 use syn::parse_macro_input;
 use syn::parse_quote;
-use syn::punctuated::Punctuated;
-use syn::token::Colon;
 use syn::token::Where;
 
 #[proc_macro_derive(Refineable, attributes(refineable))]
@@ -71,27 +66,8 @@ pub fn derive_refineable(input: TokenStream) -> TokenStream {
         .collect();
 
     // Create trait bound that each wrapped type must implement Clone
-    let type_param_bounds: Vec<_> = wrapped_types
-        .iter()
-        .map(|ty| {
-            WherePredicate::Type(PredicateType {
-                lifetimes: None,
-                bounded_ty: ty.clone(),
-                colon_token: Colon::default(),
-                bounds: {
-                    let mut punctuated = Punctuated::new();
-                    punctuated.push_value(TypeParamBound::Trait(TraitBound {
-                        paren_token: None,
-                        modifier: syn::TraitBoundModifier::None,
-                        lifetimes: None,
-                        path: parse_quote!(Clone),
-                    }));
-
-                    punctuated
-                },
-            })
-        })
-        .collect();
+    let type_param_bounds: Vec<_> =
+        wrapped_types.iter().map(|ty| -> WherePredicate { parse_quote!(#ty: Clone) }).collect();
 
     // Append to where_clause or create a new one if it doesn't exist
     let where_clause = match where_clause.cloned() {
